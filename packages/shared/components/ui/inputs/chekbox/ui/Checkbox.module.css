@@ -1,0 +1,47 @@
+.formGroupCheckbox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.checkboxInput {
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  min-height: 20px;
+  border-radius: 50%;
+  border: 1px solid rgba(216, 218, 220, 1);
+  appearance: none;
+  background-color: white;
+  cursor: pointer;
+  box-sizing: border-box;
+  position: relative;
+}
+
+.checkboxInput:checked {
+  background-color: rgba(16, 98, 234, 1);
+  border-color: rgba(16, 98, 234, 1);
+}
+
+.checkboxInput:checked::after {
+  content: '✔';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 12px;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.labelText {
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 15px;
+  color: var(--text-black);
+  cursor: pointer;
+}

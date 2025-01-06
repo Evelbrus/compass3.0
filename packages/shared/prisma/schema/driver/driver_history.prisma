@@ -1,0 +1,24 @@
+enum DriverEventType {
+  OrderCompleted @map("order_completed") // Выполненный заказ
+  FineIssued     @map("fine_issued") // Выписан штраф
+  BonusReceived  @map("bonus_received") // Получен бонус
+  Other          @map("other") // Другое
+}
+
+model DriverHistory {
+  uuid        String          @id @default(uuid()) @map("uuid")
+  driverId    String          @map("driver_id")
+  driver      DriverProfile   @relation("driver_to_driver_history", fields: [driverId], references: [uuid], onDelete: Cascade)
+  eventType   DriverEventType @map("event_type") // Тип события (например, "заказ", "штраф")
+  eventDate   DateTime        @default(now()) @map("event_date") // Дата события
+  orderId     String?         @map("order_id") // Ссылка на заказ (если событие связано с заказом)
+  orderAmount Float?          @map("order_amount") // Сумма заработка за заказ
+  fineAmount  Float?          @map("fine_amount") // Сумма штрафа (если применимо)
+  fineReason  String?         @map("fine_reason") // Причина штрафа (если применимо)
+  totalOrders Int?            @map("total_orders") // Количество выполненных заказов
+  totalFines  Int?            @map("total_fines") // Количество штрафов
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+
+  @@map("driver_history")
+}

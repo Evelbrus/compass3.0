@@ -1,0 +1,26 @@
+enum ClientType {
+  Regular
+  Corporate
+  None      @map("none")
+}
+
+model Tariff {
+  uuid                       String                  @id @default(uuid()) @map("uuid")
+  name                       String                  @map("name")
+  clientType                 ClientType              @map("client_type")
+  vehicleTypes               VehicleType[]           @map("vehicle_types")
+  description                String?
+  rateType                   RateType                @map("rate_type")
+  additionalPointPrice       Int                     @map("additional_point_price")
+  freeWaitTimeBishkek        Int                     @map("free_wait_time_bishkek")
+  pricePerMinuteAfterBishkek Int                     @map("price_per_minute_after_bishkek")
+  freeWaitTimeAirport        Int                     @map("free_wait_time_airport")
+  pricePerMinuteAfterAirport Int                     @map("price_per_minute_after_airport")
+  Order                      Order[]                 @relation("tariffs")
+  tariffAdditionalServices   TariffOnService[]       @relation("TariffToTariffOnService")
+  tariffOnServiceLevels      TariffOnServiceLevels[] @relation("TariffToTariffOnServiceLevels")
+  createdAt                  DateTime                @default(now()) @map("created_at")
+  updatedAt                  DateTime                @updatedAt @map("updated_at")
+
+  @@map("tariffs")
+}

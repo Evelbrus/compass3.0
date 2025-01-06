@@ -1,0 +1,14 @@
+# Установить LF для всех файлов
+* text=auto
+
+# Принудительно установить LF для файлов .ts, .tsx, .js, .jsx и .json
+*.ts text eol=lf
+*.tsx text eol=lf
+*.js text eol=lf
+*.jsx text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+
+# Принудительно установить CRLF для файлов, требующих окончания строк в Windows
+*.bat text eol=crlf
+*.ps1 text eol=crlf

@@ -1,0 +1,11 @@
+model OrderOption {
+  uuid String @id @default(uuid()) @map("uuid")
+
+  orderId  String  @map("order_id")
+  option   Option  @relation("order_option_options", fields: [optionId], references: [uuid], onDelete: Cascade)
+  optionId String  @map("option_id")
+  price    Decimal @map("price")
+
+  @@unique([orderId, optionId])
+  @@map("order_options")
+}

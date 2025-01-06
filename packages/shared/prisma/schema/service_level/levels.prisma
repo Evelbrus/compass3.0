@@ -1,0 +1,20 @@
+enum ServiceLevels {
+  Economy
+  Business
+  VIP
+}
+
+model ServiceLevel {
+  uuid        String        @id @default(uuid()) @map("uuid")
+  name        String        @map("name")
+  serviceType ServiceLevels @map("service_type")
+  price       Int           @map("price")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  vehicles vehicle_on_service_levels[] @relation("ServiceLevelVehicle")
+  tariffs  TariffOnServiceLevels[]     @relation("TariffOnServiceLevelsToServiceLevels")
+
+  @@map("service_levels")
+}

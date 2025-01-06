@@ -1,0 +1,24 @@
+services:
+  postgresql-db-ailine:
+    image: postgres:16.2
+    environment:
+      - POSTGRES_URL=postgresql://psql_user:1@postgresql-db:5432/db
+      - POSTGRES_USER=psql_user
+      - POSTGRES_PASSWORD=MyS3cureP@ssw0rd!2024
+      - POSTGRES_DB=db
+    volumes:
+      - ./persistentdata/db:/var/lib/postgresql/data
+      - ./persistentdata/backups:/backups
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    ports:
+      - '5434:5432'
+    restart: always
+    networks:
+      - app-network
+
+volumes:
+  www-html:
+
+networks:
+  app-network:
+    driver: bridge

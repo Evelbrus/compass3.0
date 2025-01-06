@@ -1,0 +1,10 @@
+datasource db {
+  provider = "postgresql"
+  url      = "postgresql://psql_user_compass:1@localhost:5432/compass_1"
+}
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["prismaSchemaFolder", "driverAdapters", "postgresqlExtensions", "relationJoins", "views"]
+  schema_folder   = "./schema"
+}

@@ -1,0 +1,20 @@
+services:
+  nextjs:
+    image: node:20-alpine3.19
+    working_dir: /app
+    volumes:
+      - .:/app
+    ports:
+      - '3009:3009'
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_BASE_URL: https://matrixkg.com/
+      NEXT_PUBLIC_BACKEND_URL: https://91.213.233.161:8080
+      JWT_SECRET: your-secret-key
+    command: sh -c "yarn web"
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge

@@ -1,0 +1,38 @@
+enum UserRole {
+  Client
+  ClientCorp
+  Driver
+  Operator
+  Admin
+  None       @map("none")
+}
+
+enum Gender {
+  Male
+  Female
+  None   @map("none")
+}
+
+model User {
+  uuid             String          @id @default(uuid()) @map("uuid")
+  email            String          @unique @map("email")
+  password         String          @map("password")
+  role             UserRole        @map("role")
+  availability     Boolean         @default(false) @map("availability")
+  driverProfileId  String?         @unique @map("driver_profile_id")
+  driverProfile    DriverProfile?  @relation("user_to_driver_profile")
+  companyProfileId String?
+  companyProfile   CompanyProfile? @relation("user_to_company_profile")
+  orders           Order[]         @relation("created_orders")
+
+  fullName         String  @map("full_name")
+  phone            String  @map("phone")
+  gender           Gender  @map("gender")
+  address          String? @map("address")
+  profilePhotoPath String? @map("profile_photo_path")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("users")
+}

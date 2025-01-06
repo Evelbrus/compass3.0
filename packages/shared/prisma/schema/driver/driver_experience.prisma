@@ -1,0 +1,11 @@
+model DriverExperience {
+  uuid            String         @id @default(uuid()) @map("uuid")
+  from            DateTime // Дата начала работы
+  to              DateTime // Дата окончания работы
+  position        String // Должность
+  companyName     String // Название компании
+  driverProfile   DriverProfile? @relation("driver_experience", fields: [driverProfileId], references: [uuid], onDelete: SetNull) // Связь с профилем водителя
+  driverProfileId String? // Идентификатор профиля водителя
+
+  @@map("driver_experience")
+}

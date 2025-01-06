@@ -1,0 +1,16 @@
+model CompanyProfile {
+  uuid        String  @id @default(uuid()) @map("uuid")
+  companyName String  @map("company_name")
+  address     String  @map("address")
+  phone       String  @map("phone")
+  email       String  @map("email")
+  website     String? @map("website")
+  companyPin  String? @map("company_pin")
+  User        User?   @relation("user_to_company_profile", fields: [userId], references: [uuid], onDelete: Cascade)
+  userId      String? @unique @map("user_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("company")
+}

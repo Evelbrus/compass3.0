@@ -1,0 +1,101 @@
+.radioInput {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  position: relative;
+  cursor: pointer;
+}
+
+.radioInput.right {
+  flex-direction: row-reverse; /* Если радиокнопка справа, меняем направление */
+}
+
+.radioHidden {
+  position: absolute;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  cursor: pointer;
+}
+
+.radioContent {
+  display: flex;
+  align-items: center;
+  border-radius: 12px;
+  transition: background-color 0.3s;
+  flex-grow: 1; /* Позволяет тексту занимать оставшееся пространство */
+  white-space: normal; /* Разрешаем перенос текста */
+  word-wrap: break-word; /* Разрываем текст на слова, если он слишком длинный */
+  overflow: visible; /* Убираем ограничения видимости */
+}
+
+@media (max-width: 768px) {
+  .radioContent p {
+    font-size: 14px;
+    line-height: 17.5px;
+  }
+}
+
+.customCheckbox {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: 1px solid #bdbdbd;
+  background-color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.3s;
+  position: relative;
+  flex-shrink: 0; /* Чекбокс остается фиксированного размера */
+}
+
+/* Позиция чекбокса */
+.radioInput.left .customCheckbox {
+  order: -1;
+}
+
+.radioInput.right .customCheckbox {
+  order: 1;
+}
+
+/* Фон и галочка при выборе */
+.radioHidden:checked ~ .customCheckbox {
+  background-color: var(--main-color);
+  border: none;
+}
+
+.customCheckbox::after {
+  content: '';
+  position: absolute;
+  display: none;
+  width: 8px;
+  height: 11px;
+  top: 5px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+/* Отображаем галочку при выборе */
+.radioHidden:checked ~ .customCheckbox::after {
+  display: block;
+}
+
+/* Галочка при выбранном состоянии */
+.checkboxTick {
+  content: '';
+  position: absolute;
+  width: 8px;
+  height: 11px;
+  top: 5px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+/* Стили для отображения ошибки */
+.radioInputError .customCheckbox {
+  border-color: red;
+}

@@ -1,0 +1,12 @@
+model AdditionalService {
+  uuid  String @id @default(uuid()) @map("uuid")
+  name  String @map("name")
+  price Int    @default(0) @map("price")
+
+  TariffOnService TariffOnService[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("additional_services")
+}

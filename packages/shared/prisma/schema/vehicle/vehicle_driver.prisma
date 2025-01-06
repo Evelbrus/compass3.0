@@ -1,0 +1,12 @@
+model VehicleDriver {
+  uuid           String         @id @default(uuid()) @map("uuid")
+  vehicle        Vehicle?       @relation("vehicle_to_vehicle_driver", fields: [vehicleId], references: [uuid], onDelete: Cascade)
+  vehicleId      String?        @map("vehicle_id")
+  driver         DriverProfile? @relation("driver_profile_to_vehicle_driver", fields: [driverId], references: [uuid], onDelete: Cascade)
+  driverId       String?        @map("driver_id")
+  assignmentDate DateTime       @map("assignment_date")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  @@map("vehicle_drivers")
+}

@@ -1,0 +1,11 @@
+model vehicle_on_service_levels {
+  uuid        String       @id @default(uuid()) @map("uuid")
+  vehicleUuid String
+  vehicle     Vehicle      @relation("VehicleServiceLevels", fields: [vehicleUuid], references: [uuid], onDelete: Cascade)
+  serviceUuid String
+  service     ServiceLevel @relation("ServiceLevelVehicle", fields: [serviceUuid], references: [uuid], onDelete: Cascade)
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  @@map("vehicle_on_service_levels")
+}

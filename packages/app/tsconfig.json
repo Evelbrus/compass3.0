@@ -1,0 +1,25 @@
+{
+  "extends": "../../tsconfig.base",
+  "include": [
+    "./**/*",
+    "../pages/**/*",
+    "../widgets/**/*",
+    "../features/**/*",
+    "../entities/**/*",
+    "../shared/**/*"
+  ],
+  "sideEffects": ["*.scss"],
+  "compilerOptions": {
+    "noEmit": true,
+    "composite": true,
+    "baseUrl": ".",
+    "paths": {
+      "@app/*": ["./*"],
+      "@pages/*": ["../pages/*"],
+      "@widgets/*": ["../widgets/*"],
+      "@features/*": ["../features/*"],
+      "@entities/*": ["../entities/*"],
+      "@shared/*": ["../shared/*"]
+    }
+  }
+}

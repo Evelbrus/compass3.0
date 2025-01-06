@@ -1,0 +1,114 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #ffffff; /* Основной цвет фона для страницы */
+  --background-label: rgba(255, 0, 0, 0.1);
+  --text-black: #171717; /* Основной цвет текста */
+  --text-white: #ffffff; /* Белый цвет текста (используется на кнопках с ярким фоном) */
+  --text-gray: #8080807f; /* Серый цвет текста (используется на кнопках с ярким фоном) */
+  --text-disabled: #aaaaaa; /* Цвет текста для отключенных (неактивных) элементов */
+  --button-primary: #006dfb; /* Цвет основной кнопки (например, для ключевого действия) */
+  --button-secondary: #444; /* Цвет второстепенной кнопки (используется для менее важных действий) */
+  --button-secondary-hover: #222; /* Цвет второстепенной кнопки (используется для менее важных действий) */
+  --date-secondary-focus: #f2f2f27f; /* Цвет второстепенной кнопки (используется для менее важных действий) */
+  --button-danger: #d9534f; /* Цвет кнопки для опасных действий (например, удаление) */
+  --button-success: #28a745; /* Цвет кнопки для успешных действий (например, подтверждение) */
+  --button-warning: #ffc107; /* Цвет кнопки для предупреждений или важных уведомлений */
+  --button-outline: transparent; /* Цвет фона для кнопок с контуром */
+  --button-hover: #0051b2; /* Цвет кнопок при наведении */
+  --button-disabled: #cccccc; /* Цвет для отключенных кнопок */
+  --main-color: #001659;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+:focus-visible {
+  outline: none; /* Убрать это правило */
+}
+
+/* Локальный сброс */
+.input-custom-reset:focus {
+  outline: none;
+  box-shadow: none;
+  border-color: #0051b2; /* Ваш цвет границы */
+  box-shadow: 0 0 0 2px #0051b2; /* Ваш эффект box-shadow */
+}
+
+body {
+  color: var(--text-black);
+  background: var(--background);
+  font-family: Inter, sans-serif;
+}
+
+.ease-custom {
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-property: opacity;
+  transition-duration: 1s;
+}
+
+/* Базовый стиль для иконок */
+.iconSvg {
+  transition: filter 0.3s ease;
+  /* Исходный цвет (черный) */
+  filter: brightness(0) saturate(100%);
+}
+
+/* Цвет иконки при наведении (синий, более яркий) */
+.iconSvg:hover {
+  filter: brightness(0) saturate(100%) invert(27%) sepia(98%) saturate(2000%) hue-rotate(210deg)
+    brightness(105%) contrast(100%);
+}
+
+/* Начальный цвет (серый) */
+.button-hover-icon .icon img {
+  transition: filter 0.3s ease;
+  filter: brightness(0) saturate(100%) invert(51%) sepia(0%) saturate(0%) hue-rotate(0deg)
+    brightness(93%) contrast(89%);
+}
+
+/* Изменение цвета при наведении, фокусе и активном состоянии (черный) */
+.button-hover-icon:hover .icon img,
+.button-hover-icon:focus .icon img,
+.button-hover-icon.is-active .icon img {
+  filter: brightness(0) saturate(100%) invert(0%) sepia(0%) saturate(0%) hue-rotate(0deg)
+    brightness(0%) contrast(100%);
+}
+
+.react-datepicker-wrapper {
+  width: 100%;
+  display: flex;
+}
+
+.custom-scroll::-webkit-scrollbar {
+  height: 5px;
+  width: 10px;
+  border-radius: 50px;
+}
+
+.custom-scroll::-webkit-scrollbar-track {
+  background: #eee;
+}
+
+.custom-scroll::-webkit-scrollbar-thumb {
+  background-color: #999;
+  border-radius: 50px;
+}
+
+.no-select {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+.react-datepicker__input-container {
+  width: 100%;
+}

@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "noUncheckedIndexedAccess": true,
+    "paths": {
+      "app/*": ["./packages/app/*"],
+      "pages/*": ["./packages/pages/*"],
+      "widgets/*": ["./packages/widgets/*"],
+      "entities/*": ["./packages/entities/*"],
+      "features/*": ["./packages/features/*"],
+      "shared/*": ["./packages/shared/*"]
+    }
+  },
+  "extends": "./tsconfig.base"
+}

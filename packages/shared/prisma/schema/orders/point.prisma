@@ -1,0 +1,12 @@
+model Point {
+  uuid      String   @id @default(uuid()) @map("uuid")
+  address   String   @unique @map("address")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  basePrice Decimal  @map("base_price")
+
+  departureOrders Order[] @relation("departure_orders")
+  arrivalOrders   Order[] @relation("arrival_orders")
+
+  @@map("points")
+}

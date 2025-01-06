@@ -1,0 +1,4 @@
+{
+  "./**/*.{ts,tsx,js,jsx}": ["yarn prettier", "yarn lint:ts:fix"],
+  "*.scss": ["yarn stylelint --fix"]
+}
