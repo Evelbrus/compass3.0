@@ -3,6 +3,7 @@ import { PrismaClient, User, UserRole } from '@prisma/client';
 import debug from 'debug';
 import { CreateUserData } from '@shared/prisma/interface/users/interface';
 import { v4 as uuidv4 } from 'uuid';
+import bcrypt from 'bcrypt';
 
 const log = debug('app:users');
 const prisma = new PrismaClient({
@@ -10,32 +11,41 @@ const prisma = new PrismaClient({
 });
 
 export async function POST(req: Request) {
-  const data: CreateUserData = await req.json();
-
-  const {
-    email,
-    password,
-    role,
-    availability,
-    fullName,
-    phone,
-    gender,
-    address,
-    profilePhotoPath,
-    companyProfile,
-    driverProfile,
-  } = data;
-
-  log('Received data:', data);
-
   try {
+    const data: CreateUserData = await req.json();
+
+    const {
+      email,
+      password,
+      role,
+      availability,
+      fullName,
+      phone,
+      gender,
+      address,
+      profilePhotoPath,
+      companyProfile,
+      driverProfile,
+    } = data;
+
+    log('Received data:', data);
+
+    // Валидация данных
+    if (!email || !password || !role || !fullName) {
+      throw new Error('Missing required fields');
+    }
+
+    // Хеширование пароля
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+
     const now = new Date();
     const uuid = uuidv4();
 
     const user = {
       uuid,
       email,
-      password,
+      password: hashedPassword, // Используем хешированный пароль
       role,
       availability,
       fullName,
@@ -53,6 +63,10 @@ export async function POST(req: Request) {
       createdUser = await prisma.user.create({
         data: user,
       });
+
+      if (!createdUser) {
+        throw new Error('User creation failed');
+      }
 
       if (role === 'ClientCorp' || role === 'Operator') {
         if (!companyProfile) {
@@ -74,6 +88,15 @@ export async function POST(req: Request) {
           data: {
             ...driverProfile,
             userId: createdUser.uuid,
+            driverExperience: {
+              create:
+                driverProfile.driverExperience?.map((experience) => ({
+                  companyName: experience.companyName,
+                  position: experience.position,
+                  from: new Date(experience.from),
+                  to: new Date(experience.to),
+                })) || [],
+            },
           },
         });
       } else if (role !== 'Client' && role !== 'Admin') {
@@ -83,14 +106,25 @@ export async function POST(req: Request) {
 
     log('Created user:', createdUser);
 
-    return NextResponse.json(createdUser);
+    return NextResponse.json({
+      status: 'success',
+      message: 'User created successfully',
+      uuid: createdUser!.uuid,
+    });
   } catch (error) {
     log('Error creating user:', error);
     if (error instanceof Error) {
       log('Error message:', error.message);
       log('Error stack:', error.stack);
     }
-    return NextResponse.json({ error: 'Unable to create user' }, { status: 500 });
+    return NextResponse.json(
+      {
+        status: 'error',
+        message: 'Unable to create user',
+        error: error instanceof Error ? error.message : 'Unknown error',
+      },
+      { status: 500 },
+    );
   } finally {
     await prisma.$disconnect();
     log('Disconnected from database');
@@ -165,12 +199,16 @@ export async function GET(req: Request) {
     log('Fetched users:', users);
 
     return NextResponse.json({
-      page: parsedParams.page,
-      per_page: parsedParams.per_page,
-      total,
-      totalAllRoles,
-      roleCounts,
-      users,
+      status: 'success',
+      message: 'Fetched users successfully',
+      data: {
+        page: parsedParams.page,
+        per_page: parsedParams.per_page,
+        total,
+        totalAllRoles,
+        roleCounts,
+        users,
+      },
     });
   } catch (error) {
     log('Error fetching users:', error);

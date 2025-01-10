@@ -1,12 +1,12 @@
 import React from 'react';
 import Header from '@shared/components/layout/header/ui/Header';
 import GradientBackground from '@shared/components/background/GradientBackground';
-import { UserProfile } from '@shared/lib/effector';
+import { CustomUser } from '@shared/lib/api/authOptions';
 
 interface ProviderProps {
   lang: string;
   isAuthenticated: boolean;
-  userProfile: UserProfile | null;
+  userProfile: CustomUser | null;
   children: React.ReactNode;
 }
 

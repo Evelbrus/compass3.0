@@ -10,7 +10,6 @@ export async function middleware(request: NextRequest) {
   const currentPath = request.nextUrl.pathname;
 
   try {
-    // Получение токена через next-auth
     const token = await getToken({ req: request as any, secret: process.env.NEXTAUTH_SECRET });
 
     const isAuthenticated = !!token;

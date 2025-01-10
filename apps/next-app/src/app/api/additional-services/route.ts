@@ -13,7 +13,7 @@ const prisma = new PrismaClient({
 export async function POST(req: Request) {
   try {
     const data: CreateAdditionalServiceData = await req.json();
-    const { name, price } = data;
+    const { name } = data;
 
     log('Received data:', data);
 
@@ -23,7 +23,6 @@ export async function POST(req: Request) {
     const additionalService = {
       uuid,
       name,
-      price,
       createdAt: now,
       updatedAt: now,
     };
@@ -54,8 +53,7 @@ export async function GET(req: Request) {
   const parsedParams = {
     page: parseInt(searchParams.get('page') || '1', 10),
     per_page: parseInt(searchParams.get('per_page') || '10', 10),
-    sort_by:
-      (searchParams.get('sort_by') as 'name' | 'price' | 'createdAt' | 'updatedAt') || 'createdAt',
+    sort_by: (searchParams.get('sort_by') as 'name' | 'createdAt' | 'updatedAt') || 'createdAt',
     sort_order: (searchParams.get('sort_order') as 'asc' | 'desc') || 'asc',
   };
 
@@ -75,10 +73,14 @@ export async function GET(req: Request) {
     log('Fetched additional services:', additionalServices);
 
     return NextResponse.json({
-      page: parsedParams.page,
-      per_page: parsedParams.per_page,
-      total,
-      additionalServices,
+      status: 'success',
+      message: 'Fetched additional-services successfully',
+      data: {
+        page: parsedParams.page,
+        per_page: parsedParams.per_page,
+        total,
+        additionalServices,
+      },
     });
   } catch (error) {
     log('Error fetching additional services:', error);

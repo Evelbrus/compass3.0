@@ -1,4 +1,4 @@
-import { Citizenship, RateType, IdentityDocument, ChangingDriver, Status } from '@prisma/client';
+import { Citizenship, IdentityDocument, ChangingDriver, Status } from '@prisma/client';
 
 export const driverTypeOptions = [
   { value: 'compassTransfer', label: 'Компасс трансфер' },
@@ -8,11 +8,6 @@ export const driverTypeOptions = [
 export const citizenshipOptions = [
   { label: 'Гражданство РФ', value: 'RU' as Citizenship },
   { label: 'Гражданство Кыргызстана', value: 'KG' as Citizenship },
-];
-
-export const rateTypeOptions = [
-  { label: 'Почасовая', value: 'Hourly' as RateType },
-  { label: 'Фиксированная', value: 'Fixed' as RateType },
 ];
 
 export const identityDocumentOptions = [

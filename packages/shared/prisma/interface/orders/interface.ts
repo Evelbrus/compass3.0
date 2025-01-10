@@ -1,19 +1,41 @@
-import { Order, User, Tariff, Point, OrderStatus } from '@prisma/client';
-import Decimal from 'decimal.js';
+import { Order, User, Tariff, Point } from '@prisma/client';
 
-//Расширенный тариф с дополнительными услугами и уровнями обслуживания
-export interface ExtendedTariff extends Tariff {
-  tariffAdditionalServices: { price: Decimal }[];
-  tariffOnServiceLevels: { service: { price: Decimal } }[];
+export interface TariffAdditionalService {
+  uuid: string;
+  name: string;
+  price: number;
 }
 
-//Тип данных для создания заказа
+export interface ExtendedTariff extends Tariff {
+  tariffAdditionalServices: TariffAdditionalService[];
+}
+
 export interface CreateOrderData
-  extends Omit<Order, 'uuid' | 'finalPrice' | 'createdAt' | 'updatedAt'> {
-  createdBy: User;
-  tariff: ExtendedTariff;
-  departurePoint: Point;
-  arrivalPoint: Point;
+  extends Omit<
+    Order,
+    | 'uuid'
+    | 'finalPrice'
+    | 'createdAt'
+    | 'updatedAt'
+    | 'tariff'
+    | 'createdById'
+    | 'basePrice'
+    | 'departurePointId'
+    | 'assignedDriverId'
+    | 'arrivalPointId'
+    | 'status'
+    | 'departureTime'
+    | 'intermediatePoints'
+  > {
+  createdBy: string;
+  tariffUuid: string;
+  departurePoint: string;
+  arrivalPoint: string;
+  assignedDriverId?: string | null;
+  intermediatePoints?: string[];
+  selectedServices?: string[];
+  basePrice?: number;
+  departureTime?: string;
 }
 
 //Тип данных для редактирования заказа

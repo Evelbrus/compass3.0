@@ -5,8 +5,14 @@ import { AdditionalService, Tariff } from '@prisma/client';
 import AnimatedComponent from '@shared/components/animated/CommonAnimated/AnimatedComponent';
 import { CheckIcon, CloseIcon } from '@shared/components/ui/icon';
 
+interface AdditionalServiceWithDetails extends Omit<AdditionalService, 'createdAt' | 'updatedAt'> {}
+
 interface TariffWithServices extends Tariff {
-  tariffAdditionalServices: AdditionalService[];
+  tariffAdditionalServices: {
+    service: AdditionalServiceWithDetails;
+    price: number;
+    isAvailable: boolean;
+  }[];
 }
 
 const AdditionalServicesTable: React.FC = () => {
@@ -26,7 +32,10 @@ const AdditionalServicesTable: React.FC = () => {
           throw new Error('Network response was not ok');
         }
         const data = await response.json();
-        setTariffs(data.tariffs);
+        if (data.status !== 'success') {
+          throw new Error(data.message || 'Failed to fetch tariffs');
+        }
+        setTariffs(data.data.tariffs);
       } catch (error) {
         console.error('Ошибка при получении тарифов:', error);
         setTariffsError('Ошибка при получении тарифов');
@@ -47,7 +56,7 @@ const AdditionalServicesTable: React.FC = () => {
           throw new Error('Network response was not ok');
         }
         const data = await response.json();
-        setAdditionalServices(data.additionalServices);
+        setAdditionalServices(data.data.additionalServices);
       } catch (error) {
         console.error('Ошибка при получении услуг:', error);
         setAdditionalServicesError('Ошибка при получении услуг');
@@ -108,17 +117,17 @@ const AdditionalServicesTable: React.FC = () => {
                 {additionalServices.map((service) => {
                   //Проверяем, активна ли услуга для текущего тарифа
                   const activeService = activeServices.find(
-                    (active) => active.uuid === service.uuid,
+                    (active) => active.service.uuid === service.uuid,
                   );
 
                   return (
                     <tr key={service.uuid} className="text-center">
                       <td className="px-4 py-2 border text-left">{service.name}</td>
                       <td className="px-4 py-2 border">
-                        {activeService ? `${activeService.price}₽` : `${service.price}₽`}
+                        {activeService ? `${activeService.price}₽` : 'Недоступно'}
                       </td>
                       <td className="px-4 py-2 border">
-                        {activeService ? (
+                        {activeService && activeService.isAvailable ? (
                           <CheckIcon className="text-green-500" />
                         ) : (
                           <CloseIcon className="text-red-500" />

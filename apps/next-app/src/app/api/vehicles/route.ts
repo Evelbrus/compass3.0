@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient, VehicleType, Color } from '@prisma/client';
+import { PrismaClient, ServiceLevels, Vehicle, VehicleDriver, VehicleType } from '@prisma/client';
 import debug from 'debug';
 import { CreateVehicleData } from '@shared/prisma/interface/vehicles/interface';
 import { v4 as uuidv4 } from 'uuid';
@@ -14,8 +14,9 @@ export async function GET(req: Request) {
   const parsedParams = {
     page: parseInt(searchParams.get('page') || '1', 10),
     per_page: parseInt(searchParams.get('per_page') || '10', 10),
-    vehicleType: searchParams.get('vehicleType') as VehicleType | null,
-    color: searchParams.get('color') as Color | null,
+    vehicleType: (searchParams.get('vehicleType') as VehicleType | 'all' | null) || null,
+    serviceLevel: searchParams.get('serviceLevel') as ServiceLevels | null,
+    color: searchParams.get('color') || null,
     availability: searchParams.get('availability') as 'true' | 'false' | null,
     sort_by:
       (searchParams.get('sort_by') as
@@ -35,9 +36,17 @@ export async function GET(req: Request) {
 
   try {
     //Создаем объект "where" для условий фильтрации
-    const where: { vehicleType?: VehicleType; color?: Color; isAvailable?: boolean } = {};
-    if (parsedParams.vehicleType) {
+    const where: {
+      vehicleType?: VehicleType;
+      serviceLevels?: ServiceLevels;
+      color?: string;
+      isAvailable?: boolean;
+    } = {};
+    if (parsedParams.vehicleType && parsedParams.vehicleType !== 'all') {
       where.vehicleType = parsedParams.vehicleType;
+    }
+    if (parsedParams.serviceLevel) {
+      where.serviceLevels = parsedParams.serviceLevel;
     }
     if (parsedParams.color) {
       where.color = parsedParams.color;
@@ -55,7 +64,7 @@ export async function GET(req: Request) {
         [parsedParams.sort_by === 'fullName'
           ? 'vehicleDrivers.driver.user.fullName'
           : parsedParams.sort_by === 'serviceType'
-            ? 'service_levels.service.serviceType'
+            ? 'serviceLevels'
             : parsedParams.sort_by]: parsedParams.sort_order,
       },
       include: {
@@ -73,21 +82,19 @@ export async function GET(req: Request) {
             },
           },
         },
-        service_levels: {
-          include: {
-            service: {
-              select: {
-                name: true,
-                serviceType: true,
-              },
-            },
-          },
-        },
       },
     });
 
     const total = await prisma.vehicle.count({ where });
     const totalAllVehicles = await prisma.vehicle.count();
+
+    //Получение количества автомобилей по типам
+    const vehicleTypeCounts = await prisma.vehicle.groupBy({
+      by: ['vehicleType'],
+      _count: {
+        vehicleType: true,
+      },
+    });
 
     log('Fetched vehicles:', vehicles);
 
@@ -104,22 +111,26 @@ export async function GET(req: Request) {
       photoPath: vehicle.photoPath,
       createdAt: vehicle.createdAt,
       updatedAt: vehicle.updatedAt,
-      drivers: vehicle.vehicleDrivers.map((vehicleDriver) => ({
+      drivers: vehicle.vehicleDrivers.map((vehicleDriver: any) => ({
+        uuid: vehicleDriver.driver?.uuid || null,
         fullName: vehicleDriver.driver?.user?.fullName || null,
         phone: vehicleDriver.driver?.user?.phone || null,
+        status: vehicleDriver.status?.status || null,
       })),
-      serviceLevels: vehicle.service_levels.map((serviceLevel) => ({
-        name: serviceLevel.service.name,
-        serviceType: serviceLevel.service.serviceType,
-      })),
+      serviceLevels: vehicle.serviceLevels,
     }));
 
     return NextResponse.json({
-      page: parsedParams.page,
-      per_page: parsedParams.per_page,
-      total,
-      totalAllVehicles,
-      vehicles: response,
+      status: 'success',
+      message: 'Fetched vehicles successfully',
+      data: {
+        page: parsedParams.page,
+        per_page: parsedParams.per_page,
+        total,
+        totalAllVehicles,
+        vehicleTypeCounts,
+        vehicles: response,
+      },
     });
   } catch (error) {
     log('Error fetching vehicles:', error);
@@ -127,7 +138,10 @@ export async function GET(req: Request) {
       log('Error message:', error.message);
       log('Error stack:', error.stack);
     }
-    return NextResponse.json({ error: 'Unable to fetch vehicles' }, { status: 500 });
+    return NextResponse.json(
+      { status: 'error', message: 'Unable to fetch vehicles', data: null },
+      { status: 500 },
+    );
   } finally {
     //Отключаемся от базы данных
     await prisma.$disconnect();
@@ -146,94 +160,118 @@ export async function POST(req: Request) {
     plateNumber,
     isAvailable,
     photoPath,
-    driverId,
-    serviceLevelId,
+    driverIds,
+    serviceLevels,
   } = data;
 
+  log('Received data:', data);
+
   //Валидация входных данных
-  if (!vehicleType || !brand || !model || !year || !color || !plateNumber || !serviceLevelId) {
+  if (
+    !vehicleType ||
+    !brand ||
+    !model ||
+    !year ||
+    !color ||
+    !plateNumber ||
+    !serviceLevels ||
+    serviceLevels.length === 0
+  ) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }
 
   try {
-    //Генерация текущей даты
     const now = new Date();
+    const uuid = uuidv4();
 
-    //Используем транзакцию для создания автомобиля и связанных записей
-    const result = await prisma.$transaction(async (prisma) => {
-      //Создаем новый автомобиль
-      const newVehicle = await prisma.vehicle.create({
-        data: {
-          vehicleType,
-          brand,
-          model,
-          year: new Date(year),
-          color,
-          plateNumber,
-          isAvailable: isAvailable ?? true,
-          photoPath,
-        },
+    const vehicle = {
+      uuid,
+      vehicleType,
+      brand,
+      model,
+      year,
+      color,
+      plateNumber,
+      isAvailable,
+      photoPath,
+      serviceLevels,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    let createdVehicle: Vehicle | null = null;
+    let createdVehicleDrivers: VehicleDriver[] = [];
+
+    await prisma.$transaction(async (transaction) => {
+      //Проверка на существование уникального plateNumber
+      const existingVehicle = await transaction.vehicle.findUnique({
+        where: { plateNumber },
       });
 
-      //Логирование нового автомобиля
-      log('New vehicle created:', newVehicle);
-
-      if (driverId) {
-        //Проверяем наличие водителя
-        const driverExists = await prisma.driverProfile.findUnique({
-          where: { uuid: driverId },
-        });
-
-        if (!driverExists) {
-          throw new Error(`Driver with ID ${driverId} does not exist`);
-        }
-
-        //Логирование перед созданием записи в таблице vehicleDriver
-        log('Creating VehicleDriver with vehicleId:', newVehicle.uuid, 'and driverId:', driverId);
-
-        //Создаем запись в таблице vehicleDriver с уникальным UUID
-        await prisma.vehicleDriver.create({
-          data: {
-            uuid: uuidv4(),
-            vehicleId: newVehicle.uuid,
-            driverId,
-            assignmentDate: now,
-          },
-        });
-
-        log('VehicleDriver created with vehicleId:', newVehicle.uuid, 'and driverId:', driverId);
+      if (existingVehicle) {
+        throw new Error(`Vehicle with plate number ${plateNumber} already exists`);
       }
 
-      //Создаем запись в таблице vehicle_on_service_levels с уникальным UUID
-      await prisma.vehicle_on_service_levels.create({
-        data: {
-          uuid: uuidv4(),
-          vehicleUuid: newVehicle.uuid,
-          serviceUuid: serviceLevelId,
-        },
+      createdVehicle = await transaction.vehicle.create({
+        data: vehicle,
       });
 
-      log(
-        'VehicleOnServiceLevels created with vehicleUuid:',
-        newVehicle.uuid,
-        'and serviceUuid:',
-        serviceLevelId,
-      );
+      if (!createdVehicle) {
+        throw new Error('Vehicle creation failed');
+      }
 
-      return newVehicle;
+      if (driverIds && driverIds.length > 0) {
+        for (const driverId of driverIds) {
+          const driverExists = await transaction.driverProfile.findUnique({
+            where: { uuid: driverId },
+          });
+
+          if (!driverExists) {
+            throw new Error(`Driver with ID ${driverId} does not exist`);
+          }
+
+          //Проверим, существует ли уже запись с таким driverId
+          const existingVehicleDriver = await transaction.vehicleDriver.findUnique({
+            where: { driverId },
+          });
+
+          if (existingVehicleDriver) {
+            throw new Error(
+              `Driver with ID ${driverId} is already assigned to vehicle with ID ${existingVehicleDriver.vehicleId}`,
+            );
+          }
+
+          const createdVehicleDriver = await transaction.vehicleDriver.create({
+            data: {
+              uuid: uuidv4(),
+              vehicleId: createdVehicle.uuid,
+              driverId,
+              assignmentDate: now,
+            },
+          });
+
+          createdVehicleDrivers.push(createdVehicleDriver);
+        }
+      }
     });
 
-    log('Created new vehicle:', result);
-    return NextResponse.json(result, { status: 201 });
+    log('Created vehicle:', createdVehicle);
+
+    return NextResponse.json({
+      status: 'success',
+      message: 'Vehicle created successfully',
+      vehicle: createdVehicle,
+      vehicleDrivers: createdVehicleDrivers,
+    });
   } catch (error) {
     log('Error creating vehicle:', error);
     if (error instanceof Error) {
       log('Error message:', error.message);
       log('Error stack:', error.stack);
+      return NextResponse.json({ status: 'error', message: error.message }, { status: 400 });
     }
-    return NextResponse.json({ error: 'Unable to create vehicle' }, { status: 500 });
+    return NextResponse.json({ status: 'error', message: 'Unknown error' }, { status: 500 });
   } finally {
-    //Отключаемся от базы данных
     await prisma.$disconnect();
     log('Disconnected from database');
   }

@@ -1,14 +1,14 @@
 import React from 'react';
 import Sidebar from '@shared/components/layout/sidebar/ui/Sidebar';
 import HeaderMain from '@app/provider/layout-provider/HeaderMain';
-import { UserProfile } from '@shared/lib/effector';
 import { UserRole } from '@prisma/client';
+import { CustomUser } from '@shared/lib/api/authOptions';
 
 interface ProviderProps {
   children: React.ReactNode;
   lang: string;
   isAuthenticated: boolean;
-  userProfile: UserProfile | null;
+  userProfile: CustomUser | null;
 }
 
 const ClientProvider: React.FC<ProviderProps> = ({

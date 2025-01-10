@@ -11,8 +11,9 @@ interface Params {
   uuid: string;
 }
 
-export async function GET(req: Request, { params }: { params: Params }) {
-  const { uuid } = params;
+export async function GET(req: Request, { params }: { params: Promise<Params> }) {
+  const resolvedParams = await params;
+  const { uuid } = resolvedParams;
 
   if (!uuid) {
     return NextResponse.json({ error: 'Missing required parameter: uuid' }, { status: 400 });
@@ -53,13 +54,10 @@ export async function GET(req: Request, { params }: { params: Params }) {
   }
 }
 
-// Обработка PUT запроса
-export async function PUT(req: Request, { params }: { params: Params }) {
-  const { uuid } = params;
+export async function PUT(req: Request, { params }: { params: Promise<Params> }) {
+  const resolvedParams = await params;
+  const { uuid } = resolvedParams;
 
-  console.log('uuidserver', uuid);
-
-  // Валидация входного параметра
   if (!uuid) {
     return NextResponse.json({ error: 'Missing required parameter: uuid' }, { status: 400 });
   }
@@ -73,7 +71,6 @@ export async function PUT(req: Request, { params }: { params: Params }) {
   }
 
   try {
-    // Обновление данных заказа по UUID
     const updatedOrder = await prisma.order.update({
       where: { uuid },
       data: {

@@ -1168,9 +1168,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@my/widgets@workspace:packages/widget":
+"@my/widgets@workspace:packages/widgets":
   version: 0.0.0-use.local
-  resolution: "@my/widgets@workspace:packages/widget"
+  resolution: "@my/widgets@workspace:packages/widgets"
   languageName: unknown
   linkType: soft
 
@@ -2857,6 +2857,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/ws@npm:^8":
+  version: 8.5.13
+  resolution: "@types/ws@npm:8.5.13"
+  dependencies:
+    "@types/node": "npm:*"
+  checksum: 10/21369beafa75c91ae3b00d3a2671c7408fceae1d492ca2abd5ac7c8c8bf4596d513c1599ebbddeae82c27c4a2d248976d0d714c4b3d34362b2ae35b964e2e637
+  languageName: node
+  linkType: hard
+
 "@types/zxcvbn@npm:^4":
   version: 4.4.5
   resolution: "@types/zxcvbn@npm:4.4.5"
@@ -3752,6 +3761,7 @@ __metadata:
     "@types/react": "npm:types-react@19.0.0-rc.1"
     "@types/react-dom": "npm:types-react-dom@19.0.0-rc.1"
     "@types/sanitize-html": "npm:^2"
+    "@types/ws": "npm:^8"
     "@types/zxcvbn": "npm:^4"
     autoprefixer: "npm:^10.4.20"
     axios: "npm:^1.7.7"
@@ -3802,6 +3812,7 @@ __metadata:
     typescript: "npm:^5.6.3"
     typescript-plugin-css-modules: "npm:^5.1.0"
     uuid: "npm:^11.0.3"
+    ws: "npm:^8.18.0"
     zod: "npm:^3.23.8"
     zxcvbn: "npm:^4.4.2"
   languageName: unknown
@@ -9981,6 +9992,21 @@ __metadata:
     imurmurhash: "npm:^0.1.4"
     signal-exit: "npm:^4.0.1"
   checksum: 10/648efddba54d478d0e4330ab6f239976df3b9752b123db5dc9405d9b5af768fa9d70ce60c52fdbe61d1200d24350bc4fbcbaf09288496c2be050de126bd95b7e
+  languageName: node
+  linkType: hard
+
+"ws@npm:^8.18.0":
+  version: 8.18.0
+  resolution: "ws@npm:8.18.0"
+  peerDependencies:
+    bufferutil: ^4.0.1
+    utf-8-validate: ">=5.0.2"
+  peerDependenciesMeta:
+    bufferutil:
+      optional: true
+    utf-8-validate:
+      optional: true
+  checksum: 10/70dfe53f23ff4368d46e4c0b1d4ca734db2c4149c6f68bc62cb16fc21f753c47b35fcc6e582f3bdfba0eaeb1c488cddab3c2255755a5c3eecb251431e42b3ff6
   languageName: node
   linkType: hard
 

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { Prisma, PrismaClient, User, UserRole } from '@prisma/client';
+import { Prisma, PrismaClient, User } from '@prisma/client';
 import debug from 'debug';
 
 const log = debug('app:update-user');
@@ -54,7 +54,7 @@ export async function PUT(req: Request) {
     const { uuid } = data as Params;
 
     if (!uuid) {
-      return NextResponse.json({ error: 'UUID is required' }, { status: 400 });
+      return NextResponse.json({ status: 'error', message: 'UUID is required' }, { status: 400 });
     }
 
     const {
@@ -96,7 +96,7 @@ export async function PUT(req: Request) {
         });
 
         //Обновление профиля компании или водителя в зависимости от роли
-        if (role === UserRole.ClientCorp || role === UserRole.Operator) {
+        if (role === 'ClientCorp' || role === 'Operator') {
           if (!companyProfile) {
             throw new Error('Company profile is required for ClientCorp and Operator roles');
           }
@@ -105,30 +105,63 @@ export async function PUT(req: Request) {
             where: { userId: uuid },
             data: companyProfile,
           });
-        } else if (role === UserRole.Driver) {
+        } else if (role === 'Driver') {
           if (!driverProfile) {
             throw new Error('Driver profile is required for Driver role');
           }
 
+          const { driverExperience, ...restDriverProfile } = driverProfile;
+
+          //Обновление профиля водителя
           await prisma.driverProfile.update({
             where: { userId: uuid },
-            data: driverProfile,
+            data: {
+              ...restDriverProfile,
+              driverExperience: {
+                deleteMany: {},
+                create:
+                  driverExperience?.map(
+                    (experience: {
+                      companyName: string;
+                      position: string;
+                      from: string;
+                      to: string;
+                    }) => ({
+                      companyName: experience.companyName,
+                      position: experience.position,
+                      from: new Date(experience.from),
+                      to: new Date(experience.to),
+                    }),
+                  ) || [],
+              },
+            },
           });
-        } else if (role !== UserRole.Client && role !== UserRole.Admin) {
+        } else if (role !== 'Client' && role !== 'Admin') {
           throw new Error('Invalid role');
         }
       });
 
       log('Updated user:', updatedUser);
 
-      return NextResponse.json(updatedUser);
+      return NextResponse.json({
+        status: 'success',
+        message: 'User updated successfully',
+        uuid: updatedUser!.uuid,
+      });
     } catch (error) {
       log('Error updating user:', error);
       if (error instanceof Error) {
         log('Error message:', error.message);
         log('Error stack:', error.stack);
       }
-      return NextResponse.json({ error: 'Unable to update user' }, { status: 500 });
+      return NextResponse.json(
+        {
+          status: 'error',
+          message: 'Unable to update user',
+          error: error instanceof Error ? error.message : 'Unknown error',
+        },
+        { status: 500 },
+      );
     } finally {
       await prisma.$disconnect();
       log('Disconnected from database');
@@ -139,16 +172,23 @@ export async function PUT(req: Request) {
       log('Error message:', error.message);
       log('Error stack:', error.stack);
     }
-    return NextResponse.json({ error: 'Invalid request data' }, { status: 400 });
+    return NextResponse.json({ status: 'error', message: 'Invalid request data' }, { status: 400 });
   }
 }
 
 //DELETE запрос для удаления пользователя по UUID
-export async function DELETE(request: Request, { params }: { params: { uuid: string } }) {
-  const { uuid } = await params;
-
+export async function DELETE(req: Request) {
   try {
-    //Выполняем удаление пользователя по его uuid
+    const { searchParams } = new URL(req.url);
+    const uuid = searchParams.get('uuid');
+
+    if (!uuid) {
+      return NextResponse.json({ error: 'UUID is required' }, { status: 400 });
+    }
+
+    log('Received UUID for deletion:', uuid);
+
+    //Удаление пользователя по UUID
     await prisma.user.delete({
       where: { uuid },
     });

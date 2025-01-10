@@ -1,5 +1,5 @@
 import React from 'react';
-import { UserRole, OrderStatus } from '@prisma/client';
+import { UserRole } from '@prisma/client';
 
 export interface Column<T, K extends keyof T> {
   header: string;
@@ -35,6 +35,8 @@ export interface TableVehicleRow {
   color: string;
   plateNumber: string;
   isAvailable: string;
+  vehicleInfo: { vehicleType: string; serviceLevels: string } | null;
+  driverInfo: { phone: string; fullName: string } | null;
   createdAt: string;
   updatedAt: string;
   actions: React.ReactNode;
@@ -58,8 +60,5 @@ export interface TableDriversRow {
   passportPhotoPath: string | null;
   createdAt: Date;
   updatedAt: Date;
-  totalOrders: number | null;
-  totalFines: number | null;
-  totalFineAmount: number | null;
   actions: React.ReactNode;
 }

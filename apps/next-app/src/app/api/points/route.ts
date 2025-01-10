@@ -37,10 +37,14 @@ export async function GET(req: Request) {
     log('Fetched points:', points);
 
     return NextResponse.json({
-      page: parsedParams.page,
-      per_page: parsedParams.per_page,
-      total,
-      points,
+      status: 'success',
+      message: 'Fetched point successfully',
+      data: {
+        page: parsedParams.page,
+        per_page: parsedParams.per_page,
+        total,
+        points,
+      },
     });
   } catch (error) {
     log('Error fetching points:', error);

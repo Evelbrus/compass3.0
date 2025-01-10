@@ -1,48 +1,48 @@
 enum Color {
-  Other
-  White
-  Silver
-  Gold
-  Black
-  Grey
-  Blue
-  Pink
-  Red
-  Orange
-  Brown
-  Green
+  Other  @map("other")
+  White  @map("white")
+  Silver @map("silver")
+  Gold   @map("gold")
+  Black  @map("black")
+  Grey   @map("grey")
+  Blue   @map("blue")
+  Pink   @map("pink")
+  Red    @map("red")
+  Orange @map("orange")
+  Brown  @map("brown")
+  Green  @map("green")
   None   @map("none")
 }
 
 enum VehicleType {
-  Coupe
-  Minivan
-  Sedan
-  SUV
-  Hatchback
-  Wagon
-  Van
-  Convertible
-  Pickup
-  Electric
-  Hybrid
-  None        @map("none")
+  Sedan    @map("sedan")
+  Minivan  @map("minivan")
+  Sprinter @map("sprinter")
+  Bus      @map("bus")
+  None     @map("none")
+}
+
+enum ServiceLevels {
+  Basic   @map("basic")
+  Premium @map("premium")
+  Vip     @map("vip")
+  None    @map("none")
 }
 
 model Vehicle {
-  uuid           String                      @id @default(uuid()) @map("uuid")
-  vehicleType    VehicleType                 @map("vehicle_type")
-  brand          String                      @map("brand")
-  model          String                      @map("model")
-  year           DateTime?                   @map("year")
-  color          Color                       @map("color")
-  plateNumber    String                      @unique @map("plate_number")
-  isAvailable    Boolean                     @default(true) @map("is_available")
-  photoPath      String?                     @map("photo_path")
-  vehicleDrivers VehicleDriver[]             @relation("vehicle_to_vehicle_driver")
-  createdAt      DateTime                    @default(now()) @map("created_at")
-  updatedAt      DateTime                    @updatedAt @map("updated_at")
-  service_levels vehicle_on_service_levels[] @relation("VehicleServiceLevels")
+  uuid           String          @id @default(uuid()) @map("uuid")
+  vehicleType    VehicleType     @map("vehicle_type")
+  brand          String          @map("brand")
+  model          String          @map("model")
+  year           DateTime?       @map("year")
+  color          String          @map("color")
+  plateNumber    String          @unique @map("plate_number")
+  isAvailable    Boolean         @default(true) @map("is_available")
+  photoPath      String?         @map("photo_path")
+  serviceLevels  ServiceLevels   @map("service_levels")
+  vehicleDrivers VehicleDriver[] @relation("vehicle_to_vehicle_driver")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
 
   @@map("vehicles")
 }

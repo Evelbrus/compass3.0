@@ -1,7 +1,6 @@
 model AdditionalService {
-  uuid  String @id @default(uuid()) @map("uuid")
-  name  String @map("name")
-  price Int    @default(0) @map("price")
+  uuid String @id @default(uuid()) @map("uuid")
+  name String @map("name")
 
   TariffOnService TariffOnService[]
 

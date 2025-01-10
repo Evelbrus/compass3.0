@@ -32,11 +32,6 @@ export async function GET(req: Request) {
             driver: true,
           },
         },
-        service_levels: {
-          include: {
-            service: true,
-          },
-        },
       },
     });
 
@@ -85,6 +80,7 @@ export async function PUT(req: Request) {
           plateNumber: updateData.plateNumber,
           isAvailable: updateData.isAvailable,
           photoPath: updateData.photoPath,
+          serviceLevels: updateData.serviceLevels,
         },
       });
 
@@ -100,19 +96,6 @@ export async function PUT(req: Request) {
             vehicleId: uuid,
             driverId: driverId,
             assignmentDate: new Date(),
-          })),
-        });
-      }
-
-      //Обновляем связанные уровни обслуживания
-      if (updateData.serviceLevelIds) {
-        //Удаляем старые записи об уровнях обслуживания
-        await prisma.vehicle_on_service_levels.deleteMany({ where: { vehicleUuid: uuid } });
-        //Создаем новые записи об уровнях обслуживания
-        await prisma.vehicle_on_service_levels.createMany({
-          data: updateData.serviceLevelIds.map((serviceLevelId) => ({
-            vehicleUuid: uuid,
-            serviceUuid: serviceLevelId,
           })),
         });
       }

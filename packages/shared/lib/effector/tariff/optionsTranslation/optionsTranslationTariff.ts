@@ -1,8 +1,3 @@
-export const clientTypeOptions = [
-  { value: 'Regular', label: 'Обычный' },
-  { value: 'Corporate', label: 'Корпоративный' },
-];
-
 export const serviceLevelOptions = [
   { value: 'Economy', label: 'Эконом' },
   { value: 'Business', label: 'Бизнес' },

@@ -1,30 +1,32 @@
 enum OrderStatus {
-  PENDING // Заказ создан и ожидает обработки
-  PLANNED // Заказ запланирован, водитель назначен
-  IN_PROGRESS // Поездка началась
-  COMPLETED // Заказ успешно завершён
-  CANCELLED // Заказ отменён
-  OVERDUE // Заказ не выполнен в установленное время
+  PENDING
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  OVERDUE
 }
 
 model Order {
-  uuid             String         @id @default(uuid()) @map("uuid")
-  createdById      String         @map("created_by_id")
-  createdBy        User           @relation("created_orders", fields: [createdById], references: [uuid], onDelete: Cascade)
-  tariffUuid       String         @map("tariff_id")
-  tariff           Tariff         @relation("tariffs", fields: [tariffUuid], references: [uuid], onDelete: Cascade)
-  departurePointId String         @map("departure_point_id")
-  departurePoint   Point          @relation("departure_orders", fields: [departurePointId], references: [uuid], onDelete: Cascade)
-  arrivalPointId   String         @map("arrival_point_id")
-  arrivalPoint     Point          @relation("arrival_orders", fields: [arrivalPointId], references: [uuid], onDelete: Cascade)
-  assignedDriverId String?        @map("assigned_driver_id")
-  assignedDriver   DriverProfile? @relation("assigned_orders", fields: [assignedDriverId], references: [uuid], onDelete: Cascade)
-  status           OrderStatus    @default(PENDING) @map("status")
-  basePrice        Decimal        @map("base_price")
-  finalPrice       Decimal?       @map("final_price")
-  departureTime    DateTime       @map("departure_time")
-  createdAt        DateTime       @default(now()) @map("created_at")
-  updatedAt        DateTime       @updatedAt @map("updated_at")
+  uuid                          String                           @id @default(uuid()) @map("uuid")
+  createdById                   String                           @map("created_by_id")
+  createdBy                     User                             @relation("created_orders", fields: [createdById], references: [uuid], onDelete: Cascade)
+  tariffUuid                    String                           @map("tariff_id")
+  tariff                        Tariff                           @relation("tariffs", fields: [tariffUuid], references: [uuid], onDelete: Cascade)
+  departurePointId              String                           @map("departure_point_id")
+  departurePoint                Point                            @relation("departure_orders", fields: [departurePointId], references: [uuid], onDelete: Cascade)
+  arrivalPointId                String                           @map("arrival_point_id")
+  arrivalPoint                  Point                            @relation("arrival_orders", fields: [arrivalPointId], references: [uuid], onDelete: Cascade)
+  assignedDriverId              String?                          @map("assigned_driver_id")
+  assignedDriver                DriverProfile?                   @relation("assigned_orders", fields: [assignedDriverId], references: [uuid], onDelete: Cascade)
+  status                        OrderStatus                      @default(PENDING) @map("status")
+  basePrice                     Decimal                          @map("base_price")
+  finalPrice                    Decimal?                         @map("final_price")
+  departureTime                 DateTime                         @map("departure_time")
+  createdAt                     DateTime                         @default(now()) @map("created_at")
+  updatedAt                     DateTime                         @updatedAt @map("updated_at")
+  intermediatePoints            String[]                         @map("intermediate_points")
+  orderTariffAdditionalServices OrderOnTariffAdditionalService[]
 
   @@map("orders")
 }

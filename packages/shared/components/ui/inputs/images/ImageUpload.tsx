@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useRef, useState, useEffect } from 'react';
 import { useFormContext, useWatch } from 'react-hook-form';
 import { IButton } from '@shared/components/ui/buttons';

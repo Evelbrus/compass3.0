@@ -5,7 +5,7 @@ import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
-interface CustomUser {
+export interface CustomUser {
   id: string;
   uuid: string;
   email: string;

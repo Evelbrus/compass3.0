@@ -5,14 +5,14 @@ import { ArrowIcon } from '@shared/components/ui/icon';
 import { SelectSingleProps } from '@shared/components/ui/inputs/select/types/SelectTypes';
 import { SelectOption } from '@shared/lib/effector';
 import Spinner from '@shared/components/ui/icon/Spinner';
-import { cn } from '@shared/lib'; // Предполагается, что вы используете функцию cn для объединения классов
+import { cn } from '@shared/lib';
 
 export const SelectSingle = <T extends string | number>({
   options,
   value,
   onChange,
   disabled = false,
-  readOnly = false, // Добавлено свойство readOnly
+  readOnly = false,
   className = '',
   classNameLabel = 'block text-4 font-medium text-[#2A3037] mb-2',
   classNamePlaceholder = 'text-4 text-[#2A3037] font-extrabold',

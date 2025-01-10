@@ -3,6 +3,8 @@ import { PrismaClient, OrderStatus } from '@prisma/client';
 import debug from 'debug';
 import { CreateOrderData } from '@shared/prisma/interface/orders/interface';
 import { v4 as uuidv4 } from 'uuid';
+import { Decimal } from 'decimal.js';
+import { sendNotification } from '@shared/lib/web-socket/websocketServer';
 
 const log = debug('app:orders');
 const prisma = new PrismaClient({
@@ -23,13 +25,11 @@ export async function GET(req: Request) {
   log('Parsed parameters:', parsedParams);
 
   try {
-    //Создаем объект "where" для условий фильтрации
     const where: { status?: OrderStatus } = {};
     if (parsedParams.status) {
       where.status = parsedParams.status;
     }
 
-    //Выполняем запрос к базе данных для получения списка заказов
     const orders = await prisma.order.findMany({
       skip: (parsedParams.page - 1) * parsedParams.per_page,
       take: parsedParams.per_page,
@@ -47,10 +47,18 @@ export async function GET(req: Request) {
             user: true,
           },
         },
+        orderTariffAdditionalServices: {
+          include: {
+            tariffOnService: {
+              include: {
+                service: true,
+              },
+            },
+          },
+        },
       },
     });
 
-    //Подсчитываем общее количество заказов, а также количество заказов для каждого статуса
     const total = await prisma.order.count({ where });
     const totalAllOrders = await prisma.order.count();
     const statusesCount = await prisma.order.groupBy({
@@ -62,7 +70,7 @@ export async function GET(req: Request) {
 
     log('Fetched orders:', orders);
 
-    //Формируем ответ с данными о заказах и связанных объектах
+    //Преобразуем, чтобы в ответе отдать список "доп. услуг" внутри заказа
     const response = orders.map((order) => ({
       ...order,
       createdBy: {
@@ -74,9 +82,7 @@ export async function GET(req: Request) {
       tariff: {
         uuid: order.tariff.uuid,
         name: order.tariff.name,
-        clientType: order.tariff.clientType,
-        vehicleTypes: order.tariff.vehicleTypes,
-        rateType: order.tariff.rateType,
+        vehicleTypes: order.tariff.vehicleType,
       },
       departurePoint: {
         uuid: order.departurePoint.uuid,
@@ -95,6 +101,21 @@ export async function GET(req: Request) {
             phone: order.assignedDriver.user?.phone || '',
           }
         : null,
+      orderTariffAdditionalServices: order.orderTariffAdditionalServices.map((ots) => ({
+        uuid: ots.uuid,
+        tariffOnServiceUuid: ots.tariffOnServiceUuid,
+        createdAt: ots.createdAt,
+        updatedAt: ots.updatedAt,
+        tariffOnService: {
+          uuid: ots.tariffOnService.uuid,
+          price: ots.tariffOnService.price,
+          isAvailable: ots.tariffOnService.isAvailable,
+          serviceUuid: ots.tariffOnService.serviceUuid,
+          createdAt: ots.tariffOnService.createdAt,
+          updatedAt: ots.tariffOnService.updatedAt,
+          name: ots.tariffOnService.service.name,
+        },
+      })),
     }));
 
     return NextResponse.json({
@@ -123,109 +144,119 @@ export async function POST(req: Request) {
   try {
     data = await req.json();
   } catch (error) {
-    log('Error parsing JSON:', error);
+    console.error('Error parsing JSON:', error);
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
   const {
     createdBy,
-    tariff,
+    tariffUuid,
     departureTime,
     departurePoint,
     arrivalPoint,
+    intermediatePoints,
     basePrice,
     assignedDriverId,
+    selectedServices,
   } = data;
 
-  //Валидация входных данных и логирование отсутствующих полей
-  const missingFields = [];
-  if (!createdBy?.uuid) missingFields.push('createdBy.uuid');
-  if (!tariff?.uuid) missingFields.push('tariff.uuid');
+  const missingFields: string[] = [];
+  if (!createdBy) missingFields.push('createdBy');
+  if (!tariffUuid) missingFields.push('tariffUuid');
   if (!departureTime) missingFields.push('departureTime');
-  if (!departurePoint?.uuid) missingFields.push('departurePoint.uuid');
-  if (!arrivalPoint?.uuid) missingFields.push('arrivalPoint.uuid');
-  if (!basePrice) missingFields.push('basePrice');
+  if (!departurePoint) missingFields.push('departurePoint');
+  if (!arrivalPoint) missingFields.push('arrivalPoint');
+  if (basePrice === undefined || basePrice === null) missingFields.push('basePrice');
 
   if (missingFields.length > 0) {
-    log('Missing required fields:', missingFields);
+    console.error('Missing required fields:', missingFields);
     return NextResponse.json(
       { error: `Missing required fields: ${missingFields.join(', ')}` },
       { status: 400 },
     );
   }
 
-  //Установка статуса в зависимости от наличия водителя
   const orderStatus = assignedDriverId ? OrderStatus.PLANNED : OrderStatus.PENDING;
 
   try {
-    //Используем транзакцию для создания заказа и связанных записей
-    const result = await prisma.$transaction(async (prisma) => {
-      //Проверяем, существует ли клиент
-      const client = await prisma.user.findUnique({
-        where: { uuid: createdBy.uuid },
+    const result = await prisma.$transaction(async (prismaTx) => {
+      const client = await prismaTx.user.findUnique({
+        where: { uuid: createdBy },
       });
-      if (!client) {
-        throw new Error('Client not found');
-      }
+      if (!client) throw new Error('Client not found');
 
-      //Проверяем, существует ли тариф
-      const tariffRecord = await prisma.tariff.findUnique({
-        where: { uuid: tariff.uuid },
+      const tariffRecord = await prismaTx.tariff.findUnique({
+        where: { uuid: tariffUuid },
       });
-      if (!tariffRecord) {
-        throw new Error('Tariff not found');
-      }
+      if (!tariffRecord) throw new Error('Tariff not found');
 
-      //Проверяем, существует ли пункт отправления
-      const departurePointRecord = await prisma.point.findUnique({
-        where: { uuid: departurePoint.uuid },
+      const departurePointRecord = await prismaTx.point.findUnique({
+        where: { uuid: departurePoint },
       });
-      if (!departurePointRecord) {
-        throw new Error('Departure point not found');
-      }
+      if (!departurePointRecord) throw new Error('Departure point not found');
 
-      //Проверяем, существует ли пункт назначения
-      const arrivalPointRecord = await prisma.point.findUnique({
-        where: { uuid: arrivalPoint.uuid },
+      const arrivalPointRecord = await prismaTx.point.findUnique({
+        where: { uuid: arrivalPoint },
       });
-      if (!arrivalPointRecord) {
-        throw new Error('Arrival point not found');
-      }
+      if (!arrivalPointRecord) throw new Error('Arrival point not found');
 
-      //Создаем новый заказ и возвращаем результат
-      return prisma.order.create({
+      const order = await prismaTx.order.create({
         data: {
           uuid: uuidv4(),
-          createdBy: { connect: { uuid: createdBy.uuid } },
-          tariff: { connect: { uuid: tariff.uuid } },
-          departureTime: new Date(departureTime),
-          departurePoint: { connect: { uuid: departurePoint.uuid } },
-          arrivalPoint: { connect: { uuid: arrivalPoint.uuid } },
-          basePrice,
+          createdById: createdBy,
+          tariffUuid,
+          departureTime: new Date(departureTime!),
+          departurePointId: departurePoint,
+          arrivalPointId: arrivalPoint,
+          basePrice: new Decimal(basePrice!),
           status: orderStatus,
-          assignedDriver: assignedDriverId ? { connect: { uuid: assignedDriverId } } : undefined,
-        },
-        include: {
-          createdBy: true,
-          tariff: true,
-          departurePoint: true,
-          arrivalPoint: true,
+          assignedDriverId: assignedDriverId || null,
+          intermediatePoints: (intermediatePoints || []).filter(Boolean),
         },
       });
+
+      if (selectedServices && selectedServices.length > 0) {
+        await prismaTx.orderOnTariffAdditionalService.createMany({
+          data: selectedServices.map((serviceUuid) => ({
+            uuid: uuidv4(),
+            orderUuid: order.uuid,
+            tariffOnServiceUuid: serviceUuid,
+          })),
+        });
+      }
+
+      if (assignedDriverId) {
+        const driverProfile = await prismaTx.driverProfile.findUnique({
+          where: { uuid: assignedDriverId },
+        });
+        if (driverProfile) {
+          sendNotification(driverProfile, {
+            title: 'Новый заказ',
+            message: `Вам назначен новый заказ от ${departurePoint} до ${arrivalPoint}`,
+          });
+        }
+      }
+
+      const updatedOrder = await prismaTx.order.findUnique({
+        where: { uuid: order.uuid },
+        include: {
+          orderTariffAdditionalServices: {
+            include: {
+              tariffOnService: true,
+            },
+          },
+        },
+      });
+
+      return updatedOrder;
     });
 
-    log('Created new order:', result);
     return NextResponse.json(result, { status: 201 });
   } catch (error) {
-    log('Error creating order:', error);
-    if (error instanceof Error) {
-      log('Error message:', error.message);
-      log('Error stack:', error.stack);
-    }
+    console.error('Error creating order:', error);
     return NextResponse.json({ error: 'Unable to create order' }, { status: 500 });
   } finally {
-    //Отключаемся от базы данных
     await prisma.$disconnect();
-    log('Disconnected from database');
+    console.log('Disconnected from database');
   }
 }

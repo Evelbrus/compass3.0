@@ -1,6 +1,6 @@
 const validateNoSpecialChars = (value?: string) => {
   if (!value || value.trim() === '') {
-    return true; // Пустые значения валидны
+    return true;
   }
 
   const regex = /^[a-zA-Zа-яА-Я0-9\s.,'-]+$/;

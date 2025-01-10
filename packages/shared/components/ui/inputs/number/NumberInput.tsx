@@ -38,10 +38,8 @@ export const NumberInput: React.FC<NumberInputProps> = ({
 }) => {
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Генерация уникального ID для связывания label и input
   const inputId = `number-input-${label ? label.replace(/\s+/g, '-').toLowerCase() : 'number-input'}`;
 
-  // Общие классы для input
   const sharedClasses = cn(
     'w-full',
     'bg-white px-3 py-2',
@@ -52,16 +50,14 @@ export const NumberInput: React.FC<NumberInputProps> = ({
   );
 
   const handleChange = (val: string) => {
-    if (val.length > maxLength) return; // Ограничение по длине
+    if (val.length > maxLength) return;
     if (val === '') {
       onChange('');
       return;
     }
     if (/^\d+$/.test(val)) {
-      // Проверка, что строка содержит только цифры
       onChange(Number(val));
     }
-    // Если введены не цифры, не вызываем onChange, чтобы не изменять значение
   };
 
   return (

@@ -5,12 +5,6 @@ enum Citizenship {
   None @map("none") // Не указано
 }
 
-enum RateType {
-  Hourly @map("hourly") // Почасовой
-  Fixed  @map("fixed") // Фиксированный
-  None   @map("none") // Не указано
-}
-
 enum IdentityDocument {
   Russian    @map("Russian") // Российский паспорт
   Kyrgyzstan @map("Kyrgyzstan") // Кыргызский паспорт
@@ -32,34 +26,33 @@ enum Status {
 
 // Model
 model DriverProfile {
-  uuid              String             @id @default(uuid()) @map("uuid") // Уникальный идентификатор (по умолчанию генерируется UUID)
-  status            Status             @map("status") // Статус (свободен/занят)
-  citizenship       Citizenship        @map("citizenship") // Гражданство (Россия/Кыргызстан)
-  identityDocument  IdentityDocument   @map("identity_document") // Документ удостоверяющий личность (Россия/Кыргызстан)
-  passportId        String             @map("passport_id") // Номер паспорта
-  passportIssueDate DateTime?          @map("passport_issue_date") // Дата выдачи паспорта (необязательное поле)
-  passportIssued    String             @map("passport_issued") // Кем выдан паспорт
-  birthDate         DateTime?          @map("birthdate") // Дата рождения (необязательное поле)
-  birthPlace        String             @map("birthplace") // Место рождения
-  actualAddress     String             @map("actual_address") // Фактический адрес
-  permanentAddress  String             @map("permanent_address") // Адрес по прописке
-  changingDriver    ChangingDriver     @map("changing_driver") // Сменный водитель (день/ночь/оба)
-  typeDriver        String             @map("driver_type") // Тип водителя
-  rateDriver        RateType           @map("rate_driver") // Тип ставки (почасовой/фиксированный)
-  vehicleDriver     VehicleDriver[]    @relation("driver_profile_to_vehicle_driver") // Водитель транспортного средства
-  driverExperience  DriverExperience[] @relation("driver_experience") // Опыт водителя
-  yearsOfDriving    Int // Количество лет вождения
-  passportPhotoPath String?            @map("passport_photo_path") // Путь к фото паспорта
-  profilePhotoPath  String?            @map("profile_photo_path") // Путь к фото профиля
-  licensePhotoPath  String?            @map("license_photo_path") // Путь к фото лицензии
-  bankName          String?            @map("bank_name") // Название банка
-  bankBic           String?            @map("bic") // БИК банка
-  bankAccountNumber String?            @map("account_number") // Номер банковского счета
-  cardNumber        String?            @map("card_number") // Номер карты
-  ordersAssigned    Order[]            @relation("assigned_orders") // Назначенные заказы
-  driverHistory     DriverHistory[]    @relation("driver_to_driver_history") // История водителя
-  createdAt         DateTime           @default(now()) @map("created_at") // Дата создания (по умолчанию текущий момент)
-  updatedAt         DateTime           @updatedAt @map("updated_at") // Дата обновления (обновляется автоматически)
+  uuid              String             @id @default(uuid()) @map("uuid")
+  status            Status             @map("status")
+  citizenship       Citizenship        @map("citizenship")
+  identityDocument  IdentityDocument   @map("identity_document")
+  passportId        String             @map("passport_id")
+  passportIssueDate DateTime?          @map("passport_issue_date")
+  passportIssued    String             @map("passport_issued")
+  birthDate         DateTime?          @map("birthdate")
+  birthPlace        String             @map("birthplace")
+  actualAddress     String             @map("actual_address")
+  permanentAddress  String             @map("permanent_address")
+  changingDriver    ChangingDriver     @map("changing_driver")
+  typeDriver        String             @map("driver_type")
+  vehicleDriver     VehicleDriver?     @relation("driver_profile_to_vehicle_driver")
+  driverExperience  DriverExperience[] @relation("driver_experience")
+  yearsOfDriving    Int
+  passportPhotoPath String?            @map("passport_photo_path")
+  profilePhotoPath  String?            @map("profile_photo_path")
+  licensePhotoPath  String?            @map("license_photo_path")
+  bankName          String?            @map("bank_name")
+  bankBic           String?            @map("bic")
+  bankAccountNumber String?            @map("account_number")
+  cardNumber        String?            @map("card_number")
+  ordersAssigned    Order[]            @relation("assigned_orders")
+  driverHistory     DriverHistory[]    @relation("driver_to_driver_history")
+  createdAt         DateTime           @default(now()) @map("created_at")
+  updatedAt         DateTime           @updatedAt @map("updated_at")
   user              User?              @relation("user_to_driver_profile", fields: [userId], references: [uuid], onDelete: Cascade)
   userId            String?            @unique @map("user_id")
 

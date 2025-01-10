@@ -1,0 +1,12 @@
+model OrderOnTariffAdditionalService {
+  uuid                String          @id @default(uuid()) @map("uuid")
+  orderUuid           String          @map("order_uuid")
+  order               Order           @relation(fields: [orderUuid], references: [uuid], onDelete: Cascade)
+  tariffOnServiceUuid String          @map("tariff_on_service_uuid")
+  tariffOnService     TariffOnService @relation(fields: [tariffOnServiceUuid], references: [uuid], onDelete: Cascade)
+  createdAt           DateTime        @default(now()) @map("created_at")
+  updatedAt           DateTime        @updatedAt @map("updated_at")
+
+  @@unique([orderUuid, tariffOnServiceUuid])
+  @@map("order_on_tariff_additional_service")
+}

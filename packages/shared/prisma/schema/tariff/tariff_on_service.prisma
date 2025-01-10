@@ -1,12 +1,14 @@
 model TariffOnService {
-  uuid        String            @id @default(uuid()) @map("uuid")
-  tariffUuid  String            @map("tariff_uuid")
-  tariff      Tariff            @relation("TariffToTariffOnService", fields: [tariffUuid], references: [uuid], onDelete: Cascade)
-  serviceUuid String            @map("service_uuid")
-  service     AdditionalService @relation(fields: [serviceUuid], references: [uuid], onDelete: Cascade)
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  uuid                          String                           @id @default(uuid()) @map("uuid")
+  price                         Int                              @default(0) @map("price")
+  isAvailable                   Boolean                          @default(true) @map("is_available")
+  tariffUuid                    String                           @map("tariff_uuid")
+  tariff                        Tariff                           @relation("TariffToTariffOnService", fields: [tariffUuid], references: [uuid], onDelete: Cascade)
+  serviceUuid                   String                           @map("service_uuid")
+  service                       AdditionalService                @relation(fields: [serviceUuid], references: [uuid], onDelete: Cascade)
+  createdAt                     DateTime                         @default(now()) @map("created_at")
+  updatedAt                     DateTime                         @updatedAt @map("updated_at")
+  orderTariffAdditionalServices OrderOnTariffAdditionalService[]
 
   @@unique([tariffUuid, serviceUuid])
   @@map("tariff_on_service")
