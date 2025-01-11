@@ -7,7 +7,7 @@ import bcrypt from 'bcrypt';
 
 const log = debug('app:users');
 const prisma = new PrismaClient({
-  log: ['query', 'info', 'warn', 'error'],
+  log: ['warn', 'error'],
 });
 
 export async function POST(req: Request) {

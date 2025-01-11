@@ -5,10 +5,11 @@ export const genderOptions = [
   { label: 'Женский', value: 'Female' as Gender },
 ];
 
-export const roleOptions: { label: string; value: UserRole }[] = [
-  { label: 'Client', value: UserRole.Client },
-  { label: 'ClientCorp', value: UserRole.ClientCorp },
-  { label: 'Driver', value: UserRole.Driver },
-  { label: 'Operator', value: UserRole.Operator },
-  { label: 'Admin', value: UserRole.Admin },
-];
+export const roleTranslations: Record<UserRole, string> = {
+  Client: 'Клиент',
+  ClientCorp: 'Корпоративный клиент',
+  Driver: 'Водитель',
+  Operator: 'Оператор',
+  Admin: 'Администратор',
+  None: 'Нет роли',
+};

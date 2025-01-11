@@ -26,7 +26,6 @@ export const cookieNames = {
     .join(',\n  ')}
 };
 
-// Создаем константы для названий кук
 export const ACCESS_TOKEN_COOKIE = cookieNames.accessToken;
 export const REFRESH_TOKEN_COOKIE = cookieNames.refreshToken;
 export const USER_PROFILE_COOKIE = cookieNames.userProfile;

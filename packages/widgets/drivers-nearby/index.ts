@@ -1,3 +1,2 @@
-export * from './ui/DriversNearby';
-export * from './types/types';
+// export * from './ui/DriversNearby';
 export * from './data/data';

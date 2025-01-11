@@ -4,11 +4,10 @@ import debug from 'debug';
 import { CreateOrderData } from '@shared/prisma/interface/orders/interface';
 import { v4 as uuidv4 } from 'uuid';
 import { Decimal } from 'decimal.js';
-import { sendNotification } from '@shared/lib/web-socket/websocketServer';
 
 const log = debug('app:orders');
 const prisma = new PrismaClient({
-  log: ['query', 'info', 'warn', 'error'],
+  log: ['info', 'warn', 'error'],
 });
 
 export async function GET(req: Request) {
@@ -139,12 +138,15 @@ export async function GET(req: Request) {
   }
 }
 
+const { socket } = require('src/socket.js');
+
 export async function POST(req: Request) {
   let data: CreateOrderData;
   try {
     data = await req.json();
+    log('Received data:', data);
   } catch (error) {
-    console.error('Error parsing JSON:', error);
+    log('Error parsing JSON:', error);
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
@@ -157,6 +159,7 @@ export async function POST(req: Request) {
     intermediatePoints,
     basePrice,
     assignedDriverId,
+    assignedDriverUserId,
     selectedServices,
   } = data;
 
@@ -169,7 +172,7 @@ export async function POST(req: Request) {
   if (basePrice === undefined || basePrice === null) missingFields.push('basePrice');
 
   if (missingFields.length > 0) {
-    console.error('Missing required fields:', missingFields);
+    log('Missing required fields:', missingFields);
     return NextResponse.json(
       { error: `Missing required fields: ${missingFields.join(', ')}` },
       { status: 400 },
@@ -180,25 +183,31 @@ export async function POST(req: Request) {
 
   try {
     const result = await prisma.$transaction(async (prismaTx) => {
+      log('Starting transaction');
+
       const client = await prismaTx.user.findUnique({
         where: { uuid: createdBy },
       });
       if (!client) throw new Error('Client not found');
+      log('Client found:', client);
 
       const tariffRecord = await prismaTx.tariff.findUnique({
         where: { uuid: tariffUuid },
       });
       if (!tariffRecord) throw new Error('Tariff not found');
+      log('Tariff found:', tariffRecord);
 
       const departurePointRecord = await prismaTx.point.findUnique({
         where: { uuid: departurePoint },
       });
       if (!departurePointRecord) throw new Error('Departure point not found');
+      log('Departure point found:', departurePointRecord);
 
       const arrivalPointRecord = await prismaTx.point.findUnique({
         where: { uuid: arrivalPoint },
       });
       if (!arrivalPointRecord) throw new Error('Arrival point not found');
+      log('Arrival point found:', arrivalPointRecord);
 
       const order = await prismaTx.order.create({
         data: {
@@ -214,6 +223,7 @@ export async function POST(req: Request) {
           intermediatePoints: (intermediatePoints || []).filter(Boolean),
         },
       });
+      log('Order created:', order);
 
       if (selectedServices && selectedServices.length > 0) {
         await prismaTx.orderOnTariffAdditionalService.createMany({
@@ -223,18 +233,7 @@ export async function POST(req: Request) {
             tariffOnServiceUuid: serviceUuid,
           })),
         });
-      }
-
-      if (assignedDriverId) {
-        const driverProfile = await prismaTx.driverProfile.findUnique({
-          where: { uuid: assignedDriverId },
-        });
-        if (driverProfile) {
-          sendNotification(driverProfile, {
-            title: 'Новый заказ',
-            message: `Вам назначен новый заказ от ${departurePoint} до ${arrivalPoint}`,
-          });
-        }
+        log('Additional services added');
       }
 
       const updatedOrder = await prismaTx.order.findUnique({
@@ -247,16 +246,17 @@ export async function POST(req: Request) {
           },
         },
       });
+      log('Updated order:', updatedOrder);
 
       return updatedOrder;
     });
 
     return NextResponse.json(result, { status: 201 });
   } catch (error) {
-    console.error('Error creating order:', error);
+    log('Error creating order:', error);
     return NextResponse.json({ error: 'Unable to create order' }, { status: 500 });
   } finally {
     await prisma.$disconnect();
-    console.log('Disconnected from database');
+    log('Disconnected from database');
   }
 }

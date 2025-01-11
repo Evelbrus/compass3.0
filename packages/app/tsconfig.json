@@ -14,6 +14,7 @@
     "composite": true,
     "baseUrl": ".",
     "paths": {
+      "@socket": ["../../apps/next-app/src/socket.js"],
       "@app/*": ["./*"],
       "@pages/*": ["../pages/*"],
       "@widgets/*": ["../widgets/*"],

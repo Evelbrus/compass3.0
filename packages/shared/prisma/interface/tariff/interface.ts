@@ -1,8 +1,7 @@
-import { Tariff, AdditionalService, ClientType } from '@prisma/client';
+import { Tariff, AdditionalService } from '@prisma/client';
 
 export interface CreateTariffData
   extends Omit<Tariff, 'uuid' | 'createdAt' | 'updatedAt' | 'clientTypes'> {
-  clientTypes: ClientType[];
   tariffAdditionalServices: {
     serviceUuid: string;
     price: number;

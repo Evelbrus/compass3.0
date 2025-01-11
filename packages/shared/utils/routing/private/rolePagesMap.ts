@@ -1,16 +1,16 @@
-import { PrivatePageType, privateRoutes } from '@shared/utils/routing';
+import { PrivatePageType, PublicPageType } from '@shared/utils/routing';
 import { UserRole } from '@prisma/client';
 
-export type RouteLiteral = (typeof privateRoutes)[PrivatePageType];
+export type RouteLiteral = PrivatePageType | PublicPageType;
 
-export const rolePagesMap: Record<UserRole, PrivatePageType[]> = {
+export const rolePagesMap: Record<UserRole, RouteLiteral[]> = {
   Client: ['HOME', 'ORDERS', 'SETTINGS', 'TARIFFMANAGEMENT'],
   ClientCorp: ['HOME', 'ORDERS', 'SETTINGS', 'TARIFFMANAGEMENT'],
   Driver: ['HOME', 'ORDERS', 'SETTINGS', 'TRANSFERSERVICES'],
   Operator: [
     'HOME',
     'ORDERS',
-    'ORDERSEDIT',
+    'ORDEREDIT',
     'ORDERCREATE',
     'TARIFFMANAGEMENT',
     'TARIFFCREATEMANAGEMENT',
@@ -39,7 +39,7 @@ export const rolePagesMap: Record<UserRole, PrivatePageType[]> = {
   Admin: [
     'HOME',
     'ORDERS',
-    'ORDERSEDIT',
+    'ORDEREDIT',
     'ORDERCREATE',
     'TARIFFMANAGEMENT',
     'TARIFFCREATEMANAGEMENT',
@@ -68,4 +68,5 @@ export const rolePagesMap: Record<UserRole, PrivatePageType[]> = {
     'SETTINGS',
     'MAP',
   ],
+  None: ['LOGIN', 'REGISTER'],
 };

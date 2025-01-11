@@ -1,6 +1,6 @@
 export const publicRoutes = {
   LOGIN: '/login',
-  REGISTER: '/orders',
+  REGISTER: '/register',
 } as const;
 
 export type PublicPageType = keyof typeof publicRoutes;

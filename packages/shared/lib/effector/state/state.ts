@@ -2,14 +2,6 @@ import { createEvent, createStore } from 'effector';
 import { PrivatePageType } from '@shared/utils/routing';
 import { OrderStatus, UserRole } from '@prisma/client';
 
-export const roleTranslations: Record<UserRole, string> = {
-  Client: 'Клиент',
-  ClientCorp: 'Корпоративный клиент',
-  Driver: 'Водитель',
-  Operator: 'Оператор',
-  Admin: 'Администратор',
-};
-
 export type View =
   | 'form'
   | 'skeleton'

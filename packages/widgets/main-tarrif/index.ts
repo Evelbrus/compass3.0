@@ -1,2 +1,2 @@
-export * from './ui/MainTariff';
-export * from './interface/interface';
+// export * from './ui/MainTariff';
+// export * from './interface/interface';

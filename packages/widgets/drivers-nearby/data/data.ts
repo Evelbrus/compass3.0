@@ -1,8 +1,6 @@
-import { Drivers } from '@shared/lib/effector/drivers';
-
-export const mockDrivers: Drivers[] = [
+export const mockDrivers = [
   {
-    id: 1, // Уникальный идентификатор
+    id: 1,
     image: 'https://via.placeholder.com/150',
     firstName: 'Иван',
     lastName: 'Иванов',
@@ -11,7 +9,7 @@ export const mockDrivers: Drivers[] = [
     tariff: [{ value: 'vip', label: 'VIP', maxPeople: 5, price: 1000 }],
   },
   {
-    id: 17, // Уникальный идентификатор
+    id: 17,
     image: 'https://via.placeholder.com/150',
     firstName: 'Иван',
     lastName: 'Круглый',
@@ -20,7 +18,7 @@ export const mockDrivers: Drivers[] = [
     tariff: [{ value: 'vip', label: 'VIP', maxPeople: 5, price: 1000 }],
   },
   {
-    id: 2, // Уникальный идентификатор
+    id: 2,
     image: 'https://via.placeholder.com/150',
     firstName: 'Иван',
     lastName: 'Карасёв',
@@ -29,7 +27,7 @@ export const mockDrivers: Drivers[] = [
     tariff: [{ value: 'vip', label: 'VIP', maxPeople: 5, price: 1000 }],
   },
   {
-    id: 3, // Уникальный идентификатор
+    id: 3,
     image: 'https://via.placeholder.com/150',
     firstName: 'Иван',
     lastName: 'Великий',
@@ -38,7 +36,7 @@ export const mockDrivers: Drivers[] = [
     tariff: [{ value: 'vip', label: 'VIP', maxPeople: 5, price: 1000 }],
   },
   {
-    id: 4, // Уникальный идентификатор
+    id: 4,
     image: 'https://via.placeholder.com/150',
     firstName: 'Иван',
     lastName: 'Дубощин',
@@ -47,7 +45,7 @@ export const mockDrivers: Drivers[] = [
     tariff: [{ value: 'vip', label: 'VIP', maxPeople: 5, price: 1000 }],
   },
   {
-    id: 5, // Уникальный идентификатор
+    id: 5,
     image: 'https://via.placeholder.com/150',
     firstName: 'Иван',
     lastName: 'Грозный',
@@ -56,7 +54,7 @@ export const mockDrivers: Drivers[] = [
     tariff: [{ value: 'vip', label: 'VIP', maxPeople: 5, price: 1000 }],
   },
   {
-    id: 6, // Уникальный идентификатор
+    id: 6,
     image: 'https://via.placeholder.com/150',
     firstName: 'Иван',
     lastName: 'Керосин',
@@ -65,7 +63,7 @@ export const mockDrivers: Drivers[] = [
     tariff: [{ value: 'vip', label: 'VIP', maxPeople: 5, price: 1000 }],
   },
   {
-    id: 7, // Уникальный идентификатор
+    id: 7,
     image: 'https://via.placeholder.com/150',
     firstName: 'Иван',
     lastName: 'Литвин',
@@ -74,7 +72,7 @@ export const mockDrivers: Drivers[] = [
     tariff: [{ value: 'vip', label: 'VIP', maxPeople: 5, price: 1000 }],
   },
   {
-    id: 8, // Уникальный идентификатор
+    id: 8,
     image: 'https://via.placeholder.com/150',
     firstName: 'Иван',
     lastName: 'Рофлян',
@@ -83,7 +81,7 @@ export const mockDrivers: Drivers[] = [
     tariff: [{ value: 'vip', label: 'VIP', maxPeople: 5, price: 1000 }],
   },
   {
-    id: 9, // Уникальный идентификатор
+    id: 9,
     image: 'https://via.placeholder.com/150',
     firstName: 'Петр',
     lastName: 'Петров',
@@ -91,5 +89,4 @@ export const mockDrivers: Drivers[] = [
     active: false,
     tariff: [{ value: 'economy', label: 'Эконом', maxPeople: 10, price: 500 }],
   },
-  // Добавьте больше моковых драйверов по необходимости
 ];

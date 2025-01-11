@@ -1,5 +1,4 @@
 import React, { JSX, ReactNode } from 'react';
-
 import { metadata } from '@shared/metadata/metadata';
 import { NextIntlClientProvider } from 'next-intl';
 import { getLocale, getMessages } from 'next-intl/server';

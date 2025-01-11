@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack -p 3008",
+    "dev": "node --experimental-modules server.mjs",
     "build": "next build",
-    "start": "next start -p 3008",
+    "start": "node --experimental-modules server.mjs",
     "lint": "next lint"
   },
   "dependencies": {

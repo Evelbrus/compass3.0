@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 const log = debug('app:vehicles');
 const prisma = new PrismaClient({
-  log: ['query', 'info', 'warn', 'error'],
+  log: ['warn', 'error'],
 });
 
 export async function GET(req: Request) {
@@ -35,7 +35,6 @@ export async function GET(req: Request) {
   log('Parsed parameters:', parsedParams);
 
   try {
-    //Создаем объект "where" для условий фильтрации
     const where: {
       vehicleType?: VehicleType;
       serviceLevels?: ServiceLevels;
@@ -55,7 +54,6 @@ export async function GET(req: Request) {
       where.isAvailable = parsedParams.availability === 'true';
     }
 
-    //Выполняем запрос к базе данных для получения списка машин
     const vehicles = await prisma.vehicle.findMany({
       skip: (parsedParams.page - 1) * parsedParams.per_page,
       take: parsedParams.per_page,
@@ -71,9 +69,12 @@ export async function GET(req: Request) {
         vehicleDrivers: {
           include: {
             driver: {
-              include: {
+              select: {
+                uuid: true,
+                status: true,
                 user: {
                   select: {
+                    uuid: true,
                     fullName: true,
                     phone: true,
                   },
@@ -88,7 +89,6 @@ export async function GET(req: Request) {
     const total = await prisma.vehicle.count({ where });
     const totalAllVehicles = await prisma.vehicle.count();
 
-    //Получение количества автомобилей по типам
     const vehicleTypeCounts = await prisma.vehicle.groupBy({
       by: ['vehicleType'],
       _count: {
@@ -98,7 +98,6 @@ export async function GET(req: Request) {
 
     log('Fetched vehicles:', vehicles);
 
-    //Формируем ответ с данными о машинах, водителях и уровнях обслуживания
     const response = vehicles.map((vehicle) => ({
       uuid: vehicle.uuid,
       vehicleType: vehicle.vehicleType,
@@ -112,10 +111,11 @@ export async function GET(req: Request) {
       createdAt: vehicle.createdAt,
       updatedAt: vehicle.updatedAt,
       drivers: vehicle.vehicleDrivers.map((vehicleDriver: any) => ({
-        uuid: vehicleDriver.driver?.uuid || null,
+        driverProfileUuid: vehicleDriver.driver?.uuid || null,
+        userUuid: vehicleDriver.driver?.user?.uuid || null,
         fullName: vehicleDriver.driver?.user?.fullName || null,
         phone: vehicleDriver.driver?.user?.phone || null,
-        status: vehicleDriver.status?.status || null,
+        status: vehicleDriver.driver?.status || null,
       })),
       serviceLevels: vehicle.serviceLevels,
     }));
@@ -143,7 +143,6 @@ export async function GET(req: Request) {
       { status: 500 },
     );
   } finally {
-    //Отключаемся от базы данных
     await prisma.$disconnect();
     log('Disconnected from database');
   }

@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next';
+const path = require('path');
 
 const createNextIntlPlugin = require('next-intl/plugin');
 const withNextIntl = createNextIntlPlugin();
@@ -27,6 +28,20 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: '3mb',
     },
+  },
+  webpack: (config) => {
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@socket': path.resolve(__dirname, 'src/socket.js'),
+      '@public': path.resolve(__dirname, 'public'),
+      '@app': path.resolve(__dirname, '../../packages/app'),
+      '@pages': path.resolve(__dirname, '../../packages/pages'),
+      '@widgets': path.resolve(__dirname, '../../packages/widgets'),
+      '@features': path.resolve(__dirname, '../../packages/features'),
+      '@entities': path.resolve(__dirname, '../../packages/entities'),
+      '@shared': path.resolve(__dirname, '../../packages/shared'),
+    };
+    return config;
   },
 };
 

@@ -25,7 +25,9 @@ const Tariff: React.FC<TariffProps> = ({ tariff, mode }) => {
     serviceLevel,
   } = tariff;
 
-  const translatedVehicleType = vehicleTypeOptions[vehicleType] || vehicleType;
+  //Используем метод find для поиска перевода типа транспортного средства
+  const vehicleTypeOption = vehicleTypeOptions.find((option) => option.value === vehicleType);
+  const translatedVehicleType = vehicleTypeOption ? vehicleTypeOption.label : vehicleType;
 
   const totalPrice = tariffAdditionalServices.reduce(
     (sum, service) => sum + service.price,

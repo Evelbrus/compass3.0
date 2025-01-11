@@ -9,6 +9,7 @@
   ],
   "scripts": {
     "dev": "yarn workspace next-app dev",
+    "start": "node packages/shared/lib/web-socket/websocketServer.js",
     "prod": "yarn workspace next-app build",
     "serve": "yarn workspace next-app start",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
@@ -60,6 +61,8 @@
     "react-toastify": "^10.0.6",
     "sanitize-html": "^2.13.1",
     "sass": "^1.80.5",
+    "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.1",
     "swiper": "^11.1.14",
     "uuid": "^11.0.3",
     "ws": "^8.18.0",
@@ -79,7 +82,7 @@
     "@types/react": "npm:types-react@19.0.0-rc.1",
     "@types/react-dom": "npm:types-react-dom@19.0.0-rc.1",
     "@types/sanitize-html": "^2",
-    "@types/ws": "^8",
+    "@types/ws": "^8.5.13",
     "@types/zxcvbn": "^4",
     "autoprefixer": "^10.4.20",
     "eslint": "^9.16.0",
@@ -99,7 +102,7 @@
     "stylelint-scss": "^6.8.1",
     "tailwindcss": "^3.4.16",
     "ts-node": "^10.9.2",
-    "typescript": "^5.6.3",
+    "typescript": "^5.7.3",
     "typescript-plugin-css-modules": "^5.1.0"
   }
 }

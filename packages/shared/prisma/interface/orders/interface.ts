@@ -32,6 +32,7 @@ export interface CreateOrderData
   departurePoint: string;
   arrivalPoint: string;
   assignedDriverId?: string | null;
+  assignedDriverUserId?: string | null;
   intermediatePoints?: string[];
   selectedServices?: string[];
   basePrice?: number;

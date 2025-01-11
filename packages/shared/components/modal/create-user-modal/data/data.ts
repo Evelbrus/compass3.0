@@ -1,5 +1,5 @@
 import { UserRole } from '@prisma/client';
-import { roleTranslations } from '@shared/lib/effector';
+import { roleTranslations } from '@shared/lib/effector/(users)/options-and-translation/optionsTranslationUser';
 import { privateRoutes } from '@shared/utils/routing';
 
 export interface ModalUserCreate {

@@ -8,14 +8,20 @@ import { IButton } from '@shared/components/ui/buttons';
 import { LazyImage } from '@shared/components/ui/images';
 import { Skeleton } from '@shared/components/ui/skeleton/Skeleton';
 import { $currentPage, setCurrentPage } from '@shared/lib/effector';
-import { PrivatePageType, privateRoutes } from '@shared/utils/routing';
+import {
+  PrivatePageType,
+  privateRoutes,
+  PublicPageType,
+  publicRoutes,
+} from '@shared/utils/routing';
 import { rolePagesMap } from '@shared/utils/routing/private/rolePagesMap';
 
-const Sidebar: React.FC<SidebarProps> = ({ isAuthenticated, lang, role }) => {
+const Sidebar: React.FC<SidebarProps> = ({ role }) => {
   const pathname = usePathname();
   const router = useRouter();
   const currentPage = useUnit($currentPage);
 
+  //При маунте определяем, какой ключ (например 'HOME') соответствует данному pathname
   useEffect(() => {
     const currentPathKey = Object.keys(privateRoutes).find(
       (key) => privateRoutes[key as PrivatePageType] === pathname,
@@ -26,18 +32,26 @@ const Sidebar: React.FC<SidebarProps> = ({ isAuthenticated, lang, role }) => {
     }
   }, [pathname, currentPage]);
 
+  //Переходим по реальным путям privateRoutes[key], а не строке "HOME"
   const handleNavigation = (key: PrivatePageType) => {
     if (key !== currentPage) {
       router.push(privateRoutes[key]);
     }
   };
 
+  //Определяем, какие страницы доступны по роли; получаем массив реальных путей
   const allowedPages = role ? rolePagesMap[role] : [];
-  const allowedHrefs = allowedPages.map((pageType) => privateRoutes[pageType]);
+  const allowedHrefs = allowedPages.map(
+    (pageType) =>
+      privateRoutes[pageType as PrivatePageType] || publicRoutes[pageType as PublicPageType],
+  );
+
+  //Фильтруем навигационные элементы, сохраняя только те, что есть в allowedHrefs
   const filteredNavItems = navItems.filter((item: NavItem) => allowedHrefs.includes(item.href));
 
   return (
     <aside className="hidden md:block lg:block max-w-[200px] w-[200px] text-white flex-shrink-0">
+      {/*При клике передаём ключ 'HOME', чтобы router.push ходил на privateRoutes.HOME */}
       <div
         onClick={() => handleNavigation('HOME')}
         className="flex w-full h-[70px] p-4 cursor-pointer"
@@ -53,7 +67,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isAuthenticated, lang, role }) => {
       <nav className="px-5 py-8 border-y border-gray-300">
         <ul className="flex flex-col gap-8">
           {filteredNavItems.map((item: NavItem) => {
-            const isActive = privateRoutes[currentPage as PrivatePageType] === item.href;
+            //Сравниваем реальные пути: например '/' === '/'
+            const currentPath = privateRoutes[currentPage as PrivatePageType] || '';
+            const isActive = currentPath === item.href;
 
             return (
               <li key={item.href}>
@@ -66,9 +82,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isAuthenticated, lang, role }) => {
                   }`}
                   buttonPrefix={item.icon}
                   onClick={() => {
-                    const key = Object.keys(privateRoutes).find(
-                      (k) => privateRoutes[k as PrivatePageType] === item.href,
-                    ) as PrivatePageType | undefined;
+                    //Находим ключ (например 'HOME') из privateRoutes, соответствующий item.href
+                    const key =
+                      (Object.keys(privateRoutes).find(
+                        (k) => privateRoutes[k as PrivatePageType] === item.href,
+                      ) as PrivatePageType) || undefined;
 
                     if (key) {
                       handleNavigation(key);

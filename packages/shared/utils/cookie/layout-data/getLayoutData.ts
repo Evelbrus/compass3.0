@@ -7,7 +7,7 @@ import { authOptions } from '@shared/lib/api/authOptions';
 export async function getLayoutData() {
   const allCookies = await cookies();
 
-  // Получение сессии через next-auth
+  //Получение сессии через next-auth
   const session = await getServerSession(authOptions);
 
   const isAuthenticated = !!session;

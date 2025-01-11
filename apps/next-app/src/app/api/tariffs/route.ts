@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 const log = debug('app:tariffs');
 const prisma = new PrismaClient({
-  log: ['query', 'info', 'warn', 'error'],
+  log: ['warn', 'error'],
 });
 
 export async function GET(req: Request) {

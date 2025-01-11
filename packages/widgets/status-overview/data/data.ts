@@ -1,34 +1,36 @@
-import { OrderStatus, STATUSES } from '@shared/lib/effector/order/order-status-store/statusStore';
+import { OrderStatus } from '@prisma/client';
 
 export const statusOverview: {
   status: OrderStatus;
   label: string;
   description: string;
-}[] = STATUSES.map((status) => {
+}[] = Object.values(OrderStatus).map((status) => {
   let label = '';
   let description = '';
   switch (status) {
-    case 'InTransit':
-      label = 'Текущие';
-      description =
-        'Ваш заказ успешно передан водителю и находится в пути к месту назначения. Вы можете отслеживать маршрут в реальном времени через приложение.';
+    case OrderStatus.PENDING:
+      label = 'В ожидании';
+      description = 'Ваш заказ принят и ожидает обработки.';
       break;
-    case 'Processing':
-      label = 'В обработке';
-      description =
-        'Ваш заказ принят системой CompassTransfer Taksi и назначен ближайшему доступному водителю. Водитель уже движется к вам или скоро начнет движение.';
-      break;
-    case 'Completed':
-      label = 'Выполненные';
-      description =
-        'Ваш заказ успешно завершен. Водитель доставил вас до пункта назначения, и все необходимые услуги оказаны. Благодарим за использование CompassTransfer Taksi!';
-      break;
-    case 'Scheduled':
+    case OrderStatus.PLANNED:
       label = 'Запланированые';
       description =
         'Ваш заказ запланирован на указанное время и дату. Убедитесь, что вы будете готовы к поездке, и водитель прибудет вовремя для выполнения заказа.';
       break;
-    case 'Overdue':
+    case OrderStatus.IN_PROGRESS:
+      label = 'В процессе';
+      description = 'Ваш заказ выполняется.';
+      break;
+    case OrderStatus.COMPLETED:
+      label = 'Выполненные';
+      description =
+        'Ваш заказ успешно завершен. Водитель доставил вас до пункта назначения, и все необходимые услуги оказаны. Благодарим за использование CompassTransfer Taksi!';
+      break;
+    case OrderStatus.CANCELLED:
+      label = 'Отмененные';
+      description = 'Ваш заказ был отменен.';
+      break;
+    case OrderStatus.OVERDUE:
       label = 'Просроченые';
       description =
         'Ваш заказ не был выполнен в установленное время. Пожалуйста, свяжитесь с поддержкой CompassTransfer Taksi для уточнения ситуации или повторного назначения водителя.';

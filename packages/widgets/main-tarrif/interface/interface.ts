@@ -1,4 +1,4 @@
-export interface MainTariffProps {
-  lang: string;
-  isAuthenticated: boolean;
-}
+// export interface MainTariffProps {
+//   lang: string;
+//   isAuthenticated: boolean;
+// }

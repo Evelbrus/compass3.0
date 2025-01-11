@@ -1,6 +1,6 @@
-import { privateRoutes } from '@shared/utils/routing';
 import { NavItem } from '@shared/components/layout/sidebar';
 import Icon from '@shared/components/ui/icon/Icon';
+import { privateRoutes } from '@shared/utils/routing';
 
 export const navItems: NavItem[] = [
   {
