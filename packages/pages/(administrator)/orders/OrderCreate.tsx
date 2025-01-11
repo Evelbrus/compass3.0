@@ -30,9 +30,15 @@ const OrderCreate = () => {
   const vehicleTypes = useMemo(() => Object.values(VehicleType), []);
   const serviceLevels = useMemo(() => Object.values(ServiceLevels), []);
 
+  interface Driver {
+    driverProfileUuid: string;
+    userUuid: string;
+    fullName: string;
+  }
+
   const allDrivers = useMemo(() => {
     return vehicles.flatMap((vehicle) =>
-      vehicle.drivers.map((driver) => ({
+      vehicle.drivers.map((driver: Driver) => ({
         driverProfileUuid: driver.driverProfileUuid,
         userUuid: driver.userUuid,
         fullName: driver.fullName,

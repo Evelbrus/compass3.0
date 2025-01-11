@@ -6,6 +6,7 @@
     "baseUrl": ".",
     "rootDir": ".",
     "paths": {
+      "@socket": ["../../apps/next-app/src/socket.js"],
       "@shared/*": ["./*"],
       "@public/*": ["../../apps/next-app/public/*"],
       "@prisma/*": ["./shared/prisma/schema/*.prisma"]

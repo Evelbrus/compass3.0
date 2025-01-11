@@ -29,6 +29,7 @@
   },
   "include": [
     "packages/**/*",
+    "apps/next-app/src/socket.js",
     "apps/next-app/declarations.d.ts",
     "apps/next-app/next-auth.d.ts",
     "apps/next-app/public/*"

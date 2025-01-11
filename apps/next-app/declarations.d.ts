@@ -14,6 +14,11 @@ declare namespace NodeJS {
   }
 }
 
+declare module '@socket' {
+  // Если у вас нет конкретных типов, укажите any или опишите вручную
+  export const socket: any;
+}
+
 // глобальная переменная process
 declare var process: NodeJS.Process;
 

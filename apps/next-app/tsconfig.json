@@ -20,7 +20,7 @@
       }
     ],
     "paths": {
-      "@socket/*": ["src/socket.js"],
+      "@socket": ["src/socket.js"],
       "@public/*": ["public/*"],
       "@app/*": ["../../packages/app/*"],
       "@pages/*": ["../../packages/pages/*"],
@@ -36,7 +36,6 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     "declarations.d.ts",
-    "src/socket.js",
     "../../packages/pages/**/*",
     "../../packages/widgets/**/*",
     "../../packages/features/**/*",

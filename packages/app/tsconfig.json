@@ -11,8 +11,8 @@
   "sideEffects": ["*.scss"],
   "compilerOptions": {
     "noEmit": true,
-    "composite": true,
     "baseUrl": ".",
+    "rootDir": ".",
     "paths": {
       "@socket": ["../../apps/next-app/src/socket.js"],
       "@app/*": ["./*"],
