@@ -12,6 +12,7 @@ import AdditionalServicesTable from '@widgets/additional-service/ui/AdditionalSe
 
 import Image from 'next/image';
 import { LazyImage } from '@shared/components/ui/images';
+import { AdditionalService } from '@prisma/client';
 
 type TStatus = 'loading' | 'success' | 'error';
 
@@ -24,32 +25,52 @@ const TariffAdminPage = (): JSX.Element => {
   const [statusTariffs, setStatusTariffs] = useState<TStatus>('success');
   const [selectedTariff, setSelectedTariff] = useState<DetailTariffData>();
 
+  const [additionalServices, setAdditionalServices] = useState<AdditionalService[]>([]);
+  const [statusadditionalServices, setStatusAdditionalServices] = useState<TStatus>('success');
+
   const handleSelectTariff = useCallback((tariff: DetailTariffData) => {
     setSelectedTariff(tariff);
   }, []);
 
-  useEffect(() => {
-    const fetchTariffs = async () => {
-      try {
-        setStatusTariffs('loading');
-        const response = await fetch(`/api/tariffs`);
-        if (!response.ok) {
-          throw new Error('Network response was not ok');
-        }
-        const data = await response.json();
-        if (data.status !== 'success') {
-          throw new Error(data.message || 'Failed to fetch tariffs');
-        }
-        setTariffs(data.data.tariffs);
-        setSelectedTariff(data.data.tariffs[0]);
-        setStatusTariffs('success');
-      } catch (error) {
-        console.error('Error fetching tariffs:', error);
-        setStatusTariffs('error');
+  const fetchTariffs = async () => {
+    try {
+      setStatusTariffs('loading');
+      const response = await fetch(`/api/tariffs`);
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
       }
-    };
+      const data = await response.json();
+      if (data.status !== 'success') {
+        throw new Error(data.message || 'Failed to fetch tariffs');
+      }
+      setTariffs(data.data.tariffs);
+      setSelectedTariff(data.data.tariffs[0]);
+      setStatusTariffs('success');
+    } catch (error) {
+      console.error('Error fetching tariffs:', error);
+      setStatusTariffs('error');
+    }
+  };
 
+  const fetchAdditionalServices = async () => {
+    try {
+      setStatusAdditionalServices('loading');
+      const response = await fetch('/api/additional-services?page=1&per_page=100');
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+      const data = await response.json();
+      setAdditionalServices(data.data.additionalServices);
+      setStatusAdditionalServices('success');
+    } catch (error) {
+      console.error('Ошибка при получении услуг:', error);
+      setStatusAdditionalServices('error');
+    }
+  };
+
+  useEffect(() => {
     fetchTariffs();
+    fetchAdditionalServices();
   }, []);
 
   const handleCreate = () => {
@@ -113,7 +134,7 @@ const TariffAdminPage = (): JSX.Element => {
             ))}
           </div>
         </div>
-        <AdditionalServicesTable />
+        <AdditionalServicesTable data={additionalServices} />
       </div>
     </AnimatedComponent>
   );
