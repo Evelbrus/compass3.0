@@ -10,8 +10,6 @@ import { privateRoutes } from '@shared/utils/routing';
 import { useRouter } from 'next/navigation';
 import AdditionalServicesTable from '@widgets/additional-service/ui/AdditionalServicesTable';
 
-import Image from 'next/image';
-import { LazyImage } from '@shared/components/ui/images';
 import { AdditionalService } from '@prisma/client';
 
 type TStatus = 'loading' | 'success' | 'error';
@@ -55,7 +53,7 @@ const TariffAdminPage = (): JSX.Element => {
   const fetchAdditionalServices = async () => {
     try {
       setStatusAdditionalServices('loading');
-      const response = await fetch('/api/additional-services?page=1&per_page=100');
+      const response = await fetch('/api/additional-services');
       if (!response.ok) {
         throw new Error('Network response was not ok');
       }
@@ -134,7 +132,12 @@ const TariffAdminPage = (): JSX.Element => {
             ))}
           </div>
         </div>
-        <AdditionalServicesTable data={additionalServices} />
+        <AdditionalServicesTable
+          statusTariffs={statusTariffs}
+          additionalServices={additionalServices}
+          statusadditionalServices={statusadditionalServices}
+          selectedTariff={selectedTariff}
+        />
       </div>
     </AnimatedComponent>
   );
