@@ -126,7 +126,7 @@ const TariffAdminPage = (): JSX.Element => {
           onMouseLeave={handleMouseLeave}
           style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
         >
-          <div className="flex flex-row gap-4 whitespace-nowrap max-w-[1200px] p-3">
+          <div className="flex gap-4 w-full p-3 overflow-x-scroll">
             {tariffs.map((tariff) => (
               <TariffTypes
                 key={tariff.uuid}

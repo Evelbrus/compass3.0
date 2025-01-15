@@ -53,18 +53,16 @@ const TariffTypes: React.FC<TariffTypesProps> = ({
       className={cn(
         'min-w-[284px] flex flex-col relative rounded-xl p-4 gap-4 cursor-pointer bg-white transition-all duration-75',
         {
-          'shadow-xl outline': isActive,
+          'shadow-lg outline': isActive,
         },
       )}
       onClick={() => onSelectTariff(tariff)}
     >
-      {/*Изображение */}
       <LazyImage
         src={`/images/tariff/${vehicleType?.toLowerCase() || 'default'}.png`}
         alt={translatedVehicleType || 'Default Vehicle'}
         className="w-[253px] h-[99px] object-contain pointer-events-none select-none"
       />
-      {/*Информация о тарифе */}
       <div className="w-full flex flex-col gap-2 justify-between">
         <div className="flex flex-col gap-2">
           <h1 className="font-helvetica-neue text-4 leading-5 font-bold truncate">
@@ -85,7 +83,6 @@ const TariffTypes: React.FC<TariffTypesProps> = ({
             </p>
           )}
         </div>
-        {/*Прайс */}
         <div className="flex flex-col gap-2">
           <p className="font-helvetica-neue text-5 leading-5 text-center text-black p-3 bg-gray-200 rounded-lg">
             Цена: <strong>{totalPrice}₽</strong>
