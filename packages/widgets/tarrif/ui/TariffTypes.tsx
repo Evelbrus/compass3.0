@@ -6,14 +6,21 @@ import { IButton } from '@shared/components/ui/buttons';
 import { useRouter } from 'next/navigation';
 import { vehicleTypeOptions } from '@shared/lib/effector/vehicles/optionsTranslation/optionsTranslationVehicle';
 import { DetailTariffData } from '@shared/prisma/interface/tariff/interface';
+import { cn } from '@shared/lib';
 
 interface TariffTypesProps {
   tariff: DetailTariffData;
   mode?: string;
   onSelectTariff: (tariff: DetailTariffData) => void;
+  selectedTariff: DetailTariffData | undefined;
 }
 
-const TariffTypes: React.FC<TariffTypesProps> = ({ tariff, mode, onSelectTariff }) => {
+const TariffTypes: React.FC<TariffTypesProps> = ({
+  tariff,
+  mode,
+  onSelectTariff,
+  selectedTariff,
+}) => {
   const router = useRouter();
 
   const {
@@ -39,9 +46,16 @@ const TariffTypes: React.FC<TariffTypesProps> = ({ tariff, mode, onSelectTariff 
     router.push(`/tariff-management/detail/${uuid}`);
   };
 
+  const isActive = selectedTariff?.uuid === tariff.uuid;
+
   return (
     <div
-      className="min-w-[284px] flex flex-col relative bg-white rounded-xl p-4 gap-4 cursor-default"
+      className={cn(
+        'min-w-[284px] flex flex-col relative rounded-xl p-4 gap-4 cursor-pointer bg-white transition-all duration-75',
+        {
+          'shadow-xl outline': isActive,
+        },
+      )}
       onClick={() => onSelectTariff(tariff)}
     >
       {/*Изображение */}

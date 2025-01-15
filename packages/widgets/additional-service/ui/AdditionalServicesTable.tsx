@@ -58,7 +58,7 @@ const AdditionalServicesTable: React.FC<AdditionalServicesTableProps> = ({
                       <td className="px-4 py-2 border">
                         {activeService ? `${activeService.price}₽` : 'Недоступно'}
                       </td>
-                      <td className="px-4 py-2 border">
+                      <td className="px-4 py-2 border flex justify-center">
                         {activeService && activeService.isAvailable ? (
                           <CheckIcon className="text-green-500" />
                         ) : (
