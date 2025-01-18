@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { useIntersectionObserver } from '@shared/hooks';
 import { LazyImageProps } from '@shared/components/ui/images';
+import { cn } from '@shared/lib';
 
 const extractSizeFromClassName = (
   className: string | undefined,
@@ -75,11 +76,10 @@ export const LazyImage: React.FC<LazyImageProps> = ({
             height={height}
             blurDataURL={blurDataURL}
             {...(priority ? { priority } : {})}
-            className={`${className} ${
-              enableHoverEffect
-                ? 'transition-transform duration-500 ease-in-out hover:scale-110'
-                : ''
-            }`}
+            className={cn(
+              className,
+              enableHoverEffect && 'transition-transform duration-500 ease-in-out hover:scale-110',
+            )}
             sizes={sizes}
           />
           {overlay && <div className={overlayClassName}></div>}
