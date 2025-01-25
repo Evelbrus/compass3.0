@@ -10,6 +10,10 @@ export interface CustomUser {
   uuid: string;
   email: string;
   role: UserRole;
+  fullName?: string;
+  phone?: string;
+  gender?: Gender;
+  address?: string | null;
 }
 
 declare module 'next-auth' {
@@ -19,16 +23,7 @@ declare module 'next-auth' {
 }
 
 declare module 'next-auth/jwt' {
-  interface JWT {
-    id: string;
-    uuid: string;
-    email: string;
-    role: UserRole;
-    fullName: string;
-    phone: string;
-    gender: Gender;
-    address: string | null;
-  }
+  interface JWT extends CustomUser {}
 }
 
 export const authOptions: NextAuthOptions = {

@@ -61,11 +61,11 @@ const VehiclesAdminPage = (): JSX.Element => {
       setTotalAllVehicles(data.data.totalAllVehicles);
 
       const vehicleTypeCountsData: Record<string, number> = { all: data.data.totalAllVehicles };
-      data.data.vehicleTypeCounts.forEach(
-        (item: { vehicleType: VehicleType; _count: { vehicleType: number } }) => {
-          vehicleTypeCountsData[item.vehicleType] = item._count.vehicleType;
-        },
-      );
+
+      data.data.vehicleTypeCounts?.forEach((item: { type: VehicleType; count: number }) => {
+        vehicleTypeCountsData[item.type] = item.count;
+      });
+
       setVehicleTypeCounts(vehicleTypeCountsData);
     } catch (error) {
       console.error('Ошибка при получении транспортных средств:', error);
@@ -178,7 +178,6 @@ const VehiclesAdminPage = (): JSX.Element => {
               sortBy={sortBy}
               sortDirection={sortOrder}
               onSort={handleSort}
-              enableStatusFilter={false}
             />
           </AnimatedComponent>
         ) : view === 'error' ? (

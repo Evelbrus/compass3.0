@@ -1,6 +1,5 @@
 import type { NextConfig } from 'next';
 const path = require('path');
-
 const createNextIntlPlugin = require('next-intl/plugin');
 const withNextIntl = createNextIntlPlugin();
 
@@ -23,6 +22,14 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  async rewrites() {
+    return [
+      {
+        source: '/socket.io/:path*',
+        destination: 'http://localhost:4000/socket.io/:path*',
+      },
+    ];
+  },
   experimental: {
     optimizeCss: true,
     serverActions: {
@@ -33,6 +40,12 @@ const nextConfig: NextConfig = {
     config.resolve.alias = {
       ...config.resolve.alias,
       '@socket': path.resolve(__dirname, 'src/socket.js'),
+      '@app': path.resolve(__dirname, '../../packages/app'),
+      '@pages': path.resolve(__dirname, '../../packages/pages'),
+      '@widgets': path.resolve(__dirname, '../../packages/widgets'),
+      '@features': path.resolve(__dirname, '../../packages/features'),
+      '@entities': path.resolve(__dirname, '../../packages/entities'),
+      '@shared': path.resolve(__dirname, '../../packages/shared'),
     };
     return config;
   },

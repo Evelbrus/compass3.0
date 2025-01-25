@@ -92,17 +92,6 @@ CREATE TABLE "driver_profile" (
 );
 
 -- CreateTable
-CREATE TABLE "options" (
-    "uuid" TEXT NOT NULL,
-    "name" TEXT NOT NULL,
-    "description" TEXT,
-    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "options_pkey" PRIMARY KEY ("uuid")
-);
-
--- CreateTable
 CREATE TABLE "orders" (
     "uuid" TEXT NOT NULL,
     "created_by_id" TEXT NOT NULL,
@@ -116,18 +105,20 @@ CREATE TABLE "orders" (
     "departure_time" TIMESTAMP(3) NOT NULL,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
+    "intermediate_points" TEXT[],
 
     CONSTRAINT "orders_pkey" PRIMARY KEY ("uuid")
 );
 
 -- CreateTable
-CREATE TABLE "order_options" (
+CREATE TABLE "order_on_tariff_additional_service" (
     "uuid" TEXT NOT NULL,
-    "order_id" TEXT NOT NULL,
-    "option_id" TEXT NOT NULL,
-    "price" DECIMAL(65,30) NOT NULL,
+    "order_uuid" TEXT NOT NULL,
+    "tariff_on_service_uuid" TEXT NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "order_options_pkey" PRIMARY KEY ("uuid")
+    CONSTRAINT "order_on_tariff_additional_service_pkey" PRIMARY KEY ("uuid")
 );
 
 -- CreateTable
@@ -213,6 +204,7 @@ CREATE TABLE "users" (
     "gender" "Gender" NOT NULL,
     "address" TEXT,
     "profile_photo_path" TEXT,
+    "vehicle_driver_id" TEXT,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
@@ -253,10 +245,7 @@ CREATE TABLE "vehicle_drivers" (
 CREATE UNIQUE INDEX "driver_profile_user_id_key" ON "driver_profile"("user_id");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "options_name_key" ON "options"("name");
-
--- CreateIndex
-CREATE UNIQUE INDEX "order_options_order_id_option_id_key" ON "order_options"("order_id", "option_id");
+CREATE UNIQUE INDEX "order_on_tariff_additional_service_order_uuid_tariff_on_ser_key" ON "order_on_tariff_additional_service"("order_uuid", "tariff_on_service_uuid");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "points_address_key" ON "points"("address");
@@ -277,10 +266,10 @@ CREATE UNIQUE INDEX "users_driver_profile_id_key" ON "users"("driver_profile_id"
 CREATE UNIQUE INDEX "vehicles_plate_number_key" ON "vehicles"("plate_number");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "vehicle_drivers_vehicle_id_key" ON "vehicle_drivers"("vehicle_id");
+CREATE UNIQUE INDEX "vehicle_drivers_driver_id_key" ON "vehicle_drivers"("driver_id");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "vehicle_drivers_driver_id_key" ON "vehicle_drivers"("driver_id");
+CREATE UNIQUE INDEX "vehicle_drivers_vehicle_id_driver_id_key" ON "vehicle_drivers"("vehicle_id", "driver_id");
 
 -- AddForeignKey
 ALTER TABLE "driver_experience" ADD CONSTRAINT "driver_experience_driverProfileId_fkey" FOREIGN KEY ("driverProfileId") REFERENCES "driver_profile"("uuid") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -307,7 +296,10 @@ ALTER TABLE "orders" ADD CONSTRAINT "orders_arrival_point_id_fkey" FOREIGN KEY (
 ALTER TABLE "orders" ADD CONSTRAINT "orders_assigned_driver_id_fkey" FOREIGN KEY ("assigned_driver_id") REFERENCES "driver_profile"("uuid") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "order_options" ADD CONSTRAINT "order_options_option_id_fkey" FOREIGN KEY ("option_id") REFERENCES "options"("uuid") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "order_on_tariff_additional_service" ADD CONSTRAINT "order_on_tariff_additional_service_order_uuid_fkey" FOREIGN KEY ("order_uuid") REFERENCES "orders"("uuid") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "order_on_tariff_additional_service" ADD CONSTRAINT "order_on_tariff_additional_service_tariff_on_service_uuid_fkey" FOREIGN KEY ("tariff_on_service_uuid") REFERENCES "tariff_on_service"("uuid") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "tariff_on_service" ADD CONSTRAINT "tariff_on_service_tariff_uuid_fkey" FOREIGN KEY ("tariff_uuid") REFERENCES "tariffs"("uuid") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -322,4 +314,4 @@ ALTER TABLE "company" ADD CONSTRAINT "company_user_id_fkey" FOREIGN KEY ("user_i
 ALTER TABLE "vehicle_drivers" ADD CONSTRAINT "vehicle_drivers_vehicle_id_fkey" FOREIGN KEY ("vehicle_id") REFERENCES "vehicles"("uuid") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "vehicle_drivers" ADD CONSTRAINT "vehicle_drivers_driver_id_fkey" FOREIGN KEY ("driver_id") REFERENCES "driver_profile"("uuid") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "vehicle_drivers" ADD CONSTRAINT "vehicle_drivers_driver_id_fkey" FOREIGN KEY ("driver_id") REFERENCES "users"("uuid") ON DELETE CASCADE ON UPDATE CASCADE;

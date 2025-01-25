@@ -5,6 +5,7 @@ import { getLocale, getMessages } from 'next-intl/server';
 import { ToastManager } from '@shared/components/toast/ToastManager';
 import '@shared/styles/globals.css';
 import '@shared/styles/react-datepicker-custom.css';
+import 'react-toastify/dist/ReactToastify.css';
 import '@shared/styles/welcomeIcon.css';
 
 export { metadata };

@@ -224,15 +224,13 @@ const VehiclesCreate: React.FC = () => {
                   <SelectMultiple
                     {...field}
                     options={drivers.map((driver) => ({
-                      value: driver.driverProfile?.uuid || '',
+                      value: driver.uuid,
                       label: driver.fullName,
                     }))}
                     value={drivers
-                      .filter((driver) =>
-                        (field.value || []).includes(driver.driverProfile?.uuid || ''),
-                      )
+                      .filter((driver) => (field.value || []).includes(driver.uuid))
                       .map((driver) => ({
-                        value: driver.driverProfile?.uuid || '',
+                        value: driver.uuid,
                         label: driver.fullName,
                       }))}
                     onChange={(selectedOptions) =>

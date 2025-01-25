@@ -39,7 +39,6 @@ model DriverProfile {
   permanentAddress  String             @map("permanent_address")
   changingDriver    ChangingDriver     @map("changing_driver")
   typeDriver        String             @map("driver_type")
-  vehicleDriver     VehicleDriver?     @relation("driver_profile_to_vehicle_driver")
   driverExperience  DriverExperience[] @relation("driver_experience")
   yearsOfDriving    Int
   passportPhotoPath String?            @map("passport_photo_path")

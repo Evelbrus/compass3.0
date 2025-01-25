@@ -6,6 +6,7 @@ interface PaginationProps {
   pageSize: number;
   totalCount: number;
   setPageNumber: (page: number) => void;
+  disabled?: boolean;
 }
 
 const Pagination: React.FC<PaginationProps> = ({
@@ -13,27 +14,28 @@ const Pagination: React.FC<PaginationProps> = ({
   pageSize,
   totalCount,
   setPageNumber,
+  disabled = false,
 }) => {
   const totalPages = Math.ceil(totalCount / pageSize);
 
   const handleFirstPage = () => {
-    if (pageNumber !== 1) setPageNumber(1);
+    if (!disabled && pageNumber !== 1) setPageNumber(1);
   };
 
   const handlePreviousPage = () => {
-    if (pageNumber > 1) setPageNumber(pageNumber - 1);
+    if (!disabled && pageNumber > 1) setPageNumber(pageNumber - 1);
   };
 
   const handleNextPage = () => {
-    if (pageNumber < totalPages) setPageNumber(pageNumber + 1);
+    if (!disabled && pageNumber < totalPages) setPageNumber(pageNumber + 1);
   };
 
   const handleLastPage = () => {
-    if (pageNumber !== totalPages) setPageNumber(totalPages);
+    if (!disabled && pageNumber !== totalPages) setPageNumber(totalPages);
   };
 
   const handlePageClick = (page: number) => {
-    if (page !== pageNumber) setPageNumber(page);
+    if (!disabled && page !== pageNumber) setPageNumber(page);
   };
 
   const renderPageButtons = () => {
@@ -51,7 +53,8 @@ const Pagination: React.FC<PaginationProps> = ({
             pageNumber === i
               ? 'bg-gray-700 text-white'
               : 'bg-white text-gray-500 border-gray-300 hover:bg-blue-100'
-          }`}
+          } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+          disabled={disabled}
         >
           {i}
         </IButton>,
@@ -68,9 +71,9 @@ const Pagination: React.FC<PaginationProps> = ({
       <IButton
         onClick={handleFirstPage}
         className={`w-8 h-8 flex items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-500 hover:bg-blue-100 ${
-          pageNumber === 1 ? 'opacity-30 cursor-not-allowed' : ''
+          pageNumber === 1 || disabled ? 'opacity-50 cursor-not-allowed' : ''
         }`}
-        disabled={pageNumber === 1}
+        disabled={pageNumber === 1 || disabled}
       >
         &lt;&lt;
       </IButton>
@@ -78,9 +81,9 @@ const Pagination: React.FC<PaginationProps> = ({
       <IButton
         onClick={handlePreviousPage}
         className={`w-8 h-8 rounded-lg flex items-center justify-center border border-gray-300 bg-white text-gray-500 hover:bg-blue-100 ${
-          pageNumber === 1 ? 'opacity-30 cursor-not-allowed' : ''
+          pageNumber === 1 || disabled ? 'opacity-50 cursor-not-allowed' : ''
         }`}
-        disabled={pageNumber === 1}
+        disabled={pageNumber === 1 || disabled}
       >
         &lt;
       </IButton>
@@ -90,9 +93,9 @@ const Pagination: React.FC<PaginationProps> = ({
       <IButton
         onClick={handleNextPage}
         className={`w-8 h-8 rounded-lg flex items-center justify-center border border-gray-300 bg-white text-gray-500 hover:bg-blue-100 ${
-          pageNumber === totalPages ? 'opacity-30 cursor-not-allowed' : ''
+          pageNumber === totalPages || disabled ? 'opacity-50 cursor-not-allowed' : ''
         }`}
-        disabled={pageNumber === totalPages}
+        disabled={pageNumber === totalPages || disabled}
       >
         &gt;
       </IButton>
@@ -100,9 +103,9 @@ const Pagination: React.FC<PaginationProps> = ({
       <IButton
         onClick={handleLastPage}
         className={`w-8 h-8 flex items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-500 hover:bg-blue-100 ${
-          pageNumber === totalPages ? 'opacity-30 cursor-not-allowed' : ''
+          pageNumber === totalPages || disabled ? 'opacity-50 cursor-not-allowed' : ''
         }`}
-        disabled={pageNumber === totalPages}
+        disabled={pageNumber === totalPages || disabled}
       >
         &gt;&gt;
       </IButton>

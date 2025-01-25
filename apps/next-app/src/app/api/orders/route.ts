@@ -138,8 +138,6 @@ export async function GET(req: Request) {
   }
 }
 
-const { socket } = require('src/socket.js');
-
 export async function POST(req: Request) {
   let data: CreateOrderData;
   try {

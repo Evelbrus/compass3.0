@@ -1,123 +1,112 @@
-import { NextResponse } from 'next/server';
-import { PrismaClient, ServiceLevels, Vehicle, VehicleDriver, VehicleType } from '@prisma/client';
+import { NextRequest, NextResponse } from 'next/server';
+import { Prisma, ServiceLevels, Vehicle, VehicleDriver, VehicleType } from '@prisma/client';
 import debug from 'debug';
 import { CreateVehicleData } from '@shared/prisma/interface/vehicles/interface';
 import { v4 as uuidv4 } from 'uuid';
+import { getToken } from 'next-auth/jwt';
+import { NextApiRequest } from 'next';
+import { prisma } from '@shared/prisma/prisma-client';
 
 const log = debug('app:vehicles');
-const prisma = new PrismaClient({
-  log: ['warn', 'error'],
-});
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
+  const token = await getToken({ req: req as unknown as NextApiRequest });
+
+  if (!token?.uuid) {
+    return NextResponse.json({ status: 'error', message: 'Unauthorized' }, { status: 401 });
+  }
+
   const parsedParams = {
-    page: parseInt(searchParams.get('page') || '1', 10),
-    per_page: parseInt(searchParams.get('per_page') || '10', 10),
-    vehicleType: (searchParams.get('vehicleType') as VehicleType | 'all' | null) || null,
+    page: Math.max(1, parseInt(searchParams.get('page') || '1')),
+    per_page: Math.max(1, Math.min(100, parseInt(searchParams.get('per_page') || '10'))),
+    vehicleType: searchParams.get('vehicleType') as VehicleType | null,
     serviceLevel: searchParams.get('serviceLevel') as ServiceLevels | null,
-    color: searchParams.get('color') || null,
-    availability: searchParams.get('availability') as 'true' | 'false' | null,
-    sort_by:
-      (searchParams.get('sort_by') as
-        | 'brand'
-        | 'model'
-        | 'year'
-        | 'color'
-        | 'createdAt'
-        | 'updatedAt'
-        | 'isAvailable'
-        | 'fullName'
-        | 'serviceType') || 'createdAt',
-    sort_order: (searchParams.get('sort_order') as 'asc' | 'desc') || 'asc',
+    color: searchParams.get('color'),
+    availability:
+      searchParams.get('availability') === 'true'
+        ? true
+        : searchParams.get('availability') === 'false'
+          ? false
+          : null,
+    sortBy: searchParams.get('sort_by') || 'createdAt',
+    sortOrder: (searchParams.get('sort_order') === 'asc' ? 'asc' : 'desc') as Prisma.SortOrder,
   };
 
-  log('Parsed parameters:', parsedParams);
-
   try {
-    const where: {
-      vehicleType?: VehicleType;
-      serviceLevels?: ServiceLevels;
-      color?: string;
-      isAvailable?: boolean;
-    } = {};
-    if (parsedParams.vehicleType && parsedParams.vehicleType !== 'all') {
-      where.vehicleType = parsedParams.vehicleType;
-    }
-    if (parsedParams.serviceLevel) {
-      where.serviceLevels = parsedParams.serviceLevel;
-    }
-    if (parsedParams.color) {
-      where.color = parsedParams.color;
-    }
-    if (parsedParams.availability) {
-      where.isAvailable = parsedParams.availability === 'true';
-    }
+    const driverWhere = { vehicleDrivers: { some: { driverId: token.uuid } } };
+    const whereFilter =
+      token.role === 'Driver'
+        ? {
+            AND: [
+              driverWhere,
+              parsedParams.vehicleType ? { vehicleType: parsedParams.vehicleType } : {},
+            ],
+          }
+        : {
+            vehicleType: parsedParams.vehicleType || undefined,
+            serviceLevels: parsedParams.serviceLevel || undefined,
+            color: parsedParams.color || undefined,
+            isAvailable: parsedParams.availability !== null ? parsedParams.availability : undefined,
+          };
 
-    const vehicles = await prisma.vehicle.findMany({
-      skip: (parsedParams.page - 1) * parsedParams.per_page,
-      take: parsedParams.per_page,
-      where,
-      orderBy: {
-        [parsedParams.sort_by === 'fullName'
-          ? 'vehicleDrivers.driver.user.fullName'
-          : parsedParams.sort_by === 'serviceType'
-            ? 'serviceLevels'
-            : parsedParams.sort_by]: parsedParams.sort_order,
-      },
-      include: {
-        vehicleDrivers: {
-          include: {
-            driver: {
-              select: {
-                uuid: true,
-                status: true,
-                user: {
-                  select: {
-                    uuid: true,
-                    fullName: true,
-                    phone: true,
-                  },
+    const [vehicles, total, totalAllVehicles, vehicleTypeCounts] = await Promise.all([
+      prisma.vehicle.findMany({
+        skip: (parsedParams.page - 1) * parsedParams.per_page,
+        take: parsedParams.per_page,
+        where: whereFilter,
+        orderBy: { [parsedParams.sortBy]: parsedParams.sortOrder },
+        select: {
+          uuid: true,
+          vehicleType: true,
+          brand: true,
+          model: true,
+          year: true,
+          color: true,
+          plateNumber: true,
+          isAvailable: true,
+          photoPath: true,
+          serviceLevels: true,
+          createdAt: true,
+          updatedAt: true,
+          vehicleDrivers: {
+            select: {
+              driver: {
+                select: {
+                  uuid: true,
+                  fullName: true,
+                  phone: true,
+                  driverProfile: { select: { status: true } },
                 },
               },
             },
           },
         },
-      },
-    });
-
-    const total = await prisma.vehicle.count({ where });
-    const totalAllVehicles = await prisma.vehicle.count();
-
-    const vehicleTypeCounts = await prisma.vehicle.groupBy({
-      by: ['vehicleType'],
-      _count: {
-        vehicleType: true,
-      },
-    });
-
-    log('Fetched vehicles:', vehicles);
+      }),
+      prisma.vehicle.count({ where: whereFilter }),
+      token.role === 'Driver'
+        ? prisma.vehicle.count({ where: driverWhere })
+        : prisma.vehicle.count(),
+      prisma.vehicle.groupBy({
+        by: ['vehicleType'],
+        _count: { vehicleType: true },
+        where: token.role === 'Driver' ? driverWhere : {},
+      }),
+    ]);
 
     const response = vehicles.map((vehicle) => ({
-      uuid: vehicle.uuid,
-      vehicleType: vehicle.vehicleType,
-      brand: vehicle.brand,
-      model: vehicle.model,
-      year: vehicle.year,
-      color: vehicle.color,
-      plateNumber: vehicle.plateNumber,
-      isAvailable: vehicle.isAvailable,
-      photoPath: vehicle.photoPath,
-      createdAt: vehicle.createdAt,
-      updatedAt: vehicle.updatedAt,
-      drivers: vehicle.vehicleDrivers.map((vehicleDriver: any) => ({
-        driverProfileUuid: vehicleDriver.driver?.uuid || null,
-        userUuid: vehicleDriver.driver?.user?.uuid || null,
-        fullName: vehicleDriver.driver?.user?.fullName || null,
-        phone: vehicleDriver.driver?.user?.phone || null,
-        status: vehicleDriver.driver?.status || null,
+      ...vehicle,
+      drivers: vehicle.vehicleDrivers.map((vd) => ({
+        userUuid: vd.driver.uuid,
+        fullName: vd.driver.fullName,
+        phone: vd.driver.phone,
+        status: vd.driver.driverProfile?.status,
       })),
-      serviceLevels: vehicle.serviceLevels,
+    }));
+
+    const typeCounts = vehicleTypeCounts.map(({ vehicleType, _count }) => ({
+      type: vehicleType,
+      count: _count.vehicleType,
     }));
 
     return NextResponse.json({
@@ -128,27 +117,27 @@ export async function GET(req: Request) {
         per_page: parsedParams.per_page,
         total,
         totalAllVehicles,
-        vehicleTypeCounts,
+        vehicleTypeCounts: typeCounts,
         vehicles: response,
       },
     });
   } catch (error) {
-    log('Error fetching vehicles:', error);
-    if (error instanceof Error) {
-      log('Error message:', error.message);
-      log('Error stack:', error.stack);
-    }
+    console.error('Error:', error);
     return NextResponse.json(
-      { status: 'error', message: 'Unable to fetch vehicles', data: null },
+      { status: 'error', message: 'Internal Server Error' },
       { status: 500 },
     );
-  } finally {
-    await prisma.$disconnect();
-    log('Disconnected from database');
   }
 }
 
 export async function POST(req: Request) {
+  const token = await getToken({ req: req as unknown as NextApiRequest });
+
+  //Authorization check for Admin role
+  if (token?.role !== 'Admin') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
   const data: CreateVehicleData = await req.json();
   const {
     vehicleType,
@@ -165,18 +154,20 @@ export async function POST(req: Request) {
 
   log('Received data:', data);
 
-  //Валидация входных данных
+  //Enhanced validation
   if (
     !vehicleType ||
     !brand ||
     !model ||
-    !year ||
+    typeof year !== 'number' ||
+    year < 1900 ||
+    year > new Date().getFullYear() + 1 ||
     !color ||
     !plateNumber ||
     !serviceLevels ||
     serviceLevels.length === 0
   ) {
-    return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    return NextResponse.json({ error: 'Invalid input data' }, { status: 400 });
   }
 
   try {
@@ -202,7 +193,7 @@ export async function POST(req: Request) {
     let createdVehicleDrivers: VehicleDriver[] = [];
 
     await prisma.$transaction(async (transaction) => {
-      //Проверка на существование уникального plateNumber
+      //Check for existing plate number
       const existingVehicle = await transaction.vehicle.findUnique({
         where: { plateNumber },
       });
@@ -211,6 +202,7 @@ export async function POST(req: Request) {
         throw new Error(`Vehicle with plate number ${plateNumber} already exists`);
       }
 
+      //Create vehicle
       createdVehicle = await transaction.vehicle.create({
         data: vehicle,
       });
@@ -219,43 +211,43 @@ export async function POST(req: Request) {
         throw new Error('Vehicle creation failed');
       }
 
+      //Batch check for existing driver assignments
       if (driverIds && driverIds.length > 0) {
-        for (const driverId of driverIds) {
-          const driverExists = await transaction.driverProfile.findUnique({
-            where: { uuid: driverId },
-          });
+        const existingDrivers = await transaction.vehicleDriver.findMany({
+          where: { driverId: { in: driverIds } },
+        });
 
-          if (!driverExists) {
-            throw new Error(`Driver with ID ${driverId} does not exist`);
-          }
-
-          //Проверим, существует ли уже запись с таким driverId
-          const existingVehicleDriver = await transaction.vehicleDriver.findUnique({
-            where: { driverId },
-          });
-
-          if (existingVehicleDriver) {
-            throw new Error(
-              `Driver with ID ${driverId} is already assigned to vehicle with ID ${existingVehicleDriver.vehicleId}`,
-            );
-          }
-
-          const createdVehicleDriver = await transaction.vehicleDriver.create({
-            data: {
-              uuid: uuidv4(),
-              vehicleId: createdVehicle.uuid,
-              driverId,
-              assignmentDate: now,
-            },
-          });
-
-          createdVehicleDrivers.push(createdVehicleDriver);
+        if (existingDrivers.length > 0) {
+          const conflictIds = existingDrivers.map((d) => d.driverId);
+          throw new Error(`Drivers already assigned: ${conflictIds.join(', ')}`);
         }
+
+        //Create driver associations
+        createdVehicleDrivers = await Promise.all(
+          driverIds.map(async (driverId) => {
+            const driverUser = await transaction.user.findUnique({
+              where: { uuid: driverId, role: 'Driver' },
+              include: { driverProfile: true },
+            });
+
+            if (!driverUser?.driverProfile) {
+              throw new Error(`Driver ${driverId} not found`);
+            }
+
+            return transaction.vehicleDriver.create({
+              data: {
+                uuid: uuidv4(),
+                vehicleId: createdVehicle!.uuid,
+                driverId,
+                assignmentDate: now,
+              },
+            });
+          }),
+        );
       }
     });
 
     log('Created vehicle:', createdVehicle);
-
     return NextResponse.json({
       status: 'success',
       message: 'Vehicle created successfully',
@@ -264,14 +256,12 @@ export async function POST(req: Request) {
     });
   } catch (error) {
     log('Error creating vehicle:', error);
-    if (error instanceof Error) {
-      log('Error message:', error.message);
-      log('Error stack:', error.stack);
-      return NextResponse.json({ status: 'error', message: error.message }, { status: 400 });
-    }
-    return NextResponse.json({ status: 'error', message: 'Unknown error' }, { status: 500 });
-  } finally {
-    await prisma.$disconnect();
-    log('Disconnected from database');
+    return NextResponse.json(
+      {
+        status: 'error',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      },
+      { status: 400 },
+    );
   }
 }
