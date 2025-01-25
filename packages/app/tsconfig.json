@@ -12,7 +12,7 @@
   "compilerOptions": {
     "noEmit": true,
     "baseUrl": ".",
-    "rootDir": ".",
+    "rootDir": "../",
     "paths": {
       "@socket": ["../../apps/next-app/src/socket.js"],
       "@app/*": ["./*"],
