@@ -1,14 +1,12 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient, User, UserRole } from '@prisma/client';
+import { User, UserRole } from '@prisma/client';
 import debug from 'debug';
 import { CreateUserData } from '@shared/prisma/interface/users/interface';
 import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcrypt';
+import { prisma } from '@shared/prisma/prisma-client';
 
 const log = debug('app:users');
-const prisma = new PrismaClient({
-  log: ['warn', 'error'],
-});
 
 export async function POST(req: Request) {
   try {
@@ -30,12 +28,12 @@ export async function POST(req: Request) {
 
     log('Received data:', data);
 
-    // Валидация данных
+    //Валидация данных
     if (!email || !password || !role || !fullName) {
       throw new Error('Missing required fields');
     }
 
-    // Хеширование пароля
+    //Хеширование пароля
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
@@ -45,7 +43,7 @@ export async function POST(req: Request) {
     const user = {
       uuid,
       email,
-      password: hashedPassword, // Используем хешированный пароль
+      password: hashedPassword,
       role,
       availability,
       fullName,
@@ -125,9 +123,6 @@ export async function POST(req: Request) {
       },
       { status: 500 },
     );
-  } finally {
-    await prisma.$disconnect();
-    log('Disconnected from database');
   }
 }
 
@@ -217,8 +212,5 @@ export async function GET(req: Request) {
       log('Error stack:', error.stack);
     }
     return NextResponse.json({ error: 'Unable to fetch users' }, { status: 500 });
-  } finally {
-    await prisma.$disconnect();
-    log('Disconnected from database');
   }
 }

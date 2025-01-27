@@ -1,11 +1,8 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
 import debug from 'debug';
+import { prisma } from '@shared/prisma/prisma-client';
 
 const log = debug('app:orders');
-const prisma = new PrismaClient({
-  log: ['query', 'info', 'warn', 'error'],
-});
 
 interface Params {
   uuid: string;
@@ -48,9 +45,6 @@ export async function GET(req: Request, { params }: { params: Promise<Params> })
       log('Error stack:', error.stack);
     }
     return NextResponse.json({ error: 'Unable to fetch order' }, { status: 500 });
-  } finally {
-    await prisma.$disconnect();
-    log('Disconnected from database');
   }
 }
 
@@ -106,8 +100,5 @@ export async function PUT(req: Request, { params }: { params: Promise<Params> })
       log('Error stack:', error.stack);
     }
     return NextResponse.json({ error: 'Unable to update order' }, { status: 500 });
-  } finally {
-    await prisma.$disconnect();
-    log('Disconnected from database');
   }
 }

@@ -1,13 +1,11 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient, VehicleType, ServiceLevels } from '@prisma/client';
+import { VehicleType, ServiceLevels } from '@prisma/client';
 import debug from 'debug';
 import { CreateTariffData } from '@shared/prisma/interface/tariff/interface';
 import { v4 as uuidv4 } from 'uuid';
+import { prisma } from '@shared/prisma/prisma-client';
 
 const log = debug('app:tariffs');
-const prisma = new PrismaClient({
-  log: ['warn', 'error'],
-});
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -84,10 +82,6 @@ export async function GET(req: Request) {
       log('Error stack:', error.stack);
     }
     return NextResponse.json({ error: 'Unable to fetch tariffs' }, { status: 500 });
-  } finally {
-    //Отключаемся от базы данных
-    await prisma.$disconnect();
-    log('Disconnected from database');
   }
 }
 
@@ -198,9 +192,5 @@ export async function POST(req: Request) {
       log('Error stack:', error.stack);
     }
     return NextResponse.json({ error: 'Unable to create tariff' }, { status: 500 });
-  } finally {
-    //Отключаемся от базы данных
-    await prisma.$disconnect();
-    log('Disconnected from database');
   }
 }

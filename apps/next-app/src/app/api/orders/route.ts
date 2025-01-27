@@ -1,14 +1,12 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient, OrderStatus } from '@prisma/client';
+import { OrderStatus } from '@prisma/client';
 import debug from 'debug';
 import { CreateOrderData } from '@shared/prisma/interface/orders/interface';
 import { v4 as uuidv4 } from 'uuid';
 import { Decimal } from 'decimal.js';
+import { prisma } from '@shared/prisma/prisma-client';
 
 const log = debug('app:orders');
-const prisma = new PrismaClient({
-  log: ['info', 'warn', 'error'],
-});
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -132,9 +130,6 @@ export async function GET(req: Request) {
       log('Error stack:', error.stack);
     }
     return NextResponse.json({ error: 'Unable to fetch orders' }, { status: 500 });
-  } finally {
-    await prisma.$disconnect();
-    log('Disconnected from database');
   }
 }
 
@@ -253,8 +248,5 @@ export async function POST(req: Request) {
   } catch (error) {
     log('Error creating order:', error);
     return NextResponse.json({ error: 'Unable to create order' }, { status: 500 });
-  } finally {
-    await prisma.$disconnect();
-    log('Disconnected from database');
   }
 }
