@@ -8,8 +8,7 @@
     "./packages/*"
   ],
   "scripts": {
-    "dev": "yarn workspace next-app dev",
-    "start": "node packages/shared/lib/web-socket/websocketServer.js",
+    "dev": "concurrently \"yarn workspace next-app dev\" \"yarn workspace next-app devWS\"",
     "prod": "yarn workspace next-app build",
     "serve": "yarn workspace next-app start",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
@@ -86,6 +85,7 @@
     "@types/ws": "^8.5.13",
     "@types/zxcvbn": "^4",
     "autoprefixer": "^10.4.20",
+    "concurrently": "^9.1.2",
     "eslint": "^9.16.0",
     "eslint-config-next": "15.0.2",
     "eslint-config-prettier": "^9.1.0",

@@ -1,5 +1,3 @@
-'use client';
-
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import { profileMenuRoutes } from '@shared/utils/routing';
@@ -18,14 +16,23 @@ const ProfileMenu: React.FC<ProfileMenuProps> = ({ onClose }) => {
   };
 
   const handleLogout = async () => {
-    // try {
-    //   await ();
-    //   router.push('/login');
-    // } catch (error) {
-    //   console.error('Ошибка при выходе из системы:', error);
-    // } finally {
-    //   onClose?.();
-    // }
+    try {
+      const response = await fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        router.push('/login');
+        onClose?.();
+      } else {
+        console.error('Ошибка при выходе из системы:', response.statusText);
+      }
+    } catch (error) {
+      console.error('Ошибка при выходе из системы:', error);
+    }
   };
 
   return (

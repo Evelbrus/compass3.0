@@ -5,14 +5,14 @@ export function useSocket(event?: string, callback?: (data: any) => void) {
   const socket = useContext(SocketContext);
 
   useEffect(() => {
-    if (event && callback && socket) {
-      socket.on(event, callback);
-    }
+    if (!socket || !event || !callback) return;
+
+    socket.on(event, callback);
 
     return () => {
-      socket?.off(event, callback);
+      socket.off(event, callback);
     };
-  }, [callback, event, socket]);
+  }, [socket, event, callback]);
 
   return socket;
 }

@@ -25,7 +25,7 @@ const StatusOverview: React.FC<StatusOverviewProps> = ({
   };
 
   return (
-    <div className="w-full flex flex-row flex-nowrap gap-2">
+    <div className="w-full grid grid-cols-[repeat(auto-fit,minmax(250px,1fr))] gap-2">
       {statusOverview.map((status) => {
         const isSelected = selectedStatus === status.key;
 
@@ -33,13 +33,10 @@ const StatusOverview: React.FC<StatusOverviewProps> = ({
           <IButton
             key={status.key}
             onClick={() => handleStatusChange(status.key)}
-            className={`relative w-full h-16 px-4 py-2 flex justify-between items-center gap-4 rounded-xl 
-              bg-white transition-all duration-300 
-              ${
-                isSelected
-                  ? 'opacity-100 cursor-default'
-                  : 'opacity-50 hover:bg-gray-200 hover:opacity-100 cursor-pointer'
-              }`}
+            className={`relative h-16 px-4 py-2 flex justify-between items-center gap-4 rounded-xl 
+    bg-white transition-all duration-300 
+    ${isSelected ? 'opacity-100' : 'opacity-50 hover:bg-gray-200 hover:opacity-100'}
+    ${isSelected ? 'cursor-default' : 'cursor-pointer'}`}
             customPrefix={
               <AnimatedComponent
                 className={`w-[40px] h-[40px] rounded-full flex items-center justify-center text-white text-lg 

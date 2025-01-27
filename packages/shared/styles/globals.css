@@ -31,15 +31,14 @@
 }
 
 :focus-visible {
-  outline: none; /* Убрать это правило */
+  outline: none;
 }
 
 /* Локальный сброс */
 .input-custom-reset:focus {
   outline: none;
   box-shadow: none;
-  border-color: #0051b2; /* Ваш цвет границы */
-  box-shadow: 0 0 0 2px #0051b2; /* Ваш эффект box-shadow */
+  border-color: #0051b2;
 }
 
 body {

@@ -1,7 +1,5 @@
 import React, { JSX, ReactNode } from 'react';
-
 import { getLayoutData } from '@shared/utils/cookie/layout-data/getLayoutData';
-
 import ClientProvider from '@app/provider/layout-provider/ClientProvider';
 import ModalManagerComponent from '@shared/components/modal/ModalManager';
 

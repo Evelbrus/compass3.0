@@ -8,19 +8,23 @@
     "../entities/**/*",
     "../shared/**/*"
   ],
-  "sideEffects": ["*.scss"],
   "compilerOptions": {
     "noEmit": true,
     "baseUrl": ".",
-    "rootDir": "../",
+    "rootDirs": [
+      ".",
+      "../shared",
+      "../widgets",
+      "../entities",
+      "../features"
+    ],
     "paths": {
-      "@socket": ["../../apps/next-app/src/socket.js"],
       "@app/*": ["./*"],
-      "@pages/*": ["../pages/*"],
       "@widgets/*": ["../widgets/*"],
-      "@features/*": ["../features/*"],
+      "@shared/*": ["../shared/*"],
       "@entities/*": ["../entities/*"],
-      "@shared/*": ["../shared/*"]
+      "@features/*": ["../features/*"],
+      "@socket": ["../../apps/next-app/src/socket.js"]
     }
   }
 }

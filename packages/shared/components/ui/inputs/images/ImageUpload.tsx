@@ -99,7 +99,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
       <label className="text-5 leading-5 text-gray-500 font-extrabold mb-3 flex justify-center">
         {label} {requiredStar && <span className="text-red-500">*</span>}
       </label>
-      <div className="w-full min-h-[400px] border-2 border-dashed border-gray-400 rounded-lg flex flex-col gap-8 items-center justify-center bg-gray-50 overflow-hidden relative">
+      <div className="w-full min-h-[200px] border-2 border-dashed border-gray-400 rounded-lg flex flex-col gap-8 items-center justify-center bg-gray-50 overflow-hidden relative">
         {preview ? (
           <>
             <img

@@ -13,3 +13,5 @@ export const roleTranslations: Record<UserRole, string> = {
   Admin: 'Администратор',
   None: 'Нет роли',
 };
+
+export type roleTranslationsType = typeof roleTranslations;

@@ -7,7 +7,6 @@
     "../entities/**/*",
     "../shared/**/*"
   ],
-  "sideEffects": ["*.scss"],
   "compilerOptions": {
     "noEmit": true,
     "baseUrl": ".",

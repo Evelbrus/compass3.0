@@ -7,7 +7,7 @@ interface AnimatedComponentProps {
   children: React.ReactNode;
   className?: string;
   duration?: number;
-  visible?: boolean; // Управление видимостью
+  visible?: boolean;
 }
 
 const AnimatedComponent: React.FC<AnimatedComponentProps> = ({
@@ -19,7 +19,6 @@ const AnimatedComponent: React.FC<AnimatedComponentProps> = ({
   const [animationStart, setAnimationStart] = useState(false);
 
   useEffect(() => {
-    // Обновляем состояние анимации при изменении видимости
     setAnimationStart(visible);
   }, [visible]);
 

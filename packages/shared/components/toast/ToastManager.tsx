@@ -1,8 +1,12 @@
 'use client';
 
 import React from 'react';
-import { ToastContainer, toast, ToastOptions } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+import { toast, ToastOptions } from 'react-toastify';
+import dynamic from 'next/dynamic';
+
+const ToastContainer = dynamic(() => import('react-toastify').then((mod) => mod.ToastContainer), {
+  ssr: false,
+});
 
 export interface ToastManagerProps extends ToastOptions {
   position?: ToastOptions['position'];

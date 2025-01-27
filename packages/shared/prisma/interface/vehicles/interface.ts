@@ -1,4 +1,4 @@
-import { Vehicle } from '@prisma/client';
+import { Status, Vehicle } from '@prisma/client';
 
 export type VehicleOverview = Vehicle & {
   drivers: {
@@ -10,12 +10,12 @@ export type VehicleOverview = Vehicle & {
 export type DetailVehicleData = Omit<Vehicle, 'createdAt' | 'updatedAt'> & {
   vehicleDrivers: Array<{
     uuid: string;
+    assignmentDate: Date;
     driver: {
       uuid: string;
-      user: {
-        fullName: string;
-        phone: string;
-      };
+      fullName: string;
+      phone: string;
+      status?: Status;
     };
   }>;
 };
