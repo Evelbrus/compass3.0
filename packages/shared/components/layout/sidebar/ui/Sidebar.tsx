@@ -50,7 +50,7 @@ const Sidebar: React.FC<SidebarProps> = ({ role }) => {
   const filteredNavItems = navItems.filter((item: NavItem) => allowedHrefs.includes(item.href));
 
   return (
-    <aside className="hidden md:block lg:block max-w-[200px] w-[200px] text-white flex-shrink-0">
+    <aside className="hidden md:block lg:block max-w-[200px] w-[200px] text-white flex-shrink-0 z-50">
       {/*При клике передаём ключ 'HOME', чтобы router.push ходил на privateRoutes.HOME */}
       <div
         onClick={() => handleNavigation('HOME')}

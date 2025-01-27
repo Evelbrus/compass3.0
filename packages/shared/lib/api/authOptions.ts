@@ -1,30 +1,35 @@
-import NextAuth, { NextAuthOptions } from 'next-auth';
+import NextAuth, { type NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
-import { PrismaClient, UserRole, Gender } from '@prisma/client';
 import bcrypt from 'bcryptjs';
-
-const prisma = new PrismaClient();
-
-export interface CustomUser {
-  id: string;
-  uuid: string;
-  email: string;
-  role: UserRole;
-  fullName?: string;
-  phone?: string;
-  gender?: Gender;
-  address?: string | null;
-}
+import { UserRole } from '@prisma/client';
+import { prisma } from '@shared/prisma/prisma-client';
 
 declare module 'next-auth' {
+  interface User {
+    uuid: string;
+    role: UserRole;
+    email: string;
+  }
+
   interface Session {
-    user: CustomUser;
+    user: {
+      uuid: string;
+      email: string;
+      role: UserRole;
+    };
+    expires: string;
   }
 }
 
 declare module 'next-auth/jwt' {
-  interface JWT extends CustomUser {}
+  interface JWT {
+    uuid: string;
+    role: UserRole;
+    email: string;
+  }
 }
+
+const SESSION_DURATION = parseInt(process.env.SESSION_DURATION || '300', 10);
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -36,30 +41,38 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
-          throw new Error('Invalid credentials');
+          throw new Error('Некорректные учетные данные');
         }
 
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
-        });
+        try {
+          const user = await prisma.user.findUnique({
+            where: { email: credentials.email },
+            select: {
+              uuid: true,
+              email: true,
+              password: true,
+              role: true,
+            },
+          });
 
-        if (!user) {
-          throw new Error('No user found');
+          if (!user) {
+            throw new Error('Пользователь не найден');
+          }
+
+          if (!(await bcrypt.compare(credentials.password, user.password))) {
+            throw new Error('Неверный пароль');
+          }
+
+          return {
+            id: user.uuid,
+            uuid: user.uuid,
+            email: user.email,
+            role: user.role,
+          };
+        } catch (error) {
+          console.error('Authentication error:', error);
+          throw new Error('Ошибка аутентификации');
         }
-
-        const isValid = await bcrypt.compare(credentials.password, user.password);
-        if (!isValid) {
-          throw new Error('Invalid password');
-        }
-
-        const customUser: CustomUser = {
-          id: user.uuid,
-          uuid: user.uuid,
-          email: user.email,
-          role: user.role as UserRole,
-        };
-
-        return customUser;
       },
     }),
   ],
@@ -68,6 +81,10 @@ export const authOptions: NextAuthOptions = {
     signOut: '/',
   },
   secret: process.env.NEXTAUTH_SECRET,
+  session: {
+    strategy: 'jwt',
+    maxAge: SESSION_DURATION,
+  },
   cookies: {
     sessionToken: {
       name: 'next-auth.session-token',
@@ -75,40 +92,46 @@ export const authOptions: NextAuthOptions = {
         httpOnly: true,
         sameSite: 'lax',
         path: '/',
-        secure: false,
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: SESSION_DURATION,
+      },
+    },
+    csrfToken: {
+      name: 'next-auth.csrf-token',
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: process.env.NODE_ENV === 'production',
       },
     },
   },
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        const customUser = user as CustomUser;
-        token.id = customUser.id;
-        token.uuid = customUser.uuid;
-        token.email = customUser.email;
-        token.role = customUser.role;
+        return {
+          ...token,
+          uuid: user.uuid,
+          email: user.email,
+          role: user.role,
+        };
       }
       return token;
     },
-    async session({ session, token }) {
-      if (!token.id || !token.uuid || !token.email || !token.role) {
-        console.error('Missing token data:', token);
-        throw new Error('Missing token data');
-      }
 
-      session.user = {
-        id: token.id,
-        uuid: token.uuid,
-        email: token.email,
-        role: token.role,
-        fullName: token.fullName,
-        phone: token.phone,
-        gender: token.gender,
-        address: token.address,
-      } as CustomUser;
-      return session;
+    async session({ session, token }) {
+      return {
+        ...session,
+        user: {
+          uuid: token.uuid,
+          email: token.email,
+          role: token.role,
+        },
+        expires: new Date(Date.now() + SESSION_DURATION * 1000).toISOString(),
+      };
     },
   },
+  debug: process.env.NODE_ENV === 'development',
 };
 
 export default NextAuth(authOptions);

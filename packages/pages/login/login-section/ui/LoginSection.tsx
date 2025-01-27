@@ -1,16 +1,15 @@
 'use client';
 
-import React, { JSX, useState } from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Controller, SubmitHandler, useForm } from 'react-hook-form';
-import { signIn } from 'next-auth/react';
 import { showToast } from '@shared/components/toast/ToastManager';
 import { IButton } from '@shared/components/ui/buttons';
 import { TextInput } from '@shared/components/ui/inputs';
-import { LoginProps, FormValues } from '@pages/login/login-section/types/types';
+import { FormValues } from '@pages/login/login-section/types/types';
 import { WelcomeIcon } from '@shared/components/ui/icon';
 
-const LoginSection = ({ lang, isAuthenticated }: LoginProps): JSX.Element => {
+const LoginSection: React.FC = () => {
   const router = useRouter();
   const {
     control,
@@ -33,32 +32,39 @@ const LoginSection = ({ lang, isAuthenticated }: LoginProps): JSX.Element => {
     setLoading(true);
 
     try {
-      const response = await signIn('credentials', {
-        redirect: false,
-        email: data.username,
-        password: data.password,
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: data.username,
+          password: data.password,
+        }),
       });
 
-      if (response?.error) {
-        throw new Error(response.error);
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Ошибка авторизации');
       }
 
       showToast.success('Вход выполнен успешно!');
       setSuccessLogin(true);
 
+      //Перенаправление с учетом сессии
       setTimeout(() => {
-        window.location.href = localStorage.getItem('redirectPath') || '/';
-        localStorage.removeItem('redirectPath');
+        router.push('/');
       }, 2500);
     } catch (error: unknown) {
       if (error instanceof Error) {
-        console.error('Ошибка при выполнении запроса:', error.message);
+        console.error('Ошибка:', error.message);
         setGeneralError(error.message);
         showToast.error(error.message);
       } else {
         console.error('Неизвестная ошибка:', error);
-        setGeneralError('Произошла неизвестная ошибка. Попробуйте позже.');
-        showToast.error('Произошла неизвестная ошибка. Попробуйте позже.');
+        setGeneralError('Ошибка сервера');
+        showToast.error('Ошибка сервера');
       }
     } finally {
       setLoading(false);

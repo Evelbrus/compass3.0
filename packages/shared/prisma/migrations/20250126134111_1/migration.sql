@@ -17,10 +17,10 @@ CREATE TYPE "Status" AS ENUM ('free', 'busy', 'none');
 CREATE TYPE "OrderStatus" AS ENUM ('PENDING', 'PLANNED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'OVERDUE');
 
 -- CreateEnum
-CREATE TYPE "UserRole" AS ENUM ('Client', 'ClientCorp', 'Driver', 'Operator', 'Admin', 'none');
+CREATE TYPE "UserRole" AS ENUM ('client', 'client_corp', 'driver', 'operator', 'admin', 'none');
 
 -- CreateEnum
-CREATE TYPE "Gender" AS ENUM ('Male', 'Female', 'none');
+CREATE TYPE "Gender" AS ENUM ('male', 'female', 'none');
 
 -- CreateEnum
 CREATE TYPE "Color" AS ENUM ('other', 'white', 'silver', 'gold', 'black', 'grey', 'blue', 'pink', 'red', 'orange', 'brown', 'green', 'none');
@@ -191,20 +191,37 @@ CREATE TABLE "company" (
 );
 
 -- CreateTable
+CREATE TABLE "login_attempts" (
+    "id" TEXT NOT NULL,
+    "ip" TEXT NOT NULL,
+    "user_agent" TEXT,
+    "email_attempt" TEXT,
+    "user_id" TEXT,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "login_attempts_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "users" (
     "uuid" TEXT NOT NULL,
     "email" TEXT NOT NULL,
     "password" TEXT NOT NULL,
     "role" "UserRole" NOT NULL,
-    "availability" BOOLEAN NOT NULL DEFAULT false,
     "driver_profile_id" TEXT,
-    "companyProfileId" TEXT,
+    "company_profile_id" TEXT,
+    "LoginAttemptId" TEXT,
     "full_name" TEXT NOT NULL,
     "phone" TEXT NOT NULL,
     "gender" "Gender" NOT NULL,
     "address" TEXT,
     "profile_photo_path" TEXT,
     "vehicle_driver_id" TEXT,
+    "availability" BOOLEAN NOT NULL DEFAULT false,
+    "last_active" TIMESTAMP(3),
+    "is_blocked" BOOLEAN NOT NULL DEFAULT false,
+    "sessionVersion" INTEGER NOT NULL DEFAULT 1,
+    "refresh_tokens" TEXT[],
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
@@ -257,10 +274,16 @@ CREATE UNIQUE INDEX "tariff_on_service_tariff_uuid_service_uuid_key" ON "tariff_
 CREATE UNIQUE INDEX "company_user_id_key" ON "company"("user_id");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "login_attempts_user_id_key" ON "login_attempts"("user_id");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "users_driver_profile_id_key" ON "users"("driver_profile_id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "users_company_profile_id_key" ON "users"("company_profile_id");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "vehicles_plate_number_key" ON "vehicles"("plate_number");
@@ -309,6 +332,9 @@ ALTER TABLE "tariff_on_service" ADD CONSTRAINT "tariff_on_service_service_uuid_f
 
 -- AddForeignKey
 ALTER TABLE "company" ADD CONSTRAINT "company_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("uuid") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "login_attempts" ADD CONSTRAINT "login_attempts_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("uuid") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "vehicle_drivers" ADD CONSTRAINT "vehicle_drivers_vehicle_id_fkey" FOREIGN KEY ("vehicle_id") REFERENCES "vehicles"("uuid") ON DELETE CASCADE ON UPDATE CASCADE;
