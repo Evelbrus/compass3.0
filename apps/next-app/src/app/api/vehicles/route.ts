@@ -3,25 +3,44 @@ import { Prisma, ServiceLevels, Vehicle, VehicleDriver, VehicleType } from '@pri
 import debug from 'debug';
 import { CreateVehicleData } from '@shared/prisma/interface/vehicles/interface';
 import { v4 as uuidv4 } from 'uuid';
-<<<<<<< HEAD
-import { getToken } from 'next-auth/jwt';
-import { NextApiRequest } from 'next';
-=======
->>>>>>> e182d403429aec1a1aa86b387b5740cc86771ca5
 import { prisma } from '@shared/prisma/prisma-client';
+import { jwtVerify } from 'jose';
+import { ACCESS_TOKEN_COOKIE } from '@shared/utils/cookie';
+import { authConfig } from '@shared/utils/cookie/get-cookie/auth';
 
 const log = debug('app:vehicles');
 
+//Функция для верификации JWT
+async function verifyJWT(token: string, secret: string): Promise<any> {
+  try {
+    const secretKey = new TextEncoder().encode(secret);
+    const { payload } = await jwtVerify(token, secretKey);
+    return payload;
+  } catch (error) {
+    console.error('JWT verification error:', error);
+    throw new Error('Invalid token');
+  }
+}
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-<<<<<<< HEAD
-  const token = await getToken({ req: req as unknown as NextApiRequest });
+
+  const accessToken = req.cookies.get(ACCESS_TOKEN_COOKIE)?.value;
+
+  let token;
+
+  if (accessToken) {
+    token = await verifyJWT(accessToken, authConfig.accessToken.secret);
+    if (!token) {
+      return NextResponse.json({ status: 'error', message: 'Unauthorized' }, { status: 401 });
+    }
+  } else {
+    return NextResponse.json({ status: 'error', message: 'Unauthorized' }, { status: 401 });
+  }
 
   if (!token?.uuid) {
     return NextResponse.json({ status: 'error', message: 'Unauthorized' }, { status: 401 });
   }
-=======
->>>>>>> e182d403429aec1a1aa86b387b5740cc86771ca5
 
   const parsedParams = {
     page: Math.max(1, parseInt(searchParams.get('page') || '1')),
@@ -56,16 +75,6 @@ export async function GET(req: NextRequest) {
             isAvailable: parsedParams.availability !== null ? parsedParams.availability : undefined,
           };
 
-<<<<<<< HEAD
-=======
-    const whereFilter = {
-      vehicleType: parsedParams.vehicleType || undefined,
-      serviceLevels: parsedParams.serviceLevel || undefined,
-      color: parsedParams.color || undefined,
-      isAvailable: parsedParams.availability !== null ? parsedParams.availability : undefined,
-    };
-
->>>>>>> e182d403429aec1a1aa86b387b5740cc86771ca5
     const [vehicles, total, totalAllVehicles, vehicleTypeCounts] = await Promise.all([
       prisma.vehicle.findMany({
         skip: (parsedParams.page - 1) * parsedParams.per_page,
@@ -103,18 +112,10 @@ export async function GET(req: NextRequest) {
       token.role === 'Driver'
         ? prisma.vehicle.count({ where: driverWhere })
         : prisma.vehicle.count(),
-<<<<<<< HEAD
-=======
-      prisma.vehicle.count(),
->>>>>>> e182d403429aec1a1aa86b387b5740cc86771ca5
       prisma.vehicle.groupBy({
         by: ['vehicleType'],
         _count: { vehicleType: true },
         where: token.role === 'Driver' ? driverWhere : {},
-<<<<<<< HEAD
-=======
-        where: {},
->>>>>>> e182d403429aec1a1aa86b387b5740cc86771ca5
       }),
     ]);
 
@@ -154,49 +155,29 @@ export async function GET(req: NextRequest) {
   }
 }
 
-export async function POST(req: Request) {
-<<<<<<< HEAD
-  const token = await getToken({ req: req as unknown as NextApiRequest });
+export async function POST(req: NextRequest) {
+  const accessToken = req.cookies.get(ACCESS_TOKEN_COOKIE)?.value;
+
+  let token;
+
+  if (accessToken) {
+    token = await verifyJWT(accessToken, authConfig.accessToken.secret);
+    if (!token) {
+      return NextResponse.json({ status: 'error', message: 'Unauthorized' }, { status: 401 });
+    }
+  } else {
+    return NextResponse.json({ status: 'error', message: 'Unauthorized' }, { status: 401 });
+  }
+
+  if (!token?.uuid) {
+    return NextResponse.json({ status: 'error', message: 'Unauthorized' }, { status: 401 });
+  }
 
   //Authorization check for Admin role
   if (token?.role !== 'Admin') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const data: CreateVehicleData = await req.json();
-  const {
-    vehicleType,
-    brand,
-    model,
-    year,
-    color,
-    plateNumber,
-    isAvailable,
-    photoPath,
-    driverIds,
-    serviceLevels,
-  } = data;
-
-  log('Received data:', data);
-
-  //Enhanced validation
-  if (
-    !vehicleType ||
-    !brand ||
-    !model ||
-    typeof year !== 'number' ||
-    year < 1900 ||
-    year > new Date().getFullYear() + 1 ||
-    !color ||
-    !plateNumber ||
-    !serviceLevels ||
-    serviceLevels.length === 0
-  ) {
-    return NextResponse.json({ error: 'Invalid input data' }, { status: 400 });
-  }
-
-=======
->>>>>>> e182d403429aec1a1aa86b387b5740cc86771ca5
   try {
     const data: CreateVehicleData = await req.json();
     const {
@@ -208,65 +189,50 @@ export async function POST(req: Request) {
       plateNumber,
       isAvailable,
       photoPath,
-      driverIds = [],
-      serviceLevels = [],
+      driverIds,
+      serviceLevels,
     } = data;
 
-    log('Received vehicle creation request:', data);
+    log('Received data:', data);
 
-    //Расширенная валидация
-    const validationErrors = [];
-
-    //Проверка обязательных полей
-    if (!vehicleType) validationErrors.push('Vehicle type is required');
-    if (!brand) validationErrors.push('Brand is required');
-    if (!model) validationErrors.push('Model is required');
-    if (!color) validationErrors.push('Color is required');
-    if (!plateNumber) validationErrors.push('Plate number is required');
-
-    //Валидация года
-    if (typeof year !== 'number' || year < 1900 || year > new Date().getFullYear() + 1) {
-      validationErrors.push('Invalid year');
-    }
-
-    //Валидация serviceLevels
-    if (!Array.isArray(serviceLevels) || serviceLevels.length === 0) {
-      validationErrors.push('At least one service level is required');
-    } else {
-      const validLevels = Object.values(ServiceLevels);
-      const invalidLevels = serviceLevels.filter((level) => !validLevels.includes(level));
-      if (invalidLevels.length > 0) {
-        validationErrors.push(`Invalid service levels: ${invalidLevels.join(', ')}`);
-      }
-    }
-
-    if (validationErrors.length > 0) {
-      return NextResponse.json(
-        { error: 'Validation failed', details: validationErrors },
-        { status: 400 },
-      );
+    //Enhanced validation
+    if (
+      !vehicleType ||
+      !brand ||
+      !model ||
+      typeof year !== 'number' ||
+      year < 1900 ||
+      year > new Date().getFullYear() + 1 ||
+      !color ||
+      !plateNumber ||
+      !serviceLevels
+    ) {
+      return NextResponse.json({ error: 'Invalid input data' }, { status: 400 });
     }
 
     const now = new Date();
     const uuid = uuidv4();
+    const yearDate = new Date(year, 0, 1);
 
-    //Проверка уникальности номерного знака
-    const existingVehicle = await prisma.vehicle.findUnique({
-      where: { plateNumber },
-    });
+    const vehicle = {
+      uuid,
+      vehicleType,
+      brand,
+      model,
+      year: yearDate,
+      color,
+      plateNumber,
+      isAvailable,
+      photoPath,
+      serviceLevels: serviceLevels as ServiceLevels,
+      createdAt: now,
+      updatedAt: now,
+    };
 
-    if (existingVehicle) {
-      return NextResponse.json(
-        { error: `Vehicle with plate number ${plateNumber} already exists` },
-        { status: 409 },
-      );
-    }
-
-    let createdVehicle: Vehicle;
+    let createdVehicle: Vehicle | null = null;
     let createdVehicleDrivers: VehicleDriver[] = [];
 
     await prisma.$transaction(async (transaction) => {
-<<<<<<< HEAD
       //Check for existing plate number
       const existingVehicle = await transaction.vehicle.findUnique({
         where: { plateNumber },
@@ -277,85 +243,43 @@ export async function POST(req: Request) {
       }
 
       //Create vehicle
-=======
-      //Создание транспортного средства
->>>>>>> e182d403429aec1a1aa86b387b5740cc86771ca5
       createdVehicle = await transaction.vehicle.create({
-        data: {
-          uuid,
-          vehicleType,
-          brand,
-          model,
-          year,
-          color,
-          plateNumber,
-          isAvailable,
-          photoPath: photoPath || '',
-          serviceLevels,
-          createdAt: now,
-          updatedAt: now,
-        },
+        data: vehicle,
       });
 
-      //Проверка существующих назначений водителей
-      if (driverIds.length > 0) {
-        const existingDrivers = await transaction.vehicleDriver.findMany({
-          where: { driverId: { in: driverIds } },
-        });
+      if (!createdVehicle) {
+        throw new Error('Vehicle creation failed');
+      }
 
-<<<<<<< HEAD
       //Batch check for existing driver assignments
       if (driverIds && driverIds.length > 0) {
         const existingDrivers = await transaction.vehicleDriver.findMany({
           where: { driverId: { in: driverIds } },
         });
 
-=======
->>>>>>> e182d403429aec1a1aa86b387b5740cc86771ca5
         if (existingDrivers.length > 0) {
           const conflictIds = existingDrivers.map((d) => d.driverId);
           throw new Error(`Drivers already assigned: ${conflictIds.join(', ')}`);
         }
 
-<<<<<<< HEAD
         //Create driver associations
         createdVehicleDrivers = await Promise.all(
           driverIds.map(async (driverId) => {
             const driverUser = await transaction.user.findUnique({
-=======
-        //Создание связей с водителями
-        createdVehicleDrivers = await Promise.all(
-          driverIds.map(async (driverId) => {
-            //Проверка существования водителя
-            const driver = await transaction.user.findUnique({
->>>>>>> e182d403429aec1a1aa86b387b5740cc86771ca5
               where: { uuid: driverId, role: 'Driver' },
               include: { driverProfile: true },
             });
 
-<<<<<<< HEAD
             if (!driverUser?.driverProfile) {
               throw new Error(`Driver ${driverId} not found`);
-=======
-            if (!driver?.driverProfile) {
-              throw new Error(`Driver ${driverId} not found or not a valid driver`);
->>>>>>> e182d403429aec1a1aa86b387b5740cc86771ca5
             }
 
             return transaction.vehicleDriver.create({
               data: {
                 uuid: uuidv4(),
-<<<<<<< HEAD
                 vehicleId: createdVehicle!.uuid,
                 driverId,
                 assignmentDate: now,
-=======
-                vehicleId: uuid,
-                driverId,
-                assignmentDate: now,
-                createdAt: now,
-                updatedAt: now,
->>>>>>> e182d403429aec1a1aa86b387b5740cc86771ca5
               },
             });
           }),
@@ -363,7 +287,6 @@ export async function POST(req: Request) {
       }
     });
 
-<<<<<<< HEAD
     log('Created vehicle:', createdVehicle);
     return NextResponse.json({
       status: 'success',
@@ -379,29 +302,6 @@ export async function POST(req: Request) {
         message: error instanceof Error ? error.message : 'Unknown error',
       },
       { status: 400 },
-=======
-    log('Successfully created vehicle:', createdVehicle);
-    return NextResponse.json(
-      {
-        status: 'success',
-        message: 'Vehicle created successfully',
-        data: {
-          vehicle: createdVehicle,
-          drivers: createdVehicleDrivers,
-        },
-      },
-      { status: 201 },
-    );
-  } catch (error) {
-    log('Vehicle creation error:', error);
-    return NextResponse.json(
-      {
-        status: 'error',
-        message: error instanceof Error ? error.message : 'An unexpected error occurred',
-        details: error instanceof Error ? error.stack : null,
-      },
-      { status: 500 },
->>>>>>> e182d403429aec1a1aa86b387b5740cc86771ca5
     );
   }
 }

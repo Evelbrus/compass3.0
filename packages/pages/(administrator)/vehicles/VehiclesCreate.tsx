@@ -60,7 +60,7 @@ const VehiclesCreate: React.FC = () => {
       vehicleType: formData.vehicleType as VehicleType,
       brand: formData.brand,
       model: formData.model,
-      year: formData.year ? new Date(formData.year).getFullYear() : null,
+      year: new Date(formData.year).getFullYear(),
       color: formData.color as Color,
       plateNumber: formData.plateNumber,
       isAvailable: formData.isAvailable,
@@ -173,9 +173,7 @@ const VehiclesCreate: React.FC = () => {
                   <DateInput
                     selectedDate={field.value}
                     onChange={(date) => field.onChange(date)}
-                    placeholderText="Select year"
-                    showYearPicker
-                    dateFormat="yyyy"
+                    placeholder="Select year"
                     error={!!fieldState.error}
                     message={fieldState.error?.message || ''}
                   />
@@ -316,7 +314,6 @@ const VehiclesCreate: React.FC = () => {
                 label="Vehicle Photo"
                 error={!!fieldState.error}
                 message={fieldState.error?.message || ''}
-                onUpload={(url) => setValue('photoPath', url)}
               />
             )}
           />

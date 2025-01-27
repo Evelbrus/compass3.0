@@ -45,7 +45,6 @@ const HeaderContainer: React.FC<HeaderContainerProps> = ({ userSession }) => {
       router.refresh();
     } catch (error) {
       console.error('Ошибка:', error);
-      //Можно добавить отображение ошибки пользователю
     } finally {
       setIsLoggingOut(false);
     }
