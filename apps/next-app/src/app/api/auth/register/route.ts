@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { Gender, PrismaClient, User, UserRole } from '@prisma/client';
+import { Gender, User, UserRole } from '@prisma/client';
 import bcrypt from 'bcryptjs';
-
-const prisma = new PrismaClient();
+import { prisma } from '@shared/prisma/prisma-client';
 
 export async function POST(request: NextRequest) {
   const { email, password, fullName, phone, gender, address, profilePhotoPath, availability } =

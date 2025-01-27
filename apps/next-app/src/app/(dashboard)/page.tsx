@@ -1,23 +1,24 @@
 import React, { JSX } from 'react';
-import { redirect } from 'next/navigation';
 import { getLayoutData } from '@shared/utils/cookie/layout-data/getLayoutData';
 import HomeAdminPage from '@pages/(administrator)/home';
 import HomeDriverPage from '@pages/(driver)/home';
 import HomeClientCorpPage from '@pages/(client-corp)/home';
+import Loading from '@entities/loading/loading';
+import { UserRole } from '@prisma/client';
 
 export const revalidate = 60;
 
 const Page = async (): Promise<JSX.Element> => {
   const { role } = await getLayoutData();
 
-  if (role === 'Admin' || role === 'Operator') {
+  if (role === UserRole.Admin || role === UserRole.Operator) {
     return <HomeAdminPage />;
-  } else if (role === 'Driver') {
+  } else if (role === UserRole.Driver) {
     return <HomeDriverPage />;
-  } else if (role === 'ClientCorp') {
+  } else if (role === UserRole.ClientCorp) {
     return <HomeClientCorpPage />;
   } else {
-    redirect('/login');
+    return <Loading />;
   }
 };
 

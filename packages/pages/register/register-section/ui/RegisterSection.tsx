@@ -1,9 +1,8 @@
 'use client';
 
-import React, { useState, useCallback, ChangeEvent } from 'react';
+import React, { useState, useCallback, ChangeEvent, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Controller, SubmitHandler, useForm } from 'react-hook-form';
-import { signIn } from 'next-auth/react';
 import { showToast } from '@shared/components/toast/ToastManager';
 import { IButton } from '@shared/components/ui/buttons';
 import { Checkbox, TextInput, RadioInput } from '@shared/components/ui/inputs';
@@ -48,86 +47,17 @@ const RegisterSection: React.FC = () => {
   });
 
   const [loading, setLoading] = useState<boolean>(false);
-  const [generalError, setGeneralError] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState<number>(1);
+  const formRef = useRef<HTMLFormElement>(null);
+  const firstInputRef = useRef<HTMLInputElement>(null);
 
-  const handleChange = () => {
-    clearErrors();
-    setGeneralError(null);
-  };
-
-  const onSubmit: SubmitHandler<FormValues> = async (data) => {
-    setLoading(true);
-    clearErrors();
-    setGeneralError(null);
-
-    const { email, password, fullName, companyName, companyPin, phone, address, gender } = data;
-
-    const requestData = {
-      email,
-      password,
-      fullName,
-      companyName,
-      companyPin,
-      phone,
-      address,
-      gender,
-    };
-
-    try {
-      //Отправка данных на сервер для регистрации
-      const response = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Ошибка регистрации.');
-      }
-
-      showToast.success('Регистрация прошла успешно!');
-
-      //Автоматический вход после успешной регистрации
-      const signInResponse = await signIn('credentials', {
-        redirect: false,
-        email,
-        password,
-      });
-
-      if (signInResponse?.error) {
-        throw new Error(signInResponse.error);
-      }
-
-      showToast.success('Вход выполнен успешно!');
-      setTimeout(() => {
-        const redirectPath = localStorage.getItem('redirectPath') || '/';
-        router.push(redirectPath);
-        localStorage.removeItem('redirectPath');
-      }, 2000);
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        console.error('Ошибка:', error.message);
-        setGeneralError(error.message);
-        showToast.error(error.message);
-      } else {
-        console.error('Неизвестная ошибка:', error);
-        setGeneralError('Произошла неизвестная ошибка. Попробуйте позже.');
-        showToast.error('Произошла неизвестная ошибка. Попробуйте позже.');
-      }
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (firstInputRef.current) {
+      firstInputRef.current.focus();
     }
-  };
+  }, []);
 
-  const navigateToLogin = useCallback(() => {
-    router.push('/login');
-  }, [router]);
-
-  const handleNextStep = () => {
+  const validateStepOne = () => {
     const { email, password, confirmPassword, fullName, phone, gender } = getValues();
     let valid = true;
 
@@ -185,18 +115,130 @@ const RegisterSection: React.FC = () => {
       valid = false;
     }
 
-    if (valid) {
+    return valid;
+  };
+
+  const onSubmit: SubmitHandler<FormValues> = async (data) => {
+    setLoading(true);
+    clearErrors();
+
+    const { email, password, fullName, companyName, companyPin, phone, address, gender } = data;
+
+    const requestData = {
+      email,
+      password,
+      fullName,
+      companyName,
+      companyPin,
+      phone,
+      address,
+      gender,
+    };
+
+    try {
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestData),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        const errorMessage = result.message || 'Ошибка регистрации.';
+        showToast.error(errorMessage); //Покажем сообщение через Toast
+        if (currentStep === 1) {
+          setError('email', { type: 'server', message: errorMessage });
+        } else {
+          setError('companyName', { type: 'server', message: errorMessage });
+        }
+        throw new Error(errorMessage); //Пробросим ошибку для catch
+      }
+
+      showToast.success('Регистрация прошла успешно!');
+      const signInResponse = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+      });
+      const signInResult = await signInResponse.json();
+
+      if (!signInResponse.ok) {
+        const errorMessage = signInResult.message || 'Ошибка авторизации.';
+        showToast.error(errorMessage);
+        throw new Error(errorMessage);
+      }
+      showToast.success('Вход выполнен успешно!');
+      setTimeout(() => {
+        const redirectPath = localStorage.getItem('redirectPath') || '/';
+        router.push(redirectPath);
+        localStorage.removeItem('redirectPath');
+      }, 2000);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        console.error('Ошибка:', error.message);
+        showToast.error(error.message);
+      } else {
+        console.error('Неизвестная ошибка:', error);
+        showToast.error('Произошла неизвестная ошибка. Попробуйте позже.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const navigateToLogin = useCallback(() => {
+    router.push('/login');
+  }, [router]);
+
+  const handleNextStep = () => {
+    if (validateStepOne()) {
       setCurrentStep(2);
       clearErrors();
-      setGeneralError(null);
     }
   };
 
   const handlePrevStep = () => {
     setCurrentStep(1);
     clearErrors();
-    setGeneralError(null);
   };
+
+  const handleChange = () => {
+    clearErrors();
+  };
+
+  const renderInput = (name: string, placeholder: string, type: string | undefined = 'text') => (
+    <Controller
+      name={name}
+      control={control}
+      rules={{ required: `Введите ${placeholder}.` }}
+      render={({ field }) => (
+        <div className="flex flex-col">
+          <TextInput
+            {...field}
+            value={field.value || ''}
+            placeholder={placeholder}
+            type={type}
+            error={!!errors[name as keyof FormValues]}
+            disabled={loading}
+            aria-invalid={!!errors[name as keyof FormValues]}
+            onChange={(value: string) => {
+              field.onChange(value);
+              handleChange();
+            }}
+            className="rounded-lg"
+          />
+        </div>
+      )}
+    />
+  );
 
   return (
     <div className="relative inset-0 w-full flex items-center justify-center transition-all bg-[color(--background)] z-50 px-4">
@@ -205,138 +247,23 @@ const RegisterSection: React.FC = () => {
         aria-modal="true"
         className="bg-white p-12 rounded-lg w-full max-w-[500px] relative"
       >
-        <form onSubmit={handleSubmit(onSubmit)} className="w-full flex flex-col" aria-live="polite">
+        <form
+          ref={formRef}
+          onSubmit={handleSubmit(onSubmit)}
+          className="w-full flex flex-col"
+          aria-live="polite"
+        >
           <h2 className="mb-4 text-center text-2xl font-semibold text-gray-800">
             Регистрация - Шаг {currentStep}
           </h2>
 
           {currentStep === 1 && (
             <div className={'flex flex-col gap-8'}>
-              <Controller
-                name="email"
-                control={control}
-                rules={{ required: 'Введите email.' }}
-                render={({ field }) => (
-                  <div className="flex flex-col">
-                    <TextInput
-                      {...field}
-                      value={field.value || ''}
-                      placeholder="Введите email"
-                      error={!!errors.email}
-                      disabled={loading}
-                      aria-invalid={!!errors.email}
-                      onChange={(value: string) => {
-                        field.onChange(value);
-                        handleChange();
-                      }}
-                      className="rounded-lg"
-                    />
-                  </div>
-                )}
-              />
-              <Controller
-                name="password"
-                control={control}
-                rules={{
-                  required: 'Введите пароль.',
-                  minLength: {
-                    value: 6,
-                    message: 'Пароль должен содержать минимум 6 символов.',
-                  },
-                }}
-                render={({ field }) => (
-                  <div className="flex flex-col">
-                    <TextInput
-                      {...field}
-                      value={field.value || ''}
-                      placeholder="Введите пароль"
-                      type="password"
-                      error={!!errors.password}
-                      disabled={loading}
-                      aria-invalid={!!errors.password}
-                      onChange={(value: string) => {
-                        field.onChange(value);
-                        handleChange();
-                      }}
-                      className="rounded-lg"
-                    />
-                  </div>
-                )}
-              />
-              <Controller
-                name="confirmPassword"
-                control={control}
-                rules={{
-                  required: 'Подтвердите пароль.',
-                  validate: (value) => value === watch('password') || 'Пароли не совпадают.',
-                }}
-                render={({ field }) => (
-                  <div className="flex flex-col">
-                    <TextInput
-                      {...field}
-                      value={field.value || ''}
-                      placeholder="Повторите пароль"
-                      type="password"
-                      error={!!errors.confirmPassword}
-                      disabled={loading}
-                      aria-invalid={!!errors.confirmPassword}
-                      onChange={(value: string) => {
-                        field.onChange(value);
-                        handleChange();
-                      }}
-                      className="rounded-lg"
-                    />
-                  </div>
-                )}
-              />
-              <Controller
-                name="fullName"
-                control={control}
-                rules={{
-                  required: 'Введите ваше полное имя.',
-                }}
-                render={({ field }) => (
-                  <div className="flex flex-col">
-                    <TextInput
-                      {...field}
-                      value={field.value || ''}
-                      placeholder="Введите ваше полное имя"
-                      error={!!errors.fullName}
-                      disabled={loading}
-                      aria-invalid={!!errors.fullName}
-                      onChange={(value: string) => {
-                        field.onChange(value);
-                        handleChange();
-                      }}
-                      className="rounded-lg"
-                    />
-                  </div>
-                )}
-              />
-              <Controller
-                name="phone"
-                control={control}
-                rules={{
-                  required: 'Введите номер телефона.',
-                }}
-                render={({ field }) => (
-                  <div className="flex flex-col">
-                    <TextInput
-                      {...field}
-                      value={field.value || ''}
-                      placeholder="Введите номер телефона"
-                      error={!!errors.phone}
-                      disabled={loading}
-                      aria-invalid={!!errors.phone}
-                      onChange={(value: string) => {
-                        field.onChange(value);
-                        handleChange();
-                      }}
-                      className="rounded-lg"
-                    />
-                  </div>
-                )}
-              />
+              {renderInput('email', 'Введите email')}
+              {renderInput('password', 'Введите пароль', 'password')}
+              {renderInput('confirmPassword', 'Повторите пароль', 'password')}
+              {renderInput('fullName', 'Введите ваше полное имя')}
+              {renderInput('phone', 'Введите номер телефона')}
               <div className="flex flex-col">
                 <p className="text-sm font-semibold">Пол:</p>
                 <div className={'flex flex-row gap-4'}>
@@ -385,78 +312,9 @@ const RegisterSection: React.FC = () => {
           )}
           {currentStep === 2 && (
             <>
-              <Controller
-                name="companyName"
-                control={control}
-                rules={{
-                  required: 'Введите название компании.',
-                }}
-                render={({ field }) => (
-                  <div className="flex flex-col">
-                    <TextInput
-                      {...field}
-                      value={field.value || ''}
-                      placeholder="Введите название компании"
-                      error={!!errors.companyName}
-                      disabled={loading}
-                      aria-invalid={!!errors.companyName}
-                      onChange={(value: string) => {
-                        field.onChange(value);
-                        handleChange();
-                      }}
-                      className="rounded-lg"
-                    />
-                  </div>
-                )}
-              />
-              <Controller
-                name="companyPin"
-                control={control}
-                rules={{
-                  required: 'Введите ИНН/ПИН компании.',
-                }}
-                render={({ field }) => (
-                  <div className="flex flex-col">
-                    <TextInput
-                      {...field}
-                      value={field.value || ''}
-                      placeholder="Введите ИНН/ПИН компании"
-                      error={!!errors.companyPin}
-                      disabled={loading}
-                      aria-invalid={!!errors.companyPin}
-                      onChange={(value: string) => {
-                        field.onChange(value);
-                        handleChange();
-                      }}
-                      className="rounded-lg"
-                    />
-                  </div>
-                )}
-              />
-              <Controller
-                name="address"
-                control={control}
-                rules={{
-                  required: 'Введите адрес.',
-                }}
-                render={({ field }) => (
-                  <div className="flex flex-col">
-                    <TextInput
-                      {...field}
-                      value={field.value || ''}
-                      placeholder="Введите адрес"
-                      error={!!errors.address}
-                      disabled={loading}
-                      aria-invalid={!!errors.address}
-                      onChange={(value: string) => {
-                        field.onChange(value);
-                        handleChange();
-                      }}
-                      className="rounded-lg"
-                    />
-                  </div>
-                )}
-              />
+              {renderInput('companyName', 'Введите название компании')}
+              {renderInput('companyPin', 'Введите ИНН/ПИН компании')}
+              {renderInput('address', 'Введите адрес')}
               <Controller
                 name="isAgree"
                 control={control}
@@ -502,7 +360,7 @@ const RegisterSection: React.FC = () => {
             </>
           )}
           <div className="flex justify-center text-sm my-2">
-            <p>У меня есть учетная запись!&nbsp;</p>
+            <p>У меня есть учетная запись! </p>
             <IButton
               type="button"
               onClick={navigateToLogin}
@@ -511,7 +369,6 @@ const RegisterSection: React.FC = () => {
               Войти
             </IButton>
           </div>
-          {generalError && <p className="text-sm text-red-500 text-center">{generalError}</p>}
         </form>
       </div>
     </div>

@@ -43,7 +43,7 @@ model User {
   lastActive   DateTime? @map("last_active")
   isBlocked    Boolean   @default(false) @map("is_blocked")
 
-  sessionVersion Int      @default(1)
+  sessionVersion Int      @default(0)
   refreshTokens  String[] @map("refresh_tokens")
 
   createdAt DateTime @default(now()) @map("created_at")

@@ -179,8 +179,7 @@ export async function PUT(req: Request) {
 //DELETE запрос для удаления пользователя по UUID
 export async function DELETE(req: Request) {
   try {
-    const { searchParams } = new URL(req.url);
-    const uuid = searchParams.get('uuid');
+    const { uuid } = await req.json();
 
     if (!uuid) {
       return NextResponse.json({ error: 'UUID is required' }, { status: 400 });

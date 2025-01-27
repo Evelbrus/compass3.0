@@ -19,9 +19,10 @@ import {
   serviceLevelOptions,
 } from '@shared/lib/effector/vehicles/optionsTranslation/optionsTranslationVehicle';
 
-interface FormData extends Omit<CreateVehicleData, 'serviceLevels' | 'driverIds'> {
+interface FormData extends Omit<CreateVehicleData, 'serviceLevels' | 'driverIds' | 'year'> {
   serviceLevels: ServiceLevels | undefined;
   driverIds: string[];
+  year: Date | null;
 }
 
 const VehiclesCreate: React.FC = () => {
@@ -46,24 +47,26 @@ const VehiclesCreate: React.FC = () => {
 
   useEffect(() => {
     fetch('/api/users?role=Driver&include=driverProfile')
-      .then((response) => response.json())
+      .then((response) => {
+        if (!response.ok) throw new Error('Failed to fetch drivers');
+        return response.json();
+      })
       .then((data) => setDrivers(data.data.users))
       .catch((error) => console.error('Error fetching drivers:', error));
   }, []);
 
-  const onSubmit = async (data: FormData) => {
-    //Преобразование значений перечислений в строки
+  const onSubmit = async (formData: FormData) => {
     const transformedData: CreateVehicleData = {
-      vehicleType: data.vehicleType as VehicleType,
-      brand: data.brand,
-      model: data.model,
-      year: data.year,
-      color: data.color as Color,
-      plateNumber: data.plateNumber,
-      isAvailable: data.isAvailable,
-      photoPath: data.photoPath,
-      serviceLevels: data.serviceLevels as ServiceLevels,
-      driverIds: data.driverIds,
+      vehicleType: formData.vehicleType as VehicleType,
+      brand: formData.brand,
+      model: formData.model,
+      year: formData.year ? new Date(formData.year).getFullYear() : null,
+      color: formData.color as Color,
+      plateNumber: formData.plateNumber,
+      isAvailable: formData.isAvailable,
+      photoPath: formData.photoPath,
+      serviceLevels: formData.serviceLevels as ServiceLevels,
+      driverIds: formData.driverIds,
     };
 
     try {
@@ -76,14 +79,15 @@ const VehiclesCreate: React.FC = () => {
       });
 
       if (!response.ok) {
-        throw new Error(`Network response was not ok: ${response.statusText}`);
+        throw new Error(`HTTP error! Status: ${response.status}`);
       }
 
       const result = await response.json();
       setMessage(`Vehicle created successfully: ${result.brand} ${result.model}`);
+      methods.reset();
     } catch (error) {
       setMessage(`Error creating vehicle: ${(error as Error).message}`);
-      console.error('There was an error creating the vehicle!', error);
+      console.error('Submission error:', error);
     }
   };
 
@@ -91,13 +95,15 @@ const VehiclesCreate: React.FC = () => {
     <FormProvider {...methods}>
       <div className="flex flex-row justify-center">
         <div className="w-2/3 pr-4">
-          <h1>Create Vehicle</h1>
-          <form onSubmit={handleSubmit(onSubmit)}>
-            <div>
-              <label htmlFor="vehicleType">Vehicle Type:</label>
+          <h1 className="text-2xl font-bold mb-6">Create New Vehicle</h1>
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            {/*Vehicle Type */}
+            <div className="form-group">
+              <label className="block text-sm font-medium mb-1">Vehicle Type</label>
               <Controller
                 name="vehicleType"
                 control={control}
+                rules={{ required: 'Vehicle type is required' }}
                 render={({ field }) => (
                   <SelectSingle
                     {...field}
@@ -106,117 +112,137 @@ const VehiclesCreate: React.FC = () => {
                       vehicleTypeOptions.find((option) => option.value === field.value) || null
                     }
                     onChange={(selectedOption) => field.onChange(selectedOption?.value)}
+                    placeholder="Select vehicle type"
                   />
                 )}
               />
             </div>
-            <div>
-              <label htmlFor="brand">Brand:</label>
+
+            {/*Brand */}
+            <div className="form-group">
+              <label className="block text-sm font-medium mb-1">Brand</label>
               <Controller
                 name="brand"
                 control={control}
                 rules={{
+                  required: 'Brand is required',
                   validate: (value) =>
                     validateLength(2, 50)(value) && validateNoSpecialChars(value),
                 }}
                 render={({ field, fieldState }) => (
                   <TextInput
                     {...field}
-                    requiredStar={true}
+                    placeholder="Enter brand"
                     error={!!fieldState.error}
                     message={fieldState.error?.message || ''}
                   />
                 )}
               />
             </div>
-            <div>
-              <label htmlFor="model">Model:</label>
+
+            {/*Model */}
+            <div className="form-group">
+              <label className="block text-sm font-medium mb-1">Model</label>
               <Controller
                 name="model"
                 control={control}
                 rules={{
+                  required: 'Model is required',
                   validate: (value) =>
                     validateLength(2, 50)(value) && validateNoSpecialChars(value),
                 }}
                 render={({ field, fieldState }) => (
                   <TextInput
                     {...field}
-                    requiredStar={true}
+                    placeholder="Enter model"
                     error={!!fieldState.error}
                     message={fieldState.error?.message || ''}
                   />
                 )}
               />
             </div>
-            <div>
-              <label htmlFor="year">Year:</label>
+
+            {/*Year */}
+            <div className="form-group">
+              <label className="block text-sm font-medium mb-1">Year</label>
               <Controller
                 name="year"
                 control={control}
+                rules={{ required: 'Year is required' }}
                 render={({ field, fieldState }) => (
                   <DateInput
-                    selectedDate={field.value ? new Date(field.value) : null}
+                    selectedDate={field.value}
                     onChange={(date) => field.onChange(date)}
-                    label="Year"
-                    placeholder="Выберите год"
+                    placeholderText="Select year"
+                    showYearPicker
+                    dateFormat="yyyy"
                     error={!!fieldState.error}
                     message={fieldState.error?.message || ''}
-                    classNameInput="font-extrabold w-full bg-white px-3 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring focus:ring-blue-200"
-                    maxDate={new Date()}
                   />
                 )}
               />
             </div>
-            <div>
-              <label htmlFor="color">Color:</label>
+
+            {/*Color */}
+            <div className="form-group">
+              <label className="block text-sm font-medium mb-1">Color</label>
               <Controller
                 name="color"
                 control={control}
+                rules={{ required: 'Color is required' }}
                 render={({ field }) => (
                   <SelectSingle
                     {...field}
                     options={colorOptions}
                     value={colorOptions.find((option) => option.value === field.value) || null}
                     onChange={(selectedOption) => field.onChange(selectedOption?.value)}
+                    placeholder="Select color"
                   />
                 )}
               />
             </div>
-            <div>
-              <label htmlFor="plateNumber">Plate Number:</label>
+
+            {/*Plate Number */}
+            <div className="form-group">
+              <label className="block text-sm font-medium mb-1">Plate Number</label>
               <Controller
                 name="plateNumber"
                 control={control}
                 rules={{
+                  required: 'Plate number is required',
                   validate: (value) =>
-                    validateLength(2, 50)(value) && validateNoSpecialChars(value),
+                    validateLength(2, 20)(value) && validateNoSpecialChars(value),
                 }}
                 render={({ field, fieldState }) => (
                   <TextInput
                     {...field}
-                    requiredStar={true}
+                    placeholder="Enter plate number"
                     error={!!fieldState.error}
                     message={fieldState.error?.message || ''}
                   />
                 )}
               />
             </div>
-            <div>
-              <label htmlFor="isAvailable">Is Available:</label>
+
+            {/*Availability */}
+            <div className="form-group">
+              <label className="block text-sm font-medium mb-1">Availability</label>
               <Controller
                 name="isAvailable"
                 control={control}
                 render={({ field }) => (
                   <CheckboxInput
-                    label="Is Available"
+                    label="Available for booking"
                     checked={field.value}
                     onChange={field.onChange}
                   />
                 )}
               />
             </div>
-            <div>
-              <label htmlFor="drivers">Drivers:</label>
+
+            {/*Drivers */}
+            <div className="form-group">
+              <label className="block text-sm font-medium mb-1">Assign Drivers</label>
               <Controller
                 name="driverIds"
                 control={control}
@@ -236,15 +262,19 @@ const VehiclesCreate: React.FC = () => {
                     onChange={(selectedOptions) =>
                       field.onChange(selectedOptions.map((option) => option.value))
                     }
+                    placeholder="Select drivers"
                   />
                 )}
               />
             </div>
-            <div>
-              <label htmlFor="serviceLevels">Service Levels:</label>
+
+            {/*Service Level */}
+            <div className="form-group">
+              <label className="block text-sm font-medium mb-1">Service Level</label>
               <Controller
                 name="serviceLevels"
                 control={control}
+                rules={{ required: 'Service level is required' }}
                 render={({ field }) => (
                   <SelectSingle
                     {...field}
@@ -253,14 +283,28 @@ const VehiclesCreate: React.FC = () => {
                       serviceLevelOptions.find((option) => option.value === field.value) || null
                     }
                     onChange={(selectedOption) => field.onChange(selectedOption?.value)}
+                    placeholder="Select service level"
                   />
                 )}
               />
             </div>
-            <button type="submit">Create Vehicle</button>
+
+            <button
+              type="submit"
+              className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition-colors"
+            >
+              Create Vehicle
+            </button>
           </form>
-          {message && <p>{message}</p>}
+
+          {message && (
+            <div className="mt-4 p-4 rounded-md bg-blue-50 border border-blue-200 text-blue-800">
+              {message}
+            </div>
+          )}
         </div>
+
+        {/*Photo Upload */}
         <div className="w-1/3 flex items-start justify-center p-6">
           <Controller
             name="photoPath"
@@ -272,6 +316,7 @@ const VehiclesCreate: React.FC = () => {
                 label="Vehicle Photo"
                 error={!!fieldState.error}
                 message={fieldState.error?.message || ''}
+                onUpload={(url) => setValue('photoPath', url)}
               />
             )}
           />

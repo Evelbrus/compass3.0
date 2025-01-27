@@ -1,63 +1,58 @@
-import React from 'react';
-import { redirect } from 'next/navigation';
+import React, { JSX } from 'react';
 import { getLayoutData } from '@shared/utils/cookie/layout-data/getLayoutData';
-import { PrismaClient } from '@prisma/client';
 import { DetailVehicleData } from '@shared/prisma/interface/vehicles/interface';
 import VehiclesEdit from '@pages/(administrator)/vehicles/VehiclesEdit';
-
-const prisma = new PrismaClient();
+import Loading from '@entities/loading/loading';
+import { UserRole } from '@prisma/client';
+import { prisma } from '@shared/prisma/prisma-client';
 
 interface PageProps {
-  params: Promise<{ uuid: string }>;
+  params: { uuid: string };
 }
 
 export const revalidate = 60;
 
-const Page: React.FC<PageProps> = async ({ params }) => {
+const Page = async ({ params }: PageProps): Promise<JSX.Element> => {
   const { role } = await getLayoutData();
-  const resolvedParams = await params;
-  const { uuid } = resolvedParams;
+  const { uuid } = params;
 
-  if (role !== 'Admin' && role !== 'Operator') {
-    return redirect('/');
+  if (role !== UserRole.Admin && role !== UserRole.Operator) {
+    return <Loading />;
   }
 
-  //Получаем данные автомобиля и связанные данные с сервера
   const vehicle = await prisma.vehicle.findUnique({
     where: { uuid },
     include: {
       vehicleDrivers: {
         include: {
-          driver: {
-            include: {
-              user: true,
-            },
-          },
+          driver: true,
         },
       },
     },
   });
 
   if (!vehicle) {
-    return redirect('/');
+    return <Loading />;
   }
 
-  //Преобразуем данные в формат DetailVehicleData
   const detailVehicleData: DetailVehicleData = {
     ...vehicle,
-    vehicleDrivers: vehicle.vehicleDrivers.map((driver) => ({
-      ...driver,
-      driver: {
-        uuid: driver.driver.uuid,
-        user: {
-          fullName: driver.driver.user!.fullName,
-          phone: driver.driver.user!.phone,
-        },
-      },
+    vehicleDrivers: vehicle.vehicleDrivers.map((driverRelation) => ({
+      uuid: driverRelation.uuid,
+      assignmentDate: driverRelation.assignmentDate,
+      driver: driverRelation.driver
+        ? {
+            uuid: driverRelation.driver.uuid,
+            fullName: driverRelation.driver.fullName,
+            phone: driverRelation.driver.phone,
+          }
+        : {
+            uuid: 'default-uuid',
+            fullName: 'Не назначен',
+            phone: 'Не назначен',
+          },
     })),
   };
-
-  console.log('detailVehicleData', detailVehicleData);
 
   return <VehiclesEdit data={detailVehicleData} />;
 };

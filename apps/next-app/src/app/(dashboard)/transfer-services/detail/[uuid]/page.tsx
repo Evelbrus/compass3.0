@@ -1,8 +1,9 @@
 import React from 'react';
-import { redirect } from 'next/navigation';
 import { getLayoutData } from '@shared/utils/cookie/layout-data/getLayoutData';
 import { prisma } from '@shared/prisma/prisma-client';
 import VehiclesDetail from '@pages/(administrator)/vehicles/VehiclesDetail';
+import Loading from '@entities/loading/loading';
+import { UserRole } from '@prisma/client';
 
 interface PageProps {
   params: Promise<{ uuid: string }>;
@@ -12,18 +13,18 @@ export const revalidate = 60;
 
 const Page: React.FC<PageProps> = async ({ params }) => {
   try {
-    const { role, userProfile } = await getLayoutData();
+    const { role, userSession } = await getLayoutData();
     const resolvedParams = await params;
-    const { uuid } = resolvedParams;
+    const { uuid } = await resolvedParams;
 
     //Проверка авторизации и роли
-    if (!role || !['Admin', 'Operator', 'Driver'].includes(role)) {
-      return redirect('/');
+    if (role !== UserRole.Admin && role !== UserRole.Operator && role !== UserRole.Driver) {
+      return <Loading />;
     }
 
     //Проверка наличия профиля пользователя
-    const userUuid = userProfile?.uuid;
-    if (!userUuid) return redirect('/');
+    const userUuid = userSession?.uuid;
+    if (!userUuid) return <Loading />;
 
     //Получение данных транспортного средства
     const vehicle = await prisma.vehicle.findUnique({
@@ -59,14 +60,14 @@ const Page: React.FC<PageProps> = async ({ params }) => {
     });
 
     //Если транспорт не найден
-    if (!vehicle) return redirect('/');
+    if (!vehicle) return <Loading />;
 
     //Проверка прав доступа для водителя
-    if (role === 'Driver') {
+    if (role === UserRole.Driver) {
       const isDriverAssociated = vehicle.vehicleDrivers.some((vd) => vd.driver.uuid === userUuid);
 
       if (!isDriverAssociated) {
-        return redirect('/');
+        return <Loading />;
       }
     }
 
@@ -86,7 +87,7 @@ const Page: React.FC<PageProps> = async ({ params }) => {
     return <VehiclesDetail data={detailVehicleData} />;
   } catch (error) {
     console.error('Vehicle detail page error:', error);
-    return redirect('/');
+    return <Loading />;
   }
 };
 
