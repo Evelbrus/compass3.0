@@ -1,44 +1,34 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { getToken } from 'next-auth/jwt';
-import { privateRoutes, publicRoutes } from '@shared/utils/routing';
-import { rolePagesMap } from '@shared/utils/routing/private/rolePagesMap';
-import type { PrivatePageType } from '@shared/utils/routing';
-import { UserRole } from '@prisma/client';
+import { ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE } from '@shared/utils/cookie';
 
 export async function middleware(request: NextRequest) {
-  const currentPath = request.nextUrl.pathname;
+  //Извлекаем куки accessToken и refreshToken
+  const accessToken = request.cookies.get(ACCESS_TOKEN_COOKIE)?.value;
+  const refreshToken = request.cookies.get(REFRESH_TOKEN_COOKIE)?.value;
 
-  try {
-    const token = await getToken({ req: request as any, secret: process.env.NEXTAUTH_SECRET });
+  //Логируем значения кук для отладки (опционально)
+  console.log('Access Token:', accessToken);
+  console.log('Refresh Token:', refreshToken);
 
-    const isAuthenticated = !!token;
-    const role = token?.role as UserRole | undefined;
+  //Если есть accessToken, но нет refreshToken, удаляем все куки
+  if (accessToken && !refreshToken) {
+    const response = NextResponse.next();
 
-    const isPrivateRoute = (Object.values(privateRoutes) as readonly string[]).includes(
-      currentPath,
-    );
+    //Удаляем куки accessToken и refreshToken
+    response.cookies.delete(ACCESS_TOKEN_COOKIE);
+    response.cookies.delete(REFRESH_TOKEN_COOKIE);
 
-    if (!isAuthenticated && isPrivateRoute) {
-      return NextResponse.redirect(new URL(publicRoutes.LOGIN, request.url));
-    }
+    //Логируем действие (опционально)
+    console.log('Удалены куки: accessToken и refreshToken');
 
-    if (isAuthenticated && isPrivateRoute && role) {
-      const privatePageKey = Object.keys(privateRoutes).find(
-        (key) => privateRoutes[key as PrivatePageType] === currentPath,
-      ) as PrivatePageType | undefined;
-
-      if (privatePageKey) {
-        const allowedPages = rolePagesMap[role] || [];
-
-        if (!allowedPages.includes(privatePageKey)) {
-          return NextResponse.redirect(new URL(privateRoutes.HOME, request.url));
-        }
-      }
-    }
-
-    return NextResponse.next();
-  } catch (error) {
-    return NextResponse.redirect(new URL(publicRoutes.LOGIN, request.url));
+    return response;
   }
+
+  //Продолжаем обработку запроса
+  return NextResponse.next();
 }
+
+export const config = {
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|.*\\..*$).*)'],
+};
