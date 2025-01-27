@@ -1,6 +1,6 @@
 datasource db {
   provider = "postgresql"
-  url      = "postgresql://psql_user_compass:1@localhost:5432/compass_1"
+  url      = "postgresql://postgres:111@localhost:5432/compass"
 }
 
 generator client {

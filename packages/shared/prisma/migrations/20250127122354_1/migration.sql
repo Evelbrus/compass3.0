@@ -184,6 +184,7 @@ CREATE TABLE "company" (
     "website" TEXT,
     "company_pin" TEXT,
     "user_id" TEXT,
+    "logo_image_path" TEXT,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
@@ -220,7 +221,7 @@ CREATE TABLE "users" (
     "availability" BOOLEAN NOT NULL DEFAULT false,
     "last_active" TIMESTAMP(3),
     "is_blocked" BOOLEAN NOT NULL DEFAULT false,
-    "sessionVersion" INTEGER NOT NULL DEFAULT 1,
+    "sessionVersion" INTEGER NOT NULL DEFAULT 0,
     "refresh_tokens" TEXT[],
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,

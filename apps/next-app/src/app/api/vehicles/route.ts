@@ -3,12 +3,25 @@ import { Prisma, ServiceLevels, Vehicle, VehicleDriver, VehicleType } from '@pri
 import debug from 'debug';
 import { CreateVehicleData } from '@shared/prisma/interface/vehicles/interface';
 import { v4 as uuidv4 } from 'uuid';
+<<<<<<< HEAD
+import { getToken } from 'next-auth/jwt';
+import { NextApiRequest } from 'next';
+=======
+>>>>>>> e182d403429aec1a1aa86b387b5740cc86771ca5
 import { prisma } from '@shared/prisma/prisma-client';
 
 const log = debug('app:vehicles');
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
+<<<<<<< HEAD
+  const token = await getToken({ req: req as unknown as NextApiRequest });
+
+  if (!token?.uuid) {
+    return NextResponse.json({ status: 'error', message: 'Unauthorized' }, { status: 401 });
+  }
+=======
+>>>>>>> e182d403429aec1a1aa86b387b5740cc86771ca5
 
   const parsedParams = {
     page: Math.max(1, parseInt(searchParams.get('page') || '1')),
@@ -43,6 +56,8 @@ export async function GET(req: NextRequest) {
             isAvailable: parsedParams.availability !== null ? parsedParams.availability : undefined,
           };
 
+<<<<<<< HEAD
+=======
     const whereFilter = {
       vehicleType: parsedParams.vehicleType || undefined,
       serviceLevels: parsedParams.serviceLevel || undefined,
@@ -50,6 +65,7 @@ export async function GET(req: NextRequest) {
       isAvailable: parsedParams.availability !== null ? parsedParams.availability : undefined,
     };
 
+>>>>>>> e182d403429aec1a1aa86b387b5740cc86771ca5
     const [vehicles, total, totalAllVehicles, vehicleTypeCounts] = await Promise.all([
       prisma.vehicle.findMany({
         skip: (parsedParams.page - 1) * parsedParams.per_page,
@@ -87,12 +103,18 @@ export async function GET(req: NextRequest) {
       token.role === 'Driver'
         ? prisma.vehicle.count({ where: driverWhere })
         : prisma.vehicle.count(),
+<<<<<<< HEAD
+=======
       prisma.vehicle.count(),
+>>>>>>> e182d403429aec1a1aa86b387b5740cc86771ca5
       prisma.vehicle.groupBy({
         by: ['vehicleType'],
         _count: { vehicleType: true },
         where: token.role === 'Driver' ? driverWhere : {},
+<<<<<<< HEAD
+=======
         where: {},
+>>>>>>> e182d403429aec1a1aa86b387b5740cc86771ca5
       }),
     ]);
 
@@ -133,6 +155,48 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: Request) {
+<<<<<<< HEAD
+  const token = await getToken({ req: req as unknown as NextApiRequest });
+
+  //Authorization check for Admin role
+  if (token?.role !== 'Admin') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  const data: CreateVehicleData = await req.json();
+  const {
+    vehicleType,
+    brand,
+    model,
+    year,
+    color,
+    plateNumber,
+    isAvailable,
+    photoPath,
+    driverIds,
+    serviceLevels,
+  } = data;
+
+  log('Received data:', data);
+
+  //Enhanced validation
+  if (
+    !vehicleType ||
+    !brand ||
+    !model ||
+    typeof year !== 'number' ||
+    year < 1900 ||
+    year > new Date().getFullYear() + 1 ||
+    !color ||
+    !plateNumber ||
+    !serviceLevels ||
+    serviceLevels.length === 0
+  ) {
+    return NextResponse.json({ error: 'Invalid input data' }, { status: 400 });
+  }
+
+=======
+>>>>>>> e182d403429aec1a1aa86b387b5740cc86771ca5
   try {
     const data: CreateVehicleData = await req.json();
     const {
@@ -202,7 +266,20 @@ export async function POST(req: Request) {
     let createdVehicleDrivers: VehicleDriver[] = [];
 
     await prisma.$transaction(async (transaction) => {
+<<<<<<< HEAD
+      //Check for existing plate number
+      const existingVehicle = await transaction.vehicle.findUnique({
+        where: { plateNumber },
+      });
+
+      if (existingVehicle) {
+        throw new Error(`Vehicle with plate number ${plateNumber} already exists`);
+      }
+
+      //Create vehicle
+=======
       //Создание транспортного средства
+>>>>>>> e182d403429aec1a1aa86b387b5740cc86771ca5
       createdVehicle = await transaction.vehicle.create({
         data: {
           uuid,
@@ -226,32 +303,59 @@ export async function POST(req: Request) {
           where: { driverId: { in: driverIds } },
         });
 
+<<<<<<< HEAD
+      //Batch check for existing driver assignments
+      if (driverIds && driverIds.length > 0) {
+        const existingDrivers = await transaction.vehicleDriver.findMany({
+          where: { driverId: { in: driverIds } },
+        });
+
+=======
+>>>>>>> e182d403429aec1a1aa86b387b5740cc86771ca5
         if (existingDrivers.length > 0) {
           const conflictIds = existingDrivers.map((d) => d.driverId);
           throw new Error(`Drivers already assigned: ${conflictIds.join(', ')}`);
         }
 
+<<<<<<< HEAD
+        //Create driver associations
+        createdVehicleDrivers = await Promise.all(
+          driverIds.map(async (driverId) => {
+            const driverUser = await transaction.user.findUnique({
+=======
         //Создание связей с водителями
         createdVehicleDrivers = await Promise.all(
           driverIds.map(async (driverId) => {
             //Проверка существования водителя
             const driver = await transaction.user.findUnique({
+>>>>>>> e182d403429aec1a1aa86b387b5740cc86771ca5
               where: { uuid: driverId, role: 'Driver' },
               include: { driverProfile: true },
             });
 
+<<<<<<< HEAD
+            if (!driverUser?.driverProfile) {
+              throw new Error(`Driver ${driverId} not found`);
+=======
             if (!driver?.driverProfile) {
               throw new Error(`Driver ${driverId} not found or not a valid driver`);
+>>>>>>> e182d403429aec1a1aa86b387b5740cc86771ca5
             }
 
             return transaction.vehicleDriver.create({
               data: {
                 uuid: uuidv4(),
+<<<<<<< HEAD
+                vehicleId: createdVehicle!.uuid,
+                driverId,
+                assignmentDate: now,
+=======
                 vehicleId: uuid,
                 driverId,
                 assignmentDate: now,
                 createdAt: now,
                 updatedAt: now,
+>>>>>>> e182d403429aec1a1aa86b387b5740cc86771ca5
               },
             });
           }),
@@ -259,6 +363,23 @@ export async function POST(req: Request) {
       }
     });
 
+<<<<<<< HEAD
+    log('Created vehicle:', createdVehicle);
+    return NextResponse.json({
+      status: 'success',
+      message: 'Vehicle created successfully',
+      vehicle: createdVehicle,
+      vehicleDrivers: createdVehicleDrivers,
+    });
+  } catch (error) {
+    log('Error creating vehicle:', error);
+    return NextResponse.json(
+      {
+        status: 'error',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      },
+      { status: 400 },
+=======
     log('Successfully created vehicle:', createdVehicle);
     return NextResponse.json(
       {
@@ -280,6 +401,7 @@ export async function POST(req: Request) {
         details: error instanceof Error ? error.stack : null,
       },
       { status: 500 },
+>>>>>>> e182d403429aec1a1aa86b387b5740cc86771ca5
     );
   }
 }
