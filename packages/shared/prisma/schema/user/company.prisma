@@ -9,6 +9,8 @@ model CompanyProfile {
   User        User?   @relation("user_to_company_profile", fields: [userId], references: [uuid], onDelete: Cascade)
   userId      String? @unique @map("user_id")
 
+  logoImagePath String? @map("logo_image_path")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 

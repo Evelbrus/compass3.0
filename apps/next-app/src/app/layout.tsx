@@ -7,6 +7,8 @@ import '@shared/styles/globals.css';
 import '@shared/styles/react-datepicker-custom.css';
 import 'react-toastify/dist/ReactToastify.css';
 import '@shared/styles/welcomeIcon.css';
+import { getLayoutData } from '@shared/utils/cookie/layout-data/getLayoutData';
+import { SessionProvider } from '@app/provider/SessionProvider';
 
 export { metadata };
 
@@ -17,6 +19,7 @@ type RootLayoutProps = {
 const RootLayout = async ({ children }: RootLayoutProps): Promise<JSX.Element> => {
   const locale = await getLocale();
   const messages = await getMessages();
+  const { userSession, isAuthenticated, accessToken, refreshToken } = await getLayoutData();
 
   return (
     <html lang={locale}>
@@ -26,10 +29,17 @@ const RootLayout = async ({ children }: RootLayoutProps): Promise<JSX.Element> =
         <title>{String(metadata.title)}</title>
       </head>
       <body>
-        <NextIntlClientProvider locale={locale} messages={messages}>
-          {children}
-        </NextIntlClientProvider>
-        <ToastManager />
+        <SessionProvider
+          userSession={userSession}
+          isAuthenticated={isAuthenticated}
+          accessToken={accessToken}
+          refreshToken={refreshToken}
+        >
+          <NextIntlClientProvider locale={locale} messages={messages}>
+            {children}
+          </NextIntlClientProvider>
+          <ToastManager />
+        </SessionProvider>
       </body>
     </html>
   );

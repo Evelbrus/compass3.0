@@ -18,7 +18,7 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ role, onClose }) => {
 
   const handleNavigate = (route: string) => {
     router.push(route);
-    onClose(); // Закрываем модальное окно после перехода
+    onClose();
   };
 
   const filteredOptions = userCreationOptions.filter((option) => {
@@ -29,9 +29,9 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ role, onClose }) => {
   });
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-40">
-      <AnimatedComponent duration={500}>
-        <div className="bg-white rounded-3xl max-w-[1000px] w-full p-6 relative">
+    <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50 p-4">
+      <AnimatedComponent duration={500} className={'h-full flex flex-col justify-center'}>
+        <div className="h-auto overflow-auto bg-white rounded-3xl w-full p-12 relative">
           <IButton
             variant="close"
             onClick={onClose}
@@ -40,8 +40,8 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ role, onClose }) => {
           >
             <CloseIcon />
           </IButton>
-          <h2 className="text-xl font-semibold mb-6 text-center">Создать пользователя</h2>
-          <div className="flex gap-4 justify-center">
+          <h1 className="text-3xl font-semibold mb-6 text-center">Создать пользователя</h1>
+          <div className="flex flex-row flex-wrap gap-4 justify-center">
             {filteredOptions.map((option) => (
               <div
                 key={option.id}

@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { getLayoutData } from '@shared/utils/cookie/layout-data/getLayoutData';
 import ClientsCreateAdminPage from '@pages/(administrator)/(users)/user/ClientsCreateAdminPage';
 import { UserRole } from '@prisma/client';
+import Loading from '@entities/loading/loading';
 
 interface PageProps {
   params: Promise<{ role: string }>;
@@ -35,16 +36,14 @@ const Page: React.FC<PageProps> = async ({ params }) => {
   //Преобразование строки из URL в значение перечисления UserRole
   const userRole = toUserRole(role);
 
-  console.log('userRole:', userRole);
-
   if (!userRole) {
     return redirect('/');
   }
 
-  if (currentUserRole === 'Admin' || currentUserRole === 'Operator') {
+  if (currentUserRole === UserRole.Admin || currentUserRole === UserRole.Operator) {
     return <ClientsCreateAdminPage role={userRole} />;
   } else {
-    redirect('/');
+    return <Loading />;
   }
 };
 

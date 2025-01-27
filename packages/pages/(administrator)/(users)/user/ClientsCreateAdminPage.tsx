@@ -20,6 +20,8 @@ interface ClientsCreateAdminPageProps {
 const ClientsCreateAdminPage = ({ role }: ClientsCreateAdminPageProps): JSX.Element => {
   const router = useRouter();
 
+  console.log('role:', role);
+
   const handleSubmit = async (formData: CreateUserData) => {
     try {
       const response = await fetch('/api/users', {

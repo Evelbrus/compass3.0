@@ -29,8 +29,6 @@ const Profile = ({
 
   const User = useSession();
 
-  console.log('USERUSERUSER', User);
-
   return (
     <div className="relative" ref={menuRef}>
       <div className="flex items-center space-x-4">
