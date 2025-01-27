@@ -9,6 +9,7 @@ import {
   setAccessToken,
   setRefreshToken,
   refreshAccessTokenFx,
+  handleRefreshTokenExpiration,
 } from '@shared/lib/effector/state/sessionStore';
 
 interface SessionProviderProps {
@@ -31,14 +32,11 @@ export const SessionProvider = ({
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
-      //Проверяем, есть ли refreshToken и нет ли accessToken при первом рендере
       if (refreshToken && !accessToken) {
         console.log('1 ШАГ: "Начинаем обновление токенов..."');
         refreshAccessTokenFx(refreshToken)
           .then(() => {
             console.log('2 ШАГ: "Токены успешно обновлены!"');
-
-            //Перезагружаем страницу с задержкой
             console.log('3 ШАГ: "Перезагружаем текущую страницу через 2.5 секунды"');
             setTimeout(() => {
               window.location.reload();
@@ -46,10 +44,15 @@ export const SessionProvider = ({
           })
           .catch(() => {
             console.log('2 ШАГ: "Ошибка при обновлении токенов!"');
+            handleRefreshTokenExpiration();
           });
+      } else if (accessToken && !refreshToken) {
+        console.warn(
+          '[ПРЕДУПРЕЖДЕНИЕ] Обнаружен access token без refresh token. Выполняется logout.',
+        );
+        handleRefreshTokenExpiration();
       }
     }
-
     //Обновление токенов при изменении auth state
     if (isAuthenticated) {
       if (accessToken) {

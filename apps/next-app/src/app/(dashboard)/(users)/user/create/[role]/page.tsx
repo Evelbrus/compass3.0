@@ -4,6 +4,7 @@ import { getLayoutData } from '@shared/utils/cookie/layout-data/getLayoutData';
 import ClientsCreateAdminPage from '@pages/(administrator)/(users)/user/ClientsCreateAdminPage';
 import { UserRole } from '@prisma/client';
 import Loading from '@entities/loading/loading';
+import { publicRoutes } from '@shared/utils/routing';
 
 interface PageProps {
   params: Promise<{ role: string }>;
@@ -29,21 +30,24 @@ const toUserRole = (role: string): UserRole | undefined => {
 };
 
 const Page: React.FC<PageProps> = async ({ params }) => {
-  const { role: currentUserRole } = await getLayoutData();
+  const { role: currentUserRole, refreshToken } = await getLayoutData();
   const resolvedParams = await params;
   const { role } = resolvedParams;
 
   //Преобразование строки из URL в значение перечисления UserRole
   const userRole = toUserRole(role);
 
-  if (!userRole) {
-    return redirect('/');
-  }
-
-  if (currentUserRole === UserRole.Admin || currentUserRole === UserRole.Operator) {
-    return <ClientsCreateAdminPage role={userRole} />;
+  if (refreshToken) {
+    if (!userRole) {
+      return redirect('/');
+    }
+    if (currentUserRole === UserRole.Admin || currentUserRole === UserRole.Operator) {
+      return <ClientsCreateAdminPage role={userRole} />;
+    } else {
+      return <Loading />;
+    }
   } else {
-    return <Loading />;
+    redirect(publicRoutes.LOGIN);
   }
 };
 

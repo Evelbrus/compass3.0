@@ -3,16 +3,22 @@ import { getLayoutData } from '@shared/utils/cookie/layout-data/getLayoutData';
 import DriversAdminPage from '@pages/(administrator)/(users)/driver/DriversAdminPage';
 import Loading from '@entities/loading/loading';
 import { UserRole } from '@prisma/client';
+import { redirect } from 'next/navigation';
+import { publicRoutes } from '@shared/utils/routing';
 
 export const revalidate = 60;
 
 const Page = async (): Promise<JSX.Element> => {
-  const { role } = await getLayoutData();
+  const { role, refreshToken } = await getLayoutData();
 
-  if (role === UserRole.Admin || role === UserRole.Operator) {
-    return <DriversAdminPage />;
+  if (refreshToken) {
+    if (role === UserRole.Admin || role === UserRole.Operator) {
+      return <DriversAdminPage />;
+    } else {
+      return <Loading />;
+    }
   } else {
-    return <Loading />;
+    redirect(publicRoutes.LOGIN);
   }
 };
 
