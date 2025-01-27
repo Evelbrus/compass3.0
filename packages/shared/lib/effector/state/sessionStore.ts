@@ -40,7 +40,7 @@ const scheduleTokenRefresh = (type: TokenType, expiresIn: number) => {
 };
 
 //Обработка истечения refresh-токена
-const handleRefreshTokenExpiration = async () => {
+export const handleRefreshTokenExpiration = async () => {
   try {
     const response = await fetch('/api/auth/logout', {
       method: 'POST',
@@ -55,7 +55,6 @@ const handleRefreshTokenExpiration = async () => {
   }
   resetRefreshToken();
   resetAccessToken();
-  window.location.href = '/login';
 };
 
 //Эффект обновления access-токена
@@ -102,7 +101,6 @@ export const refreshAccessTokenFx = createEffect<string | void, boolean, Error>(
     return true;
   } catch (error) {
     console.error('[КРИТИЧЕСКАЯ ОШИБКА] Процедура обновления токенов:', error);
-    handleRefreshTokenExpiration();
     return false;
   }
 });
