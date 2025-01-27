@@ -22,10 +22,14 @@ export const fetchPoints = async () => {
   return data.data.points || [];
 };
 
-export const fetchDrivers = async () => {
-  const url = '/api/users?role=Driver';
+export const fetchDrivers = async (serviceLevel?: string, vehicleType?: string) => {
+  const params = new URLSearchParams();
+  if (serviceLevel) params.append('serviceLevel', serviceLevel);
+  if (vehicleType) params.append('vehicleType', vehicleType);
+
+  const url = `/api/orders/drivers?${params.toString()}`;
   const data = await fetchData(url);
-  return data.data.users || [];
+  return data.data.drivers || [];
 };
 
 export const fetchTariffs = async (serviceLevel?: string, vehicleType?: string) => {
@@ -37,14 +41,4 @@ export const fetchTariffs = async (serviceLevel?: string, vehicleType?: string) 
 
   const data = await fetchData(url);
   return data.data.tariffs || [];
-};
-
-export const fetchVehicles = async (serviceLevel?: string, vehicleType?: string) => {
-  const queryParams = new URLSearchParams();
-  if (serviceLevel) queryParams.append('serviceLevel', serviceLevel);
-  if (vehicleType) queryParams.append('vehicleType', vehicleType);
-
-  const url = `/api/vehicles?${queryParams.toString()}`;
-  const data = await fetchData(url);
-  return data;
 };

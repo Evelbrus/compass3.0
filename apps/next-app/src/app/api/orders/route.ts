@@ -8,6 +8,7 @@ import { prisma } from '@shared/prisma/prisma-client';
 
 const log = debug('app:orders');
 
+//GET: Получение заказов с пагинацией, фильтрацией и сортировкой
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const parsedParams = {
@@ -39,11 +40,6 @@ export async function GET(req: Request) {
         tariff: true,
         departurePoint: true,
         arrivalPoint: true,
-        assignedDriver: {
-          include: {
-            user: true,
-          },
-        },
         orderTariffAdditionalServices: {
           include: {
             tariffOnService: {
@@ -67,7 +63,6 @@ export async function GET(req: Request) {
 
     log('Fetched orders:', orders);
 
-    //Преобразуем, чтобы в ответе отдать список "доп. услуг" внутри заказа
     const response = orders.map((order) => ({
       ...order,
       createdBy: {
@@ -91,13 +86,6 @@ export async function GET(req: Request) {
         address: order.arrivalPoint.address,
         basePrice: order.arrivalPoint.basePrice,
       },
-      assignedDriver: order.assignedDriver
-        ? {
-            uuid: order.assignedDriver.uuid,
-            fullName: order.assignedDriver.user?.fullName || '',
-            phone: order.assignedDriver.user?.phone || '',
-          }
-        : null,
       orderTariffAdditionalServices: order.orderTariffAdditionalServices.map((ots) => ({
         uuid: ots.uuid,
         tariffOnServiceUuid: ots.tariffOnServiceUuid,
@@ -133,6 +121,7 @@ export async function GET(req: Request) {
   }
 }
 
+//POST: Создание нового заказа
 export async function POST(req: Request) {
   let data: CreateOrderData;
   try {
@@ -151,26 +140,9 @@ export async function POST(req: Request) {
     arrivalPoint,
     intermediatePoints,
     basePrice,
-    assignedDriverId,
-    assignedDriverUserId,
     selectedServices,
+    assignedDriverId,
   } = data;
-
-  const missingFields: string[] = [];
-  if (!createdBy) missingFields.push('createdBy');
-  if (!tariffUuid) missingFields.push('tariffUuid');
-  if (!departureTime) missingFields.push('departureTime');
-  if (!departurePoint) missingFields.push('departurePoint');
-  if (!arrivalPoint) missingFields.push('arrivalPoint');
-  if (basePrice === undefined || basePrice === null) missingFields.push('basePrice');
-
-  if (missingFields.length > 0) {
-    log('Missing required fields:', missingFields);
-    return NextResponse.json(
-      { error: `Missing required fields: ${missingFields.join(', ')}` },
-      { status: 400 },
-    );
-  }
 
   const orderStatus = assignedDriverId ? OrderStatus.PLANNED : OrderStatus.PENDING;
 
@@ -178,30 +150,59 @@ export async function POST(req: Request) {
     const result = await prisma.$transaction(async (prismaTx) => {
       log('Starting transaction');
 
+      //1. Проверка существования клиента
       const client = await prismaTx.user.findUnique({
         where: { uuid: createdBy },
       });
-      if (!client) throw new Error('Client not found');
+      if (!client) {
+        log(`Client with UUID ${createdBy} not found`);
+        throw new Error('Client not found');
+      }
       log('Client found:', client);
 
+      //2. Проверка существования тарифа
       const tariffRecord = await prismaTx.tariff.findUnique({
         where: { uuid: tariffUuid },
       });
-      if (!tariffRecord) throw new Error('Tariff not found');
+      if (!tariffRecord) {
+        log(`Tariff with UUID ${tariffUuid} not found`);
+        throw new Error('Tariff not found');
+      }
       log('Tariff found:', tariffRecord);
 
+      //3. Проверка существования точки отправления
       const departurePointRecord = await prismaTx.point.findUnique({
         where: { uuid: departurePoint },
       });
-      if (!departurePointRecord) throw new Error('Departure point not found');
+      if (!departurePointRecord) {
+        log(`Departure point with UUID ${departurePoint} not found`);
+        throw new Error('Departure point not found');
+      }
       log('Departure point found:', departurePointRecord);
 
+      //4. Проверка существования точки прибытия
       const arrivalPointRecord = await prismaTx.point.findUnique({
         where: { uuid: arrivalPoint },
       });
-      if (!arrivalPointRecord) throw new Error('Arrival point not found');
+      if (!arrivalPointRecord) {
+        log(`Arrival point with UUID ${arrivalPoint} not found`);
+        throw new Error('Arrival point not found');
+      }
       log('Arrival point found:', arrivalPointRecord);
 
+      //5. Проверка существования водителя
+      if (assignedDriverId) {
+        const driver = await prismaTx.user.findUnique({
+          where: { uuid: assignedDriverId },
+        });
+        if (!driver) {
+          log(`Driver with UUID ${assignedDriverId} not found`);
+          throw new Error('Driver not found');
+        }
+        log('Driver found:', driver);
+      }
+
+      //6. Создание заказа
       const order = await prismaTx.order.create({
         data: {
           uuid: uuidv4(),
@@ -210,7 +211,7 @@ export async function POST(req: Request) {
           departureTime: new Date(departureTime!),
           departurePointId: departurePoint,
           arrivalPointId: arrivalPoint,
-          basePrice: new Decimal(basePrice!),
+          basePrice: basePrice !== undefined ? new Decimal(basePrice) : new Decimal(0),
           status: orderStatus,
           assignedDriverId: assignedDriverId || null,
           intermediatePoints: (intermediatePoints || []).filter(Boolean),
@@ -218,17 +219,38 @@ export async function POST(req: Request) {
       });
       log('Order created:', order);
 
+      //7. Добавление дополнительных услуг
       if (selectedServices && selectedServices.length > 0) {
+        log('Selected services (tariffOnServiceUuid):', selectedServices);
+        const tariffOnServices = await prismaTx.tariffOnService.findMany({
+          where: {
+            uuid: {
+              in: selectedServices,
+            },
+          },
+        });
+        log(
+          'Found tariffOnServices:',
+          tariffOnServices.map((tos) => tos.uuid),
+        );
+        if (tariffOnServices.length !== selectedServices.length) {
+          log(
+            `Not all services found for tariff ${tariffUuid}. Selected services: ${selectedServices.join(', ')}`,
+          );
+          throw new Error('Not all services found for tariff');
+        }
+
         await prismaTx.orderOnTariffAdditionalService.createMany({
-          data: selectedServices.map((serviceUuid) => ({
+          data: tariffOnServices.map((tariffOnService) => ({
             uuid: uuidv4(),
             orderUuid: order.uuid,
-            tariffOnServiceUuid: serviceUuid,
+            tariffOnServiceUuid: tariffOnService.uuid,
           })),
         });
         log('Additional services added');
       }
 
+      //8. Обновление заказа
       const updatedOrder = await prismaTx.order.findUnique({
         where: { uuid: order.uuid },
         include: {

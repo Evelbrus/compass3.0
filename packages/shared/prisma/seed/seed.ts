@@ -1,2 +1,3 @@
 import './user/userSeed';
-import './additional-service/additionalService';
+import './additional-service/additionalServiceSeed';
+import './point/pointSeed';
