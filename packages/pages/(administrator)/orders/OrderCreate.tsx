@@ -1,17 +1,28 @@
 'use client';
 
-import React, { useState, useEffect, FormEvent, ChangeEvent, useMemo, useCallback } from 'react';
-import { fetchClients, fetchDrivers, fetchPoints, fetchTariffs, fetchVehicles } from './orderApi';
+import React, { useState, useEffect, FormEvent, useCallback } from 'react';
+import { fetchClients, fetchDrivers, fetchPoints, fetchTariffs } from './orderApi';
 import { Point, ServiceLevels, User, VehicleType } from '@prisma/client';
 import { CreateOrderData, ExtendedTariff } from '@shared/prisma/interface/orders/interface';
 import { useSocket } from '@shared/utils/hooks/useSocket';
+
+//Определение начального состояния формы с дефолтными значениями
+const initialFormData: Partial<CreateOrderData> = {
+  intermediatePoints: [],
+  basePrice: 0,
+  assignedDriverId: null,
+  createdBy: '',
+  tariffUuid: '',
+  departurePoint: '',
+  arrivalPoint: '',
+  departureTime: '',
+};
 
 const OrderCreate = () => {
   const [clients, setClients] = useState<User[]>([]);
   const [points, setPoints] = useState<Point[]>([]);
   const [drivers, setDrivers] = useState<User[]>([]);
   const [tariffs, setTariffs] = useState<ExtendedTariff[]>([]);
-  const [vehicles, setVehicles] = useState<any[]>([]);
   const [message, setMessage] = useState<string>('');
   const [selectedVehicleType, setSelectedVehicleType] = useState<string>('');
   const [selectedServiceLevel, setSelectedServiceLevel] = useState<string>('');
@@ -19,34 +30,12 @@ const OrderCreate = () => {
   const [originalBasePrice, setOriginalBasePrice] = useState<number>(0);
   const [pointPrice, setPointPrice] = useState<number>(0);
   const [selectedAdditionalServices, setSelectedAdditionalServices] = useState<string[]>([]);
-  const [formData, setFormData] = useState<Partial<CreateOrderData>>({
-    intermediatePoints: [],
-    basePrice: 0,
-    assignedDriverUserId: '',
-  });
+  const [formData, setFormData] = useState<Partial<CreateOrderData>>(initialFormData);
 
   const socket = useSocket();
 
-  const vehicleTypes = useMemo(() => Object.values(VehicleType), []);
-  const serviceLevels = useMemo(() => Object.values(ServiceLevels), []);
-
-  interface Driver {
-    driverProfileUuid: string;
-    userUuid: string;
-    fullName: string;
-  }
-
-  const allDrivers = useMemo(() => {
-    return vehicles.flatMap((vehicle) =>
-      vehicle.drivers.map((driver: Driver) => ({
-        driverProfileUuid: driver.driverProfileUuid,
-        userUuid: driver.userUuid,
-        fullName: driver.fullName,
-        brand: vehicle.brand,
-        model: vehicle.model,
-      })),
-    );
-  }, [vehicles]);
+  const vehicleTypes = Object.values(VehicleType);
+  const serviceLevels = Object.values(ServiceLevels);
 
   const calculateBasePrice = useCallback((tariff: ExtendedTariff): number => {
     return tariff.price + tariff.tariffAdditionalServices.reduce((acc, s) => acc + s.price, 0);
@@ -71,72 +60,41 @@ const OrderCreate = () => {
 
   const fetchAllDrivers = useCallback(async () => {
     try {
-      const driversData = await fetchDrivers();
+      const driversData = await fetchDrivers(selectedServiceLevel, selectedVehicleType);
       setDrivers(driversData);
     } catch (error) {
       setErrorMessage(error, 'Error fetching drivers');
     }
+  }, [selectedServiceLevel, selectedVehicleType, setErrorMessage]);
+
+  //Загрузка клиентов и точек только один раз при монтировании
+  useEffect(() => {
+    const fetchInitialData = async () => {
+      try {
+        const [clientsData, pointsData] = await Promise.all([fetchClients(), fetchPoints()]);
+        setClients(clientsData);
+        setPoints(pointsData);
+      } catch (error) {
+        setErrorMessage(error, 'Error fetching initial data');
+      }
+    };
+
+    fetchInitialData();
   }, [setErrorMessage]);
 
+  //Загрузка водителей и тарифов при изменении фильтров
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchDriversAndTariffs = async () => {
       try {
-        const clientsData = await fetchClients();
-        setClients(clientsData);
-        const pointsData = await fetchPoints();
-        setPoints(pointsData);
         await updateTariffs(selectedServiceLevel, selectedVehicleType);
-        if (!selectedServiceLevel && !selectedVehicleType) {
-          await fetchAllDrivers();
-        }
+        await fetchAllDrivers();
       } catch (error) {
-        setErrorMessage(error, 'Error fetching data');
+        setErrorMessage(error, 'Error fetching drivers and tariffs');
       }
     };
-    fetchData();
+
+    fetchDriversAndTariffs();
   }, [selectedServiceLevel, selectedVehicleType, updateTariffs, fetchAllDrivers, setErrorMessage]);
-
-  useEffect(() => {
-    updateTariffs(selectedServiceLevel, selectedVehicleType);
-  }, [selectedServiceLevel, selectedVehicleType, updateTariffs]);
-
-  useEffect(() => {
-    const fetchVehiclesData = async () => {
-      try {
-        const data = await fetchVehicles(selectedServiceLevel, selectedVehicleType);
-        if (data.status !== 'success') {
-          throw new Error(data.message || 'Failed to fetch vehicles');
-        }
-        setVehicles(data.data.vehicles);
-        setDrivers(data.data.vehicles.flatMap((v: any) => v.drivers));
-      } catch (error) {
-        setErrorMessage(error, 'Error fetching vehicles');
-      }
-    };
-    fetchVehiclesData();
-  }, [selectedServiceLevel, selectedVehicleType, setErrorMessage]);
-
-  useEffect(() => {
-    const fetchTariffsData = async () => {
-      try {
-        const tariffsData = await fetchTariffs(selectedServiceLevel, selectedVehicleType);
-        setTariffs(tariffsData);
-        if (!tariffsData.length) {
-          setSelectedTariff(null);
-          setSelectedAdditionalServices([]);
-          setFormData((prev) => ({
-            ...prev,
-            tariffUuid: '',
-            basePrice: 0,
-          }));
-        }
-      } catch (error) {
-        setErrorMessage(error, 'Error fetching tariffs');
-      }
-    };
-
-    fetchTariffsData();
-  }, [selectedServiceLevel, selectedVehicleType, setErrorMessage]);
 
   const handleVehicleTypeChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedVehicleType(e.target.value);
@@ -178,41 +136,10 @@ const OrderCreate = () => {
     [tariffs, calculateBasePrice, formData.intermediatePoints, pointPrice],
   );
 
-  //Новый обработчик для выбора водителя
-  const handleDriverChange = useCallback(
-    (e: React.ChangeEvent<HTMLSelectElement>) => {
-      const selectedDriverProfileUuid = e.target.value;
-      //Найдите выбранного водителя по driverProfileUuid
-      const selectedDriver = allDrivers.find(
-        (driver) => driver.driverProfileUuid === selectedDriverProfileUuid,
-      );
-
-      if (selectedDriver) {
-        setFormData((prev) => ({
-          ...prev,
-          assignedDriverId: selectedDriver.driverProfileUuid,
-          assignedDriverUserId: selectedDriver.userUuid,
-        }));
-      } else {
-        setFormData((prev) => ({
-          ...prev,
-          assignedDriverId: '',
-          assignedDriverUserId: '',
-        }));
-      }
-    },
-    [allDrivers],
-  );
-
-  const handlePointChange = useCallback(
-    (e: React.ChangeEvent<HTMLSelectElement>, pointType: 'arrivalPoint' | 'departurePoint') => {
-      const selected = points.find((p) => p.uuid === e.target.value);
-      if (selected) {
-        setFormData((prev) => ({ ...prev, [pointType]: selected.uuid }));
-      }
-    },
-    [points],
-  );
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value === '' ? null : value }));
+  }, []);
 
   const handleAddIntermediatePoint = useCallback(() => {
     setFormData((prev) => {
@@ -250,16 +177,6 @@ const OrderCreate = () => {
     [selectedTariff, originalBasePrice, pointPrice],
   );
 
-  const handleChange = useCallback((e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  }, []);
-
-  const handleBasePriceChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = parseFloat(e.target.value);
-    setFormData((prev) => ({ ...prev, basePrice: newValue }));
-  }, []);
-
   const handleResetBasePrice = useCallback(() => {
     const newPoints = formData.intermediatePoints || [];
     const additionalPointsPrice = (selectedTariff?.additionalPointPrice || 0) * newPoints.length;
@@ -268,7 +185,7 @@ const OrderCreate = () => {
   }, [formData.intermediatePoints, selectedTariff, originalBasePrice, pointPrice]);
 
   const handleAdditionalServiceChange = useCallback(
-    (e: ChangeEvent<HTMLInputElement>, serviceUuid: string) => {
+    (e: React.ChangeEvent<HTMLInputElement>, serviceUuid: string) => {
       if (e.target.checked) {
         setSelectedAdditionalServices((prev) => [...prev, serviceUuid]);
       } else {
@@ -285,37 +202,17 @@ const OrderCreate = () => {
         const cleanedIntermediatePoints = (formData.intermediatePoints ?? []).filter(
           (point) => point.trim() !== '',
         );
-
-        //Проверяем, что все обязательные поля заполнены
-        const missingFields: string[] = [];
-        if (!formData.createdBy) missingFields.push('createdBy');
-        if (!formData.tariffUuid) missingFields.push('tariffUuid');
-        if (!formData.departureTime) missingFields.push('departureTime');
-        if (!formData.departurePoint) missingFields.push('departurePoint');
-        if (!formData.arrivalPoint) missingFields.push('arrivalPoint');
-        if (formData.basePrice === undefined || formData.basePrice === null)
-          missingFields.push('basePrice');
-        if (formData.assignedDriverId && !formData.assignedDriverUserId)
-          missingFields.push('assignedDriverUserId');
-
-        if (missingFields.length > 0) {
-          setMessage(`Missing required fields: ${missingFields.join(', ')}`);
-          return;
-        }
-
-        const orderData = {
+        const orderData: CreateOrderData = {
           createdBy: formData.createdBy || '',
           tariffUuid: formData.tariffUuid || '',
           departurePoint: formData.departurePoint || '',
           arrivalPoint: formData.arrivalPoint || '',
-          assignedDriverId: formData.assignedDriverId || null,
-          assignedDriverUserId: formData.assignedDriverUserId || null,
           intermediatePoints: cleanedIntermediatePoints,
+          assignedDriverId: formData.assignedDriverId,
           selectedServices: selectedAdditionalServices,
           basePrice: formData.basePrice,
-          departureTime: formData.departureTime,
+          departureTime: formData.departureTime || '',
         };
-
         const response = await fetch('/api/orders', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -328,10 +225,9 @@ const OrderCreate = () => {
         const result = await response.json();
         setMessage(`Order created successfully: ${result.uuid}`);
 
-        //Отправка уведомления водителю после успешного создания заказа
-        if (socket && formData.assignedDriverUserId) {
+        if (socket && formData.assignedDriverId) {
           socket.emit('notification', {
-            userId: formData.assignedDriverUserId,
+            userId: formData.assignedDriverId,
             notification: {
               title: 'Новый заказ',
               message: `Вам назначен новый заказ от ${formData.departurePoint} до ${formData.arrivalPoint}`,
@@ -421,14 +317,14 @@ const OrderCreate = () => {
             type="datetime-local"
             name="departureTime"
             value={formData.departureTime || ''}
-            onChange={(e) => setFormData((prev) => ({ ...prev, departureTime: e.target.value }))}
+            onChange={handleChange}
           />
         </label>
         <label>
           Departure Point:
           <select
             name="departurePoint"
-            onChange={(e) => handlePointChange(e, 'departurePoint')}
+            onChange={handleChange}
             value={formData.departurePoint || ''}
           >
             <option value="">Select a departure point</option>
@@ -441,11 +337,7 @@ const OrderCreate = () => {
         </label>
         <label>
           Arrival Point:
-          <select
-            name="arrivalPoint"
-            onChange={(e) => handlePointChange(e, 'arrivalPoint')}
-            value={formData.arrivalPoint || ''}
-          >
+          <select name="arrivalPoint" onChange={handleChange} value={formData.arrivalPoint || ''}>
             <option value="">Select an arrival point</option>
             {points.map((p) => (
               <option key={p.uuid} value={p.uuid}>
@@ -484,7 +376,7 @@ const OrderCreate = () => {
             type="number"
             name="basePrice"
             value={formData.basePrice ?? 0}
-            onChange={handleBasePriceChange}
+            onChange={handleChange}
           />
           <button type="button" onClick={handleResetBasePrice}>
             Reset Price
@@ -494,13 +386,13 @@ const OrderCreate = () => {
           Assigned Driver:
           <select
             name="assignedDriverId"
-            onChange={handleDriverChange}
+            onChange={handleChange}
             value={formData.assignedDriverId || ''}
           >
             <option value="">Select a driver</option>
-            {allDrivers.map((driver) => (
-              <option key={driver.driverProfileUuid} value={driver.driverProfileUuid}>
-                {driver.fullName} - {driver.brand} {driver.model}
+            {drivers.map((driver) => (
+              <option key={driver.uuid} value={driver.uuid}>
+                {driver.fullName}
               </option>
             ))}
           </select>

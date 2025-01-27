@@ -18,7 +18,7 @@ model Order {
   arrivalPointId                String                           @map("arrival_point_id")
   arrivalPoint                  Point                            @relation("arrival_orders", fields: [arrivalPointId], references: [uuid], onDelete: Cascade)
   assignedDriverId              String?                          @map("assigned_driver_id")
-  assignedDriver                DriverProfile?                   @relation("assigned_orders", fields: [assignedDriverId], references: [uuid], onDelete: Cascade)
+  assignedDriver                User?                            @relation("assigned_orders", fields: [assignedDriverId], references: [uuid], onDelete: Cascade)
   status                        OrderStatus                      @default(PENDING) @map("status")
   basePrice                     Decimal                          @map("base_price")
   finalPrice                    Decimal?                         @map("final_price")

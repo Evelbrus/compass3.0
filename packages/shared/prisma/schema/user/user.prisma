@@ -28,7 +28,8 @@ model User {
   LoginAttemptId String?
   LoginAttempt   LoginAttempt[] @relation("login_attempts")
 
-  orders Order[] @relation("created_orders")
+  orders         Order[] @relation("created_orders")
+  assignedOrders Order[] @relation("assigned_orders")
 
   fullName         String  @map("full_name")
   phone            String  @map("phone")

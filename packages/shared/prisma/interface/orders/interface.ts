@@ -4,6 +4,7 @@ export interface TariffAdditionalService {
   uuid: string;
   name: string;
   price: number;
+  serviceUuid: string;
 }
 
 export interface ExtendedTariff extends Tariff {
@@ -40,11 +41,33 @@ export interface CreateOrderData
 }
 
 //Тип данных для редактирования заказа
-export interface EditOrderData extends Omit<Order, 'finalPrice' | 'createdAt' | 'updatedAt'> {
-  createdBy: User;
-  tariff: ExtendedTariff;
-  departurePoint: Point;
-  arrivalPoint: Point;
+export interface EditOrderData
+  extends Omit<
+    Order,
+    | 'uuid'
+    | 'finalPrice'
+    | 'createdAt'
+    | 'updatedAt'
+    | 'tariff'
+    | 'createdById'
+    | 'basePrice'
+    | 'departurePointId'
+    | 'assignedDriverId'
+    | 'arrivalPointId'
+    | 'status'
+    | 'departureTime'
+    | 'intermediatePoints'
+  > {
+  createdBy: string;
+  tariffUuid: string;
+  departurePoint: string;
+  arrivalPoint: string;
+  assignedDriverId?: string | null;
+  assignedDriverUserId?: string | null;
+  intermediatePoints?: string[];
+  selectedServices?: string[];
+  basePrice?: number;
+  departureTime?: string;
 }
 
 //Тип данных для детализированного представления заказа
