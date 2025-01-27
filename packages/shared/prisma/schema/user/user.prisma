@@ -1,29 +1,34 @@
 enum UserRole {
-  Client
-  ClientCorp
-  Driver
-  Operator
-  Admin
+  Client     @map("client")
+  ClientCorp @map("client_corp")
+  Driver     @map("driver")
+  Operator   @map("operator")
+  Admin      @map("admin")
   None       @map("none")
 }
 
 enum Gender {
-  Male
-  Female
+  Male   @map("male")
+  Female @map("female")
   None   @map("none")
 }
 
 model User {
-  uuid             String          @id @default(uuid()) @map("uuid")
-  email            String          @unique @map("email")
-  password         String          @map("password")
-  role             UserRole        @map("role")
-  availability     Boolean         @default(false) @map("availability")
-  driverProfileId  String?         @unique @map("driver_profile_id")
-  driverProfile    DriverProfile?  @relation("user_to_driver_profile")
-  companyProfileId String?
+  uuid     String   @id @default(uuid()) @map("uuid")
+  email    String   @unique @map("email")
+  password String   @map("password")
+  role     UserRole @map("role")
+
+  driverProfileId String?        @unique @map("driver_profile_id")
+  driverProfile   DriverProfile? @relation("user_to_driver_profile")
+
+  companyProfileId String?         @unique @map("company_profile_id")
   companyProfile   CompanyProfile? @relation("user_to_company_profile")
-  orders           Order[]         @relation("created_orders")
+
+  LoginAttemptId String?
+  LoginAttempt   LoginAttempt[] @relation("login_attempts")
+
+  orders Order[] @relation("created_orders")
 
   fullName         String  @map("full_name")
   phone            String  @map("phone")
@@ -33,6 +38,13 @@ model User {
 
   vehicleDriverId String?        @map("vehicle_driver_id")
   vehicleDriver   VehicleDriver? @relation("driver_to_vehicle_driver")
+
+  availability Boolean   @default(false) @map("availability")
+  lastActive   DateTime? @map("last_active")
+  isBlocked    Boolean   @default(false) @map("is_blocked")
+
+  sessionVersion Int      @default(0)
+  refreshTokens  String[] @map("refresh_tokens")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")

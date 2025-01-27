@@ -1,10 +1,9 @@
-import React from 'react';
-import { redirect } from 'next/navigation';
+import React, { JSX } from 'react';
 import { getLayoutData } from '@shared/utils/cookie/layout-data/getLayoutData';
 import ClientsEditAdminPage from '@pages/(administrator)/(users)/user/ClientsEditAdminPage';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import Loading from '@entities/loading/loading';
+import { UserRole } from '@prisma/client';
+import { prisma } from '@shared/prisma/prisma-client';
 
 interface PageProps {
   params: Promise<{ uuid: string }>;
@@ -12,13 +11,12 @@ interface PageProps {
 
 export const revalidate = 60;
 
-const Page: React.FC<PageProps> = async ({ params }) => {
+const Page = async ({ params }: PageProps): Promise<JSX.Element> => {
   const { role } = await getLayoutData();
-  const resolvedParams = await params;
-  const { uuid } = resolvedParams;
+  const { uuid } = await params;
 
-  if (role !== 'Admin' && role !== 'Operator') {
-    return redirect('/');
+  if (role !== UserRole.Admin && role !== UserRole.Operator) {
+    return <Loading />;
   }
 
   //Получаем данные пользователя на сервере
@@ -35,7 +33,7 @@ const Page: React.FC<PageProps> = async ({ params }) => {
   });
 
   if (!userData) {
-    return redirect('/');
+    return <Loading />;
   }
 
   return <ClientsEditAdminPage userData={userData} />;

@@ -1,0 +1,11 @@
+model LoginAttempt {
+  id           String   @id @default(cuid())
+  ip           String   @map("ip")
+  userAgent    String?  @map("user_agent")
+  emailAttempt String?  @map("email_attempt")
+  User         User?    @relation("login_attempts", fields: [userId], references: [uuid], onDelete: Cascade)
+  userId       String?  @unique @map("user_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("login_attempts")
+}

@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.base",
+  "include": ["./**/*", "../shared/**/*"],
+  "sideEffects": ["*.scss"],
+  "compilerOptions": {
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@entities/*": ["./*"],
+      "@shared/*": ["../shared/*"]
+    }
+  }
+}

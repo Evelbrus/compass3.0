@@ -1,4 +1,11 @@
-import { User, CompanyProfile, DriverProfile, DriverExperience } from '@prisma/client';
+import { User, CompanyProfile, DriverProfile, DriverExperience, UserRole } from '@prisma/client';
+
+export interface UserSession {
+  uuid: string;
+  email: string;
+  role: UserRole;
+  lastActive: Date | null;
+}
 
 export type CreateUserData = Omit<
   User,

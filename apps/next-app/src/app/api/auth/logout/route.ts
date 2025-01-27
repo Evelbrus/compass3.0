@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
-import { getToken } from 'next-auth/jwt';
+import {
+  ACCESS_TOKEN_COOKIE,
+  REFRESH_TOKEN_COOKIE,
+} from '@shared/utils/cookie/generate-cookie/cookieName';
 
+<<<<<<< HEAD
 export async function POST(request: NextRequest) {
   const response = NextResponse.redirect(new URL('/login', request.url));
 
@@ -26,6 +29,14 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Session invalidation error:', error);
   }
+=======
+export async function POST() {
+  const response = NextResponse.json({ message: 'Logged out successfully' }, { status: 200 });
+
+  //Удаляем куки
+  response.cookies.delete(ACCESS_TOKEN_COOKIE);
+  response.cookies.delete(REFRESH_TOKEN_COOKIE);
+>>>>>>> e182d403429aec1a1aa86b387b5740cc86771ca5
 
   return response;
 }
