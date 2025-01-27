@@ -4,6 +4,8 @@ import ClientsDetailAdminPage from '@pages/(administrator)/(users)/user/ClientsD
 import Loading from '@entities/loading/loading';
 import { UserRole } from '@prisma/client';
 import { prisma } from '@shared/prisma/prisma-client';
+import { redirect } from 'next/navigation';
+import { publicRoutes } from '@shared/utils/routing';
 
 interface PageProps {
   params: Promise<{ uuid: string }>;
@@ -12,27 +14,31 @@ interface PageProps {
 export const revalidate = 60;
 
 const Page = async ({ params }: PageProps): Promise<JSX.Element> => {
-  const { role } = await getLayoutData();
+  const { role, refreshToken } = await getLayoutData();
   const { uuid } = await params;
 
-  if (role !== UserRole.Admin && role !== UserRole.Operator) {
-    return <Loading />;
+  if (refreshToken) {
+    if (role === UserRole.Admin || role === UserRole.Operator) {
+      //Получаем данные пользователя на сервере
+      const userData = await prisma.user.findUnique({
+        where: { uuid },
+        include: {
+          driverProfile: true,
+          companyProfile: true,
+        },
+      });
+
+      if (!userData) {
+        return <Loading />;
+      }
+
+      return <ClientsDetailAdminPage userData={userData} />;
+    } else {
+      return <Loading />;
+    }
+  } else {
+    redirect(publicRoutes.LOGIN);
   }
-
-  //Получаем данные пользователя на сервере
-  const userData = await prisma.user.findUnique({
-    where: { uuid },
-    include: {
-      driverProfile: true,
-      companyProfile: true,
-    },
-  });
-
-  if (!userData) {
-    return <Loading />;
-  }
-
-  return <ClientsDetailAdminPage userData={userData} />;
 };
 
 export default Page;

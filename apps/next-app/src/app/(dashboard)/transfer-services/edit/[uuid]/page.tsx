@@ -5,6 +5,8 @@ import VehiclesEdit from '@pages/(administrator)/vehicles/VehiclesEdit';
 import Loading from '@entities/loading/loading';
 import { UserRole } from '@prisma/client';
 import { prisma } from '@shared/prisma/prisma-client';
+import { redirect } from 'next/navigation';
+import { publicRoutes } from '@shared/utils/routing';
 
 interface PageProps {
   params: { uuid: string };
@@ -13,48 +15,52 @@ interface PageProps {
 export const revalidate = 60;
 
 const Page = async ({ params }: PageProps): Promise<JSX.Element> => {
-  const { role } = await getLayoutData();
+  const { role, refreshToken } = await getLayoutData();
   const { uuid } = params;
 
-  if (role !== UserRole.Admin && role !== UserRole.Operator) {
-    return <Loading />;
-  }
-
-  const vehicle = await prisma.vehicle.findUnique({
-    where: { uuid },
-    include: {
-      vehicleDrivers: {
+  if (refreshToken) {
+    if (role === UserRole.Admin || role === UserRole.Operator) {
+      const vehicle = await prisma.vehicle.findUnique({
+        where: { uuid },
         include: {
-          driver: true,
-        },
-      },
-    },
-  });
-
-  if (!vehicle) {
-    return <Loading />;
-  }
-
-  const detailVehicleData: DetailVehicleData = {
-    ...vehicle,
-    vehicleDrivers: vehicle.vehicleDrivers.map((driverRelation) => ({
-      uuid: driverRelation.uuid,
-      assignmentDate: driverRelation.assignmentDate,
-      driver: driverRelation.driver
-        ? {
-            uuid: driverRelation.driver.uuid,
-            fullName: driverRelation.driver.fullName,
-            phone: driverRelation.driver.phone,
-          }
-        : {
-            uuid: 'default-uuid',
-            fullName: 'Не назначен',
-            phone: 'Не назначен',
+          vehicleDrivers: {
+            include: {
+              driver: true,
+            },
           },
-    })),
-  };
+        },
+      });
 
-  return <VehiclesEdit data={detailVehicleData} />;
+      if (!vehicle) {
+        return <Loading />;
+      }
+
+      const detailVehicleData: DetailVehicleData = {
+        ...vehicle,
+        vehicleDrivers: vehicle.vehicleDrivers.map((driverRelation) => ({
+          uuid: driverRelation.uuid,
+          assignmentDate: driverRelation.assignmentDate,
+          driver: driverRelation.driver
+            ? {
+                uuid: driverRelation.driver.uuid,
+                fullName: driverRelation.driver.fullName,
+                phone: driverRelation.driver.phone,
+              }
+            : {
+                uuid: 'default-uuid',
+                fullName: 'Не назначен',
+                phone: 'Не назначен',
+              },
+        })),
+      };
+
+      return <VehiclesEdit data={detailVehicleData} />;
+    } else {
+      return <Loading />;
+    }
+  } else {
+    redirect(publicRoutes.LOGIN);
+  }
 };
 
 export default Page;
