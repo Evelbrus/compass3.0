@@ -1,12 +1,9 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
 import debug from 'debug';
 import { EditVehicleData } from '@shared/prisma/interface/vehicles/interface';
+import { prisma } from '@shared/prisma/prisma-client';
 
 const log = debug('app:vehicles');
-const prisma = new PrismaClient({
-  log: ['query', 'info', 'warn', 'error'],
-});
 
 //Интерфейс для параметров запроса
 interface Params {
@@ -49,9 +46,6 @@ export async function GET(req: Request) {
       log('Error stack:', error.stack);
     }
     return NextResponse.json({ error: 'Unable to fetch vehicle' }, { status: 500 });
-  } finally {
-    await prisma.$disconnect();
-    log('Disconnected from database');
   }
 }
 
@@ -112,10 +106,6 @@ export async function PUT(req: Request) {
       log('Error stack:', error.stack);
     }
     return NextResponse.json({ error: 'Unable to update vehicle' }, { status: 500 });
-  } finally {
-    //Отключаемся от базы данных
-    await prisma.$disconnect();
-    log('Disconnected from database');
   }
 }
 
@@ -143,9 +133,5 @@ export async function DELETE(req: Request) {
       log('Error stack:', error.stack);
     }
     return NextResponse.json({ error: 'Unable to delete vehicle' }, { status: 500 });
-  } finally {
-    //Отключаемся от базы данных
-    await prisma.$disconnect();
-    log('Disconnected from database');
   }
 }

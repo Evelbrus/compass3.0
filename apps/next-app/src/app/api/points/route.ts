@@ -1,13 +1,10 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
 import debug from 'debug';
 import { CreatePointData } from '@shared/prisma/interface/point/interface';
 import { v4 as uuidv4 } from 'uuid';
+import { prisma } from '@shared/prisma/prisma-client';
 
 const log = debug('app:points');
-const prisma = new PrismaClient({
-  log: ['warn', 'error'],
-});
 
 //GET запрос для получения всех точек с пагинацией и сортировкой
 export async function GET(req: Request) {
@@ -53,9 +50,6 @@ export async function GET(req: Request) {
       log('Error stack:', error.stack);
     }
     return NextResponse.json({ error: 'Unable to fetch points' }, { status: 500 });
-  } finally {
-    await prisma.$disconnect();
-    log('Disconnected from database');
   }
 }
 
@@ -92,8 +86,5 @@ export async function POST(req: Request) {
       log('Error stack:', error.stack);
     }
     return NextResponse.json({ error: 'Unable to create point' }, { status: 500 });
-  } finally {
-    await prisma.$disconnect();
-    log('Disconnected from database');
   }
 }

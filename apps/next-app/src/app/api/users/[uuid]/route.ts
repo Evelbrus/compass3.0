@@ -1,11 +1,10 @@
 import { NextResponse } from 'next/server';
-import { Prisma, PrismaClient, User } from '@prisma/client';
+import { User } from '@prisma/client';
 import debug from 'debug';
+import { prisma } from '@shared/prisma/prisma-client';
+import { Prisma } from '@prisma/client';
 
 const log = debug('app:update-user');
-const prisma = new PrismaClient({
-  log: ['query', 'info', 'warn', 'error'],
-});
 
 interface Params {
   uuid: string;
@@ -41,9 +40,6 @@ export async function GET(req: Request) {
       log('Error stack:', error.stack);
     }
     return NextResponse.json({ error: 'Unable to fetch user' }, { status: 500 });
-  } finally {
-    await prisma.$disconnect();
-    log('Disconnected from database');
   }
 }
 
@@ -162,9 +158,6 @@ export async function PUT(req: Request) {
         },
         { status: 500 },
       );
-    } finally {
-      await prisma.$disconnect();
-      log('Disconnected from database');
     }
   } catch (error) {
     log('Error parsing request:', error);
@@ -208,7 +201,5 @@ export async function DELETE(req: Request) {
 
     console.error('Error deleting user:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-  } finally {
-    await prisma.$disconnect();
   }
 }

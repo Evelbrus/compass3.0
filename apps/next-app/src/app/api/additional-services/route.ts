@@ -1,13 +1,10 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
 import debug from 'debug';
 import { v4 as uuidv4 } from 'uuid';
 import { CreateAdditionalServiceData } from '@shared/prisma/interface/additional-services/interface';
+import { prisma } from '@shared/prisma/prisma-client';
 
 const log = debug('app:additional-services');
-const prisma = new PrismaClient({
-  log: ['query', 'info', 'warn', 'error'],
-});
 
 //POST запрос для создания новой опции услуги
 export async function POST(req: Request) {
@@ -41,9 +38,6 @@ export async function POST(req: Request) {
       log('Error stack:', error.stack);
     }
     return NextResponse.json({ error: 'Unable to create additional service' }, { status: 500 });
-  } finally {
-    await prisma.$disconnect();
-    log('Disconnected from database');
   }
 }
 
@@ -89,8 +83,5 @@ export async function GET(req: Request) {
       log('Error stack:', error.stack);
     }
     return NextResponse.json({ error: 'Unable to fetch additional services' }, { status: 500 });
-  } finally {
-    await prisma.$disconnect();
-    log('Disconnected from database');
   }
 }

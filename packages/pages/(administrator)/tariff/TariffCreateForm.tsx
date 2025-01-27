@@ -7,6 +7,11 @@ import { CreateTariffData } from '@shared/prisma/interface/tariff/interface';
 interface FormData extends Omit<CreateTariffData, 'clientTypes' | 'vehicleType' | 'serviceLevel'> {
   vehicleType: VehicleType | undefined;
   serviceLevel: ServiceLevels | undefined;
+  tariffAdditionalServices: {
+    serviceUuid: string;
+    price: number;
+    isAvailable: boolean;
+  }[];
 }
 
 const TariffCreateForm: React.FC = () => {
@@ -31,7 +36,19 @@ const TariffCreateForm: React.FC = () => {
     //Fetch additional services
     fetch('/api/additional-services?page=1&per_page=100&sort_by=name&sort_order=asc')
       .then((response) => response.json())
-      .then((data) => setAdditionalServices(data.data.additionalServices))
+      .then((data) => {
+        const services = data.data.additionalServices;
+        setAdditionalServices(services);
+        //Initialize tariffAdditionalServices from fetched additional services
+        setFormData((prevData) => ({
+          ...prevData,
+          tariffAdditionalServices: services.map((service) => ({
+            serviceUuid: service.uuid,
+            price: 0, //You can set a default price here if needed
+            isAvailable: false,
+          })),
+        }));
+      })
       .catch((error) => console.error('Error fetching additional services:', error));
   }, []);
 
@@ -39,7 +56,6 @@ const TariffCreateForm: React.FC = () => {
   const handleInputChange = (event: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { id, value, type } = event.target;
     const checked = type === 'checkbox' ? (event.target as HTMLInputElement).checked : undefined;
-
     setFormData((prevData) => ({
       ...prevData,
       [id]: type === 'number' ? (value ? Number(value) : 0) : type === 'checkbox' ? checked : value,
@@ -47,30 +63,17 @@ const TariffCreateForm: React.FC = () => {
   };
 
   //Handle additional services input changes
-  const handleAdditionalServicesChange = (
-    index: number,
-    event: ChangeEvent<HTMLSelectElement | HTMLInputElement>,
-  ) => {
-    const { name, value, type } = event.target;
+  const handleAdditionalServicesChange = (index: number, event: ChangeEvent<HTMLInputElement>) => {
+    const { name, checked, value } = event.target;
     const newAdditionalServices = [...formData.tariffAdditionalServices];
     newAdditionalServices[index] = {
       ...newAdditionalServices[index],
-      [name]: type === 'number' ? parseFloat(value) : value,
+      [name]: name === 'isAvailable' ? checked : Number(value),
     };
+
     setFormData((prevData) => ({
       ...prevData,
       tariffAdditionalServices: newAdditionalServices,
-    }));
-  };
-
-  //Add new additional service
-  const addAdditionalService = () => {
-    setFormData((prevData) => ({
-      ...prevData,
-      tariffAdditionalServices: [
-        ...prevData.tariffAdditionalServices,
-        { serviceUuid: '', price: 0, isAvailable: true },
-      ],
     }));
   };
 
@@ -120,9 +123,12 @@ const TariffCreateForm: React.FC = () => {
           <select
             id="vehicleType"
             value={formData.vehicleType}
-            onChange={handleInputChange}
+            onChange={(e) =>
+              setFormData({ ...formData, vehicleType: e.target.value as VehicleType })
+            }
             required
           >
+            <option value="">Select Vehicle Type</option>
             {Object.values(VehicleType).map((type) => (
               <option key={type} value={type}>
                 {type}
@@ -204,9 +210,12 @@ const TariffCreateForm: React.FC = () => {
           <select
             id="serviceLevel"
             value={formData.serviceLevel}
-            onChange={handleInputChange}
+            onChange={(e) =>
+              setFormData({ ...formData, serviceLevel: e.target.value as ServiceLevels })
+            }
             required
           >
+            <option value="">Select Service Level</option>
             {Object.values(ServiceLevels).map((level) => (
               <option key={level} value={level}>
                 {level}
@@ -218,24 +227,20 @@ const TariffCreateForm: React.FC = () => {
           <h2>Additional Services</h2>
           {formData.tariffAdditionalServices.map((additionalService, index) => (
             <div key={index}>
-              <select
-                name="serviceUuid"
-                value={additionalService.serviceUuid}
-                onChange={(e) => handleAdditionalServicesChange(index, e)}
-                required
-              >
-                <option value="">Select Additional Service</option>
-                {additionalServices.map((service) => (
-                  <option key={service.uuid} value={service.uuid}>
-                    {service.name}
-                  </option>
-                ))}
-              </select>
+              <label>
+                {
+                  additionalServices.find(
+                    (service) => service.uuid === additionalService.serviceUuid,
+                  )?.name
+                }
+              </label>
               <input
                 type="number"
                 name="price"
                 value={additionalService.price}
-                onChange={(e) => handleAdditionalServicesChange(index, e)}
+                onChange={(e) =>
+                  handleAdditionalServicesChange(index, e as ChangeEvent<HTMLInputElement>)
+                }
                 required
               />
               <label>
@@ -251,9 +256,6 @@ const TariffCreateForm: React.FC = () => {
               </label>
             </div>
           ))}
-          <button type="button" onClick={addAdditionalService}>
-            Add Additional Service
-          </button>
         </div>
         <button type="submit">Create Tariff</button>
       </form>

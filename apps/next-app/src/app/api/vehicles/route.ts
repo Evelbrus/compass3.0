@@ -267,13 +267,12 @@ export async function POST(req: NextRequest) {
           driverIds.map(async (driverId) => {
             const driverUser = await transaction.user.findUnique({
               where: { uuid: driverId, role: 'Driver' },
-              include: { driverProfile: true },
             });
 
-            if (!driverUser?.driverProfile) {
+            if (!driverUser) {
               throw new Error(`Driver ${driverId} not found`);
             }
-
+            //driverUser существует теперь мы его можем привязать, driverProfile не обязателен
             return transaction.vehicleDriver.create({
               data: {
                 uuid: uuidv4(),
