@@ -162,7 +162,7 @@ const DriverDetailView = ({ userData }: DriverDetailViewProps): JSX.Element => {
                 className="rounded-lg object-cover"
               />
             ) : (
-              <p>No Passport Photo</p>
+              <p>No Passport Photo </p>
             )}
           </div>
 
