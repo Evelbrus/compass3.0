@@ -1,9 +1,8 @@
 import React, { JSX } from 'react';
 import { getLayoutData } from '@shared/utils/cookie/layout-data/getLayoutData';
-import ClientsDetailAdminPage from '@pages/(administrator)/(users)/user/ClientsDetailAdminPage';
+import OrderDetails from '@pages/(administrator)/orders/detail/OrderDetails';
 import Loading from '@entities/loading/loading';
 import { UserRole } from '@prisma/client';
-import { prisma } from '@shared/prisma/prisma-client';
 import { redirect } from 'next/navigation';
 import { publicRoutes } from '@shared/utils/routing';
 
@@ -15,25 +14,11 @@ export const revalidate = 60;
 
 const Page = async ({ params }: PageProps): Promise<JSX.Element> => {
   const { role, refreshToken } = await getLayoutData();
-  const resolvedParams = await params;
-  const { uuid } = await resolvedParams;
+  const { uuid } = await params;
 
   if (refreshToken) {
     if (role === UserRole.Admin || role === UserRole.Operator) {
-      //Получаем данные пользователя на сервере
-      const userData = await prisma.user.findUnique({
-        where: { uuid },
-        include: {
-          driverProfile: true,
-          companyProfile: true,
-        },
-      });
-
-      if (!userData) {
-        return <Loading />;
-      }
-
-      return <ClientsDetailAdminPage userData={userData} />;
+      return <OrderDetails orderId={uuid} />;
     } else {
       return <Loading />;
     }
