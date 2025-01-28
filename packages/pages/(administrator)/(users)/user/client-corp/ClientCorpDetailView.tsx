@@ -3,8 +3,8 @@
 import React, { JSX, useState } from 'react';
 import { User, CompanyProfile } from '@prisma/client';
 import Image from 'next/image';
-import { ImageUpload } from '@shared/components/ui/inputs';
 import { useForm, FormProvider } from 'react-hook-form';
+import { LazyImage } from '@shared/components/ui/images';
 
 // Определяем новый тип, расширяющий User и добавляющий companyProfile
 interface UserWithCompanyProfile extends User {
@@ -71,8 +71,8 @@ const ClientCorpDetailView = ({ userData }: ClientCorpDetailViewProps): JSX.Elem
               className="rounded-full object-cover"
             />
           ) : (
-            <div className="max-w-[180px]">
-              <ImageUpload name="profilePhotoPath" placeholder="/placeholderImage.png" label="" />
+            <div className="max-w-[280px] h-[200px] flex items-center justify-center bg-gray-50 p-[30px] rounded-[8px]">
+              <LazyImage src="/new-user.svg" alt="logotype" className="w-[330px] h-[140px]" />
             </div>
           )}
           <div className="mt-[20px] w-full">
@@ -105,8 +105,8 @@ const ClientCorpDetailView = ({ userData }: ClientCorpDetailViewProps): JSX.Elem
               </div>
             </div>
           </div>
-          <div className="w-full">
-            <ImageUpload name="profilePhotoPath" label={''} placeholder="/placeholderImage.png" />
+          <div className="w-full h-[240px]  bg-gray-50 p-[30px] flex items-center justify-center">
+            <h1>Logo</h1>
           </div>
         </section>
       </form>
