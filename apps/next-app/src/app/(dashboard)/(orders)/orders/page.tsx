@@ -1,6 +1,6 @@
 import React, { JSX } from 'react';
 import { getLayoutData } from '@shared/utils/cookie/layout-data/getLayoutData';
-import OrderAdminPage from '@pages/(administrator)/orders/OrderAdminPage';
+import OrderAdminPage from '@pages/(administrator)/orders/main/OrderAdminPage';
 import Loading from '@entities/loading/loading';
 import { UserRole } from '@prisma/client';
 import { redirect } from 'next/navigation';

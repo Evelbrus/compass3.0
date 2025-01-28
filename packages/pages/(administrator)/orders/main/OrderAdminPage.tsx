@@ -14,10 +14,10 @@ import { renderActions } from '@shared/components/ui/table/ui/TableRenders';
 import { $updateFlag, View } from '@shared/lib/effector/state/state';
 import { useUnit } from 'effector-react';
 import { DetailOrderData } from '@shared/prisma/interface/orders/interface';
-import { ordersColumns } from '@pages/(administrator)/orders/ordersColumns';
 import StatusOverview from '@widgets/status-overview/ui/StatusOverview';
-import { ordersOverview } from '@pages/(administrator)/orders/ordersOverview';
 import { privateRoutes } from '@shared/utils/routing';
+import { ordersOverview } from '@pages/(administrator)/orders/main/ordersOverview';
+import { ordersColumns } from '@pages/(administrator)/orders/main/ordersColumns';
 
 const OrderAdminPage = (): JSX.Element => {
   const [orders, setOrders] = useState<DetailOrderData[]>([]);

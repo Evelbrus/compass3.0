@@ -16,7 +16,8 @@ export const revalidate = 60;
 
 const Page = async ({ params }: PageProps): Promise<JSX.Element> => {
   const { role, refreshToken } = await getLayoutData();
-  const { uuid } = params;
+  const resolvedParams = await params;
+  const { uuid } = await resolvedParams;
 
   if (refreshToken) {
     if (role === UserRole.Admin || role === UserRole.Operator) {
