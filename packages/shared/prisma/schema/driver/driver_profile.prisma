@@ -48,7 +48,6 @@ model DriverProfile {
   bankBic           String?            @map("bic")
   bankAccountNumber String?            @map("account_number")
   cardNumber        String?            @map("card_number")
-  ordersAssigned    Order[]            @relation("assigned_orders")
   driverHistory     DriverHistory[]    @relation("driver_to_driver_history")
   createdAt         DateTime           @default(now()) @map("created_at")
   updatedAt         DateTime           @updatedAt @map("updated_at")
