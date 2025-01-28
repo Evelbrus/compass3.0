@@ -16,7 +16,7 @@ export const renderActions = (
       className="p-2 hover:bg-blue-100 rounded-full flex justify-center items-center cursor-pointer transition-colors duration-300"
       onClick={() => handleDetail(entity, uuid, navigate)}
     >
-      <Icon name="edit" alt="Редактировать" className="w-6 h-6 text-blue-500 hover:text-blue-700" />
+      <Icon name="view" alt="Редактировать" className="w-6 h-6 text-blue-500 hover:text-blue-700" />
     </div>
     <div
       className="p-2 hover:bg-blue-100 rounded-full flex justify-center items-center cursor-pointer transition-colors duration-300"
