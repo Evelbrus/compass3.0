@@ -1,12 +1,14 @@
 'use client';
 
 import React from 'react';
-import { useOrderCreateLogic } from '@pages/(administrator)/orders/create/OrderCreate.logic';
+import { useOrderCreateLogic } from '@features/orders/create/OrderCreate.logic';
+import DriversNearby from '@widgets/drivers-nearby/ui/DriversNearby';
+import MapDriver from '@widgets/map/ui/MapDriver';
+import OrderStartEndSelector from '@widgets/order-route/OrderRouteSelector';
 
 const OrderCreateView = () => {
   const {
     clients,
-    drivers,
     tariffs,
     message,
     selectedVehicleType,
@@ -26,15 +28,48 @@ const OrderCreateView = () => {
     handleAdditionalServiceChange,
     handleSubmit,
     getAvailablePoints,
+    handleDriverSelect,
+    drivers,
+    page,
+    perPage,
+    total,
+    changePage,
+    isLoading,
+    handleSearchDriver,
+    searchDriver,
   } = useOrderCreateLogic();
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      <h1>Create Order</h1>
+      <h1 className="text-2xl font-extrabold">Заказ № 234</h1>
       <form
         onSubmit={handleSubmit}
         style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}
       >
+        <div className="w-full h-[660px] flex flex-row gap-4 overflow-x-auto">
+          <div className="hidden lg:flex flex-1 flex-shrink-0 basis-[calc(65%-1.5rem)] h-auto bg-white rounded-xl border">
+            <MapDriver />
+          </div>
+          <div className="flex-1 flex-shrink-0 basis-[calc(35%-1.5rem)] h-auto overflow-auto flex flex-col justify-between gap-4">
+            <DriversNearby
+              formData={formData}
+              drivers={drivers}
+              page={page}
+              perPage={perPage}
+              total={total}
+              changePage={changePage}
+              isLoading={isLoading}
+              handleSearchDriver={handleSearchDriver}
+              searchDriver={searchDriver}
+              handleDriverSelect={handleDriverSelect}
+            />
+          </div>
+        </div>
+        <OrderStartEndSelector
+          formData={formData}
+          handleChange={handleChange}
+          getAvailablePoints={getAvailablePoints}
+        />
         <label>
           Client:
           <select name="createdBy" onChange={handleChange} value={formData.createdBy || ''}>
@@ -98,48 +133,6 @@ const OrderCreateView = () => {
           </select>
         </label>
         <label>
-          Departure Time:
-          <input
-            type="datetime-local"
-            name="departureTime"
-            value={formData.departureTime || ''}
-            onChange={handleChange}
-          />
-        </label>
-        <label>
-          Departure Point:
-          <select
-            name="departurePoint"
-            onChange={handleChange}
-            value={formData.departurePoint || ''}
-          >
-            <option value="">Select a departure point</option>
-            {getAvailablePoints([
-              formData.arrivalPoint || '',
-              ...(formData.intermediatePoints || []),
-            ]).map((p) => (
-              <option key={p.uuid} value={p.uuid}>
-                {p.address}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label>
-          Arrival Point:
-          <select name="arrivalPoint" onChange={handleChange} value={formData.arrivalPoint || ''}>
-            <option value="">Select an arrival point</option>
-            {getAvailablePoints([
-              formData.departurePoint || '',
-              ...(formData.intermediatePoints || []),
-            ]).map((p) => (
-              <option key={p.uuid} value={p.uuid}>
-                {p.address}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
           Intermediate Points:
           {(formData.intermediatePoints || []).map((point, index) => (
             <div key={index}>
@@ -175,21 +168,6 @@ const OrderCreateView = () => {
             value={formData.basePrice ?? 0}
             onChange={handleChange}
           />
-        </label>
-        <label>
-          Assigned Driver:
-          <select
-            name="assignedDriverId"
-            onChange={handleChange}
-            value={formData.assignedDriverId || ''}
-          >
-            <option value="">Select a driver</option>
-            {drivers.map((driver) => (
-              <option key={driver.uuid} value={driver.uuid}>
-                {driver.fullName}
-              </option>
-            ))}
-          </select>
         </label>
         <button type="submit">Create Order</button>
       </form>

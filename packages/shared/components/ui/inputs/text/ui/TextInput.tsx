@@ -20,6 +20,7 @@ export const TextInput: React.FC<TextInputProps> = ({
   classNameLabel = 'block text-4 font-medium text-gray-500 mb-2',
   classNamePlaceholder = 'focus:bg-gray-100 text-4 text-[#2A3037] font-extrabold',
   classNameBorderRadius = 'rounded-md border border-gray-300',
+  classNamePadding = 'px-3 py-2',
   gap = '',
   message = 'Ошибка: Выберите корректное значение.',
   minLength,
@@ -30,7 +31,8 @@ export const TextInput: React.FC<TextInputProps> = ({
 
   const sharedClasses = cn(
     'w-full',
-    'bg-white px-3 py-2',
+    classNamePadding,
+    'bg-white',
     classNameBorderRadius,
     classNamePlaceholder,
     errorBorder && 'border-red-500',

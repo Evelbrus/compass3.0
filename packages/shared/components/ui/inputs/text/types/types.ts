@@ -21,6 +21,7 @@ export interface TextInputProps {
   classNameLabel?: string;
   classNamePlaceholder?: string;
   classNameBorderRadius?: string;
+  classNamePadding?: string;
   gap?: string;
   icon?: React.ReactNode;
   minDate?: Date;

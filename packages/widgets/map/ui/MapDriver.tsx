@@ -4,7 +4,7 @@ import { Skeleton } from '@shared/components/ui/skeleton/Skeleton';
 
 const MapDriver = (): JSX.Element => {
   return (
-    <div className="w-full h-[510px] max-h-[510px] bg-white rounded-xl border">
+    <>
       <div className="w-full h-full flex flex-col justify-center items-center">
         <LazyImage
           src="/404.webp"
@@ -16,7 +16,7 @@ const MapDriver = (): JSX.Element => {
           Карта в разработке
         </h2>
       </div>
-    </div>
+    </>
   );
 };
 

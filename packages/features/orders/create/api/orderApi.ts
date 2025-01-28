@@ -22,14 +22,24 @@ export const fetchPoints = async () => {
   return data.data.points || [];
 };
 
-export const fetchDrivers = async (serviceLevel?: string, vehicleType?: string) => {
+export const fetchDrivers = async (
+  serviceLevel?: string,
+  vehicleType?: string,
+  search?: string,
+  page?: number,
+  perPage?: number,
+) => {
   const params = new URLSearchParams();
+
   if (serviceLevel) params.append('serviceLevel', serviceLevel);
   if (vehicleType) params.append('vehicleType', vehicleType);
+  if (search) params.append('search', search);
+  if (page) params.append('page', page.toString());
+  if (perPage) params.append('per_page', perPage.toString());
 
   const url = `/api/orders/drivers?${params.toString()}`;
   const data = await fetchData(url);
-  return data.data.drivers || [];
+  return data.data || [];
 };
 
 export const fetchTariffs = async (serviceLevel?: string, vehicleType?: string) => {

@@ -11,10 +11,11 @@ export async function GET(request: Request) {
     const searchParams = url.searchParams;
 
     //Парсинг параметров запроса
-    const page = parseInt(searchParams.get('page') || '1', 10);
-    const perPage = parseInt(searchParams.get('per_page') || '10', 10);
+    const page = parseInt(searchParams.get('page') || '1');
+    const perPage = parseInt(searchParams.get('per_page') || '10');
     const serviceLevel = searchParams.get('serviceLevel');
     const vehicleType = searchParams.get('vehicleType');
+    const search = searchParams.get('search');
 
     //Валидация параметров
     const errors = [];
@@ -47,6 +48,12 @@ export async function GET(request: Request) {
     //Формирование условий фильтрации
     const whereClause = {
       role: UserRole.Driver,
+      ...(search && {
+        fullName: {
+          startsWith: search,
+          mode: 'insensitive' as const,
+        },
+      }),
       vehicleDriver: {
         is: {
           vehicle: {
@@ -60,7 +67,6 @@ export async function GET(request: Request) {
     //Параллельное выполнение запросов
     const [totalDrivers, drivers] = await Promise.all([
       prisma.user.count({ where: whereClause }),
-
       prisma.user.findMany({
         where: whereClause,
         select: {
@@ -79,6 +85,7 @@ export async function GET(request: Request) {
     log(`Fetched ${drivers.length} drivers with filters`, {
       serviceLevel,
       vehicleType,
+      search,
     });
 
     return NextResponse.json({
@@ -91,6 +98,7 @@ export async function GET(request: Request) {
         filters: {
           ...(serviceLevel && { serviceLevel }),
           ...(vehicleType && { vehicleType }),
+          ...(search && { search }),
         },
         drivers: drivers.map((driver) => ({
           ...driver,

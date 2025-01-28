@@ -181,17 +181,17 @@ const DriverDetailView = ({ userData }: DriverDetailViewProps): JSX.Element => {
           </div>
 
           <div className="w-full h-[145px] bg-gray-50 p-[30px] flex items-center justify-center">
-            {userData.driverProfile?.identityDocument ? (
-              <Image
-                src={userData.driverProfile.identityDocument}
-                alt="Identity Document Photo"
-                width={180}
-                height={145}
-                className="rounded-lg object-cover"
-              />
-            ) : (
-              <p>No Identity Document</p>
-            )}
+            {/*{userData.driverProfile?.identityDocument ? (*/}
+            {/*  <Image*/}
+            {/*    src={userData.driverProfile.identityDocument}*/}
+            {/*    alt="Identity Document Photo"*/}
+            {/*    width={180}*/}
+            {/*    height={145}*/}
+            {/*    className="rounded-lg object-cover"*/}
+            {/*  />*/}
+            {/*) : (*/}
+            {/*  <p>No Identity Document</p>*/}
+            {/*)}*/}
           </div>
         </div>
       </section>

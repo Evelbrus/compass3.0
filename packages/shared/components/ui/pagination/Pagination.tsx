@@ -67,7 +67,7 @@ const Pagination: React.FC<PaginationProps> = ({
   if (totalPages === 0) return null;
 
   return (
-    <div className="flex justify-end mt-4 gap-2">
+    <div className="flex justify-end gap-2">
       <IButton
         onClick={handleFirstPage}
         className={`w-8 h-8 flex items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-500 hover:bg-blue-100 ${

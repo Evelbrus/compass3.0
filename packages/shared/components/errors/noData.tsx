@@ -3,7 +3,11 @@ import { LazyImage } from '@shared/components/ui/images';
 import { Skeleton } from '@shared/components/ui/skeleton/Skeleton';
 import AnimatedComponent from '@shared/components/animated/CommonAnimated/AnimatedComponent';
 
-const NoData = (): JSX.Element => {
+interface NoDataProps {
+  message?: string;
+}
+
+const NoData: React.FC<NoDataProps> = ({ message }) => {
   return (
     <AnimatedComponent
       className="w-full h-[510px] max-h-[510px] bg-white rounded-xl border"
@@ -17,7 +21,7 @@ const NoData = (): JSX.Element => {
           placeholder={<Skeleton width={350} height={300} />}
         />
         <h2 className="text-2xl font-bold text-[color:var(--text-black)] mb-2">
-          Пока что данных нет
+          {message || 'Пока что данных нет'}
         </h2>
       </div>
     </AnimatedComponent>
