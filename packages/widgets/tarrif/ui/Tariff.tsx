@@ -1,4 +1,3 @@
-import { IButton } from '@shared/components/ui/buttons';
 import { LazyImage } from '@shared/components/ui/images';
 import { vehicleTypeOptions } from '@shared/lib/effector/vehicles/optionsTranslation/optionsTranslationVehicle';
 import { DetailTariffData } from '@shared/prisma/interface/tariff/interface';
@@ -15,20 +14,22 @@ const Tariff: React.FC<TariffProps> = ({ data }) => {
   return (
     <div className="bg-white rounded-xl p-5">
       <div className="relative h-96 flex justify-center items-center">
-        <p className="absolute top-5 left-[5%] font-bold text-8xl">{data?.serviceLevel}</p>
-        <p className="absolute top-1/3 right-[5%] text-black/50 text-xl">
+        <p className="absolute top-[-0.75rem] left-[0%] font-bold text-[5.5rem]">
+          {data?.serviceLevel}
+        </p>
+        <p className="absolute top-[17.3333%] right-[0%] text-black/50 text-xl text-end">
           Цена: <br />
-          <span className="text-7xl font-medium text-black">{data?.price}с</span>
+          <span className="text-7xl font-light text-black">{data?.price}с</span>
+          {/* <br />
+          <span>
+            ({data?.price && exchangeRate ? (data.price / exchangeRate).toFixed(1) : '0.0'}$)
+          </span> */}
         </p>
         <LazyImage
           src={`/images/tariff/${data.vehicleType.toLowerCase() || 'default'}.png`}
           alt={translatedVehicleType || 'Default Vehicle'}
-          className="w-[800px] h-[800px] aspect-video object-contain pointer-events-none select-none border-none"
+          className={`w-[1000px] h-[1000px] aspect-video object-contain pointer-events-none select-none border-none ${data?.vehicleType === 'Minivan' || data?.vehicleType === 'Sprinter' ? 'h-[900] w-[900]' : ''}`}
         />
-      </div>
-      <div className="flex justify-end gap-1">
-        <IButton className="border rounded-3xl p-5">{data?.vehicleType}</IButton>
-        <IButton className="border rounded-3xl p-5 bg-black text-white">Редактировать</IButton>
       </div>
     </div>
   );

@@ -30,3 +30,11 @@ export const serviceLevelOptions = [
   { label: 'VIP', value: 'Vip' as ServiceLevels },
   { label: 'Нет', value: 'None' as ServiceLevels },
 ];
+
+export const vehicleSeats: Record<VehicleType, string> = {
+  Sedan: '4',
+  Minivan: '6-7',
+  Sprinter: 'до 18',
+  Bus: '27-30',
+  None: 'Неизвестно',
+};
