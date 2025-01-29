@@ -142,6 +142,7 @@ export async function POST(req: Request) {
     basePrice,
     selectedServices,
     assignedDriverId,
+    description,
   } = data;
 
   const orderStatus = assignedDriverId ? OrderStatus.PLANNED : OrderStatus.PENDING;
@@ -215,6 +216,7 @@ export async function POST(req: Request) {
           status: orderStatus,
           assignedDriverId: assignedDriverId || null,
           intermediatePoints: (intermediatePoints || []).filter(Boolean),
+          description: description || null,
         },
       });
       log('Order created:', order);

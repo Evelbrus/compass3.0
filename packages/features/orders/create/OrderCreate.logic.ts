@@ -1,87 +1,80 @@
-import React, { useState, useEffect, useCallback, FormEvent, useRef } from 'react';
-
+import { useState, useEffect } from 'react';
+import { useForm } from 'react-hook-form';
 import { ServiceLevels, User, VehicleType } from '@prisma/client';
-import { CreateOrderData, ExtendedTariff } from '@shared/prisma/interface/orders/interface';
-import useDebounce from '@shared/utils/hooks/useDebounce';
+import { CreateOrderData } from '@shared/prisma/interface/orders/interface';
 import { useErrorMessage } from '@features/orders/create/functions/useErrorMessage';
-import { useDrivers, useNotifications, usePoints, useTariffs } from '@features/orders/create/hooks';
-import {
-  calculateTotalPrice,
-  cleanIntermediatePoints,
-  handleAdditionalServiceChange,
-} from '@features/orders/create/helpers';
+import { useNotifications } from '@features/orders/create/hooks';
+import { cleanIntermediatePoints } from '@features/orders/create/helpers';
 import { fetchClients } from '@features/orders/create/api/orderApi';
-import { useFormState } from '@features/orders/create/hooks/formState';
+import { useOrderCreateDrivers } from './useOrderCreateDrivers';
+import { useOrderCreateHandlers } from './useOrderCreateHandlers';
+import { useOrderCreatePoints } from './useOrderCreatePoints';
+import { useOrderCreateTariffs } from './useOrderCreateTariffs';
+
+interface SelectedDriverInfo {
+  uuid: string;
+  fullName: string;
+}
 
 export const useOrderCreateLogic = () => {
   const [clients, setClients] = useState<User[]>([]);
-  const [selectedVehicleType, setSelectedVehicleType] = useState<string>('');
-  const [selectedServiceLevel, setSelectedServiceLevel] = useState<string>('');
-  const [searchDriver, setSearchDriver] = useState<string>('');
-  const debouncedSearchDriver = useDebounce(searchDriver, 300);
-  const [selectedTariff, setSelectedTariff] = useState<ExtendedTariff | null>(null);
-  const [selectedAdditionalServices, setSelectedAdditionalServices] = useState<string[]>([]);
-
   const { message, setErrorMessage } = useErrorMessage();
-  const {
-    formData,
-    setFormData,
-    handleChange,
-    handleDriverSelect,
-    handleAddIntermediatePoint,
-    handleRemoveIntermediatePoint,
-    handleChangeIntermediatePoint,
-    setInitialFormData,
-  } = useFormState();
 
-  const { drivers, total, page, perPage, changePage, changePerPage, isLoading } = useDrivers({
-    selectedServiceLevel,
-    selectedVehicleType,
-    searchDriver: debouncedSearchDriver,
+  const [searchDriver, setSearchDriver] = useState('');
+  const [selectedDriverInfo, setSelectedDriverInfo] = useState<SelectedDriverInfo | null>(null);
+
+  //Инициализация useForm
+  const formMethods = useForm<CreateOrderData>({
+    mode: 'onBlur',
+  });
+
+  const { setValue, watch, formState, handleSubmit } = formMethods;
+
+  const {
+    drivers,
+    total,
+    page,
+    perPage,
+    changePage,
+    changePerPage,
+    isLoading,
+    handleSearchDriver,
+    setPage,
+    handleDriverClick,
+  } = useOrderCreateDrivers({ setErrorMessage, setSelectedDriverInfo });
+
+  const { points, getAvailablePoints } = useOrderCreatePoints({ setErrorMessage });
+
+  const { tariffs, updateTariffs } = useOrderCreateTariffs({
     setErrorMessage,
   });
 
-  const { points, getAvailablePoints } = usePoints({ setErrorMessage });
-
-  const { tariffs, updateTariffs } = useTariffs({
-    selectedServiceLevel: '',
-    selectedVehicleType: '',
+  const {
+    selectedVehicleType,
+    selectedServiceLevel,
+    selectedTariff,
+    selectedAdditionalServices,
+    handleVehicleTypeChange,
+    handleServiceLevelChange,
+    handleTariffChange,
+    handleAdditionalServiceChangeCallback,
+  } = useOrderCreateHandlers({
+    setValue,
+    watch,
+    tariffs,
+    points,
     setErrorMessage,
   });
 
   const { handleOrderSuccess, handleOrderError } = useNotifications({
-    formData,
+    formData: watch(),
     message,
     setErrorMessage,
-    setInitialFormData,
+    setInitialFormData: () => {},
   });
 
   const vehicleTypes = Object.values(VehicleType);
   const serviceLevels = Object.values(ServiceLevels);
-
-  const updatePrice = useCallback(() => {
-    if (selectedTariff) {
-      const newPrice = calculateTotalPrice({
-        selectedTariff,
-        selectedAdditionalServices,
-        intermediatePoints: formData.intermediatePoints,
-        arrivalPointUuid: formData.arrivalPoint,
-        points,
-      });
-      setFormData((prev) => ({ ...prev, basePrice: newPrice }));
-    }
-  }, [
-    selectedTariff,
-    selectedAdditionalServices,
-    formData.intermediatePoints,
-    formData.arrivalPoint,
-    points,
-    setFormData,
-  ]);
-
-  useEffect(() => {
-    updatePrice();
-  }, [updatePrice]);
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -96,138 +89,53 @@ export const useOrderCreateLogic = () => {
     fetchInitialData();
   }, [setErrorMessage]);
 
-  const fetchTariffsRef = useRef<(() => Promise<void>) | null>(null);
+  const onSubmit = async (data: CreateOrderData) => {
+    try {
+      const cleanedIntermediatePoints = cleanIntermediatePoints(data.intermediatePoints || []);
 
-  useEffect(() => {
-    fetchTariffsRef.current = async () => {
-      try {
-        await updateTariffs();
-      } catch (error) {
-        setErrorMessage(error, 'Error fetching tariffs');
+      const orderData: CreateOrderData = {
+        ...data,
+        intermediatePoints: cleanedIntermediatePoints,
+        selectedServices: selectedAdditionalServices,
+      };
+
+      const response = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(orderData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Network response was not ok: ${response.statusText}`);
       }
-    };
-  }, [selectedServiceLevel, selectedVehicleType, updateTariffs, setErrorMessage]);
 
-  useEffect(() => {
-    const fetchTariffs = async () => {
-      if (fetchTariffsRef.current) {
-        await fetchTariffsRef.current();
-      }
-    };
-
-    if (selectedServiceLevel || selectedVehicleType) {
-      const debounceTimer = setTimeout(fetchTariffs, 300);
-      return () => clearTimeout(debounceTimer);
+      const result = await response.json();
+      handleOrderSuccess(result);
+    } catch (error) {
+      handleOrderError(error);
     }
-  }, [selectedServiceLevel, selectedVehicleType]);
-
-  const handleSearchDriver = (value: string) => {
-    setSearchDriver(value);
   };
 
-  const handleVehicleTypeChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectedVehicleType(e.target.value);
-  }, []);
+  const handleAddIntermediatePoint = () => {
+    const currentPoints = watch().intermediatePoints || [];
+    setValue('intermediatePoints', [...currentPoints, '']);
+  };
 
-  const handleServiceLevelChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectedServiceLevel(e.target.value);
-  }, []);
+  const handleRemoveIntermediatePoint = (index: number) => {
+    const currentPoints = watch().intermediatePoints || [];
+    const updatedPoints = currentPoints.filter((_, i) => i !== index);
+    setValue('intermediatePoints', updatedPoints);
+  };
 
-  useEffect(() => {
-    if (selectedTariff && !tariffs.some((t) => t.uuid === selectedTariff.uuid)) {
-      setSelectedTariff(null);
-      setSelectedAdditionalServices([]);
-      setFormData((prev) => ({
-        ...prev,
-        tariffUuid: '',
-        basePrice: 0,
-      }));
-    }
-  }, [tariffs, selectedTariff, setFormData]);
-
-  const handleTariffChange = useCallback(
-    (e: React.ChangeEvent<HTMLSelectElement>) => {
-      const foundTariff = tariffs.find((t) => t.uuid === e.target.value) || null;
-      setSelectedTariff(foundTariff);
-
-      if (foundTariff) {
-        setFormData((prev) => ({
-          ...prev,
-          tariffUuid: foundTariff.uuid,
-          basePrice: calculateTotalPrice({
-            selectedTariff: foundTariff,
-            selectedAdditionalServices,
-            intermediatePoints: formData.intermediatePoints,
-            arrivalPointUuid: formData.arrivalPoint,
-            points,
-          }),
-        }));
-        setSelectedAdditionalServices([]);
-      } else {
-        setFormData((prev) => ({ ...prev, tariffUuid: '', basePrice: 0 }));
-      }
-    },
-    [
-      tariffs,
-      points,
-      formData.intermediatePoints,
-      formData.arrivalPoint,
-      setFormData,
-      selectedAdditionalServices,
-    ],
-  );
-
-  const handleAdditionalServiceChangeCallback = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>, serviceUuid: string) => {
-      const newServices = handleAdditionalServiceChange(
-        e.target.checked,
-        serviceUuid,
-        selectedAdditionalServices,
-      );
-      setSelectedAdditionalServices(newServices);
-      updatePrice();
-    },
-    [selectedAdditionalServices, updatePrice],
-  );
-
-  const handleSubmit = useCallback(
-    async (event: FormEvent) => {
-      event.preventDefault();
-      try {
-        const cleanedIntermediatePoints = cleanIntermediatePoints(formData.intermediatePoints);
-        const orderData: CreateOrderData = {
-          createdBy: formData.createdBy || '',
-          tariffUuid: formData.tariffUuid || '',
-          departurePoint: formData.departurePoint || '',
-          arrivalPoint: formData.arrivalPoint || '',
-          intermediatePoints: cleanedIntermediatePoints,
-          assignedDriverId: formData.assignedDriverId || undefined,
-          selectedServices: selectedAdditionalServices,
-          basePrice: formData.basePrice,
-          departureTime: formData.departureTime || '',
-        };
-
-        const response = await fetch('/api/orders', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(orderData),
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || `Network response was not ok: ${response.statusText}`);
-        }
-
-        const result = await response.json();
-        handleOrderSuccess(result);
-      } catch (error) {
-        handleOrderError(error);
-      }
-    },
-    [formData, selectedAdditionalServices, handleOrderSuccess, handleOrderError],
-  );
+  const handleChangeIntermediatePoint = (index: number, value: string) => {
+    const currentPoints = watch().intermediatePoints || [];
+    const updatedPoints = currentPoints.map((point, i) => (i === index ? value : point));
+    setValue('intermediatePoints', updatedPoints);
+  };
 
   return {
+    ...formMethods,
     clients,
     points,
     drivers,
@@ -236,29 +144,31 @@ export const useOrderCreateLogic = () => {
     selectedVehicleType,
     selectedServiceLevel,
     selectedTariff,
-    formData,
+    errors: formState.errors,
     vehicleTypes,
     serviceLevels,
     selectedAdditionalServices,
     handleVehicleTypeChange,
     handleServiceLevelChange,
     handleTariffChange,
-    handleChange,
     handleAddIntermediatePoint,
     handleRemoveIntermediatePoint,
     handleChangeIntermediatePoint,
     handleAdditionalServiceChange: handleAdditionalServiceChangeCallback,
-    handleSubmit,
     getAvailablePoints,
-    handleDriverSelect,
     searchDriver,
     handleSearchDriver,
-    setFormData,
     page,
     perPage,
     total,
     changePage,
     changePerPage,
     isLoading,
+    onSubmit,
+    handleDriverClick,
+    setSearchDriver,
+    setPage,
+    selectedDriverInfo,
+    handleSubmit,
   };
 };

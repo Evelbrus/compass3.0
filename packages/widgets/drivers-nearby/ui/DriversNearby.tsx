@@ -7,53 +7,66 @@ import Pagination from '@shared/components/ui/pagination/Pagination';
 import { TextInput } from '@shared/components/ui/inputs';
 import { LazyImage } from '@shared/components/ui/images';
 import { isDriverOnline } from '@widgets/drivers-nearby/fucntions/isDriverOnline';
-import { CreateOrderData } from '@shared/prisma/interface/orders/interface';
 import { User } from '@prisma/client';
+import { useFormContext } from 'react-hook-form';
+
+interface SelectedDriverInfo {
+  uuid: string;
+  fullName: string;
+}
 
 interface DriversNearbyProps {
-  formData: Partial<CreateOrderData>;
   drivers: User[] | null;
   page: number;
   perPage: number;
   total: number;
-  changePage: (newPage: number) => void;
   isLoading: boolean;
-  handleSearchDriver: (value: string) => void;
   searchDriver: string;
-  handleDriverSelect: (driverId: string) => void;
+  handleDriverClick: (driverId: string) => void;
+  setSearchDriver: (value: string) => void;
+  setPage: (newPage: number) => void;
+  selectedDriverInfo: SelectedDriverInfo | null;
 }
 
 const DriversNearby: React.FC<DriversNearbyProps> = ({
-  formData,
   drivers,
   page,
   perPage,
   total,
-  changePage,
   isLoading,
-  handleSearchDriver,
   searchDriver,
-  handleDriverSelect,
+  handleDriverClick,
+  setSearchDriver,
+  setPage,
+  selectedDriverInfo,
 }) => {
+  const { watch, setValue } = useFormContext();
+  const formData = watch();
+
   const handleSearchChange = useCallback(
     (value: string) => {
-      handleSearchDriver(value);
+      setSearchDriver(value);
     },
-    [handleSearchDriver],
-  );
-
-  const handleDriverClick = useCallback(
-    (driverId: string) => {
-      handleDriverSelect(driverId);
-    },
-    [handleDriverSelect],
+    [setSearchDriver],
   );
 
   const handlePageChange = useCallback(
     (newPage: number) => {
-      changePage(newPage);
+      setPage(newPage);
     },
-    [changePage],
+    [setPage],
+  );
+
+  const handleDriverRowClick = useCallback(
+    (driverId: string) => {
+      if (formData.assignedDriverId === driverId) {
+        setValue('assignedDriverId', undefined);
+      } else {
+        setValue('assignedDriverId', driverId);
+      }
+      handleDriverClick(driverId);
+    },
+    [setValue, handleDriverClick, formData.assignedDriverId],
   );
 
   return (
@@ -82,7 +95,9 @@ const DriversNearby: React.FC<DriversNearbyProps> = ({
                         className={`relative flex p-4 gap-4 cursor-pointer border-b border-[#0000001A] hover:bg-[#00000005] last:border-b-0 w-full ${
                           isSelected ? 'bg-[#00ff0010] hover:bg-[#00ff0020]' : ''
                         }`}
-                        onClick={() => handleDriverClick(driver.uuid)}
+                        onClick={() => {
+                          handleDriverRowClick(driver.uuid);
+                        }}
                       >
                         <td className="flex justify-center">
                           <div className="relative w-[50px] h-[50px]">
@@ -120,6 +135,11 @@ const DriversNearby: React.FC<DriversNearbyProps> = ({
           )}
         </AnimatedComponent>
       </div>
+      {selectedDriverInfo && (
+        <h2 className="text-5 leading-4 font-semibold">
+          Выбран водитель: {selectedDriverInfo.fullName}
+        </h2>
+      )}
       {total > 0 && total > perPage && (
         <Pagination
           pageNumber={page}

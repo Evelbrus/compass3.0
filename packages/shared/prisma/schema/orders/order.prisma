@@ -27,6 +27,7 @@ model Order {
   updatedAt                     DateTime                         @updatedAt @map("updated_at")
   intermediatePoints            String[]                         @map("intermediate_points")
   orderTariffAdditionalServices OrderOnTariffAdditionalService[]
+  description                   String?                          @map("description")
 
   @@map("orders")
 }

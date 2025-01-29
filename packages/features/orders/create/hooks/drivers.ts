@@ -11,7 +11,7 @@ interface UseDriversProps {
   initialPerPage?: number;
 }
 
-interface UseDriversResult {
+export interface UseDriversResult {
   drivers: User[] | null;
   page: number;
   perPage: number;
