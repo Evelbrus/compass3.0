@@ -4,7 +4,10 @@ import React from 'react';
 import { LazyImage } from '@shared/components/ui/images';
 import { IButton } from '@shared/components/ui/buttons';
 import { useRouter } from 'next/navigation';
-import { vehicleTypeOptions } from '@shared/lib/effector/vehicles/optionsTranslation/optionsTranslationVehicle';
+import {
+  vehicleSeats,
+  vehicleTypeOptions,
+} from '@shared/lib/effector/vehicles/optionsTranslation/optionsTranslationVehicle';
 import { DetailTariffData } from '@shared/prisma/interface/tariff/interface';
 import { cn } from '@shared/lib';
 
@@ -23,19 +26,12 @@ const TariffTypes: React.FC<TariffTypesProps> = ({
 }) => {
   const router = useRouter();
 
-  const {
-    uuid,
-    name,
-    vehicleType,
-    description,
-    additionalPointPrice,
-    tariffAdditionalServices = [],
-    serviceLevel,
-  } = tariff;
+  const { uuid, name, vehicleType, additionalPointPrice, tariffAdditionalServices = [] } = tariff;
 
   //Используем метод find для поиска перевода типа транспортного средства
   const vehicleTypeOption = vehicleTypeOptions.find((option) => option.value === vehicleType);
   const translatedVehicleType = vehicleTypeOption ? vehicleTypeOption.label : vehicleType;
+  const seats = vehicleSeats[vehicleType] || '';
 
   const totalPrice = tariffAdditionalServices.reduce(
     (sum, service) => sum + service.price,
@@ -68,35 +64,30 @@ const TariffTypes: React.FC<TariffTypesProps> = ({
           <h1 className="font-helvetica-neue text-4 leading-5 font-bold truncate">
             <strong>{name}</strong>
           </h1>
-          <p className="font-helvetica-neue text-3 leading-3 text-gray-500 font-bold">
-            Тип автомобиля: <strong>{translatedVehicleType}</strong>
-          </p>
-          <p className="font-helvetica-neue text-3 leading-3 text-gray-500 font-bold">
-            Уровень обслуживания: <strong>{serviceLevel}</strong>
-          </p>
-          {description && (
-            <p
-              className="font-helvetica-neue text-3 leading-4 text-gray-500 font-bold break-words"
-              style={{ whiteSpace: 'normal', overflowWrap: 'break-word' }}
-            >
-              Описание: <strong>{description}</strong>
-            </p>
-          )}
         </div>
         <div className="flex flex-col gap-2">
-          <p className="font-helvetica-neue text-5 leading-5 text-center text-black p-3 bg-gray-200 rounded-lg">
-            Цена: <strong>{totalPrice}₽</strong>
+          <h4 className="font-helvetica-neue text-sm leading-5 text-black/50">
+            Пассажирские места:
+          </h4>
+          <p className="p-[9px] flex items-center justify-center bg-[#989898] border border-gray-200 rounded-lg font-normal text-[22px] text-white">
+            {seats}
+          </p>
+          <p className="p-[10px] flex items-center justify-center border border-gray-200 rounded-lg font-normal text-base">
+            {translatedVehicleType}
           </p>
           {/*Кнопка редактирования */}
           <IButton
             onClick={handleEdit}
             className="w-full h-[40px] border-none bg-[color:var(--button-secondary)] rounded-lg
-                  text-white font-semibold transition duration-300 ease-in-out
-                  hover:bg-[color:var(--button-secondary-hover)]"
-            textClassName="text-end text-4 leading-4 text-medium justify-center"
+            text-white font-semibold transition duration-300 ease-in-out
+            hover:bg-[color:var(--button-secondary-hover)]"
+            textClassName="text-end text-4 leading-4 font-normal justify-center"
           >
             {mode === 'createOrder' ? 'Выбрать' : 'Редактировать'}
           </IButton>
+          <p className="font-helvetica-neue text-sm leading-5 text-end text-black/50 pl-3 pt-3">
+            Цена: <strong className="text-black text-5xl">{totalPrice}₽</strong>
+          </p>
         </div>
       </div>
     </div>
