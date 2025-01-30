@@ -5,8 +5,8 @@ import { CreateOrderData } from '@shared/prisma/interface/orders/interface';
 interface UseNotificationsProps {
   formData: Partial<CreateOrderData>;
   message: string;
-  setErrorMessage: (error: any, message: string) => void;
   setInitialFormData: () => void;
+  setErrorMessage: (error: Error | null | undefined, message: string) => void;
 }
 
 export const useNotifications = ({

@@ -28,6 +28,8 @@ model Order {
   intermediatePoints            String[]                         @map("intermediate_points")
   orderTariffAdditionalServices OrderOnTariffAdditionalService[]
   description                   String?                          @map("description")
+  flightNumber                  String?                          @map("flight_number")
+  waitingTimeMinutes            Int                              @default(0) @map("waiting_time_minutes")
 
   @@map("orders")
 }

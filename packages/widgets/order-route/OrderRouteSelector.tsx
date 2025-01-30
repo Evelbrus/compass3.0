@@ -1,120 +1,154 @@
 import React from 'react';
 import { CreateOrderData } from '@shared/prisma/interface/orders/interface';
 import { DateInput } from '@shared/components/ui/inputs/date';
-import { FieldErrors, useFormContext, Controller } from 'react-hook-form';
+import { useFormContext, Controller } from 'react-hook-form';
+import { Point, User } from '@prisma/client';
+import { TextInput } from '@shared/components/ui/inputs';
+import { SelectSingle } from '@shared/components/ui/inputs';
 
 interface OrderStartEndSelectorProps {
-  getAvailablePoints: (exclude: string[]) => any[];
-  handleChangeIntermediatePoint: (index: number, value: string) => void;
-  handleRemoveIntermediatePoint: (index: number) => void;
-  handleAddIntermediatePoint: () => void;
-  errors: FieldErrors<CreateOrderData>;
+  getAvailablePoints: (exclude: string[]) => Point[];
+  selectedDriverInfo: {
+    uuid: string;
+    fullName: string;
+  } | null;
+  clients: User[] | null;
+  selectedVehicleType: string;
 }
 
 const OrderStartEndSelector: React.FC<OrderStartEndSelectorProps> = ({
   getAvailablePoints,
-  handleChangeIntermediatePoint,
-  handleRemoveIntermediatePoint,
-  handleAddIntermediatePoint,
-  errors,
+  selectedDriverInfo,
+  clients,
+  selectedVehicleType,
 }) => {
-  const { control } = useFormContext<CreateOrderData>();
+  const formMethods = useFormContext<CreateOrderData>();
+  const { formState, control, setValue, watch } = formMethods;
+  const formData = watch();
+
+  const selectedClient = clients?.find((c) => c.uuid === formData.createdBy);
+
+  const formatName = (fullName: string) => {
+    const parts = fullName.trim().split(' ');
+    if (parts.length === 0) return '';
+
+    const [surname, ...rest] = parts;
+    const formattedRest = rest.map((name) => name.charAt(0) + '.').join(' ');
+
+    return `${surname} ${formattedRest}`;
+  };
 
   return (
-    <div className="flex flex-col gap-4 p-4 border rounded-md shadow-md">
-      <Controller
-        name="departureTime"
-        control={control}
-        render={({ field }) => (
-          <DateInput
-            label="Departure Time:"
-            selectedDate={field.value ? new Date(field.value) : null}
-            onChange={(date) => field.onChange(date ? date.toISOString() : null)}
-            showTime
-          />
-        )}
-      />
-      {errors.departureTime && <span className="text-red-500">{errors.departureTime.message}</span>}
-      <label>
-        Departure Point:
+    <div className="flex gap-4 p-8 bg-white rounded-xl">
+      <div className="w-1/5">
+        <label className="block mb-2 text-5 leading-5 font-bold">Откуда?</label>
         <Controller
           name="departurePoint"
           control={control}
           render={({ field }) => (
-            <select value={field.value || ''} onChange={(e) => field.onChange(e.target.value)}>
-              <option value="">Select a departure point</option>
-              {getAvailablePoints([]).map((point) => (
-                <option key={point.uuid} value={point.uuid}>
-                  {point.address}
-                </option>
-              ))}
-            </select>
+            <SelectSingle
+              options={getAvailablePoints([]).map((point) => ({
+                label: point.address,
+                value: point.uuid,
+              }))}
+              value={
+                field.value
+                  ? {
+                      label:
+                        getAvailablePoints([]).find((p) => p.uuid === field.value)?.address || '',
+                      value: field.value,
+                    }
+                  : null
+              }
+              onChange={(option) => field.onChange(option?.value || '')}
+              placeholder="Отправления"
+              className={'text-4 leading-4'}
+              classNamePadding={'p-3'}
+              classNamePlaceholder={'text-5 leading-5'}
+            />
           )}
         />
-        {errors.departurePoint && (
-          <span className="text-red-500">{errors.departurePoint.message}</span>
+        {formState.errors.departurePoint && (
+          <span className="text-red-500">{formState.errors.departurePoint.message}</span>
         )}
-      </label>
-
-      <label>
-        Arrival Point:
+      </div>
+      <div className="w-1/5">
+        <label className="block mb-2 text-5 leading-5 font-bold">Куда?</label>
         <Controller
           name="arrivalPoint"
           control={control}
           render={({ field }) => (
-            <select value={field.value || ''} onChange={(e) => field.onChange(e.target.value)}>
-              <option value="">Select an arrival point</option>
-              {getAvailablePoints([control._formValues.departurePoint || '']).map((point) => (
-                <option key={point.uuid} value={point.uuid}>
-                  {point.address}
-                </option>
-              ))}
-            </select>
+            <SelectSingle
+              options={getAvailablePoints([control._formValues.departurePoint || '']).map(
+                (point) => ({
+                  label: point.address,
+                  value: point.uuid,
+                }),
+              )}
+              value={
+                field.value
+                  ? {
+                      label:
+                        getAvailablePoints([control._formValues.departurePoint || '']).find(
+                          (p) => p.uuid === field.value,
+                        )?.address || '',
+                      value: field.value,
+                    }
+                  : null
+              }
+              onChange={(option) => {
+                field.onChange(option?.value || '');
+                setValue('arrivalPoint', option?.value || '');
+              }}
+              placeholder="Прибытие"
+              className={'text-4 leading-4'}
+              classNamePadding={'p-3'}
+              classNamePlaceholder={'text-5 leading-5'}
+            />
           )}
         />
-        {errors.arrivalPoint && <span className="text-red-500">{errors.arrivalPoint.message}</span>}
-      </label>
-      <label>
-        Intermediate Points:
+        {formState.errors.arrivalPoint && (
+          <span className="text-red-500">{formState.errors.arrivalPoint.message}</span>
+        )}
+      </div>
+      <div className="w-1/5 flex flex-col">
+        <label className="block mb-2 text-5 leading-5 font-bold">Когда?</label>
         <Controller
-          name="intermediatePoints"
+          name="departureTime"
           control={control}
           render={({ field }) => (
-            <>
-              {(field.value || []).map((point, index) => (
-                <div key={index} className="flex gap-2 items-center">
-                  <select
-                    value={point}
-                    onChange={(e) => {
-                      handleChangeIntermediatePoint(index, e.target.value);
-                    }}
-                  >
-                    <option value="">Select an intermediate point</option>
-                    {getAvailablePoints([
-                      control._formValues.departurePoint || '',
-                      control._formValues.arrivalPoint || '',
-                      ...(field.value || []).filter((_, i) => i !== index),
-                    ]).map((po) => (
-                      <option key={po.uuid} value={po.uuid}>
-                        {po.address}
-                      </option>
-                    ))}
-                  </select>
-                  <button type="button" onClick={() => handleRemoveIntermediatePoint(index)}>
-                    Remove
-                  </button>
-                </div>
-              ))}
-            </>
+            <DateInput
+              selectedDate={field.value ? new Date(field.value) : null}
+              onChange={(date) => field.onChange(date ? date.toISOString() : null)}
+              showTime
+              className={'text-4 leading-4 h-full'}
+              classNamePlaceholder={'text-5 leading-5'}
+            />
           )}
         />
-        <button type="button" onClick={handleAddIntermediatePoint}>
-          Add Intermediate Point
-        </button>
-        {errors.intermediatePoints && (
-          <span className="text-red-500">{errors.intermediatePoints.message}</span>
+        {formState.errors.departureTime && (
+          <span className="text-red-500">{formState.errors.departureTime.message}</span>
         )}
-      </label>
+      </div>
+      <div className="w-1/5 flex flex-col">
+        <label className="block mb-2 text-5 leading-5 font-bold">Номер рейса</label>
+        <Controller
+          name="flightNumber"
+          control={control}
+          render={({ field }) => (
+            <TextInput
+              placeholder="Enter flight number"
+              value={field.value || ''}
+              onChange={field.onChange}
+              className={'text-4 leading-4 h-full'}
+              classNamePlaceholder={'text-5 leading-5'}
+            />
+          )}
+        />
+        {formState.errors.flightNumber && (
+          <span className="text-red-500">{formState.errors.flightNumber.message}</span>
+        )}
+      </div>
     </div>
   );
 };

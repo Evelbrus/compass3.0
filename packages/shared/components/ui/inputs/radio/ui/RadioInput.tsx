@@ -15,11 +15,12 @@ export const RadioInput: React.FC<RadioInputProps> = ({
   position = 'left',
   className,
   name,
+  disabled = false,
 }) => (
   <div
     className={`${styles.radioInput} ${className} ${
       position === 'left' ? styles.left : styles.right
-    }`}
+    } ${disabled ? styles.disabled : ''}`}
   >
     <input
       type="radio"
@@ -28,18 +29,17 @@ export const RadioInput: React.FC<RadioInputProps> = ({
       required={required}
       className={styles.radioHidden}
       name={name}
+      disabled={disabled}
     />
     <div className={styles.customCheckbox}>
-      {/*Галочка отображается только если опция выбрана */}
       {checked && <span className={styles.checkboxTick}></span>}
     </div>
     <div className={styles.radioContent}>
-      <p className={`${className}`}>
+      <p className={`${className} ${disabled ? styles.disabledText : ''}`}>
         {label} {requiredStar && <span className="text-red-500">*</span>}
       </p>
     </div>
     {error && <div className="text-red-500 text-sm">{message}</div>}{' '}
-    {/*Добавлено отображение сообщения об ошибке */}
   </div>
 );
 

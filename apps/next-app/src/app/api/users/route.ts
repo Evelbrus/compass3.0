@@ -128,10 +128,12 @@ export async function POST(req: Request) {
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
+
   const parsedParams = {
     page: parseInt(searchParams.get('page') || '1', 10),
     per_page: parseInt(searchParams.get('per_page') || '10', 10),
     role: (searchParams.get('role') as UserRole | 'all' | null) || null,
+    roles: searchParams.getAll('role'),
     availability: searchParams.get('availability') as 'true' | 'false' | null,
     sort_by:
       (searchParams.get('sort_by') as
@@ -141,17 +143,33 @@ export async function GET(req: Request) {
         | 'role'
         | 'availability') || 'createdAt',
     sort_order: (searchParams.get('sort_order') as 'asc' | 'desc') || 'asc',
+    search: searchParams.get('search') || null,
   };
 
   log('Parsed parameters:', parsedParams);
 
   try {
-    const where: { role?: UserRole; availability?: boolean } = {};
-    if (parsedParams.role && parsedParams.role !== 'all') {
+    const where: {
+      role?: UserRole | { in: UserRole[] };
+      availability?: boolean;
+      OR?: { fullName: { contains: string; mode: 'insensitive' } }[];
+    } = {};
+
+    if (parsedParams.roles.length > 0) {
+      where.role =
+        parsedParams.roles.length === 1
+          ? (parsedParams.roles[0] as UserRole)
+          : { in: parsedParams.roles as UserRole[] };
+    } else if (parsedParams.role && parsedParams.role !== 'all') {
       where.role = parsedParams.role;
     }
+
     if (parsedParams.availability) {
       where.availability = parsedParams.availability === 'true';
+    }
+
+    if (parsedParams.search) {
+      where.OR = [{ fullName: { contains: parsedParams.search, mode: 'insensitive' } }];
     }
 
     const users = await prisma.user.findMany({
@@ -183,15 +201,20 @@ export async function GET(req: Request) {
     const total = await prisma.user.count({ where });
     const totalAllRoles = await prisma.user.count();
 
-    //Получение количества пользователей по ролям
     const roleCounts = await prisma.user.groupBy({
       by: ['role'],
-      _count: {
-        role: true,
-      },
+      _count: { role: true },
     });
 
     log('Fetched users:', users);
+
+    const searchTerm = parsedParams.search ? parsedParams.search.toLowerCase() : '';
+    const filteredUsers = parsedParams.search
+      ? users.filter((user) => {
+          const nameParts = user.fullName.toLowerCase().split(' ');
+          return nameParts.some((part) => part.startsWith(searchTerm));
+        })
+      : users;
 
     return NextResponse.json({
       status: 'success',
@@ -202,7 +225,7 @@ export async function GET(req: Request) {
         total,
         totalAllRoles,
         roleCounts,
-        users,
+        users: filteredUsers,
       },
     });
   } catch (error) {

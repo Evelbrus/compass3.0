@@ -38,6 +38,8 @@ export interface CreateOrderData
   selectedServices?: string[];
   basePrice?: number;
   departureTime?: string;
+  fullName?: string;
+  phone?: string;
 }
 
 //Тип данных для редактирования заказа

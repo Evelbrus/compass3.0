@@ -7,6 +7,7 @@ interface CalculateTotalPriceParams {
   intermediatePoints?: string[];
   arrivalPointUuid?: string;
   points: Point[];
+  waitingTimeMinutes?: number;
 }
 
 export const calculateTotalPrice = ({
@@ -15,6 +16,7 @@ export const calculateTotalPrice = ({
   intermediatePoints = [],
   arrivalPointUuid,
   points,
+  waitingTimeMinutes = 0,
 }: CalculateTotalPriceParams): number => {
   if (!selectedTariff) return 0;
 
@@ -36,6 +38,19 @@ export const calculateTotalPrice = ({
       } else if (typeof arrivalPoint.basePrice === 'string') {
         total += parseFloat(arrivalPoint.basePrice);
       }
+    }
+    if (arrivalPoint) {
+      let freeWaitTime = 5;
+      let pricePerMinute = 0;
+      if (arrivalPoint.airport) {
+        freeWaitTime = selectedTariff.freeWaitTimeAirport;
+        pricePerMinute = selectedTariff.pricePerMinuteAfterAirport;
+      } else {
+        freeWaitTime = selectedTariff.freeWaitTimeBishkek;
+        pricePerMinute = selectedTariff.pricePerMinuteAfterBishkek;
+      }
+      const chargeableWaitTime = Math.max(0, waitingTimeMinutes - freeWaitTime);
+      total += chargeableWaitTime * pricePerMinute;
     }
   }
 

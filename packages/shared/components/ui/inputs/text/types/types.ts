@@ -18,6 +18,7 @@ export interface TextInputProps {
   loading?: boolean;
   onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
   className?: string;
+  classNameBg?: string;
   classNameLabel?: string;
   classNamePlaceholder?: string;
   classNameBorderRadius?: string;

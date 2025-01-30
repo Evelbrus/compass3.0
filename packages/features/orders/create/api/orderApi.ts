@@ -10,8 +10,14 @@ const fetchData = async (url: string) => {
   }
 };
 
-export const fetchClients = async () => {
-  const url = '/api/users?role=Client&role=ClientCorp';
+export const fetchClients = async (searchQuery?: string) => {
+  //Обновлено
+  const params = new URLSearchParams();
+  ['Client', 'ClientCorp'].forEach((role) => params.append('role', role));
+  if (searchQuery) {
+    params.append('search', searchQuery);
+  }
+  const url = `/api/users?${params.toString()}`;
   const data = await fetchData(url);
   return data.data.users || [];
 };
@@ -20,6 +26,12 @@ export const fetchPoints = async () => {
   const url = '/api/points?page=1&per_page=100&sort_by=address&sort_order=asc';
   const data = await fetchData(url);
   return data.data.points || [];
+};
+
+export const fetchAdditionalServices = async () => {
+  const url = '/api/additional-services?page=1&per_page=100';
+  const data = await fetchData(url);
+  return data.data.additionalServices || [];
 };
 
 export const fetchDrivers = async (

@@ -1,46 +1,38 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { ExtendedTariff } from '@shared/prisma/interface/orders/interface';
 import { fetchTariffs } from '@features/orders/create/api/orderApi';
 
 interface UseTariffsProps {
   selectedServiceLevel?: string;
   selectedVehicleType?: string;
-  setErrorMessage: (error: any, message: string) => void;
+  setErrorMessage: (error: Error | null | undefined, message: string) => void;
+}
+
+interface UseTariffsResult {
+  tariffs: ExtendedTariff[];
+  updateTariffs: () => Promise<ExtendedTariff[]>;
 }
 
 export const useTariffs = ({
   selectedServiceLevel,
   selectedVehicleType,
   setErrorMessage,
-}: UseTariffsProps) => {
+}: UseTariffsProps): UseTariffsResult => {
   const [tariffs, setTariffs] = useState<ExtendedTariff[]>([]);
-  const [selectedTariff, setSelectedTariff] = useState<ExtendedTariff | null>(null);
 
-  const updateTariffs = useCallback(async () => {
+  const updateTariffs = useCallback(async (): Promise<ExtendedTariff[]> => {
     try {
       const tariffsData = await fetchTariffs(selectedServiceLevel, selectedVehicleType);
       setTariffs(tariffsData);
+      return tariffsData;
     } catch (error) {
       setErrorMessage(error, 'Error fetching tariffs');
+      return [];
     }
   }, [setErrorMessage, selectedServiceLevel, selectedVehicleType]);
 
-  useEffect(() => {
-    updateTariffs();
-  }, [updateTariffs]);
-
-  const handleTariffChange = useCallback(
-    (e: React.ChangeEvent<HTMLSelectElement>) => {
-      const foundTariff = tariffs.find((t) => t.uuid === e.target.value) || null;
-      setSelectedTariff(foundTariff);
-    },
-    [tariffs],
-  );
-
   return {
     tariffs,
-    selectedTariff,
     updateTariffs,
-    handleTariffChange,
   };
 };

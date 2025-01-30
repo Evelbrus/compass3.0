@@ -10,22 +10,20 @@ import { isDriverOnline } from '@widgets/drivers-nearby/fucntions/isDriverOnline
 import { User } from '@prisma/client';
 import { useFormContext } from 'react-hook-form';
 
-interface SelectedDriverInfo {
-  uuid: string;
-  fullName: string;
-}
-
 interface DriversNearbyProps {
   drivers: User[] | null;
   page: number;
   perPage: number;
   total: number;
-  isLoading: boolean;
+  isDriversLoading: boolean;
   searchDriver: string;
   handleDriverClick: (driverId: string) => void;
   setSearchDriver: (value: string) => void;
   setPage: (newPage: number) => void;
-  selectedDriverInfo: SelectedDriverInfo | null;
+  selectedDriverInfo: {
+    uuid: string;
+    fullName: string;
+  } | null;
 }
 
 const DriversNearby: React.FC<DriversNearbyProps> = ({
@@ -33,7 +31,7 @@ const DriversNearby: React.FC<DriversNearbyProps> = ({
   page,
   perPage,
   total,
-  isLoading,
+  isDriversLoading,
   searchDriver,
   handleDriverClick,
   setSearchDriver,
@@ -80,7 +78,7 @@ const DriversNearby: React.FC<DriversNearbyProps> = ({
           onChange={handleSearchChange}
         />
         <AnimatedComponent className="w-full h-full bg-transparent rounded-lg">
-          {isLoading ? null : !drivers || drivers.length === 0 ? (
+          {isDriversLoading ? null : !drivers || drivers.length === 0 ? (
             <NoData message="Нет доступных водителей" />
           ) : (
             <div className="w-full overflow-x-auto">

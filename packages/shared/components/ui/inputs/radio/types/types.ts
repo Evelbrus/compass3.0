@@ -11,4 +11,5 @@ export interface RadioInputProps {
   requiredStar?: boolean;
   error?: boolean;
   message?: string;
+  disabled?: boolean;
 }

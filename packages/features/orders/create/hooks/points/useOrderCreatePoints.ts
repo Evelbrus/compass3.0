@@ -1,7 +1,7 @@
 import { usePoints } from '@features/orders/create/hooks';
 
 interface UseOrderCreatePointsProps {
-  setErrorMessage: (error: any, message: string) => void;
+  setErrorMessage: (error: Error | null | undefined, message: string) => void;
 }
 
 export const useOrderCreatePoints = ({ setErrorMessage }: UseOrderCreatePointsProps) => {

@@ -6,9 +6,9 @@ interface UseDriversProps {
   selectedServiceLevel?: string;
   selectedVehicleType?: string;
   searchDriver?: string;
-  setErrorMessage: (error: any, message: string) => void;
   initialPage?: number;
   initialPerPage?: number;
+  setErrorMessage: (error: Error | null | undefined, message: string) => void;
 }
 
 export interface UseDriversResult {
@@ -18,7 +18,7 @@ export interface UseDriversResult {
   total: number;
   changePage: (newPage: number) => void;
   changePerPage: (newPerPage: number) => void;
-  isLoading: boolean;
+  isDriversLoading: boolean;
   fetchAllDrivers: () => void;
 }
 
@@ -34,7 +34,7 @@ export const useDrivers = ({
   const [page, setPage] = useState(initialPage);
   const [perPage, setPerPage] = useState(initialPerPage);
   const [total, setTotal] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isDriversLoading, setIsLoading] = useState(false);
 
   const fetchAllDrivers = useCallback(async () => {
     setIsLoading(true);
@@ -88,6 +88,6 @@ export const useDrivers = ({
     perPage,
     changePage,
     changePerPage,
-    isLoading,
+    isDriversLoading,
   };
 };

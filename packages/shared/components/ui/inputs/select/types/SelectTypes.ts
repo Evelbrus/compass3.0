@@ -1,12 +1,14 @@
-import { JSX } from 'react';
+import React, { JSX } from 'react';
 import { SelectOption } from '@shared/lib/effector';
 
 export interface BaseSelectProps<T extends string | number> {
   options: SelectOption<T>[];
   requiredStar?: boolean;
   disabled?: boolean;
-  readOnly?: boolean; // Добавлено свойство readOnly
+  readOnly?: boolean;
   className?: string;
+  classNameBg?: string;
+  classNamePadding?: string;
   classNameBorderRadius?: string;
   classNameTagUl?: string;
   classNameTagLi?: string;
@@ -23,6 +25,7 @@ export interface BaseSelectProps<T extends string | number> {
   getIcon?: (value: T) => JSX.Element | null;
   isLoading?: boolean;
   message?: string;
+  onInputChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
 export interface SelectSingleProps<T extends string | number> extends BaseSelectProps<T> {

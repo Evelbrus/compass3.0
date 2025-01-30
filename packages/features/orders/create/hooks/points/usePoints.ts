@@ -3,7 +3,7 @@ import { fetchPoints } from '@features/orders/create/api/orderApi';
 import { Point } from '@prisma/client';
 
 interface UsePointsProps {
-  setErrorMessage: (error: any, message: string) => void;
+  setErrorMessage: (error: Error | null | undefined, message: string) => void;
 }
 
 export const usePoints = ({ setErrorMessage }: UsePointsProps) => {

@@ -15,9 +15,9 @@ const OrderCreateView = () => {
 
   return (
     <FormProvider {...formMethods}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        <h1 className="text-2xl font-extrabold">Заказ № 234</h1>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      <div className={'flex flex-col gap-4'}>
+        <h1 className="text-2xl font-extrabold">Создание заказа</h1>
+        <div className={'flex flex-col gap-8'}>
           <div className="w-full h-[660px] flex flex-row gap-4 overflow-x-auto">
             <div className="hidden lg:flex flex-1 flex-shrink-0 basis-[calc(65%-1.5rem)] h-auto bg-white rounded-xl border">
               <MapDriver />
@@ -27,8 +27,10 @@ const OrderCreateView = () => {
             </div>
           </div>
           <OrderStartEndSelector {...formMethods} />
-          <ClientWidget {...formMethods} formData={formMethods.watch()} />
-          <FilterTariff {...formMethods} formData={formMethods.watch()} />
+          <div className={'w-full flex flex-row gap-4'}>
+            <ClientWidget {...formMethods} />
+            <FilterTariff {...formMethods} />
+          </div>
           <OrderCreateWidget {...formMethods} />
         </div>
         {formMethods.message && <p>{formMethods.message}</p>}

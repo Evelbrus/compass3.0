@@ -1,93 +1,55 @@
-import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
-import { ServiceLevels, User, VehicleType } from '@prisma/client';
 import { CreateOrderData } from '@shared/prisma/interface/orders/interface';
 import { useErrorMessage } from '@features/orders/create/functions/useErrorMessage';
-import { useNotifications } from '@features/orders/create/hooks';
+import {
+  useNotifications,
+  useOrderCreateClients,
+  useOrderCreateDrivers,
+  useOrderConfiguration,
+  useOrderCreatePoints,
+  useOrderCreateAdditionalServices,
+} from '@features/orders/create/hooks';
 import { cleanIntermediatePoints } from '@features/orders/create/helpers';
-import { fetchClients } from '@features/orders/create/api/orderApi';
-import { useOrderCreateDrivers } from './useOrderCreateDrivers';
-import { useOrderCreateHandlers } from './useOrderCreateHandlers';
-import { useOrderCreatePoints } from './useOrderCreatePoints';
-import { useOrderCreateTariffs } from './useOrderCreateTariffs';
-
-interface SelectedDriverInfo {
-  uuid: string;
-  fullName: string;
-}
+import { showToast } from '@shared/components/toast/ToastManager';
 
 export const useOrderCreateLogic = () => {
-  const [clients, setClients] = useState<User[]>([]);
-  const { message, setErrorMessage } = useErrorMessage();
+  const { ...message } = useErrorMessage();
 
-  const [searchDriver, setSearchDriver] = useState('');
-  const [selectedDriverInfo, setSelectedDriverInfo] = useState<SelectedDriverInfo | null>(null);
+  const { ...clients } = useOrderCreateClients({
+    setErrorMessage: message.setErrorMessage,
+  });
 
-  //Инициализация useForm
   const formMethods = useForm<CreateOrderData>({
     mode: 'onBlur',
   });
 
-  const { setValue, watch, formState, handleSubmit } = formMethods;
+  const { setValue, watch } = formMethods;
 
-  const {
-    drivers,
-    total,
-    page,
-    perPage,
-    changePage,
-    changePerPage,
-    isLoading,
-    handleSearchDriver,
-    setPage,
-    handleDriverClick,
-  } = useOrderCreateDrivers({ setErrorMessage, setSelectedDriverInfo });
+  const { ...points } = useOrderCreatePoints({ setErrorMessage: message.setErrorMessage });
 
-  const { points, getAvailablePoints } = useOrderCreatePoints({ setErrorMessage });
-
-  const { tariffs, updateTariffs } = useOrderCreateTariffs({
-    setErrorMessage,
+  const { ...additionalServices } = useOrderCreateAdditionalServices({
+    setErrorMessage: message.setErrorMessage,
   });
 
-  const {
-    selectedVehicleType,
-    selectedServiceLevel,
-    selectedTariff,
-    selectedAdditionalServices,
-    handleVehicleTypeChange,
-    handleServiceLevelChange,
-    handleTariffChange,
-    handleAdditionalServiceChangeCallback,
-  } = useOrderCreateHandlers({
+  const { ...handlers } = useOrderConfiguration({
     setValue,
     watch,
-    tariffs,
-    points,
-    setErrorMessage,
+    points: points.points,
+    setErrorMessage: message.setErrorMessage,
   });
 
-  const { handleOrderSuccess, handleOrderError } = useNotifications({
+  const { ...drivers } = useOrderCreateDrivers({
+    setErrorMessage: message.setErrorMessage,
+    selectedVehicleType: handlers.selectedVehicleType,
+    selectedServiceLevel: handlers.selectedServiceLevel,
+  });
+
+  const { ...notification } = useNotifications({
     formData: watch(),
-    message,
-    setErrorMessage,
+    message: message.message,
+    setErrorMessage: message.setErrorMessage,
     setInitialFormData: () => {},
   });
-
-  const vehicleTypes = Object.values(VehicleType);
-  const serviceLevels = Object.values(ServiceLevels);
-
-  useEffect(() => {
-    const fetchInitialData = async () => {
-      try {
-        const [clientsData] = await Promise.all([fetchClients()]);
-        setClients(clientsData);
-      } catch (error) {
-        setErrorMessage(error, 'Error fetching initial data');
-      }
-    };
-
-    fetchInitialData();
-  }, [setErrorMessage]);
 
   const onSubmit = async (data: CreateOrderData) => {
     try {
@@ -96,7 +58,7 @@ export const useOrderCreateLogic = () => {
       const orderData: CreateOrderData = {
         ...data,
         intermediatePoints: cleanedIntermediatePoints,
-        selectedServices: selectedAdditionalServices,
+        selectedServices: handlers.selectedAdditionalServices,
       };
 
       const response = await fetch('/api/orders', {
@@ -107,68 +69,27 @@ export const useOrderCreateLogic = () => {
 
       if (!response.ok) {
         const errorData = await response.json();
+        showToast.error(errorData.error || `Network response was not ok: ${response.statusText}`);
         throw new Error(errorData.error || `Network response was not ok: ${response.statusText}`);
       }
 
       const result = await response.json();
-      handleOrderSuccess(result);
+      showToast.success('Order created successfully!');
+      notification.handleOrderSuccess(result);
     } catch (error) {
-      handleOrderError(error);
+      notification.handleOrderError(error);
     }
-  };
-
-  const handleAddIntermediatePoint = () => {
-    const currentPoints = watch().intermediatePoints || [];
-    setValue('intermediatePoints', [...currentPoints, '']);
-  };
-
-  const handleRemoveIntermediatePoint = (index: number) => {
-    const currentPoints = watch().intermediatePoints || [];
-    const updatedPoints = currentPoints.filter((_, i) => i !== index);
-    setValue('intermediatePoints', updatedPoints);
-  };
-
-  const handleChangeIntermediatePoint = (index: number, value: string) => {
-    const currentPoints = watch().intermediatePoints || [];
-    const updatedPoints = currentPoints.map((point, i) => (i === index ? value : point));
-    setValue('intermediatePoints', updatedPoints);
   };
 
   return {
     ...formMethods,
-    clients,
-    points,
-    drivers,
-    tariffs,
-    message,
-    selectedVehicleType,
-    selectedServiceLevel,
-    selectedTariff,
-    errors: formState.errors,
-    vehicleTypes,
-    serviceLevels,
-    selectedAdditionalServices,
-    handleVehicleTypeChange,
-    handleServiceLevelChange,
-    handleTariffChange,
-    handleAddIntermediatePoint,
-    handleRemoveIntermediatePoint,
-    handleChangeIntermediatePoint,
-    handleAdditionalServiceChange: handleAdditionalServiceChangeCallback,
-    getAvailablePoints,
-    searchDriver,
-    handleSearchDriver,
-    page,
-    perPage,
-    total,
-    changePage,
-    changePerPage,
-    isLoading,
+    ...handlers,
+    ...drivers,
+    ...clients,
+    ...notification,
+    ...points,
+    ...additionalServices,
+    ...message,
     onSubmit,
-    handleDriverClick,
-    setSearchDriver,
-    setPage,
-    selectedDriverInfo,
-    handleSubmit,
   };
 };
