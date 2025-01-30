@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Prisma, ServiceLevels, Vehicle, VehicleDriver, VehicleType } from '@prisma/client';
+import { Prisma, ServiceLevels, VehicleType } from '@prisma/client';
 import debug from 'debug';
 import { CreateVehicleData } from '@shared/prisma/interface/vehicles/interface';
 import { v4 as uuidv4 } from 'uuid';
@@ -156,151 +156,110 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const accessToken = req.cookies.get(ACCESS_TOKEN_COOKIE)?.value;
-
-  let token;
-
-  if (accessToken) {
-    token = await verifyJWT(accessToken, authConfig.accessToken.secret);
-    if (!token) {
-      return NextResponse.json({ status: 'error', message: 'Unauthorized' }, { status: 401 });
-    }
-  } else {
-    return NextResponse.json({ status: 'error', message: 'Unauthorized' }, { status: 401 });
-  }
-
-  if (!token?.uuid) {
-    return NextResponse.json({ status: 'error', message: 'Unauthorized' }, { status: 401 });
-  }
-
-  //Authorization check for Admin role
-  if (token?.role !== 'Admin') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
-
   try {
     const data: CreateVehicleData = await req.json();
-    const {
-      vehicleType,
-      brand,
-      model,
-      year,
-      color,
-      plateNumber,
-      isAvailable,
-      photoPath,
-      driverIds,
-      serviceLevels,
-    } = data;
+    const updateData: CreateVehicleData = data;
 
-    log('Received data:', data);
+    const result = await prisma.$transaction(async (prisma) => {
+      const now = new Date();
+      const uuid = uuidv4();
+      const yearDate = updateData.year ? new Date(updateData.year.toString()) : undefined;
 
-    //Enhanced validation
-    if (
-      !vehicleType ||
-      !brand ||
-      !model ||
-      typeof year !== 'number' ||
-      year < 1900 ||
-      year > new Date().getFullYear() + 1 ||
-      !color ||
-      !plateNumber ||
-      !serviceLevels
-    ) {
-      return NextResponse.json({ error: 'Invalid input data' }, { status: 400 });
-    }
-
-    const now = new Date();
-    const uuid = uuidv4();
-    const yearDate = new Date(year, 0, 1);
-
-    const vehicle = {
-      uuid,
-      vehicleType,
-      brand,
-      model,
-      year: yearDate,
-      color,
-      plateNumber,
-      isAvailable,
-      photoPath,
-      serviceLevels: serviceLevels as ServiceLevels,
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    let createdVehicle: Vehicle | null = null;
-    let createdVehicleDrivers: VehicleDriver[] = [];
-
-    await prisma.$transaction(async (transaction) => {
-      //Check for existing plate number
-      const existingVehicle = await transaction.vehicle.findUnique({
-        where: { plateNumber },
+      //Проверка на существование номера автомобиля
+      const existingVehicle = await prisma.vehicle.findUnique({
+        where: { plateNumber: updateData.plateNumber },
       });
 
       if (existingVehicle) {
-        throw new Error(`Vehicle with plate number ${plateNumber} already exists`);
+        throw new Error(`Автомобиль с номером ${updateData.plateNumber} уже существует`);
       }
 
-      //Create vehicle
-      createdVehicle = await transaction.vehicle.create({
-        data: vehicle,
+      const createdVehicle = await prisma.vehicle.create({
+        data: {
+          uuid,
+          vehicleType: updateData.vehicleType,
+          brand: updateData.brand,
+          model: updateData.model,
+          year: yearDate,
+          color: updateData.color,
+          plateNumber: updateData.plateNumber,
+          isAvailable: updateData.isAvailable,
+          photoPath: updateData.photoPath,
+          serviceLevels: updateData.serviceLevels,
+          createdAt: now,
+          updatedAt: now,
+        },
       });
 
-      if (!createdVehicle) {
-        throw new Error('Vehicle creation failed');
-      }
+      log('Created vehicle:', createdVehicle);
 
-      //Batch check for existing driver assignments
-      if (driverIds && driverIds.length > 0) {
-        const existingDrivers = await transaction.vehicleDriver.findMany({
-          where: { driverId: { in: driverIds } },
-        });
-
-        if (existingDrivers.length > 0) {
-          const conflictIds = existingDrivers.map((d) => d.driverId);
-          throw new Error(`Drivers already assigned: ${conflictIds.join(', ')}`);
-        }
-
-        //Create driver associations
-        createdVehicleDrivers = await Promise.all(
-          driverIds.map(async (driverId) => {
-            const driverUser = await transaction.user.findUnique({
-              where: { uuid: driverId, role: 'Driver' },
-            });
-
-            if (!driverUser) {
-              throw new Error(`Driver ${driverId} not found`);
-            }
-            //driverUser существует теперь мы его можем привязать, driverProfile не обязателен
-            return transaction.vehicleDriver.create({
-              data: {
-                uuid: uuidv4(),
-                vehicleId: createdVehicle!.uuid,
-                driverId,
-                assignmentDate: now,
+      if (updateData.driverIds) {
+        if (updateData.driverIds.length > 0) {
+          for (const driverId of updateData.driverIds) {
+            const existingAssignment = await prisma.vehicleDriver.findFirst({
+              where: {
+                driverId: driverId,
+              },
+              include: {
+                driver: true,
               },
             });
-          }),
-        );
+
+            if (existingAssignment) {
+              const driver = await prisma.user.findUnique({
+                where: {
+                  uuid: driverId,
+                },
+              });
+              if (driver) {
+                throw new Error(`Водитель уже привязан к другому автомобилю.`, {
+                  cause: { fullName: driver.fullName },
+                });
+              }
+            }
+          }
+
+          await prisma.vehicleDriver.createMany({
+            data: updateData.driverIds.map((driverId) => ({
+              vehicleId: uuid,
+              driverId: driverId,
+              assignmentDate: now,
+            })),
+          });
+        }
       }
+
+      return { uuid: createdVehicle.uuid };
     });
 
-    log('Created vehicle:', createdVehicle);
-    return NextResponse.json({
-      status: 'success',
-      message: 'Vehicle created successfully',
-      vehicle: createdVehicle,
-      vehicleDrivers: createdVehicleDrivers,
-    });
+    log('Created vehicle with details:', result);
+    return NextResponse.json({ status: 'success', uuid: result.uuid }, { status: 200 });
   } catch (error) {
     log('Error creating vehicle:', error);
-    return NextResponse.json(
-      {
-        status: 'error',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      },
-      { status: 400 },
-    );
+    if (error instanceof Error) {
+      log('Error message:', error.message);
+      log('Error stack:', error.stack);
+      if (error.message.startsWith('Водитель уже привязан')) {
+        const cause = error.cause as { fullName?: string } | undefined;
+        return NextResponse.json(
+          {
+            error: {
+              message: error.message,
+              fullName: cause?.fullName,
+            },
+          },
+          { status: 400 },
+        );
+      }
+      return NextResponse.json(
+        {
+          error: {
+            message: error.message,
+          },
+        },
+        { status: 400 },
+      );
+    }
+    return NextResponse.json({ error: 'Unable to create vehicle' }, { status: 500 });
   }
 }

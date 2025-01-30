@@ -18,6 +18,8 @@ import {
   vehicleTypeOptions,
   serviceLevelOptions,
 } from '@shared/lib/effector/vehicles/optionsTranslation/optionsTranslationVehicle';
+import { showToast } from '@shared/components/toast/ToastManager';
+import { useRouter } from 'next/navigation';
 
 interface FormData extends Omit<CreateVehicleData, 'serviceLevels' | 'driverIds' | 'year'> {
   serviceLevels: ServiceLevels | undefined;
@@ -40,10 +42,11 @@ const VehiclesCreate: React.FC = () => {
       photoPath: '',
     },
   });
-  const { control, handleSubmit, setValue } = methods;
+  const { control, handleSubmit } = methods;
+  const router = useRouter();
 
   const [drivers, setDrivers] = useState<(User & { driverProfile: DriverProfile | null })[]>([]);
-  const [message, setMessage] = useState('');
+  const [message] = useState('');
 
   useEffect(() => {
     fetch('/api/users?role=Driver&include=driverProfile')
@@ -52,7 +55,10 @@ const VehiclesCreate: React.FC = () => {
         return response.json();
       })
       .then((data) => setDrivers(data.data.users))
-      .catch((error) => console.error('Error fetching drivers:', error));
+      .catch((error) => {
+        console.error('Error fetching drivers:', error);
+        showToast.error('Failed to fetch drivers.');
+      });
   }, []);
 
   const onSubmit = async (formData: FormData) => {
@@ -79,14 +85,28 @@ const VehiclesCreate: React.FC = () => {
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
+        const errorData = await response.json();
+        if (errorData.error?.message && errorData.error?.fullName) {
+          showToast.error(`${errorData.error.message} ${errorData.error.fullName}`);
+        } else if (errorData.error?.message) {
+          showToast.error(errorData.error.message);
+        } else if (errorData.message) {
+          showToast.error(errorData.message);
+        } else {
+          showToast.error(`Error creating vehicle: ${response.statusText}`);
+        }
+        return;
       }
 
       const result = await response.json();
-      setMessage(`Vehicle created successfully: ${result.brand} ${result.model}`);
-      methods.reset();
+      if (result && result.uuid) {
+        showToast.success('Vehicle created successfully');
+        router.push(`/transfer-services/detail/${result.uuid}`);
+      } else {
+        showToast.error('Failed to redirect to vehicle details page');
+      }
     } catch (error) {
-      setMessage(`Error creating vehicle: ${(error as Error).message}`);
+      showToast.error(`Error creating vehicle: ${(error as Error).message}`);
       console.error('Submission error:', error);
     }
   };
@@ -102,7 +122,7 @@ const VehiclesCreate: React.FC = () => {
           >
             {/*Vehicle Type */}
             <div className="form-group">
-              <label className="block mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]">
+              <label className="mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]">
                 Vehicle Type
               </label>
               <Controller
@@ -125,7 +145,7 @@ const VehiclesCreate: React.FC = () => {
 
             {/*Brand */}
             <div className="form-group">
-              <label className="block mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]">
+              <label className="mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]">
                 Brand
               </label>
               <Controller
@@ -149,7 +169,7 @@ const VehiclesCreate: React.FC = () => {
 
             {/*Model */}
             <div className="form-group">
-              <label className="block mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]">
+              <label className="mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]">
                 Model
               </label>
               <Controller
@@ -173,7 +193,7 @@ const VehiclesCreate: React.FC = () => {
 
             {/*Year */}
             <div className="form-group">
-              <label className="block mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]">
+              <label className="mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]">
                 Year
               </label>
               <Controller
@@ -194,7 +214,7 @@ const VehiclesCreate: React.FC = () => {
 
             {/*Color */}
             <div className="form-group">
-              <label className="block mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]">
+              <label className="mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]">
                 Color
               </label>
               <Controller
@@ -215,7 +235,7 @@ const VehiclesCreate: React.FC = () => {
 
             {/*Plate Number */}
             <div className="form-group">
-              <label className="block mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]">
+              <label className="mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]">
                 Plate Number
               </label>
               <Controller
@@ -239,7 +259,7 @@ const VehiclesCreate: React.FC = () => {
 
             {/*Availability */}
             <div className="form-group">
-              <label className="block mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]">
+              <label className="mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]">
                 Availability
               </label>
               <Controller
@@ -258,7 +278,7 @@ const VehiclesCreate: React.FC = () => {
 
             {/*Drivers */}
             <div className="form-group">
-              <label className="block mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]">
+              <label className="mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]">
                 Assign Drivers
               </label>
               <Controller
@@ -288,7 +308,7 @@ const VehiclesCreate: React.FC = () => {
 
             {/*Service Level */}
             <div className="form-group">
-              <label className="block mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]">
+              <label className="mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]">
                 Service Level
               </label>
               <Controller
