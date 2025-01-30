@@ -60,7 +60,7 @@ const VehiclesCreate: React.FC = () => {
       vehicleType: formData.vehicleType as VehicleType,
       brand: formData.brand,
       model: formData.model,
-      year: new Date(formData.year).getFullYear(),
+      year: formData.year ? new Date(`${formData.year}-01-01`) : null,
       color: formData.color as Color,
       plateNumber: formData.plateNumber,
       isAvailable: formData.isAvailable,
@@ -93,13 +93,18 @@ const VehiclesCreate: React.FC = () => {
 
   return (
     <FormProvider {...methods}>
-      <div className="flex flex-row justify-center">
-        <div className="w-2/3 pr-4">
+      <div className="flex flex-col gap-6 justify-center">
+        <div>
           <h1 className="text-2xl font-bold mb-6">Create New Vehicle</h1>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <form
+            onSubmit={handleSubmit(onSubmit)}
+            className="bg-white p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 md:grid-cols-2 gap-4 rounded-lg shadow-md border border-gray-200"
+          >
             {/*Vehicle Type */}
             <div className="form-group">
-              <label className="block text-sm font-medium mb-1">Vehicle Type</label>
+              <label className="block mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]">
+                Vehicle Type
+              </label>
               <Controller
                 name="vehicleType"
                 control={control}
@@ -120,7 +125,9 @@ const VehiclesCreate: React.FC = () => {
 
             {/*Brand */}
             <div className="form-group">
-              <label className="block text-sm font-medium mb-1">Brand</label>
+              <label className="block mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]">
+                Brand
+              </label>
               <Controller
                 name="brand"
                 control={control}
@@ -142,7 +149,9 @@ const VehiclesCreate: React.FC = () => {
 
             {/*Model */}
             <div className="form-group">
-              <label className="block text-sm font-medium mb-1">Model</label>
+              <label className="block mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]">
+                Model
+              </label>
               <Controller
                 name="model"
                 control={control}
@@ -164,7 +173,9 @@ const VehiclesCreate: React.FC = () => {
 
             {/*Year */}
             <div className="form-group">
-              <label className="block text-sm font-medium mb-1">Year</label>
+              <label className="block mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]">
+                Year
+              </label>
               <Controller
                 name="year"
                 control={control}
@@ -183,7 +194,9 @@ const VehiclesCreate: React.FC = () => {
 
             {/*Color */}
             <div className="form-group">
-              <label className="block text-sm font-medium mb-1">Color</label>
+              <label className="block mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]">
+                Color
+              </label>
               <Controller
                 name="color"
                 control={control}
@@ -202,7 +215,9 @@ const VehiclesCreate: React.FC = () => {
 
             {/*Plate Number */}
             <div className="form-group">
-              <label className="block text-sm font-medium mb-1">Plate Number</label>
+              <label className="block mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]">
+                Plate Number
+              </label>
               <Controller
                 name="plateNumber"
                 control={control}
@@ -224,7 +239,9 @@ const VehiclesCreate: React.FC = () => {
 
             {/*Availability */}
             <div className="form-group">
-              <label className="block text-sm font-medium mb-1">Availability</label>
+              <label className="block mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]">
+                Availability
+              </label>
               <Controller
                 name="isAvailable"
                 control={control}
@@ -233,6 +250,7 @@ const VehiclesCreate: React.FC = () => {
                     label="Available for booking"
                     checked={field.value}
                     onChange={field.onChange}
+                    className="text-4 text-[#989898] font-extrabold"
                   />
                 )}
               />
@@ -240,7 +258,9 @@ const VehiclesCreate: React.FC = () => {
 
             {/*Drivers */}
             <div className="form-group">
-              <label className="block text-sm font-medium mb-1">Assign Drivers</label>
+              <label className="block mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]">
+                Assign Drivers
+              </label>
               <Controller
                 name="driverIds"
                 control={control}
@@ -268,7 +288,9 @@ const VehiclesCreate: React.FC = () => {
 
             {/*Service Level */}
             <div className="form-group">
-              <label className="block text-sm font-medium mb-1">Service Level</label>
+              <label className="block mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]">
+                Service Level
+              </label>
               <Controller
                 name="serviceLevels"
                 control={control}
@@ -289,35 +311,33 @@ const VehiclesCreate: React.FC = () => {
 
             <button
               type="submit"
-              className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition-colors"
+              className="bg-[#2A3037] rounded-[8px] font-inter font-normal text-[17px] leading-[20.57px] p-[10px] text-white h-fit mt-[22px]"
             >
               Create Vehicle
             </button>
-          </form>
-
-          {message && (
-            <div className="mt-4 p-4 rounded-md bg-blue-50 border border-blue-200 text-blue-800">
-              {message}
-            </div>
-          )}
-        </div>
-
-        {/*Photo Upload */}
-        <div className="w-1/3 flex items-start justify-center p-6">
-          <Controller
-            name="photoPath"
-            control={control}
-            render={({ field, fieldState }) => (
-              <ImageUpload
-                {...field}
-                value={field.value ?? ''}
-                label="Vehicle Photo"
-                error={!!fieldState.error}
-                message={fieldState.error?.message || ''}
+            {/*Photo Upload */}
+            <div className=" flex items-start justify-center">
+              <Controller
+                name="photoPath"
+                control={control}
+                render={({ field, fieldState }) => (
+                  <ImageUpload
+                    {...field}
+                    value={field.value ?? ''}
+                    label="Vehicle Photo"
+                    error={!!fieldState.error}
+                    message={fieldState.error?.message || ''}
+                  />
+                )}
               />
-            )}
-          />
+            </div>
+          </form>
         </div>
+        {message && (
+          <div className="mt-4 p-4 rounded-md bg-blue-50 border border-blue-200 text-blue-800">
+            {message}
+          </div>
+        )}
       </div>
     </FormProvider>
   );
