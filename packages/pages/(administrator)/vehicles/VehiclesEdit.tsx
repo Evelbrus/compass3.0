@@ -24,7 +24,6 @@ const VehiclesEdit: React.FC<VehiclesEditProps> = ({ data }) => {
   });
 
   const [yearInput, setYearInput] = useState<string>(data.year ? formatDate(data.year) : '');
-
   const [drivers, setDrivers] = useState<(User & { driverProfile: DriverProfile | null })[]>([]);
   const [message, setMessage] = useState('');
   const router = useRouter();
@@ -92,14 +91,23 @@ const VehiclesEdit: React.FC<VehiclesEditProps> = ({ data }) => {
 
   return (
     <div>
-      <h1>Edit Vehicle</h1>
-      <form onSubmit={handleSubmit}>
+      <h1 className="text-3xl font-bold text-gray-800 mb-6">Edit Vehicle</h1>
+      <form
+        onSubmit={handleSubmit}
+        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 md:grid-cols-2 gap-4 mb-6 p-6 bg-white shadow-md rounded-lg border border-gray-200"
+      >
         <div>
-          <label htmlFor="vehicleType">Vehicle Type:</label>
+          <label
+            htmlFor="vehicleType"
+            className="block mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]"
+          >
+            Vehicle Type:
+          </label>
           <select
             id="vehicleType"
             value={formData.vehicleType || ''}
             onChange={handleInputChange}
+            className="w-full bg-white px-3 py-2 rounded-md border border-gray-300 focus:bg-gray-100 text-4 text-[#2A3037] font-extrabold"
             required
           >
             <option value="">Select Vehicle Type</option>
@@ -111,40 +119,69 @@ const VehiclesEdit: React.FC<VehiclesEditProps> = ({ data }) => {
           </select>
         </div>
         <div>
-          <label htmlFor="brand">Brand:</label>
+          <label
+            htmlFor="brand"
+            className="block mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]"
+          >
+            Brand:
+          </label>
           <input
             type="text"
             id="brand"
             value={formData.brand || ''}
             onChange={handleInputChange}
+            className="w-full bg-white px-3 py-2 rounded-md border border-gray-300 focus:bg-gray-100 text-4 text-[#2A3037] font-extrabold"
             required
           />
         </div>
         <div>
-          <label htmlFor="model">Model:</label>
+          <label
+            htmlFor="model"
+            className="block mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]"
+          >
+            Model:
+          </label>
           <input
             type="text"
             id="model"
             value={formData.model || ''}
             onChange={handleInputChange}
+            className="w-full bg-white px-3 py-2 rounded-md border border-gray-300 focus:bg-gray-100 text-4 text-[#2A3037] font-extrabold"
             required
           />
         </div>
         <div>
-          <label htmlFor="year">Year:</label>
+          <label
+            htmlFor="year"
+            className="block mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]"
+          >
+            Year:
+          </label>
           <input
             type="text"
             id="year"
             value={yearInput || ''}
             onChange={handleInputChange}
+            className="w-full bg-white px-3 py-2 rounded-md border border-gray-300 focus:bg-gray-100 text-4 text-[#2A3037] font-extrabold"
             required
           />
         </div>
         <div>
-          <label htmlFor="color">Color:</label>
-          <select id="color" value={formData.color || ''} onChange={handleInputChange} required>
+          <label
+            htmlFor="color"
+            className="block mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]"
+          >
+            Color:
+          </label>
+          <select
+            id="color"
+            value={formData.color || ''}
+            onChange={handleInputChange}
+            required
+            className="w-full bg-white px-3 py-2 rounded-md border border-gray-300 focus:bg-gray-100 text-4 text-[#2A3037] font-extrabold"
+          >
             <option value="">Select Color</option>
-            {Object.values(Color).map((color) => (
+            {Object.values(Color || {}).map((color) => (
               <option key={color} value={color}>
                 {color}
               </option>
@@ -152,38 +189,49 @@ const VehiclesEdit: React.FC<VehiclesEditProps> = ({ data }) => {
           </select>
         </div>
         <div>
-          <label htmlFor="plateNumber">Plate Number:</label>
+          <label
+            htmlFor="plateNumber"
+            className="block mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]"
+          >
+            Plate Number:
+          </label>
           <input
             type="text"
             id="plateNumber"
             value={formData.plateNumber || ''}
             onChange={handleInputChange}
+            className="w-full bg-white px-3 py-2 rounded-md border border-gray-300 focus:bg-gray-100 text-4 text-[#2A3037] font-extrabold"
             required
           />
         </div>
-        <div>
-          <label htmlFor="isAvailable">Is Available:</label>
+        <label
+          htmlFor="isAvailable"
+          className="block mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]"
+        >
           <input
             type="checkbox"
             id="isAvailable"
             checked={formData.isAvailable || false}
+            className="w-[18px] h-[18px] bg-white px-3 py-2 rounded-md border border-gray-300 focus:bg-gray-100 text-4 text-[#2A3037] font-extrabold"
             onChange={handleInputChange}
           />
-        </div>
+          Is Available:
+        </label>
         <div>
-          <label htmlFor="photoPath">Photo Path:</label>
-          <input
-            type="text"
-            id="photoPath"
-            value={formData.photoPath || ''}
+          <label
+            htmlFor="driverIds"
+            className="block mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]"
+          >
+            Driver:
+          </label>
+          <select
+            id="driverIds"
+            className="w-full bg-white px-3 py-2 rounded-md border border-gray-300 focus:bg-gray-100 text-4 text-[#2A3037] font-extrabold"
+            value={formData.driverIds?.[0] || ''}
             onChange={handleInputChange}
-          />
-        </div>
-        <div>
-          <label htmlFor="driverIds">Driver:</label>
-          <select id="driverIds" value={formData.driverIds?.[0] || ''} onChange={handleInputChange}>
+          >
             <option value="">Select Driver</option>
-            {drivers.map((driver) => (
+            {drivers?.map((driver) => (
               <option key={driver.driverProfile?.uuid} value={driver.driverProfile?.uuid}>
                 {driver.fullName}
               </option>
@@ -191,12 +239,18 @@ const VehiclesEdit: React.FC<VehiclesEditProps> = ({ data }) => {
           </select>
         </div>
         <div>
-          <label htmlFor="serviceLevels">Service Level:</label>
+          <label
+            htmlFor="serviceLevels"
+            className="block mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]"
+          >
+            Service Level:
+          </label>
           <select
             id="serviceLevels"
             value={formData.serviceLevels || ''}
             onChange={handleInputChange}
             required
+            className="w-full bg-white px-3 py-2 rounded-md border border-gray-300 focus:bg-gray-100 text-4 text-[#2A3037] font-extrabold"
           >
             <option value="">Select Service Level</option>
             {Object.values(ServiceLevels).map((level) => (
@@ -206,7 +260,27 @@ const VehiclesEdit: React.FC<VehiclesEditProps> = ({ data }) => {
             ))}
           </select>
         </div>
-        <button type="submit">Save</button>
+        <button
+          type="submit"
+          className="bg-[#2A3037] rounded-[8px] font-inter font-normal text-[17px] leading-[20.57px] p-[10px] text-white h-fit mt-[22px]"
+        >
+          Save
+        </button>
+        <div>
+          <label
+            htmlFor="photoPath"
+            className="block mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]"
+          >
+            Photo Path:
+          </label>
+          <input
+            type="text"
+            id="photoPath"
+            value={formData.photoPath || ''}
+            className="w-full bg-white px-3 py-2 rounded-md border border-gray-300 focus:bg-gray-100 text-4 text-[#2A3037] font-extrabold"
+            onChange={handleInputChange}
+          />
+        </div>
       </form>
       {message && <p>{message}</p>}
     </div>

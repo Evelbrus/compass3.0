@@ -10,6 +10,7 @@ interface ITableComponentProps<T> extends ITableProps<T> {
   sortBy?: keyof T | null;
   sortDirection?: 'asc' | 'desc';
   disabled?: boolean;
+  enableStatusFilter?: boolean;
 }
 
 export const ITable = <T extends object>({
