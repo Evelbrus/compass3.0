@@ -99,27 +99,27 @@ const ClientWidget: React.FC<ClientWidgetProps> = ({
       setLocalWaitingTime(0);
       setIsWaitingTimeEnabled(false);
     }
-  }, [waitingInfo]);
-
-  useEffect(() => {
-    if (isWaitingTimeEnabled) {
-      handleWaitingTimeChange({
-        target: { value: localWaitingTime.toString() },
-      } as React.ChangeEvent<HTMLInputElement>);
-    }
-  }, [localWaitingTime, handleWaitingTimeChange, isWaitingTimeEnabled]);
+  }, [waitingInfo, waitingTimeMinutes]);
 
   const handleIncrementWaitingTime = useCallback(() => {
     if (isWaitingTimeEnabled) {
-      setLocalWaitingTime((prev) => Math.min(prev + 5, 60));
+      const newTime = Math.min(localWaitingTime + 5, 60);
+      setLocalWaitingTime(newTime);
+      handleWaitingTimeChange({
+        target: { value: newTime.toString() },
+      } as React.ChangeEvent<HTMLInputElement>);
     }
-  }, [isWaitingTimeEnabled]);
+  }, [isWaitingTimeEnabled, localWaitingTime, handleWaitingTimeChange]);
 
   const handleDecrementWaitingTime = useCallback(() => {
     if (isWaitingTimeEnabled && waitingInfo) {
-      setLocalWaitingTime((prev) => Math.max(prev - 5, waitingInfo.freeWaitTime));
+      const newTime = Math.max(localWaitingTime - 5, waitingInfo.freeWaitTime);
+      setLocalWaitingTime(newTime);
+      handleWaitingTimeChange({
+        target: { value: newTime.toString() },
+      } as React.ChangeEvent<HTMLInputElement>);
     }
-  }, [isWaitingTimeEnabled, waitingInfo]);
+  }, [isWaitingTimeEnabled, waitingInfo, localWaitingTime, handleWaitingTimeChange]);
 
   const handleClientChange = (option: SelectOption<string> | null) => {
     const selectedUuid = option?.value || '';
@@ -394,16 +394,34 @@ const ClientWidget: React.FC<ClientWidgetProps> = ({
 
         {/*Right side: Intermediate Points and Description */}
         <div className="w-1/2 flex flex-col gap-4">
-          <div className={'flex flex-row items-center gap-2'}>
-            <label className={'w-1/2 block text-5 leading-5 font-bold'}>Тип клиента</label>
+          <div className={'grid grid-cols-[1fr_2fr] items-center gap-2'}>
+            <p>Тип клиента</p>
             <TextInput
               readOnly={true}
               value={selectedClient ? selectedClient.role : 'Не выбран'}
               className={'text-4 leading-4 h-full'}
-              classNameBorderRadius={'border-none rounded-md'}
               classNamePlaceholder={'text-4 leading-4'}
               onChange={() => {}}
             />
+          </div>
+          <div className={'grid grid-cols-[1fr_2fr] items-center gap-2'}>
+            <p>Номер рейса</p>
+            <Controller
+              name="flightNumber"
+              control={control}
+              render={({ field }) => (
+                <TextInput
+                  placeholder="Enter flight number"
+                  value={field.value || ''}
+                  onChange={field.onChange}
+                  className={'text-4 leading-4 h-full'}
+                  classNamePlaceholder={'text-5 leading-5'}
+                />
+              )}
+            />
+            {formState.errors.flightNumber && (
+              <span className="text-red-500">{formState.errors.flightNumber.message}</span>
+            )}
           </div>
           <div className={'flex flex-col'}>
             <label className="block mb-2 text-5 leading-5 font-bold">Description:</label>
@@ -429,7 +447,7 @@ const ClientWidget: React.FC<ClientWidgetProps> = ({
               {intermediatePointsLabel}
             </button>
             {isIntermediatePointsOpen && (
-              <div className="p-2 border rounded-md">
+              <div>
                 <Controller
                   name="intermediatePoints"
                   control={control}

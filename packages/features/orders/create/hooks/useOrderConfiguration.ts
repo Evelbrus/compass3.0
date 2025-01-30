@@ -92,7 +92,7 @@ export const useOrderConfiguration = ({
         const newPrice = calculateTotalPrice({
           selectedTariff: defaultTariff,
           selectedAdditionalServices,
-          intermediatePoints: watch().intermediatePoints || [],
+          intermediatePoints: (watch().intermediatePoints || []).filter((p) => !!p), //Фильтрация пустых значений
           arrivalPointUuid: watch().arrivalPoint,
           points,
           waitingTimeMinutes,
@@ -122,7 +122,7 @@ export const useOrderConfiguration = ({
       const newPrice = calculateTotalPrice({
         selectedTariff,
         selectedAdditionalServices,
-        intermediatePoints: watch().intermediatePoints || [],
+        intermediatePoints: (watch().intermediatePoints || []).filter((p) => !!p), //Фильтрация пустых значений
         arrivalPointUuid: watch().arrivalPoint,
         points,
         waitingTimeMinutes,
@@ -152,7 +152,7 @@ export const useOrderConfiguration = ({
         const newPrice = calculateTotalPrice({
           selectedTariff,
           selectedAdditionalServices: newServices,
-          intermediatePoints: watch().intermediatePoints || [],
+          intermediatePoints: (watch().intermediatePoints || []).filter((p) => !!p), //Фильтрация пустых значений
           arrivalPointUuid: watch().arrivalPoint,
           points,
           waitingTimeMinutes,
@@ -171,7 +171,7 @@ export const useOrderConfiguration = ({
         const newPrice = calculateTotalPrice({
           selectedTariff,
           selectedAdditionalServices,
-          intermediatePoints: watch().intermediatePoints || [],
+          intermediatePoints: (watch().intermediatePoints || []).filter((p) => !!p), //Фильтрация пустых значений
           arrivalPointUuid: watch().arrivalPoint,
           points,
           waitingTimeMinutes: newWaitingTime,

@@ -130,25 +130,6 @@ const OrderStartEndSelector: React.FC<OrderStartEndSelectorProps> = ({
           <span className="text-red-500">{formState.errors.departureTime.message}</span>
         )}
       </div>
-      <div className="w-1/5 flex flex-col">
-        <label className="block mb-2 text-5 leading-5 font-bold">Номер рейса</label>
-        <Controller
-          name="flightNumber"
-          control={control}
-          render={({ field }) => (
-            <TextInput
-              placeholder="Enter flight number"
-              value={field.value || ''}
-              onChange={field.onChange}
-              className={'text-4 leading-4 h-full'}
-              classNamePlaceholder={'text-5 leading-5'}
-            />
-          )}
-        />
-        {formState.errors.flightNumber && (
-          <span className="text-red-500">{formState.errors.flightNumber.message}</span>
-        )}
-      </div>
     </div>
   );
 };
