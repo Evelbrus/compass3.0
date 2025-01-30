@@ -103,7 +103,7 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({
             classNameTagUl="min-w-[250px] max-w-[250px] top-14 text-start border-2 border-gray-500"
             onChange={handleCountryChange}
             disabled={disabled}
-            readOnly={readOnly} // Добавлено readOnly
+            readOnly={readOnly}
           />
         </div>
 

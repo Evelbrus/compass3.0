@@ -10,8 +10,14 @@ const fetchData = async (url: string) => {
   }
 };
 
-export const fetchClients = async () => {
-  const url = '/api/users?role=Client&role=ClientCorp';
+export const fetchClients = async (searchQuery?: string) => {
+  //Обновлено
+  const params = new URLSearchParams();
+  ['Client', 'ClientCorp'].forEach((role) => params.append('role', role));
+  if (searchQuery) {
+    params.append('search', searchQuery);
+  }
+  const url = `/api/users?${params.toString()}`;
   const data = await fetchData(url);
   return data.data.users || [];
 };
@@ -22,14 +28,30 @@ export const fetchPoints = async () => {
   return data.data.points || [];
 };
 
-export const fetchDrivers = async (serviceLevel?: string, vehicleType?: string) => {
+export const fetchAdditionalServices = async () => {
+  const url = '/api/additional-services?page=1&per_page=100';
+  const data = await fetchData(url);
+  return data.data.additionalServices || [];
+};
+
+export const fetchDrivers = async (
+  serviceLevel?: string,
+  vehicleType?: string,
+  search?: string,
+  page?: number,
+  perPage?: number,
+) => {
   const params = new URLSearchParams();
+
   if (serviceLevel) params.append('serviceLevel', serviceLevel);
   if (vehicleType) params.append('vehicleType', vehicleType);
+  if (search) params.append('search', search);
+  if (page) params.append('page', page.toString());
+  if (perPage) params.append('per_page', perPage.toString());
 
   const url = `/api/orders/drivers?${params.toString()}`;
   const data = await fetchData(url);
-  return data.data.drivers || [];
+  return data.data || [];
 };
 
 export const fetchTariffs = async (serviceLevel?: string, vehicleType?: string) => {

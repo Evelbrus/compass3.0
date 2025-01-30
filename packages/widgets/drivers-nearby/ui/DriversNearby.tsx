@@ -1,155 +1,153 @@
-// 'use client';
-//
-// import React, { useEffect, useState } from 'react';
-// import { TextInput } from '@shared/components/ui/inputs';
-// import useDebounce from '@shared/utils/hooks/useDebounce';
-// import { LazyImage } from '@shared/components/ui/images';
-// import Pagination from '@shared/components/ui/pagination/Pagination';
-// import AnimatedComponent from '@shared/components/animated/CommonAnimated/AnimatedComponent';
-//
-// type DriversNearbyProps = {
-//   data: GetDriversRow[];
-//   vehicleTypes: string[];
-// };
-//
-// const DriversNearby: React.FC<DriversNearbyProps> = ({ data, vehicleTypes }) => {
-//   const [search, setSearch] = useState('');
-//   const debouncedSearch = useDebounce(search, 500);
-//   const [searchResult, setSearchResult] = useState<GetDriversRow[]>(data);
-//   const [pageNumber, setPageNumber] = useState<number>(1);
-//   const pageSize = 4;
-//   const [isAnimating, setIsAnimating] = useState(false);
-//   const [displayDrivers, setDisplayDrivers] = useState<GetDriversRow[]>([]);
-//   const animationDuration = 300;
-//
-//   //Фильтрация водителей по поиску и типам автомобилей
-//   const filteredDrivers = (searchQuery: string, dataSet: GetDriversRow[]) => {
-//     let filteredData = dataSet;
-//
-//     //Фильтруем по типу автомобиля
-//     if (vehicleTypes.length > 0) {
-//       filteredData = filteredData.filter((driver) =>
-//         driver.vehicleDriver?.some((type) => vehicleTypes.includes(type)),
-//       );
-//     }
-//
-//     //Фильтруем по поисковому запросу
-//     if (searchQuery.trim() !== '') {
-//       filteredData = filteredData.filter((driver) => {
-//         const fullName = driver.fullName?.toLowerCase() || '';
-//         const phone = driver.phone?.toLowerCase() || '';
-//         const query = searchQuery.toLowerCase();
-//         return fullName.includes(query) || phone.includes(query);
-//       });
-//     }
-//
-//     return filteredData;
-//   };
-//
-//   useEffect(() => {
-//     setIsAnimating(true);
-//     const timer = setTimeout(() => {
-//       const filtered = filteredDrivers(debouncedSearch, data);
-//       setSearchResult(filtered);
-//       setPageNumber(1);
-//       setTimeout(() => {
-//         const newCurrentDrivers = filtered.slice(0, pageSize);
-//         setDisplayDrivers(newCurrentDrivers);
-//         setIsAnimating(false);
-//       }, animationDuration);
-//     }, animationDuration);
-//     return () => clearTimeout(timer);
-//   }, [debouncedSearch, data]);
-//
-//   useEffect(() => {
-//     setIsAnimating(true);
-//     const timer = setTimeout(() => {
-//       const newCurrentDrivers = searchResult.slice(
-//         (pageNumber - 1) * pageSize,
-//         pageNumber * pageSize,
-//       );
-//       setDisplayDrivers(newCurrentDrivers);
-//       setIsAnimating(false);
-//     }, animationDuration);
-//     return () => clearTimeout(timer);
-//   }, [pageNumber, searchResult]);
-//
-//   const totalCount = searchResult.length;
-//   const totalPages = Math.ceil(totalCount / pageSize);
-//
-//   return (
-//     <div className="w-full h-full flex flex-col justify-between gap-4 min-h-[516px]">
-//       <div className="w-full flex flex-col gap-4">
-//         <h1 className="text-2xl font-extrabold leading-4">Водители поблизости</h1>
-//         <div className="w-full flex flex-col">
-//           <TextInput
-//             value={search}
-//             onChange={(value: string) => setSearch(value)}
-//             className="rounded-lg p-4 border-1 border-gray-200 shadow-sm"
-//             disabled={false}
-//             placeholder="Поиск по ФИО или телефону"
-//           />
-//         </div>
-//
-//         {displayDrivers.length > 0 ? (
-//           <AnimatedComponent
-//             visible={!isAnimating}
-//             duration={animationDuration}
-//             className="w-full bg-white rounded-lg"
-//           >
-//             <ul className="w-full bg-white rounded-lg">
-//               {displayDrivers.map((driver) => (
-//                 <li
-//                   key={driver.uuid}
-//                   className="relative p-4 border flex items-center justify-between gap-4"
-//                 >
-//                   <span className="absolute top-1 inset-0 flex justify-center text-[12px] font-medium leading-3">
-//                     {driver.driverProfile?.status ? 'Онлайн' : 'Оффлайн'}
-//                   </span>
-//                   <div className="flex flex-row gap-4">
-//                     <div className="relative">
-//                       <LazyImage
-//                         src={
-//                           driver.driverProfile?.profilePhotoPath
-//                             ? driver.driverProfile.profilePhotoPath
-//                             : '/assets/default-user.png'
-//                         }
-//                         alt={driver.fullName || ''}
-//                         className="w-[52px] h-[52px] rounded-full object-cover"
-//                       />
-//                       <span
-//                         className={`absolute top-0 left-0 w-4 h-4 rounded-full border-2 border-white ${
-//                           driver.driverProfile?.status ? 'bg-green-500' : 'bg-red-500'
-//                         }`}
-//                       ></span>
-//                     </div>
-//                     <div className="flex flex-col items-start justify-center">
-//                       <p className="text-[20px] font-light text-black">{driver.fullName}</p>
-//                       <p className="font-medium text-[16px] leading-4 text-gray-500">
-//                         + {driver.phone}
-//                       </p>
-//                     </div>
-//                   </div>
-//                 </li>
-//               ))}
-//             </ul>
-//           </AnimatedComponent>
-//         ) : (
-//           debouncedSearch.trim() !== '' && (
-//             <div className="mt-4">
-//               <p>Водители не найдены по вашему запросу.</p>
-//             </div>
-//           )
-//         )}
-//       </div>
-//       <Pagination
-//         pageNumber={pageNumber}
-//         pageSize={pageSize}
-//         totalCount={totalCount}
-//         setPageNumber={setPageNumber}
-//       />
-//     </div>
-//   );
-// };
-//
-// export default DriversNearby;
+'use client';
+
+import React, { useCallback } from 'react';
+import NoData from '@shared/components/errors/noData';
+import AnimatedComponent from '@shared/components/animated/CommonAnimated/AnimatedComponent';
+import Pagination from '@shared/components/ui/pagination/Pagination';
+import { TextInput } from '@shared/components/ui/inputs';
+import { LazyImage } from '@shared/components/ui/images';
+import { isDriverOnline } from '@widgets/drivers-nearby/fucntions/isDriverOnline';
+import { User } from '@prisma/client';
+import { useFormContext } from 'react-hook-form';
+
+interface DriversNearbyProps {
+  drivers: User[] | null;
+  page: number;
+  perPage: number;
+  total: number;
+  isDriversLoading: boolean;
+  searchDriver: string;
+  handleDriverClick: (driverId: string) => void;
+  setSearchDriver: (value: string) => void;
+  setPage: (newPage: number) => void;
+  selectedDriverInfo: {
+    uuid: string;
+    fullName: string;
+  } | null;
+}
+
+const DriversNearby: React.FC<DriversNearbyProps> = ({
+  drivers,
+  page,
+  perPage,
+  total,
+  isDriversLoading,
+  searchDriver,
+  handleDriverClick,
+  setSearchDriver,
+  setPage,
+  selectedDriverInfo,
+}) => {
+  const { watch, setValue } = useFormContext();
+  const formData = watch();
+
+  const handleSearchChange = useCallback(
+    (value: string) => {
+      setSearchDriver(value);
+    },
+    [setSearchDriver],
+  );
+
+  const handlePageChange = useCallback(
+    (newPage: number) => {
+      setPage(newPage);
+    },
+    [setPage],
+  );
+
+  const handleDriverRowClick = useCallback(
+    (driverId: string) => {
+      if (formData.assignedDriverId === driverId) {
+        setValue('assignedDriverId', undefined);
+      } else {
+        setValue('assignedDriverId', driverId);
+      }
+      handleDriverClick(driverId);
+    },
+    [setValue, handleDriverClick, formData.assignedDriverId],
+  );
+
+  return (
+    <>
+      <div className="w-full h-full flex flex-col gap-4">
+        <h1 className="text-2xl font-extrabold leading-9">Водители поблизости</h1>
+        <TextInput
+          classNamePadding="text-5 font-light leading-5 p-5 rounded-3xl shadow-3xl"
+          placeholder="Поиск по ФИО"
+          value={searchDriver}
+          onChange={handleSearchChange}
+        />
+        <AnimatedComponent className="w-full h-full bg-transparent rounded-lg">
+          {isDriversLoading ? null : !drivers || drivers.length === 0 ? (
+            <NoData message="Нет доступных водителей" />
+          ) : (
+            <div className="w-full overflow-x-auto">
+              <table className="w-full border-collapse border border-[#0000001A] rounded-lg ">
+                <tbody>
+                  {drivers.map((driver) => {
+                    const isSelected = formData.assignedDriverId === driver.uuid;
+                    const isOnline = isDriverOnline(driver.lastActive);
+                    return (
+                      <tr
+                        key={driver.uuid}
+                        className={`relative flex p-4 gap-4 cursor-pointer border-b border-[#0000001A] hover:bg-[#00000005] last:border-b-0 w-full ${
+                          isSelected ? 'bg-[#00ff0010] hover:bg-[#00ff0020]' : ''
+                        }`}
+                        onClick={() => {
+                          handleDriverRowClick(driver.uuid);
+                        }}
+                      >
+                        <td className="flex justify-center">
+                          <div className="relative w-[50px] h-[50px]">
+                            <LazyImage
+                              src={driver.profilePhotoPath || '/icons/user-driver.svg'}
+                              alt="Driver Avatar"
+                              className="w-[50px] h-[50px] rounded-full object-cover bg-white border"
+                            />
+                            <div
+                              className={`absolute top-0 left-0 w-4 h-4 rounded-full border-2 ${
+                                isOnline ? 'bg-green-500' : 'bg-red-500'
+                              }`}
+                            />
+                          </div>
+                        </td>
+                        <td className="flex flex-col items-center justify-center">
+                          <div className="flex flex-col items-start gap-1">
+                            <span
+                              className={`absolute top-1 left-1/2 text-3 leading-3 font-medium self-start ${
+                                isOnline ? 'text-green-500' : 'text-red-500'
+                              }`}
+                            >
+                              {isOnline ? 'Онлайн' : 'Офлайн'}
+                            </span>
+                            <p className="text-5 leading-5 font-medium">{driver.fullName}</p>
+                            <p className="text-4 leading-4 font-light">{driver.phone}</p>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </AnimatedComponent>
+      </div>
+      {selectedDriverInfo && (
+        <h2 className="text-5 leading-4 font-semibold">
+          Выбран водитель: {selectedDriverInfo.fullName}
+        </h2>
+      )}
+      {total > 0 && total > perPage && (
+        <Pagination
+          pageNumber={page}
+          pageSize={perPage}
+          totalCount={total}
+          setPageNumber={handlePageChange}
+        />
+      )}
+    </>
+  );
+};
+
+export default DriversNearby;

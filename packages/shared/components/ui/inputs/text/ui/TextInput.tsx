@@ -1,5 +1,3 @@
-'use client';
-
 import React, { useRef } from 'react';
 import { TextInputProps } from '@shared/components/ui/inputs/text/types/types';
 import { cn } from '@shared/lib';
@@ -17,9 +15,11 @@ export const TextInput: React.FC<TextInputProps> = ({
   error = false,
   errorBorder = false,
   className = '',
+  classNameBg = 'bg-white',
   classNameLabel = 'block text-4 font-medium text-gray-500 mb-2',
-  classNamePlaceholder = 'focus:bg-gray-100 text-4 text-[#2A3037] font-extrabold',
+  classNamePlaceholder = 'text-4 text-[#2A3037] font-extrabold',
   classNameBorderRadius = 'rounded-md border border-gray-300',
+  classNamePadding = 'px-3 py-[9px] h-full',
   gap = '',
   message = 'Ошибка: Выберите корректное значение.',
   minLength,
@@ -30,13 +30,16 @@ export const TextInput: React.FC<TextInputProps> = ({
 
   const sharedClasses = cn(
     'w-full',
-    'bg-white px-3 py-2',
+    classNamePadding,
+    classNameBg,
     classNameBorderRadius,
     classNamePlaceholder,
     errorBorder && 'border-red-500',
     error && 'border-red-500',
     disabled ? 'cursor-not-allowed' : readOnly && 'cursor-default',
   );
+
+  const textareaClasses = cn(sharedClasses, type === 'textarea' && 'resize-none');
 
   return (
     <div className={`relative ${cn(className, gap)}`}>
@@ -54,7 +57,7 @@ export const TextInput: React.FC<TextInputProps> = ({
           disabled={disabled}
           readOnly={readOnly}
           placeholder={placeholder}
-          className={sharedClasses}
+          className={textareaClasses}
           minLength={minLength}
           maxLength={maxLength}
           onKeyDown={onKeyDown}

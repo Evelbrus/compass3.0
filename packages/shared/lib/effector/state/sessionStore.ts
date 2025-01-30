@@ -41,18 +41,10 @@ const scheduleTokenRefresh = (type: TokenType, expiresIn: number) => {
 
 //Обработка истечения refresh-токена
 export const handleRefreshTokenExpiration = async () => {
-  try {
-    const response = await fetch('/api/auth/logout', {
-      method: 'POST',
-    });
+  await fetch('/api/auth/logout', {
+    method: 'POST',
+  });
 
-    if (!response.ok) {
-      console.error('[ОШИБКА] Не удалось выполнить logout');
-    } else {
-    }
-  } catch (error) {
-    console.error('[ОШИБКА] Ошибка при вызове logout:', error);
-  }
   resetRefreshToken();
   resetAccessToken();
 };
@@ -80,10 +72,6 @@ export const refreshAccessTokenFx = createEffect<string | void, boolean, Error>(
     }
 
     const data = await response.json();
-    console.log('[ОТВЕТ] Получены новые токены:', {
-      accessToken: !!data.accessToken,
-      refreshToken: !!data.refreshToken,
-    });
 
     if (data.accessToken) {
       setAccessToken(data.accessToken);
@@ -100,7 +88,6 @@ export const refreshAccessTokenFx = createEffect<string | void, boolean, Error>(
     }
     return true;
   } catch (error) {
-    console.error('[КРИТИЧЕСКАЯ ОШИБКА] Процедура обновления токенов:', error);
     return false;
   }
 });
@@ -109,7 +96,6 @@ export const refreshAccessTokenFx = createEffect<string | void, boolean, Error>(
 const handleAccessToken = (token: string) => {
   const decoded = parseJwt(token);
   if (!decoded?.exp) {
-    console.error('[ВНИМАНИЕ] Access токен не содержит даты экспирации');
     refreshAccessTokenFx();
     return;
   }
@@ -126,7 +112,6 @@ const handleAccessToken = (token: string) => {
 const handleRefreshToken = (token: string) => {
   const decoded = parseJwt(token);
   if (!decoded?.exp) {
-    console.error('[ВНИМАНИЕ] Refresh токен не содержит даты экспирации');
     handleRefreshTokenExpiration();
     return;
   }

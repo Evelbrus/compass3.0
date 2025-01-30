@@ -12,7 +12,7 @@ export const DateInput: React.FC<DateInputProps & { showTime?: boolean }> = ({
   placeholder = 'Выберите дату',
   className = '',
   classNameLabel = 'block text-4 font-medium text-gray-500 mb-2',
-  classNameInput = 'font-extrabold w-full bg-white px-3 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring focus:ring-blue-200',
+  classNameInput = 'w-full h-full rounded-md border border-gray-300 focus:outline-none cursor-pointer',
   lang = 'ru-RU',
   errorBorder = false,
   showTime = false,
@@ -20,14 +20,32 @@ export const DateInput: React.FC<DateInputProps & { showTime?: boolean }> = ({
   message = '',
   required = false,
   requiredStar = false,
+  disabled = false,
+  readOnly = false,
   maxDate,
+  classNameBg = 'bg-white',
+  classNamePlaceholder = 'focus:bg-gray-100 text-4 text-[#2A3037] font-extrabold',
+  classNameBorderRadius = 'rounded-md border border-gray-300',
+  classNamePadding = 'px-3 py-[9px]',
+  gap = '',
 }) => {
   const languageCode = getLanguageCode(lang);
   const locale = languageCode === 'ru' ? ru : enUS;
   registerLocale(languageCode, locale);
 
+  const sharedClasses = cn(
+    'w-full',
+    classNamePadding,
+    classNameBg,
+    classNameBorderRadius,
+    classNamePlaceholder,
+    errorBorder && 'border-red-500',
+    error && 'border-red-500',
+    disabled ? 'cursor-not-allowed' : readOnly && 'cursor-default',
+  );
+
   return (
-    <div className={`relative ${cn(className)} ${errorBorder ? 'border-2 border-red-400' : ''}`}>
+    <div className={`relative ${cn(className, gap)}`}>
       {label && (
         <label
           className={`${classNameLabel}`}
@@ -41,8 +59,10 @@ export const DateInput: React.FC<DateInputProps & { showTime?: boolean }> = ({
         id={`date-input-${label ? label.replace(/\s+/g, '-').toLowerCase() : 'date-input'}`}
         selected={selectedDate}
         onChange={(date) => onChange(date || null)}
+        disabled={disabled}
+        readOnly={readOnly}
         placeholderText={placeholder}
-        className={`${classNameInput} ${error ? 'border-red-500' : ''}`}
+        className={`${classNameInput} ${sharedClasses} ${error ? 'border-red-500' : ''}`}
         dateFormat={showTime ? 'yyyy-MM-dd HH:mm' : 'yyyy-MM-dd'}
         locale={languageCode}
         showTimeSelect={showTime}

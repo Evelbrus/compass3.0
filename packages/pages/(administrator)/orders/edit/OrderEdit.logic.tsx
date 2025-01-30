@@ -1,14 +1,15 @@
 import React from 'react';
 import { useState, useEffect, FormEvent, useCallback } from 'react';
+
+import { Point, ServiceLevels, User, VehicleType } from '@prisma/client';
+import { CreateOrderData, ExtendedTariff } from '@shared/prisma/interface/orders/interface';
+import { useSocket } from '@shared/utils/hooks/useSocket';
 import {
   fetchClients,
   fetchDrivers,
   fetchPoints,
   fetchTariffs,
-} from '@pages/(administrator)/orders/create/orderApi';
-import { Point, ServiceLevels, User, VehicleType } from '@prisma/client';
-import { CreateOrderData, ExtendedTariff } from '@shared/prisma/interface/orders/interface';
-import { useSocket } from '@shared/utils/hooks/useSocket';
+} from '@features/orders/create/api/orderApi';
 
 const initialFormData: Partial<CreateOrderData> = {
   intermediatePoints: [],

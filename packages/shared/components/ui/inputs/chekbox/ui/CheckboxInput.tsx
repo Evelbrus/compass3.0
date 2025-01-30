@@ -1,6 +1,18 @@
 import React from 'react';
 import styles from './CheckboxInput.module.css';
-import { CheckboxInputProps } from '@shared/components/ui/inputs/chekbox';
+
+interface CheckboxInputProps {
+  label: string;
+  checked: boolean;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  required?: boolean;
+  requiredStar?: boolean;
+  error?: boolean;
+  message?: string;
+  className?: string;
+  position?: 'left' | 'right';
+  disabled?: boolean; //Added disabled prop
+}
 
 export const CheckboxInput: React.FC<CheckboxInputProps> = ({
   label,
@@ -12,11 +24,14 @@ export const CheckboxInput: React.FC<CheckboxInputProps> = ({
   message = 'Ошибка: Выберите корректное значение.',
   className = '',
   position = 'left',
+  disabled = false, //Default to false
 }) => (
   <label
     className={`${styles.checkboxInput} ${className} ${
       error ? styles.checkboxError : ''
-    } ${position === 'right' ? styles.checkboxRight : ''}`}
+    } ${position === 'right' ? styles.checkboxRight : ''} ${
+      disabled ? styles.checkboxDisabled : '' //Add disabled style
+    }`}
   >
     {position === 'right' && (
       <div className={styles.checkboxContent}>
@@ -31,6 +46,7 @@ export const CheckboxInput: React.FC<CheckboxInputProps> = ({
       onChange={onChange}
       required={required}
       className={styles.checkboxHidden}
+      disabled={disabled} //Apply disabled prop to input
     />
     <div className={styles.customCheckbox}>
       {checked && <span className={styles.checkboxTick}></span>}

@@ -1,3 +1,4 @@
+//components/SelectSingle.tsx
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
@@ -14,10 +15,12 @@ export const SelectSingle = <T extends string | number>({
   disabled = false,
   readOnly = false,
   className = '',
+  classNameBg = 'bg-white',
+  classNamePadding = 'px-3 py-[9px]',
   classNameLabel = 'block text-4 font-medium text-[#2A3037] mb-2',
   classNamePlaceholder = 'text-4 text-[#2A3037] font-extrabold',
-  classNameBorderRadius = 'focus:bg-gray-100 rounded-md border',
-  classNameTagUl = 'bg-gray-50 border-2 border-black',
+  classNameBorderRadius = 'rounded-md border border-gray-300',
+  classNameTagUl = 'bg-gray-50 border-2 border-gray-200',
   classNameTagLi = 'hover:bg-gray-200',
   phoneSelect = '',
   placeholder = 'Выберите опцию',
@@ -30,6 +33,7 @@ export const SelectSingle = <T extends string | number>({
   requiredStar = false,
   isLoading = false,
   message = 'Ошибка: Выберите корректное значение.',
+  onInputChange,
 }: SelectSingleProps<T>) => {
   const selectSingleRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -132,7 +136,9 @@ export const SelectSingle = <T extends string | number>({
       <button
         type="button"
         disabled={disabled || isLoading}
-        className={`w-full bg-white px-3 py-2 flex justify-between items-center
+        className={`w-full flex justify-between items-center
+        ${classNamePadding}
+        ${classNameBg}
         ${phoneSelect} 
         ${classNameBorderRadius} 
         ${
@@ -162,7 +168,7 @@ export const SelectSingle = <T extends string | number>({
       {open && (
         <div
           ref={dropdownRef}
-          className={`absolute bg-white rounded-3xl shadow-lg flex flex-col z-50 w-full max-h-60 overflow-hidden ${classNameTagUl} ${
+          className={`absolute bg-white rounded-3xl flex flex-col z-50 w-full max-h-60 overflow-hidden ${classNameTagUl} ${
             dropdownDirection === 'up' ? 'bottom-full mb-2' : 'top-full mt-2'
           }`}
           role="listbox"
@@ -172,7 +178,12 @@ export const SelectSingle = <T extends string | number>({
               <input
                 type="text"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  if (onInputChange) {
+                    onInputChange(e);
+                  }
+                }}
                 placeholder="Поиск..."
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 aria-label="Поиск опций"

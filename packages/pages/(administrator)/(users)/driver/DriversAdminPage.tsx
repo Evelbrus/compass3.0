@@ -147,7 +147,6 @@ const DriversAdminPage = (): JSX.Element => {
               sortBy={sortBy}
               sortDirection={sortOrder}
               onSort={handleSort}
-              enableStatusFilter={false}
             />
           </AnimatedComponent>
         ) : view === 'error' ? (

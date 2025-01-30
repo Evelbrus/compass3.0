@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { OrderStatus } from '@prisma/client';
+import { Gender, OrderStatus, UserRole } from '@prisma/client';
 import debug from 'debug';
 import { CreateOrderData } from '@shared/prisma/interface/orders/interface';
 import { v4 as uuidv4 } from 'uuid';
@@ -142,6 +142,11 @@ export async function POST(req: Request) {
     basePrice,
     selectedServices,
     assignedDriverId,
+    description,
+    flightNumber,
+    waitingTimeMinutes,
+    fullName,
+    phone,
   } = data;
 
   const orderStatus = assignedDriverId ? OrderStatus.PLANNED : OrderStatus.PENDING;
@@ -150,15 +155,33 @@ export async function POST(req: Request) {
     const result = await prisma.$transaction(async (prismaTx) => {
       log('Starting transaction');
 
-      //1. Проверка существования клиента
-      const client = await prismaTx.user.findUnique({
-        where: { uuid: createdBy },
-      });
-      if (!client) {
-        log(`Client with UUID ${createdBy} not found`);
-        throw new Error('Client not found');
+      let clientUuid = createdBy;
+      //1. Проверка существования клиента или создание нового
+      if (fullName && phone) {
+        log('Creating new temporary user');
+        const newUser = await prismaTx.user.create({
+          data: {
+            fullName,
+            phone,
+            role: UserRole.None,
+            email: `${Date.now()}@temp.com`,
+            password: 'temp_password',
+            gender: Gender.None,
+          },
+        });
+        clientUuid = newUser.uuid;
+        log('New temporary user created:', newUser);
+      } else {
+        //1.1 Проверка существования клиента
+        const client = await prismaTx.user.findUnique({
+          where: { uuid: createdBy },
+        });
+        if (!client) {
+          log(`Client with UUID ${createdBy} not found`);
+          throw new Error('Client not found');
+        }
+        log('Client found:', client);
       }
-      log('Client found:', client);
 
       //2. Проверка существования тарифа
       const tariffRecord = await prismaTx.tariff.findUnique({
@@ -206,7 +229,7 @@ export async function POST(req: Request) {
       const order = await prismaTx.order.create({
         data: {
           uuid: uuidv4(),
-          createdById: createdBy,
+          createdById: clientUuid,
           tariffUuid,
           departureTime: new Date(departureTime!),
           departurePointId: departurePoint,
@@ -215,6 +238,9 @@ export async function POST(req: Request) {
           status: orderStatus,
           assignedDriverId: assignedDriverId || null,
           intermediatePoints: (intermediatePoints || []).filter(Boolean),
+          description: description || null,
+          flightNumber: flightNumber || null,
+          waitingTimeMinutes: waitingTimeMinutes,
         },
       });
       log('Order created:', order);

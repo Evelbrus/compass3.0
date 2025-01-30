@@ -14,4 +14,11 @@ export interface DateInputProps {
   required?: boolean;
   requiredStar?: boolean;
   maxDate?: Date;
+  disabled?: boolean;
+  readOnly?: boolean;
+  classNameBg?: string;
+  classNamePlaceholder?: string;
+  classNameBorderRadius?: string;
+  classNamePadding?: string;
+  gap?: string;
 }

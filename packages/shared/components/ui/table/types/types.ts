@@ -62,3 +62,13 @@ export interface TableDriversRow {
   updatedAt: Date;
   actions: React.ReactNode;
 }
+
+export interface TableDriversNearby {
+  number: number;
+  additionalInfo: { phone: string | null; fullName: string | null } | null;
+  lastActive: Date;
+  profilePhotoPath: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  actions: React.ReactNode;
+}
