@@ -19,6 +19,7 @@ import {
   serviceLevelOptions,
 } from '@shared/lib/effector/vehicles/optionsTranslation/optionsTranslationVehicle';
 import { showToast } from '@shared/components/toast/ToastManager';
+import { IButton } from '@shared/components/ui/buttons';
 
 interface FormData extends Omit<EditVehicleData, 'serviceLevels' | 'driverIds' | 'year'> {
   serviceLevels: ServiceLevels | undefined;
@@ -114,15 +115,14 @@ const VehiclesEdit: React.FC<VehiclesEditProps> = ({ data }) => {
         >
           {/*Vehicle Type */}
           <div className="form-group">
-            <label className="mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]">
-              Vehicle Type
-            </label>
             <Controller
               name="vehicleType"
               control={control}
               rules={{ required: 'Vehicle type is required' }}
               render={({ field }) => (
                 <SelectSingle
+                  label="Vehicle Type"
+                  classNameLabel="mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]"
                   {...field}
                   options={vehicleTypeOptions}
                   value={vehicleTypeOptions.find((option) => option.value === field.value) || null}
@@ -135,35 +135,40 @@ const VehiclesEdit: React.FC<VehiclesEditProps> = ({ data }) => {
 
           {/*Brand */}
           <div className="form-group">
-            <label className="mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]">
-              Brand
-            </label>
             <Controller
               name="brand"
               control={control}
               rules={{ required: 'Brand is required' }}
-              render={({ field }) => <TextInput {...field} placeholder="Enter brand" />}
+              render={({ field }) => (
+                <TextInput
+                  {...field}
+                  placeholder="Enter brand"
+                  label="Brand"
+                  classNameLabel="mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]"
+                />
+              )}
             />
           </div>
 
           {/*Model */}
           <div className="form-group">
-            <label className="mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]">
-              Model
-            </label>
             <Controller
               name="model"
               control={control}
               rules={{ required: 'Model is required' }}
-              render={({ field }) => <TextInput {...field} placeholder="Enter model" />}
+              render={({ field }) => (
+                <TextInput
+                  {...field}
+                  placeholder="Enter model"
+                  label="Model"
+                  classNameLabel="mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]"
+                />
+              )}
             />
           </div>
 
           {/*Year */}
           <div className="form-group">
-            <label className="mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]">
-              Year
-            </label>
             <Controller
               name="year"
               control={control}
@@ -173,6 +178,8 @@ const VehiclesEdit: React.FC<VehiclesEditProps> = ({ data }) => {
                   selectedDate={field.value}
                   onChange={(date) => field.onChange(date)}
                   placeholder="Select year"
+                  label="Year"
+                  classNameLabel="mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]"
                 />
               )}
             />
@@ -180,9 +187,6 @@ const VehiclesEdit: React.FC<VehiclesEditProps> = ({ data }) => {
 
           {/*Color */}
           <div className="form-group">
-            <label className="mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]">
-              Color
-            </label>
             <Controller
               name="color"
               control={control}
@@ -194,6 +198,8 @@ const VehiclesEdit: React.FC<VehiclesEditProps> = ({ data }) => {
                   value={colorOptions.find((option) => option.value === field.value) || null}
                   onChange={(selectedOption) => field.onChange(selectedOption?.value)}
                   placeholder="Select color"
+                  label="Color"
+                  classNameLabel="mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]"
                 />
               )}
             />
@@ -201,14 +207,18 @@ const VehiclesEdit: React.FC<VehiclesEditProps> = ({ data }) => {
 
           {/*Plate Number */}
           <div className="form-group">
-            <label className="mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]">
-              Plate Number
-            </label>
             <Controller
               name="plateNumber"
               control={control}
               rules={{ required: 'Plate number is required' }}
-              render={({ field }) => <TextInput {...field} placeholder="Enter plate number" />}
+              render={({ field }) => (
+                <TextInput
+                  {...field}
+                  placeholder="Enter plate number"
+                  label="Plate Number"
+                  classNameLabel="mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]"
+                />
+              )}
             />
           </div>
 
@@ -233,15 +243,14 @@ const VehiclesEdit: React.FC<VehiclesEditProps> = ({ data }) => {
 
           {/*Drivers */}
           <div className="form-group">
-            <label className="mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]">
-              Assign Drivers
-            </label>
             <Controller
               name="driverIds"
               control={control}
               render={({ field }) =>
                 drivers ? (
                   <SelectMultiple
+                    label="Assign Drivers"
+                    classNameLabel="mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]"
                     {...field}
                     options={drivers.map((driver) => ({
                       value: driver.uuid,
@@ -267,15 +276,14 @@ const VehiclesEdit: React.FC<VehiclesEditProps> = ({ data }) => {
 
           {/*Service Level */}
           <div className="form-group">
-            <label className="mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]">
-              Service Level
-            </label>
             <Controller
               name="serviceLevels"
               control={control}
               rules={{ required: 'Service level is required' }}
               render={({ field }) => (
                 <SelectSingle
+                  label="Service Level"
+                  classNameLabel="mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]"
                   {...field}
                   options={serviceLevelOptions}
                   value={serviceLevelOptions.find((option) => option.value === field.value) || null}
@@ -286,12 +294,12 @@ const VehiclesEdit: React.FC<VehiclesEditProps> = ({ data }) => {
             />
           </div>
 
-          <button
+          <IButton
             type="submit"
             className="bg-[#2A3037] rounded-[8px] font-inter font-normal text-[17px] leading-[20.57px] p-[10px] text-white h-fit mt-[22px]"
           >
             Save
-          </button>
+          </IButton>
           {/*Photo Upload */}
           <div className=" flex items-start justify-center">
             <Controller
