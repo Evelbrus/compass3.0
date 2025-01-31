@@ -9,12 +9,12 @@ const DriverEditStep5 = (): JSX.Element => {
     <div className="flex flex-col justify-center">
       <div className="grid grid-cols-2 gap-x-8 gap-y-4 p-6">
         <div className="mb-4 col-span-1">
-          <label className="block mb-2 font-bold">Bank Name:</label>
           <Controller
             name="driverProfile.bankName"
             control={control}
             render={({ field, fieldState }) => (
               <TextInput
+                label="Название банка:"
                 type="text"
                 {...field}
                 error={!!fieldState.error}
@@ -24,12 +24,12 @@ const DriverEditStep5 = (): JSX.Element => {
           />
         </div>
         <div className="mb-4 col-span-1">
-          <label className="block mb-2 font-bold">Bank BIC:</label>
           <Controller
             name="driverProfile.bankBic"
             control={control}
             render={({ field, fieldState }) => (
               <TextInput
+                label="БИК Банка:"
                 type="text"
                 {...field}
                 error={!!fieldState.error}
@@ -39,12 +39,12 @@ const DriverEditStep5 = (): JSX.Element => {
           />
         </div>
         <div className="mb-4 col-span-1">
-          <label className="block mb-2 font-bold">Bank Account Number:</label>
           <Controller
             name="driverProfile.bankAccountNumber"
             control={control}
             render={({ field, fieldState }) => (
               <TextInput
+                label="Номер банковского счета:"
                 type="text"
                 {...field}
                 error={!!fieldState.error}
@@ -54,12 +54,12 @@ const DriverEditStep5 = (): JSX.Element => {
           />
         </div>
         <div className="mb-4 col-span-1">
-          <label className="block mb-2 font-bold">Card Number:</label>
           <Controller
             name="driverProfile.cardNumber"
             control={control}
             render={({ field, fieldState }) => (
               <TextInput
+                label="Номер карты:"
                 type="text"
                 {...field}
                 error={!!fieldState.error}

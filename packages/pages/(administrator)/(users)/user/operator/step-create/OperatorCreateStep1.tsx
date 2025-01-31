@@ -19,13 +19,13 @@ const OperatorCreateStep1 = (): JSX.Element => {
       <div className="w-2/3 pr-4">
         <div className="grid grid-cols-2 gap-x-8 gap-y-4 p-6">
           <div className="mb-4 col-span-1">
-            <label className="block mb-2 font-bold">Email:</label>
             <Controller
               name="email"
               control={control}
               rules={{ validate: validateEmail }}
               render={({ field, fieldState }) => (
                 <TextInput
+                  label="Email:"
                   type="email"
                   {...field}
                   requiredStar={true}
@@ -36,7 +36,6 @@ const OperatorCreateStep1 = (): JSX.Element => {
             />
           </div>
           <div className="mb-4 col-span-1">
-            <label className="block mb-2 font-bold">Last Name:</label>
             <Controller
               name="lastName"
               control={control}
@@ -46,6 +45,7 @@ const OperatorCreateStep1 = (): JSX.Element => {
               }}
               render={({ field, fieldState }) => (
                 <TextInput
+                  label="Фамилия:"
                   type="text"
                   {...field}
                   requiredStar={true}
@@ -56,13 +56,13 @@ const OperatorCreateStep1 = (): JSX.Element => {
             />
           </div>
           <div className="mb-4 col-span-1">
-            <label className="block mb-2 font-bold">Password:</label>
             <Controller
               name="password"
               control={control}
               rules={{ validate: validatePassword }}
               render={({ field, fieldState }) => (
                 <TextInput
+                  label="Пароль:"
                   type="password"
                   {...field}
                   requiredStar={true}
@@ -73,7 +73,6 @@ const OperatorCreateStep1 = (): JSX.Element => {
             />
           </div>
           <div className="mb-4 col-span-1">
-            <label className="block mb-2 font-bold">First Name:</label>
             <Controller
               name="firstName"
               control={control}
@@ -83,6 +82,7 @@ const OperatorCreateStep1 = (): JSX.Element => {
               }}
               render={({ field, fieldState }) => (
                 <TextInput
+                  label="Имя:"
                   type="text"
                   {...field}
                   requiredStar={true}
@@ -93,7 +93,6 @@ const OperatorCreateStep1 = (): JSX.Element => {
             />
           </div>
           <div className="mb-4 col-span-1">
-            <label className="block mb-2 font-bold">Confirm Password:</label>
             <Controller
               name="confirmPassword"
               control={control}
@@ -103,6 +102,7 @@ const OperatorCreateStep1 = (): JSX.Element => {
               }}
               render={({ field, fieldState }) => (
                 <TextInput
+                  label="Повтор пароля:"
                   type="password"
                   {...field}
                   requiredStar={true}
@@ -113,7 +113,6 @@ const OperatorCreateStep1 = (): JSX.Element => {
             />
           </div>
           <div className="mb-4 col-span-1">
-            <label className="block mb-2 font-bold">Middle Name:</label>
             <Controller
               name="middleName"
               control={control}
@@ -123,6 +122,7 @@ const OperatorCreateStep1 = (): JSX.Element => {
               }}
               render={({ field, fieldState }) => (
                 <TextInput
+                  label="Отчество:"
                   type="text"
                   {...field}
                   requiredStar={true}
@@ -133,13 +133,13 @@ const OperatorCreateStep1 = (): JSX.Element => {
             />
           </div>
           <div className="mb-4 col-span-2">
-            <label className="block mb-2 font-bold">Phone:</label>
             <Controller
               name="phone"
               control={control}
               rules={{ validate: validatePhoneNumber }}
               render={({ field, fieldState }) => (
                 <PhoneInput
+                  label="Номер телефона:"
                   {...field}
                   requiredStar={true}
                   error={!!fieldState.error}
@@ -149,7 +149,7 @@ const OperatorCreateStep1 = (): JSX.Element => {
             />
           </div>
           <div className="relative mb-4 col-span-2 flex flex-col gap-2">
-            <p className="text-4 leading-4 font-semibold">Пол:</p>
+            <p className="block text-4 font-medium text-gray-500">Пол:</p>
             <div className="flex flex-row gap-4">
               <Controller
                 name="gender"
@@ -182,12 +182,12 @@ const OperatorCreateStep1 = (): JSX.Element => {
             </div>
           </div>
           <div className="mb-4 col-span-2">
-            <label className="block mb-2 font-bold">Address:</label>
             <Controller
               name="address"
               control={control}
               render={({ field, fieldState }) => (
                 <TextInput
+                  label="Адрес:"
                   type="text"
                   {...field}
                   value={field.value ?? ''}
