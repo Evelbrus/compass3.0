@@ -3,7 +3,7 @@ import React from 'react';
 export interface TextInputProps {
   label?: string;
   placeholder?: string;
-  value: string;
+  value: string | number;
   onChange: (value: string) => void;
   required?: boolean;
   requiredStar?: boolean;

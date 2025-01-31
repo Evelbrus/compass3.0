@@ -3,6 +3,8 @@
 import React, { useState, useEffect, FormEvent, ChangeEvent } from 'react';
 import { AdditionalService, ServiceLevels, VehicleType } from '@prisma/client';
 import { CreateTariffData } from '@shared/prisma/interface/tariff/interface';
+import { SelectSingle, TextInput } from '@shared/components/ui/inputs';
+import { IButton } from '@shared/components/ui/buttons';
 
 interface FormData extends Omit<CreateTariffData, 'clientTypes' | 'vehicleType' | 'serviceLevel'> {
   vehicleType: VehicleType | undefined;
@@ -111,179 +113,149 @@ const TariffCreateForm: React.FC = () => {
       <section className="flex flex-col justify-center bg-white rounded-md">
         <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-x-8 gap-y-4 p-6">
           <div className="mb-4 col-span-1">
-            <label
-              htmlFor="name"
-              className=" block mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px]"
-            >
-              Name:
-            </label>
-            <input
+            <TextInput
               type="text"
-              id="name"
               value={formData.name}
-              onChange={handleInputChange}
-              className="w-full bg-white px-3 py-2 rounded-md border border-gray-300 focus:bg-gray-100 text-4 text-[#2A3037] font-extrabold"
+              label="Name:"
+              onChange={(value) =>
+                handleInputChange({
+                  target: { id: 'name', value, type: 'text' },
+                } as ChangeEvent<HTMLInputElement>)
+              }
+              placeholder="tariff name"
               required
             />
           </div>
           <div>
-            <label
-              htmlFor="vehicleType"
-              className="block mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px]"
-            >
-              Vehicle Type:
-            </label>
-            <select
-              className="w-full bg-white px-3 py-2 rounded-md border border-gray-300 focus:bg-gray-100 text-4 text-[#2A3037] font-extrabold"
-              id="vehicleType"
-              value={formData.vehicleType}
-              onChange={(e) =>
-                setFormData({ ...formData, vehicleType: e.target.value as VehicleType })
+            <SelectSingle
+              label="Vehicle Type:"
+              classNameLabel="block text-4 font-medium text-gray-500 mb-2"
+              className="w-full bg-white rounded-md border border-gray-300 focus:bg-gray-100 text-4 text-[#2A3037] font-extrabold"
+              classNamePadding="py-[7px] px-[12px]"
+              value={
+                formData.vehicleType
+                  ? { value: formData.vehicleType, label: formData.vehicleType }
+                  : null
               }
-              required
-            >
-              <option value="">Select Vehicle Type</option>
-              {Object.values(VehicleType).map((type) => (
-                <option key={type} value={type}>
-                  {type}
-                </option>
-              ))}
-            </select>
+              onChange={(option) =>
+                setFormData({ ...formData, vehicleType: option?.value as VehicleType })
+              }
+              options={Object.values(VehicleType).map((type) => ({
+                value: type,
+                label: type,
+              }))}
+            />
           </div>
           <div>
-            <label
-              htmlFor="description"
-              className=" block mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px]"
-            >
-              Description:
-            </label>
-            <input
+            <TextInput
               type="text"
-              id="description"
+              label="Description:"
               value={formData.description || ''}
-              onChange={handleInputChange}
-              className="w-full bg-white px-3 py-2 rounded-md border border-gray-300 focus:bg-gray-100 text-4 text-[#2A3037] font-extrabold"
+              onChange={(value) =>
+                handleInputChange({
+                  target: { id: 'description', value, type: 'text' },
+                } as ChangeEvent<HTMLInputElement>)
+              }
+              placeholder="description"
             />
           </div>
           <div>
-            <label
-              htmlFor="price"
-              className=" block mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px]"
-            >
-              Price:
-            </label>
-            <input
+            <TextInput
               type="number"
-              id="price"
+              label="Price:"
               value={formData.price}
-              onChange={handleInputChange}
-              className="w-full bg-white px-3 py-2 rounded-md border border-gray-300 focus:bg-gray-100 text-4 text-[#2A3037] font-extrabold"
-              required
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="additionalPointPrice"
-              className=" block mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px]"
-            >
-              Additional Point Price:
-            </label>
-            <input
-              type="number"
-              id="additionalPointPrice"
-              value={formData.additionalPointPrice}
-              onChange={handleInputChange}
-              className="w-full bg-white px-3 py-2 rounded-md border border-gray-300 focus:bg-gray-100 text-4 text-[#2A3037] font-extrabold"
-              required
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="freeWaitTimeBishkek"
-              className=" block mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px]"
-            >
-              Free Wait Time Bishkek:
-            </label>
-            <input
-              type="number"
-              id="freeWaitTimeBishkek"
-              value={formData.freeWaitTimeBishkek}
-              onChange={handleInputChange}
-              className="w-full bg-white px-3 py-2 rounded-md border border-gray-300 focus:bg-gray-100 text-4 text-[#2A3037] font-extrabold"
-              required
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="pricePerMinuteAfterBishkek"
-              className=" block mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px]"
-            >
-              Price Per Minute After Bishkek:
-            </label>
-            <input
-              type="number"
-              id="pricePerMinuteAfterBishkek"
-              value={formData.pricePerMinuteAfterBishkek}
-              onChange={handleInputChange}
-              className="w-full bg-white px-3 py-2 rounded-md border border-gray-300 focus:bg-gray-100 text-4 text-[#2A3037] font-extrabold"
-              required
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="freeWaitTimeAirport"
-              className=" block mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px]"
-            >
-              Free Wait Time Airport:
-            </label>
-            <input
-              type="number"
-              id="freeWaitTimeAirport"
-              value={formData.freeWaitTimeAirport}
-              onChange={handleInputChange}
-              className="w-full bg-white px-3 py-2 rounded-md border border-gray-300 focus:bg-gray-100 text-4 text-[#2A3037] font-extrabold"
-              required
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="pricePerMinuteAfterAirport"
-              className=" block mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px]"
-            >
-              Price Per Minute After Airport:
-            </label>
-            <input
-              type="number"
-              id="pricePerMinuteAfterAirport"
-              value={formData.pricePerMinuteAfterAirport}
-              onChange={handleInputChange}
-              className="w-full bg-white px-3 py-2 rounded-md border border-gray-300 focus:bg-gray-100 text-4 text-[#2A3037] font-extrabold"
-              required
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="serviceLevel"
-              className=" block mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px]"
-            >
-              Service Level:
-            </label>
-            <select
-              id="serviceLevel"
-              value={formData.serviceLevel}
-              className="w-full bg-white px-3 py-2 rounded-md border border-gray-300 focus:bg-gray-100 text-4 text-[#2A3037] font-extrabold"
-              onChange={(e) =>
-                setFormData({ ...formData, serviceLevel: e.target.value as ServiceLevels })
+              onChange={(value) =>
+                handleInputChange({
+                  target: { id: 'price', value, type: 'number' },
+                } as ChangeEvent<HTMLInputElement>)
               }
               required
-            >
-              <option value="">Select Service Level</option>
-              {Object.values(ServiceLevels).map((level) => (
-                <option key={level} value={level}>
-                  {level}
-                </option>
-              ))}
-            </select>
+            />
+          </div>
+          <div>
+            <TextInput
+              type="number"
+              label="Additional Point Price:"
+              value={formData.additionalPointPrice}
+              onChange={(value) =>
+                handleInputChange({
+                  target: { id: 'additionalPointPrice', value, type: 'number' },
+                } as ChangeEvent<HTMLInputElement>)
+              }
+              required
+            />
+          </div>
+          <div>
+            <TextInput
+              type="number"
+              label="Free Wait Time Bishkek:"
+              value={formData.freeWaitTimeBishkek}
+              onChange={(value) =>
+                handleInputChange({
+                  target: { id: 'freeWaitTimeBishkek', value, type: 'number' },
+                } as ChangeEvent<HTMLInputElement>)
+              }
+              required
+            />
+          </div>
+          <div>
+            <TextInput
+              type="number"
+              label="Price Per Minute After Bishkek:"
+              value={formData.pricePerMinuteAfterBishkek}
+              onChange={(value) =>
+                handleInputChange({
+                  target: { id: 'pricePerMinuteAfterBishkek', value, type: 'number' },
+                } as ChangeEvent<HTMLInputElement>)
+              }
+              required
+            />
+          </div>
+          <div>
+            <TextInput
+              type="number"
+              label="Free Wait Time Airport:"
+              value={formData.freeWaitTimeAirport}
+              onChange={(value) =>
+                handleInputChange({
+                  target: { id: 'freeWaitTimeAirport', value, type: 'number' },
+                } as ChangeEvent<HTMLInputElement>)
+              }
+              required
+            />
+          </div>
+          <div>
+            <TextInput
+              type="number"
+              label="Price Per Minute After Airport:"
+              value={formData.pricePerMinuteAfterAirport}
+              onChange={(value) =>
+                handleInputChange({
+                  target: { id: 'pricePerMinuteAfterAirport', value, type: 'number' },
+                } as ChangeEvent<HTMLInputElement>)
+              }
+              required
+            />
+          </div>
+          <div>
+            <SelectSingle
+              label="Service Level:"
+              classNameLabel="block text-4 font-medium text-gray-500 mb-2"
+              className="w-full bg-white rounded-md border border-gray-300 focus:bg-gray-100 text-4 text-[#2A3037] font-extrabold"
+              classNamePadding="py-[7px] px-[12px]"
+              value={
+                formData.serviceLevel
+                  ? { value: formData.serviceLevel, label: formData.serviceLevel }
+                  : null
+              }
+              onChange={(option) =>
+                setFormData({ ...formData, serviceLevel: option?.value as ServiceLevels })
+              }
+              options={Object.values(ServiceLevels).map((level) => ({
+                value: level,
+                label: level,
+              }))}
+            />
           </div>
           <div>
             <div className="rounded-lg mb-4 bg-white border border-gray-300">
@@ -307,24 +279,19 @@ const TariffCreateForm: React.FC = () => {
                 <div className="p-4 bg-white border-t border-gray-300">
                   {formData.tariffAdditionalServices.map((additionalService, index) => (
                     <div key={index}>
-                      <label className=" block mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px]">
-                        {
-                          additionalServices.find(
-                            (service) => service.uuid === additionalService.serviceUuid,
-                          )?.name
-                        }
-                      </label>
                       <div className="flex items-center gap-[12px]">
-                        <input
+                        <TextInput
                           type="number"
-                          name="price"
-                          className="w-full bg-white px-3 py-2 rounded-md border border-gray-300 focus:bg-gray-100 text-4 text-[#2A3037] font-extrabold"
+                          label={`${
+                            additionalServices.find(
+                              (service) => service.uuid === additionalService.serviceUuid,
+                            )?.name
+                          }`}
                           value={additionalService.price}
                           onChange={(e) =>
-                            handleAdditionalServicesChange(
-                              index,
-                              e as ChangeEvent<HTMLInputElement>,
-                            )
+                            handleAdditionalServicesChange(index, {
+                              target: { name: 'price', value: e },
+                            } as ChangeEvent<HTMLInputElement>)
                           }
                           required
                         />
@@ -350,12 +317,9 @@ const TariffCreateForm: React.FC = () => {
               </div>
             </div>
           </div>
-          <button
-            type="submit"
-            className="bg-[#2A3037] rounded-[8px] font-inter font-normal text-[17px] leading-[20.57px] p-[10px] text-white h-fit"
-          >
+          <IButton type='submit' className="bg-[#2A3037] rounded-[8px] font-inter font-normal text-[17px] leading-[20.57px] p-[10px] text-white h-fit">
             Create Tariff
-          </button>
+          </IButton>
         </form>
       </section>
       {message && <p>{message}</p>}
