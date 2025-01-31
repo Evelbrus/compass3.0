@@ -15,12 +15,12 @@ const DriverCreateStep4 = (): JSX.Element => {
       {fields.map((item, index) => (
         <div key={item.id} className="mb-4 grid grid-cols-2 gap-x-8 gap-y-4 p-6">
           <div className="col-span-1">
-            <label className="block mb-2 font-bold">Company Name:</label>
             <Controller
               name={`driverProfile.driverExperience.${index}.companyName`}
               control={control}
               render={({ field, fieldState }) => (
                 <TextInput
+                  label="Название компании:"
                   type="text"
                   {...field}
                   error={!!fieldState.error}
@@ -30,12 +30,12 @@ const DriverCreateStep4 = (): JSX.Element => {
             />
           </div>
           <div className="col-span-1">
-            <label className="block mb-2 font-bold">Position:</label>
             <Controller
               name={`driverProfile.driverExperience.${index}.position`}
               control={control}
               render={({ field, fieldState }) => (
                 <TextInput
+                  label="Позиция:"
                   type="text"
                   {...field}
                   error={!!fieldState.error}
@@ -45,12 +45,12 @@ const DriverCreateStep4 = (): JSX.Element => {
             />
           </div>
           <div className="col-span-1">
-            <label className="block mb-2 font-bold">From:</label>
             <Controller
               name={`driverProfile.driverExperience.${index}.from`}
               control={control}
               render={({ field, fieldState }) => (
                 <DateInput
+                  label="От:"
                   selectedDate={field.value || null}
                   onChange={field.onChange}
                   error={!!fieldState.error}
@@ -61,12 +61,12 @@ const DriverCreateStep4 = (): JSX.Element => {
             />
           </div>
           <div className="col-span-1">
-            <label className="block mb-2 font-bold">To:</label>
             <Controller
               name={`driverProfile.driverExperience.${index}.to`}
               control={control}
               render={({ field, fieldState }) => (
                 <DateInput
+                  label="К:"
                   selectedDate={field.value || null}
                   onChange={field.onChange}
                   error={!!fieldState.error}
@@ -76,26 +76,26 @@ const DriverCreateStep4 = (): JSX.Element => {
               )}
             />
           </div>
-          <div className="col-span-2 flex justify-end">
+          <div className="col-span-2 flex justify-end gap-4">
             <IButton
               type="button"
               onClick={() => remove(index)}
               className="w-[205px] p-3 bg-red-500 text-[color:var(--text-white)] rounded-lg hover:bg-red-700 transition"
               textClassName="w-full text-center justify-center"
             >
-              Remove Experience
+              Удалить опыт
+            </IButton>
+            <IButton
+              type="button"
+              onClick={() => append({ companyName: '', position: '', from: null, to: null })}
+              className="w-[205px] p-3 bg-[color:var(--button-secondary)] text-[color:var(--text-white)] rounded-lg hover:bg-[color:var(--button-secondary-hover)] transition"
+              textClassName="w-full text-center justify-center"
+            >
+              Добавить опыт
             </IButton>
           </div>
         </div>
       ))}
-      <IButton
-        type="button"
-        onClick={() => append({ companyName: '', position: '', from: null, to: null })}
-        className="w-[205px] p-3 bg-[color:var(--button-secondary)] text-[color:var(--text-white)] rounded-lg hover:bg-[color:var(--button-secondary-hover)] transition"
-        textClassName="w-full text-center justify-center"
-      >
-        Add Experience
-      </IButton>
     </div>
   );
 };

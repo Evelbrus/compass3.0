@@ -7,14 +7,14 @@ const ClientCorpEditStep2 = (): JSX.Element => {
   const { control } = useFormContext();
 
   return (
-    <div className="grid grid-cols-2 gap-x-8 gap-y-4 p-6">
+    <div className="grid grid-cols-2 gap-x-8 gap-y-4 p-6 w-full">
       <div className="mb-4 col-span-1">
-        <label className="block mb-2 font-bold">Company Name:</label>
         <Controller
           name="companyProfile.companyName"
           control={control}
           render={({ field, fieldState }) => (
             <TextInput
+              label="Название компании:"
               type="text"
               {...field}
               error={!!fieldState.error}
@@ -24,13 +24,13 @@ const ClientCorpEditStep2 = (): JSX.Element => {
         />
       </div>
       <div className="mb-4 col-span-1">
-        <label className="block mb-2 font-bold">Company Email:</label>
         <Controller
           name="companyProfile.email"
           control={control}
           rules={{ validate: validateEmail }}
           render={({ field, fieldState }) => (
             <TextInput
+              label="Электронная почта компании:"
               type="email"
               {...field}
               error={!!fieldState.error}
@@ -40,13 +40,13 @@ const ClientCorpEditStep2 = (): JSX.Element => {
         />
       </div>
       <div className="mb-4 col-span-1">
-        <label className="block mb-2 font-bold">Company Phone:</label>
         <Controller
           name="companyProfile.phone"
           control={control}
           rules={{ validate: validatePhoneNumber }}
           render={({ field, fieldState }) => (
             <PhoneInput
+              label="Телефон компании:"
               {...field}
               error={!!fieldState.error}
               message={fieldState.error?.message || ''}
@@ -55,12 +55,12 @@ const ClientCorpEditStep2 = (): JSX.Element => {
         />
       </div>
       <div className="mb-4 col-span-1">
-        <label className="block mb-2 font-bold">Company Address:</label>
         <Controller
           name="companyProfile.address"
           control={control}
           render={({ field, fieldState }) => (
             <TextInput
+              label="Адрес компании:"
               type="text"
               {...field}
               error={!!fieldState.error}
@@ -70,12 +70,12 @@ const ClientCorpEditStep2 = (): JSX.Element => {
         />
       </div>
       <div className="mb-4 col-span-1">
-        <label className="block mb-2 font-bold">Website:</label>
         <Controller
           name="companyProfile.website"
           control={control}
           render={({ field, fieldState }) => (
             <TextInput
+              label="Веб-сайт:"
               type="text"
               {...field}
               error={!!fieldState.error}
@@ -85,12 +85,12 @@ const ClientCorpEditStep2 = (): JSX.Element => {
         />
       </div>
       <div className="mb-4 col-span-1">
-        <label className="block mb-2 font-bold">Company PIN:</label>
         <Controller
           name="companyProfile.companyPin"
           control={control}
           render={({ field, fieldState }) => (
             <TextInput
+              label="PIN-код компании:"
               type="text"
               {...field}
               error={!!fieldState.error}

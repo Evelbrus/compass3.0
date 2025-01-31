@@ -10,7 +10,6 @@ const DriverCreateStep3 = (): JSX.Element => {
     <div className="flex flex-col justify-center">
       <div className="grid grid-cols-2 gap-x-8 gap-y-4 p-6">
         <div className="mb-4 col-span-1">
-          <label className="block mb-2 font-bold">Years of Driving:</label>
           <Controller
             name="driverProfile.yearsOfDriving"
             control={control}
@@ -23,6 +22,7 @@ const DriverCreateStep3 = (): JSX.Element => {
             }}
             render={({ field, fieldState }) => (
               <NumberInput
+                label="Годы вождения:"
                 value={field.value}
                 onChange={field.onChange}
                 maxLength={2}

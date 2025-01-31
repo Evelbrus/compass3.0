@@ -3,7 +3,13 @@ import { useRouter } from 'next/navigation';
 import { Gender, UserRole } from '@prisma/client';
 import { EditUserData } from '@shared/prisma/interface/users/interface';
 import { useForm, FormProvider, Controller } from 'react-hook-form';
-import { ImageUpload, PhoneInput, RadioInput, TextInput } from '@shared/components/ui/inputs';
+import {
+  ImageUpload,
+  PhoneInput,
+  RadioInput,
+  SelectSingle,
+  TextInput,
+} from '@shared/components/ui/inputs';
 import { IButton } from '@shared/components/ui/buttons';
 import {
   validateEmail,
@@ -43,42 +49,52 @@ const AdminEditForm = ({ userData, onSubmit }: AdminEditFormProps): JSX.Element 
   return (
     <div className={'w-full h-full flex flex-col gap-4'}>
       <FormProvider {...methods}>
+        <h1 className={'text-6 leading-6 mt-4 mb-2 pl-6 font-extrabold'}>
+          Редактирование Администратора
+        </h1>
         <form
           id="admin-edit-form"
           onSubmit={handleSubmit(onSubmitForm)}
           className="flex flex-row p-5 justify-center bg-white border rounded-xl"
         >
           <div className="w-2/3 pr-4">
-            <h1 className={'text-6 leading-6 mt-4 mb-2 pl-6 font-extrabold'}>
-              Редактирование Администратора
-            </h1>
             <div className="grid grid-cols-2 gap-x-8 gap-y-4 p-6">
               <div className="mb-4 col-span-1">
-                <label className="block mb-2 font-bold">Email:</label>
                 <Controller
                   name="email"
                   control={control}
-                  render={({ field }) => <TextInput type="email" {...field} readOnly />}
-                />
-              </div>
-              <div className="mb-4 col-span-1">
-                <label className="block mb-2 font-bold">Role:</label>
-                <Controller
-                  name="role"
-                  control={control}
                   render={({ field }) => (
-                    <select {...field} required>
-                      {Object.values(UserRole).map((role) => (
-                        <option key={role} value={role}>
-                          {role}
-                        </option>
-                      ))}
-                    </select>
+                    <TextInput type="email" {...field} readOnly label="Email:" />
                   )}
                 />
               </div>
               <div className="mb-4 col-span-1">
-                <label className="block mb-2 font-bold">Full Name:</label>
+                <Controller
+                  name="role"
+                  control={control}
+                  rules={{ required: 'Выберите роль' }}
+                  render={({ field, fieldState }) => (
+                    <SelectSingle
+                      label="Выберите роль:"
+                      options={Object.values(UserRole).map((role) => ({
+                        label: role,
+                        value: role,
+                      }))}
+                      value={
+                        Object.values(UserRole)
+                          .map((role) => ({ label: role, value: role }))
+                          .find((option) => option.value === field.value) || null
+                      }
+                      classNameLabel="block text-4 font-medium text-gray-500 mb-2"
+                      onChange={(selectedOption) => field.onChange(selectedOption?.value)}
+                      error={!!fieldState.error}
+                      message={fieldState.error?.message || ''}
+                      placeholder="Выберите роль"
+                    />
+                  )}
+                />
+              </div>
+              <div className="mb-4 col-span-1">
                 <Controller
                   name="fullName"
                   control={control}
@@ -89,6 +105,7 @@ const AdminEditForm = ({ userData, onSubmit }: AdminEditFormProps): JSX.Element 
                   }}
                   render={({ field, fieldState }) => (
                     <TextInput
+                      label="Полное имя:"
                       type="text"
                       {...field}
                       requiredStar={true}
@@ -99,13 +116,13 @@ const AdminEditForm = ({ userData, onSubmit }: AdminEditFormProps): JSX.Element 
                 />
               </div>
               <div className="mb-4 col-span-1">
-                <label className="block mb-2 font-bold">Phone:</label>
                 <Controller
                   name="phone"
                   control={control}
                   rules={{ validate: validatePhoneNumber }}
                   render={({ field, fieldState }) => (
                     <PhoneInput
+                      label="Номер телефона:"
                       {...field}
                       requiredStar={true}
                       error={!!fieldState.error}
@@ -115,7 +132,7 @@ const AdminEditForm = ({ userData, onSubmit }: AdminEditFormProps): JSX.Element 
                 />
               </div>
               <div className="relative mb-4 col-span-2 flex flex-col gap-2">
-                <p className="text-4 leading-4 font-semibold">Пол:</p>
+                <p className="block text-4 font-medium text-gray-500">Пол:</p>
                 <div className="flex flex-row gap-4">
                   <Controller
                     name="gender"
@@ -148,12 +165,12 @@ const AdminEditForm = ({ userData, onSubmit }: AdminEditFormProps): JSX.Element 
                 </div>
               </div>
               <div className="mb-4 col-span-2">
-                <label className="block mb-2 font-bold">Address:</label>
                 <Controller
                   name="address"
                   control={control}
                   render={({ field, fieldState }) => (
                     <TextInput
+                      label="Адрес:"
                       type="text"
                       {...field}
                       value={field.value ?? ''}
