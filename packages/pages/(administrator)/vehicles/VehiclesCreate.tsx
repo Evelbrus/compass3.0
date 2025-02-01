@@ -20,6 +20,7 @@ import {
 } from '@shared/lib/effector/vehicles/optionsTranslation/optionsTranslationVehicle';
 import { showToast } from '@shared/components/toast/ToastManager';
 import { useRouter } from 'next/navigation';
+import { IButton } from '@shared/components/ui/buttons';
 
 interface FormData extends Omit<CreateVehicleData, 'serviceLevels' | 'driverIds' | 'year'> {
   serviceLevels: ServiceLevels | undefined;
@@ -122,15 +123,14 @@ const VehiclesCreate: React.FC = () => {
           >
             {/*Vehicle Type */}
             <div className="form-group">
-              <label className="mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]">
-                Vehicle Type
-              </label>
               <Controller
                 name="vehicleType"
                 control={control}
                 rules={{ required: 'Vehicle type is required' }}
                 render={({ field }) => (
                   <SelectSingle
+                    label="Тип транспортного средства:"
+                    classNameLabel="block text-4 font-medium text-gray-500 mb-2"
                     {...field}
                     options={vehicleTypeOptions}
                     value={
@@ -145,9 +145,6 @@ const VehiclesCreate: React.FC = () => {
 
             {/*Brand */}
             <div className="form-group">
-              <label className="mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]">
-                Brand
-              </label>
               <Controller
                 name="brand"
                 control={control}
@@ -158,6 +155,7 @@ const VehiclesCreate: React.FC = () => {
                 }}
                 render={({ field, fieldState }) => (
                   <TextInput
+                    label="Бренд:"
                     {...field}
                     placeholder="Enter brand"
                     error={!!fieldState.error}
@@ -169,9 +167,6 @@ const VehiclesCreate: React.FC = () => {
 
             {/*Model */}
             <div className="form-group">
-              <label className="mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]">
-                Model
-              </label>
               <Controller
                 name="model"
                 control={control}
@@ -182,6 +177,7 @@ const VehiclesCreate: React.FC = () => {
                 }}
                 render={({ field, fieldState }) => (
                   <TextInput
+                    label="Модель:"
                     {...field}
                     placeholder="Enter model"
                     error={!!fieldState.error}
@@ -193,15 +189,13 @@ const VehiclesCreate: React.FC = () => {
 
             {/*Year */}
             <div className="form-group">
-              <label className="mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]">
-                Year
-              </label>
               <Controller
                 name="year"
                 control={control}
                 rules={{ required: 'Year is required' }}
                 render={({ field, fieldState }) => (
                   <DateInput
+                    label="Год:"
                     selectedDate={field.value}
                     onChange={(date) => field.onChange(date)}
                     placeholder="Select year"
@@ -214,15 +208,14 @@ const VehiclesCreate: React.FC = () => {
 
             {/*Color */}
             <div className="form-group">
-              <label className="mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]">
-                Color
-              </label>
               <Controller
                 name="color"
                 control={control}
                 rules={{ required: 'Color is required' }}
                 render={({ field }) => (
                   <SelectSingle
+                    label="Цвет:"
+                    classNameLabel="block text-4 font-medium text-gray-500 mb-2"
                     {...field}
                     options={colorOptions}
                     value={colorOptions.find((option) => option.value === field.value) || null}
@@ -235,9 +228,6 @@ const VehiclesCreate: React.FC = () => {
 
             {/*Plate Number */}
             <div className="form-group">
-              <label className="mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]">
-                Plate Number
-              </label>
               <Controller
                 name="plateNumber"
                 control={control}
@@ -248,6 +238,7 @@ const VehiclesCreate: React.FC = () => {
                 }}
                 render={({ field, fieldState }) => (
                   <TextInput
+                    label="Номер пластины:"
                     {...field}
                     placeholder="Enter plate number"
                     error={!!fieldState.error}
@@ -259,9 +250,7 @@ const VehiclesCreate: React.FC = () => {
 
             {/*Availability */}
             <div className="form-group">
-              <label className="mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]">
-                Availability
-              </label>
+              <label className="block text-4 font-medium text-gray-500 mb-2">Доступность:</label>
               <Controller
                 name="isAvailable"
                 control={control}
@@ -278,14 +267,12 @@ const VehiclesCreate: React.FC = () => {
 
             {/*Drivers */}
             <div className="form-group">
-              <label className="mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]">
-                Assign Drivers
-              </label>
               <Controller
                 name="driverIds"
                 control={control}
                 render={({ field }) => (
                   <SelectMultiple
+                    label="Назначьте водителя:"
                     {...field}
                     options={drivers.map((driver) => ({
                       value: driver.uuid,
@@ -308,15 +295,14 @@ const VehiclesCreate: React.FC = () => {
 
             {/*Service Level */}
             <div className="form-group">
-              <label className="mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]">
-                Service Level
-              </label>
               <Controller
                 name="serviceLevels"
                 control={control}
                 rules={{ required: 'Service level is required' }}
                 render={({ field }) => (
                   <SelectSingle
+                    label="Уровень обслуживания:"
+                    classNameLabel="block text-4 font-medium text-gray-500 mb-2"
                     {...field}
                     options={serviceLevelOptions}
                     value={
@@ -329,12 +315,12 @@ const VehiclesCreate: React.FC = () => {
               />
             </div>
 
-            <button
+            <IButton
               type="submit"
               className="bg-[#2A3037] rounded-[8px] font-inter font-normal text-[17px] leading-[20.57px] p-[10px] text-white h-fit mt-[22px]"
             >
-              Create Vehicle
-            </button>
+              Создать автомобиль
+            </IButton>
             {/*Photo Upload */}
             <div className=" flex items-start justify-center">
               <Controller
