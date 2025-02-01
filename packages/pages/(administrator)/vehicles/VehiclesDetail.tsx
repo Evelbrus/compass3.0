@@ -50,7 +50,7 @@ const VehiclesDetail: React.FC<VehiclesDetailProps> = ({ data }) => {
   );
 };
 
-const DetailItem: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
+export const DetailItem: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
   <div className="bg-white px-3 py-2 p-3 rounded-md border border-gray-300">
     <span className="text-4 text-[#2A3037] font-extrabold mr-2">{label}:</span>
     <span className="text-4 font-medium text-gray-500 mb-2">{value}</span>
