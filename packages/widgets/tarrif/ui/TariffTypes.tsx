@@ -39,7 +39,7 @@ const TariffTypes: React.FC<TariffTypesProps> = ({
   );
 
   const handleEdit = () => {
-    router.push(`/tariff-management/detail/${uuid}`);
+    router.push(`/tariff-management/edit/${uuid}`);
   };
 
   const isActive = selectedTariff?.uuid === tariff.uuid;

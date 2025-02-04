@@ -4,12 +4,12 @@ export interface TextInputProps {
   label?: string;
   placeholder?: string;
   value: string | number;
-  onChange: (value: string) => void;
+  onChange: (value: string | number) => void;
   required?: boolean;
   requiredStar?: boolean;
   disabled?: boolean;
   readOnly?: boolean;
-  type?: React.HTMLInputTypeAttribute | 'textarea';
+  type?: React.HTMLInputTypeAttribute | 'textarea' | 'number';
   error?: boolean;
   errorBorder?: boolean;
   minLength?: number;
