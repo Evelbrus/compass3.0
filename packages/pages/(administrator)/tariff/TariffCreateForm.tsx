@@ -3,8 +3,12 @@
 import React, { useState, useEffect, FormEvent, ChangeEvent } from 'react';
 import { AdditionalService, ServiceLevels, VehicleType } from '@prisma/client';
 import { CreateTariffData } from '@shared/prisma/interface/tariff/interface';
-import { SelectSingle, TextInput } from '@shared/components/ui/inputs';
 import { IButton } from '@shared/components/ui/buttons';
+import { useRouter } from 'next/navigation';
+import TariffCreateStep1 from './step-create/TariffCreateStep1';
+import TariffCreateStep2 from './step-create/TariffCreateStep2';
+import TariffCreateStep3 from './step-create/TariffCreateStep3';
+import { steps } from './constants/_tariff';
 
 interface FormData extends Omit<CreateTariffData, 'clientTypes' | 'vehicleType' | 'serviceLevel'> {
   vehicleType: VehicleType | undefined;
@@ -33,7 +37,8 @@ const TariffCreateForm: React.FC = () => {
 
   const [additionalServices, setAdditionalServices] = useState<AdditionalService[]>([]);
   const [message, setMessage] = useState('');
-  const [isOpen, setIsOpen] = useState(false);
+  const [step, setStep] = useState(1);
+  const router = useRouter();
 
   useEffect(() => {
     //Fetch additional services
@@ -107,220 +112,93 @@ const TariffCreateForm: React.FC = () => {
     }
   };
 
+  const handleBack = () => {
+    if (step === 1) {
+      router.push('/tariff-management');
+    } else {
+      setStep(step - 1);
+    }
+  };
+
+  const handleNext = () => {
+    setStep(step + 1);
+  };
+
   return (
     <div>
       <h1 className="text-3xl font-bold text-gray-800 mb-6">Create Tariff</h1>
       <section className="flex flex-col justify-center bg-white rounded-md">
-        <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-x-8 gap-y-4 p-6">
-          <div className="mb-4 col-span-1">
-            <TextInput
-              type="text"
-              value={formData.name}
-              label="Name:"
-              onChange={(value) =>
-                handleInputChange({
-                  target: { id: 'name', value, type: 'text' },
-                } as ChangeEvent<HTMLInputElement>)
-              }
-              placeholder="tariff name"
-              required
-            />
-          </div>
-          <div>
-            <SelectSingle
-              label="Vehicle Type:"
-              classNameLabel="block text-4 font-medium text-gray-500 mb-2"
-              className="w-full bg-white rounded-md border border-gray-300 focus:bg-gray-100 text-4 text-[#2A3037] font-extrabold"
-              classNamePadding="py-[7px] px-[12px]"
-              value={
-                formData.vehicleType
-                  ? { value: formData.vehicleType, label: formData.vehicleType }
-                  : null
-              }
-              onChange={(option) =>
-                setFormData({ ...formData, vehicleType: option?.value as VehicleType })
-              }
-              options={Object.values(VehicleType).map((type) => ({
-                value: type,
-                label: type,
-              }))}
-            />
-          </div>
-          <div>
-            <TextInput
-              type="text"
-              label="Description:"
-              value={formData.description || ''}
-              onChange={(value) =>
-                handleInputChange({
-                  target: { id: 'description', value, type: 'text' },
-                } as ChangeEvent<HTMLInputElement>)
-              }
-              placeholder="description"
-            />
-          </div>
-          <div>
-            <TextInput
-              type="number"
-              label="Price:"
-              value={formData.price}
-              onChange={(value) =>
-                handleInputChange({
-                  target: { id: 'price', value, type: 'number' },
-                } as ChangeEvent<HTMLInputElement>)
-              }
-              required
-            />
-          </div>
-          <div>
-            <TextInput
-              type="number"
-              label="Additional Point Price:"
-              value={formData.additionalPointPrice}
-              onChange={(value) =>
-                handleInputChange({
-                  target: { id: 'additionalPointPrice', value, type: 'number' },
-                } as ChangeEvent<HTMLInputElement>)
-              }
-              required
-            />
-          </div>
-          <div>
-            <TextInput
-              type="number"
-              label="Free Wait Time Bishkek:"
-              value={formData.freeWaitTimeBishkek}
-              onChange={(value) =>
-                handleInputChange({
-                  target: { id: 'freeWaitTimeBishkek', value, type: 'number' },
-                } as ChangeEvent<HTMLInputElement>)
-              }
-              required
-            />
-          </div>
-          <div>
-            <TextInput
-              type="number"
-              label="Price Per Minute After Bishkek:"
-              value={formData.pricePerMinuteAfterBishkek}
-              onChange={(value) =>
-                handleInputChange({
-                  target: { id: 'pricePerMinuteAfterBishkek', value, type: 'number' },
-                } as ChangeEvent<HTMLInputElement>)
-              }
-              required
-            />
-          </div>
-          <div>
-            <TextInput
-              type="number"
-              label="Free Wait Time Airport:"
-              value={formData.freeWaitTimeAirport}
-              onChange={(value) =>
-                handleInputChange({
-                  target: { id: 'freeWaitTimeAirport', value, type: 'number' },
-                } as ChangeEvent<HTMLInputElement>)
-              }
-              required
-            />
-          </div>
-          <div>
-            <TextInput
-              type="number"
-              label="Price Per Minute After Airport:"
-              value={formData.pricePerMinuteAfterAirport}
-              onChange={(value) =>
-                handleInputChange({
-                  target: { id: 'pricePerMinuteAfterAirport', value, type: 'number' },
-                } as ChangeEvent<HTMLInputElement>)
-              }
-              required
-            />
-          </div>
-          <div>
-            <SelectSingle
-              label="Service Level:"
-              classNameLabel="block text-4 font-medium text-gray-500 mb-2"
-              className="w-full bg-white rounded-md border border-gray-300 focus:bg-gray-100 text-4 text-[#2A3037] font-extrabold"
-              classNamePadding="py-[7px] px-[12px]"
-              value={
-                formData.serviceLevel
-                  ? { value: formData.serviceLevel, label: formData.serviceLevel }
-                  : null
-              }
-              onChange={(option) =>
-                setFormData({ ...formData, serviceLevel: option?.value as ServiceLevels })
-              }
-              options={Object.values(ServiceLevels).map((level) => ({
-                value: level,
-                label: level,
-              }))}
-            />
-          </div>
-          <div>
-            <div className="rounded-lg mb-4 bg-white border border-gray-300">
-              <button
-                type="button"
-                onClick={() => setIsOpen(!isOpen)}
-                className="w-full flex justify-between items-center p-4 rounded-t-lg"
-              >
-                <h2 className="text-2xl font-bold text-gray-700">Additional Services</h2>
-                <span
-                  className={`transform transition-transform ${isOpen ? 'rotate-180' : 'rotate-0'}`}
-                >
-                  ▼
-                </span>
-              </button>
+        <form
+          onSubmit={handleSubmit}
+          id="tariff-create-form"
+          className="grid grid-cols-1 gap-x-8 gap-y-4 p-6"
+        >
+          <div className="flex justify-start gap-2 mb-4">
+            {steps.map((label, index) => (
               <div
-                className={`overflow-hidden transition-all duration-700 ease-in-out ${
-                  isOpen ? 'max-h-screen' : 'max-h-0'
+                key={index}
+                className={`p-2 border-2 ${
+                  step === index + 1
+                    ? 'border-t-0 border-x-0 border-b-[#2A3037]'
+                    : 'border-t-0 border-x-0 border-b-white'
                 }`}
               >
-                <div className="p-4 bg-white border-t border-gray-300">
-                  {formData.tariffAdditionalServices.map((additionalService, index) => (
-                    <div key={index}>
-                      <div className="flex items-center gap-[12px]">
-                        <TextInput
-                          type="number"
-                          label={`${
-                            additionalServices.find(
-                              (service) => service.uuid === additionalService.serviceUuid,
-                            )?.name
-                          }`}
-                          value={additionalService.price}
-                          onChange={(e) =>
-                            handleAdditionalServicesChange(index, {
-                              target: { name: 'price', value: e },
-                            } as ChangeEvent<HTMLInputElement>)
-                          }
-                          required
-                        />
-                        <label className="block mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px] flex items-center gap-[5px]">
-                          <input
-                            type="checkbox"
-                            name="isAvailable"
-                            checked={additionalService.isAvailable}
-                            className="w-[18px] h-[18px] bg-white px-3 py-2 rounded-md border border-gray-300 focus:bg-gray-100 text-4 text-[#2A3037] font-extrabold"
-                            onChange={(e) =>
-                              handleAdditionalServicesChange(
-                                index,
-                                e as ChangeEvent<HTMLInputElement>,
-                              )
-                            }
-                          />
-                          Available
-                        </label>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                {label}
               </div>
-            </div>
+            ))}
           </div>
-          <IButton type='submit' className="bg-[#2A3037] rounded-[8px] font-inter font-normal text-[17px] leading-[20.57px] p-[10px] text-white h-fit">
-            Create Tariff
-          </IButton>
+          {step === 1 && (
+            <TariffCreateStep1
+              handleInputChange={handleInputChange}
+              formData={formData}
+              setFormData={setFormData}
+            />
+          )}
+          {step === 2 && (
+            <TariffCreateStep2
+              handleInputChange={handleInputChange}
+              formData={formData}
+              setFormData={setFormData}
+            />
+          )}
+          {step === 3 && (
+            <TariffCreateStep3
+              formData={formData}
+              additionalServices={additionalServices}
+              handleAdditionalServicesChange={handleAdditionalServicesChange}
+            />
+          )}
         </form>
+        <div className={'w-full flex justify-end gap-4 p-6'}>
+          <IButton
+            type="button"
+            className="w-[205px] p-3 bg-gray-500 opacity-50 text-[color:var(--text-white)] rounded-lg hover:bg-[color:var(--button-secondary-hover)] transition"
+            textClassName="w-full text-center justify-center"
+            onClick={handleBack}
+          >
+            Назад
+          </IButton>
+          {step < 3 && (
+            <IButton
+              type="button"
+              className="w-[205px] p-3 bg-[color:var(--button-secondary)] text-[color:var(--text-white)] rounded-lg hover:bg-[color:var(--button-secondary-hover)] transition"
+              textClassName="w-full text-center justify-center"
+              onClick={handleNext}
+            >
+              Далее
+            </IButton>
+          )}
+          {step === 3 && (
+            <IButton
+              type="submit"
+              form="tariff-create-form"
+              className="w-[205px] p-3 bg-[color:var(--button-secondary)] text-[color:var(--text-white)] rounded-lg hover:bg-[color:var(--button-secondary-hover)] transition"
+              textClassName="w-full text-center justify-center"
+            >
+              Создать тариф
+            </IButton>
+          )}
+        </div>
       </section>
       {message && <p>{message}</p>}
     </div>
