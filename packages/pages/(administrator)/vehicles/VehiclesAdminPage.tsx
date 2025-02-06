@@ -88,6 +88,8 @@ const VehiclesAdminPage = (): JSX.Element => {
       setView('data');
     } else if (!loading && vehicles.length === 0) {
       setView('noData');
+    } else if (loading) {
+      setView('loading');
     }
   }, [loading, error, vehicles, view]);
 
