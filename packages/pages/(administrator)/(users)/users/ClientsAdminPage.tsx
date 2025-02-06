@@ -90,6 +90,8 @@ const ClientsAdminPage = (): JSX.Element => {
       setView('data');
     } else if (!loading && users.length === 0) {
       setView('noData');
+    } else if (loading) {
+      setView('loading');
     }
   }, [loading, error, users, view]);
 
