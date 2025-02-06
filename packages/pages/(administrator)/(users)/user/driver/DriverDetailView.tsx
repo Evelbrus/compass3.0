@@ -1,9 +1,16 @@
 'use client';
 
-import React, { JSX, useState } from 'react';
+import React, { JSX } from 'react';
 import { DriverProfile, User } from '@prisma/client';
 import { LazyImage } from '@shared/components/ui/images';
 import { DetailItem } from '@pages/(administrator)/vehicles/VehiclesDetail';
+import { SelectSingle } from '@shared/components/ui/inputs';
+import {
+  changingDriverOptions,
+  statusOptions,
+} from '@shared/lib/effector/drivers/optionsTranslation/optionsTranslationDriver';
+import { useRouter } from 'next/navigation';
+import { renderActions } from '@shared/components/ui/table/ui/TableRenders';
 
 interface UserWithDriverProfile extends User {
   driverProfile?: DriverProfile | null;
@@ -14,7 +21,7 @@ interface DriverDetailViewProps {
 }
 
 const renderField = (label: string, value?: string | number | null) => (
-  <div className="grid grid-cols-2 gap-4">
+  <div className="grid grid-cols-2 gap-[59px]">
     <label className="font-normal text-[14px] leading-[13.93px] text-[#989898] mb-[14px]">
       {label}:
     </label>
@@ -25,8 +32,7 @@ const renderField = (label: string, value?: string | number | null) => (
 );
 
 const DriverDetailView = ({ userData }: DriverDetailViewProps): JSX.Element => {
-  const [isStatusOpen, setIsStatusOpen] = useState(false);
-
+  const router = useRouter();
   const userFields = [
     { label: 'Email', value: userData.email },
     { label: 'Availability', value: userData.availability ? 'Available' : 'Unavailable' },
@@ -72,53 +78,85 @@ const DriverDetailView = ({ userData }: DriverDetailViewProps): JSX.Element => {
       ]
     : [];
 
+  const handleEdit = () => {
+    router.push(`/user/edit/${userData.uuid}`);
+  };
+
   return (
     <>
       <h2 className="text-3xl font-bold text-gray-800 mb-6">Driver Details</h2>
-      <section>
-        <div className="nx-auto grid grid-cols-1 md:grid-cols-1 sm:grid-cols-1 lg:grid-cols-2 gap-4 w-full md:flex-cols gap-[12px] p-6 bg-white shadow-md rounded-lg border border-gray-200">
-          <div className="mt-[20px] w-full flex gap-[12px]">
-            {userData.profilePhotoPath ? (
-              <LazyImage
-                src={userData.profilePhotoPath}
-                alt="Profile Photo"
-                className="rounded-full object-cover"
-              />
-            ) : (
-              <div className="max-w-[280px] h-[200px] flex items-center justify-center bg-gray-50 p-[30px] rounded-[8px]">
-                <LazyImage src="/new-user.svg" alt="logotype" className="w-[330px] h-[140px]" />
-              </div>
-            )}
-            <div className="flex flex-col">
-              {userFields.map((field, index) => (
-                <React.Fragment key={index}>{renderField(field.label, field.value)}</React.Fragment>
-              ))}
-
-              <div className="rounded-lg mb-4">
-                <button
-                  type="button"
-                  onClick={() => setIsStatusOpen(!isStatusOpen)}
-                  className="w-full flex justify-between items-center rounded-t-lg"
-                >
-                  <p className="text-[14px] leading-[13.93px] font-[700]">Status:</p>
-                  <span
-                    className={`transform transition-transform ${isStatusOpen ? 'rotate-180' : 'rotate-0'}`}
-                  >
-                    ▼
-                  </span>
-                </button>
-                <div
-                  className={`overflow-hidden transition-all duration-700 ease-in-out ${
-                    isStatusOpen ? 'max-h-screen' : 'max-h-0'
-                  }`}
-                >
-                  <div className="p-4 bg-white border-t border-gray-300">
-                    <div className="grid grid-cols-2 gap-4">
-                      <button className="text-blue-600">Change</button>
-                      <button className="text-blue-600">Rate</button>
-                    </div>
-                  </div>
+      <section className="flex bg-white shadow-md rounded-lg border border-gray-200  p-6">
+        <div className="nx-auto grid grid-cols-1 md:grid-cols-1 sm:grid-cols-1 lg:grid-cols-2 gap-4 w-full md:flex-cols gap-[12px]">
+          <div className="flex flex-col">
+            <div className="mt-[20px] w-full flex gap-[12px]">
+              {userData.profilePhotoPath ? (
+                <LazyImage
+                  src={userData.profilePhotoPath}
+                  alt="Profile Photo"
+                  className="rounded-full object-cover"
+                />
+              ) : (
+                <div className="max-w-[280px] h-[200px] flex items-center justify-center bg-gray-50 p-[30px] rounded-[8px]">
+                  <LazyImage src="/new-user.svg" alt="logotype" className="w-[330px] h-[140px]" />
                 </div>
+              )}
+              <div className="flex flex-col">
+                {userFields.map((field, index) => (
+                  <React.Fragment key={index}>
+                    {renderField(field.label, field.value)}
+                  </React.Fragment>
+                ))}
+                <div className="w-full flex justify-between items-center rounded-t-lg gap-4">
+                  <p className="text-[14px] leading-[13.93px] font-[700]">Status:</p>
+                  <SelectSingle
+                    options={statusOptions}
+                    classNameBg="bg-black"
+                    classNamePlaceholder="text-white"
+                    classNameBorderRadius="rounded-lg"
+                    value={
+                      userData.driverProfile?.status
+                        ? {
+                            label: userData.driverProfile.status,
+                            value: userData.driverProfile.status,
+                          }
+                        : null
+                    }
+                    onChange={(select) => console.log('Выбран статус:', select?.value)}
+                    className="w-full"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center justify-between gap-[14px]">
+              <div className="w-full">
+                <SelectSingle
+                  label="Смена"
+                  options={changingDriverOptions}
+                  value={
+                    userData.driverProfile?.changingDriver
+                      ? {
+                          label: userData.driverProfile.changingDriver,
+                          value: userData.driverProfile.changingDriver,
+                        }
+                      : null
+                  }
+                  onChange={(selected) => console.log('Выбрана смена:', selected?.value)}
+                />
+              </div>
+              <div className="w-full">
+                <SelectSingle
+                  label="Смена"
+                  options={changingDriverOptions}
+                  value={
+                    userData.driverProfile?.changingDriver
+                      ? {
+                          label: userData.driverProfile.changingDriver,
+                          value: userData.driverProfile.changingDriver,
+                        }
+                      : null
+                  }
+                  onChange={(selected) => console.log('Выбрана смена:', selected?.value)}
+                />
               </div>
             </div>
           </div>
@@ -149,13 +187,20 @@ const DriverDetailView = ({ userData }: DriverDetailViewProps): JSX.Element => {
             </div>
           </div>
         </div>
-        <h2 className="text-2xl font-bold text-gray-800 my-6">Company Profile</h2>
-        <div className="rounded-lg p-6 bg-white shadow-md rounded-lg border border-gray-200 grid grid-cols-1 sm:grid-cols-1 lg:grid-cols-2 md:grid-cols-2 gap-4">
-          {companyFields.map((field, index) => (
-            <DetailItem key={index} label={field.label} value={field.value} />
-          ))}
+        <div onClick={handleEdit}>
+          <LazyImage
+            src="/edit.png"
+            alt={'driver-profile-edit_icon'}
+            className="w-[24px] h-[24px] ml-[9px] cursor-pointer"
+          />
         </div>
       </section>
+      <h2 className="text-2xl font-bold text-gray-800 my-6">Company Profile</h2>
+      <div className="rounded-lg p-6 bg-white shadow-md rounded-lg border border-gray-200 grid grid-cols-1 sm:grid-cols-1 lg:grid-cols-2 md:grid-cols-2 gap-4">
+        {companyFields.map((field, index) => (
+          <DetailItem key={index} label={field.label} value={field.value} />
+        ))}
+      </div>
     </>
   );
 };
