@@ -7,7 +7,7 @@ export const genderOptions = [
 
 export const roleTranslations: Record<UserRole, string> = {
   Client: 'Клиент',
-  ClientCorp: 'Корпоративный клиент',
+  ClientCorp: 'Корп. клиент',
   Driver: 'Водитель',
   Operator: 'Оператор',
   Admin: 'Администратор',

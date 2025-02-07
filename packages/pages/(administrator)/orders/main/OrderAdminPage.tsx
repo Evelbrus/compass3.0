@@ -85,6 +85,8 @@ const OrderAdminPage = (): JSX.Element => {
       setView('data');
     } else if (!loading && orders.length === 0) {
       setView('noData');
+    } else if (loading) {
+      setView('loading');
     }
   }, [loading, error, orders, view]);
 

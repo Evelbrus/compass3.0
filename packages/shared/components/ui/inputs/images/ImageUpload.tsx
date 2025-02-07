@@ -99,13 +99,13 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
       <label className="text-5 leading-5 text-gray-500 font-extrabold mb-3 flex justify-center">
         {label} {requiredStar && <span className="text-red-500">*</span>}
       </label>
-      <div className="w-full min-h-[200px] border-2 border-dashed border-gray-400 rounded-lg flex flex-col gap-8 items-center justify-center bg-gray-50 overflow-hidden relative">
+      <div className="w-full min-h-[340px] border-2 border-dashed border-gray-400 rounded-lg flex flex-col gap-8 items-center justify-center bg-white overflow-hidden relative">
         {preview ? (
           <>
             <img
               src={preview}
               alt="Предпросмотр изображения"
-              className="absolute inset-0 w-full h-full object-contain rounded-lg"
+              className="absolute inset-0 w-full h-full object-cover rounded-lg p-1"
             />
             {!readonly && (
               <IButton
@@ -131,7 +131,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
                 <IButton
                   type="button"
                   onClick={() => inputRef.current?.click()}
-                  className="px-6 py-2 bg-gray-500 text-white rounded-lg"
+                  className="px-6 py-2 bg-[#989898] text-white rounded-lg"
                   textClassName={'text-5 leading-5 justify-center'}
                 >
                   Загрузить фото
