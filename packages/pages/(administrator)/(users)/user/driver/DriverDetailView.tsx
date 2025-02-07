@@ -182,7 +182,10 @@ const DriverDetailView = ({ userData }: DriverDetailViewProps): JSX.Element => {
                   className="rounded-lg object-cover"
                 />
               ) : (
-                <LazyImage src="/new-user.svg" alt="logotype" className="w-[330px] h-[140px]" />
+                <div className='flex items-center gap-[18px]'>
+                  <LazyImage src="/doc_icon1.png" alt="doc_icons1" className="w-[50px] h-[40px]" />
+                  <LazyImage src="/doc_icon2.png" alt="doc_icons2" className="w-[170px] h-[66px]" />
+                </div>
               )}
             </div>
           </div>

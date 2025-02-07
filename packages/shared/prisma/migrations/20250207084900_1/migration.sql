@@ -92,6 +92,18 @@ CREATE TABLE "driver_profile" (
 );
 
 -- CreateTable
+CREATE TABLE "Notification" (
+    "uuid" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "message" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "read" BOOLEAN NOT NULL DEFAULT false,
+
+    CONSTRAINT "Notification_pkey" PRIMARY KEY ("uuid")
+);
+
+-- CreateTable
 CREATE TABLE "orders" (
     "uuid" TEXT NOT NULL,
     "created_by_id" TEXT NOT NULL,
@@ -106,6 +118,9 @@ CREATE TABLE "orders" (
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
     "intermediate_points" TEXT[],
+    "description" TEXT,
+    "flight_number" TEXT,
+    "waiting_time_minutes" INTEGER NOT NULL DEFAULT 0,
 
     CONSTRAINT "orders_pkey" PRIMARY KEY ("uuid")
 );
@@ -128,6 +143,7 @@ CREATE TABLE "points" (
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
     "base_price" DECIMAL(65,30) NOT NULL,
+    "airport" BOOLEAN,
 
     CONSTRAINT "points_pkey" PRIMARY KEY ("uuid")
 );
@@ -317,7 +333,7 @@ ALTER TABLE "orders" ADD CONSTRAINT "orders_departure_point_id_fkey" FOREIGN KEY
 ALTER TABLE "orders" ADD CONSTRAINT "orders_arrival_point_id_fkey" FOREIGN KEY ("arrival_point_id") REFERENCES "points"("uuid") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "orders" ADD CONSTRAINT "orders_assigned_driver_id_fkey" FOREIGN KEY ("assigned_driver_id") REFERENCES "driver_profile"("uuid") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "orders" ADD CONSTRAINT "orders_assigned_driver_id_fkey" FOREIGN KEY ("assigned_driver_id") REFERENCES "users"("uuid") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "order_on_tariff_additional_service" ADD CONSTRAINT "order_on_tariff_additional_service_order_uuid_fkey" FOREIGN KEY ("order_uuid") REFERENCES "orders"("uuid") ON DELETE CASCADE ON UPDATE CASCADE;
