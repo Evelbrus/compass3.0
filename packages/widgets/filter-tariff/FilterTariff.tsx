@@ -1,101 +1,106 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { CreateOrderData, ExtendedTariff } from '@shared/prisma/interface/orders/interface';
-import { useFormContext } from 'react-hook-form';
-import { Point, ServiceLevels, VehicleType } from '@prisma/client';
-import { RadioInput, TextInput } from '@shared/components/ui/inputs';
+import React, { useCallback, useEffect } from 'react';
+import { ExtendedTariff } from '@shared/prisma/interface/orders/interface';
+import { useFormContext, Controller } from 'react-hook-form';
+import { ServiceLevels, VehicleType } from '@prisma/client';
+import { CheckboxInput, TextInput } from '@shared/components/ui/inputs';
+import { OrderData } from '@features/orders/create/OrderCreate.logic';
+import { useUnit } from 'effector-react';
+import {
+  $selectedVehicleType,
+  $selectedServiceLevel,
+} from '@shared/lib/effector/orders/stateStore';
+
+//Определяем типы VehicleType и ServiceLevels без "None"
+const vehicleTypes = Object.values(VehicleType).filter((vt) => vt !== 'None') as VehicleType[];
+const serviceLevels = Object.values(ServiceLevels).filter((sl) => sl !== 'None') as ServiceLevels[];
 
 interface FilterTariffProps {
   tariffs: ExtendedTariff[];
-  selectedAdditionalServices: string[];
-  handleAdditionalServiceChangeCallback: (
-    e: React.ChangeEvent<HTMLInputElement>,
-    serviceUuid: string,
-  ) => void;
-  handleVehicleTypeChange: (value: VehicleType) => void;
-  selectedVehicleType: VehicleType | null;
-  vehicleTypes: VehicleType[];
-  handleServiceLevelChange: (value: ServiceLevels) => void;
-  selectedServiceLevel: ServiceLevels | null;
-  serviceLevels: ServiceLevels[];
-  handleWaitingTimeChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  waitingTimeMinutes: number;
-  waitingInfo: {
-    freeWaitTime: number;
-    pricePerMinute: number;
-    isAirport: boolean;
-  } | null;
   selectedTariff: ExtendedTariff | null;
-  getAvailablePoints: (exclude: string[]) => Point[];
   isLoadingTariff: boolean;
+  handleVehicleTypeChange: (value: VehicleType | null) => void;
+  handleServiceLevelChange: (value: ServiceLevels | null) => void;
+  handleTariffSelect: (tariffUuid: string) => void;
 }
 
 const FilterTariff: React.FC<FilterTariffProps> = ({
   tariffs,
-  handleVehicleTypeChange,
-  selectedVehicleType,
-  vehicleTypes,
-  handleServiceLevelChange,
-  selectedServiceLevel,
-  serviceLevels,
-  handleWaitingTimeChange,
-  waitingTimeMinutes,
-  waitingInfo,
   selectedTariff,
   isLoadingTariff,
+  handleVehicleTypeChange,
+  handleServiceLevelChange,
+  handleTariffSelect,
 }) => {
-  const { formState } = useFormContext<CreateOrderData>();
-  const [localWaitingTime, setLocalWaitingTime] = useState<number>(waitingTimeMinutes);
-  const [isWaitingTimeEnabled, setIsWaitingTimeEnabled] = useState(false);
+  const { formState, setValue, control, watch } = useFormContext<OrderData>();
+  const [combinedErrorMessage, setCombinedErrorMessage] = React.useState('');
+
+  //Получаем значения из effector store
+  const selectedVehicleType = useUnit($selectedVehicleType);
+  const selectedServiceLevel = useUnit($selectedServiceLevel);
 
   useEffect(() => {
-    if (waitingInfo) {
-      setLocalWaitingTime(waitingInfo.freeWaitTime);
-      setIsWaitingTimeEnabled(true);
-    } else {
-      setLocalWaitingTime(0);
-      setIsWaitingTimeEnabled(false);
-    }
-  }, [waitingInfo]);
+    setCombinedErrorMessage(
+      (formState.errors.tariff?.vehicleType?.message || '') +
+        ' ' +
+        (formState.errors?.tariff?.serviceLevel?.message || '') +
+        ' ' +
+        (formState.errors.tariffUuid?.message || ''),
+    );
+  }, [
+    formState.errors?.tariff?.vehicleType?.message,
+    formState.errors?.tariff?.serviceLevel?.message,
+    formState.errors.tariffUuid?.message,
+  ]);
 
-  useEffect(() => {
-    if (isWaitingTimeEnabled) {
-      handleWaitingTimeChange({
-        target: { value: localWaitingTime.toString() },
-      } as React.ChangeEvent<HTMLInputElement>);
-    }
-  }, [localWaitingTime, handleWaitingTimeChange, isWaitingTimeEnabled]);
-
-  const handleVehicleTypeRadioChange = (value: VehicleType) => {
-    handleVehicleTypeChange(value);
-  };
-
-  const handleServiceLevelRadioChange = (value: ServiceLevels) => {
-    handleServiceLevelChange(value);
-  };
-
-  const getTariffsForVehicleType = (vehicleType: VehicleType) => {
-    return tariffs.filter((tariff) => tariff.vehicleType === vehicleType);
-  };
-  const getAvailableServiceLevels = () => {
+  const getAvailableServiceLevels = useCallback(() => {
     if (!selectedVehicleType) {
-      return [];
+      return serviceLevels; //Использовать отфильтрованный serviceLevels
     }
-    const availableTariffs = getTariffsForVehicleType(selectedVehicleType);
-    return Array.from(new Set(availableTariffs.map((tariff) => tariff.serviceLevel)));
-  };
-  const filteredVehicleTypes = vehicleTypes.filter((vt) => vt !== 'None');
-  const filteredServiceLevels = serviceLevels.filter((sl) => sl !== 'None');
+    return tariffs
+      .filter((tariff) => tariff.vehicleType === selectedVehicleType)
+      .map((tariff) => tariff.serviceLevel);
+  }, [selectedVehicleType, tariffs]);
 
-  //Автоматический выбор первого уровня обслуживания
+  const getTariffsForVehicleType = useCallback(
+    (vehicleType: VehicleType) => {
+      return tariffs.filter((tariff) => tariff.vehicleType === vehicleType);
+    },
+    [tariffs],
+  );
+
+  const handleVehicleTypeChangeWithReset = useCallback(
+    (value: VehicleType | null) => {
+      handleVehicleTypeChange(value); //Сообщаем об изменении родительскому компоненту
+      setValue('tariff.serviceLevel', null);
+      setValue('tariffUuid', '');
+    },
+    [handleVehicleTypeChange, setValue],
+  );
+
+  const handleServiceLevelChangeWithReset = useCallback(
+    (value: ServiceLevels | null) => {
+      handleServiceLevelChange(value); //Сообщаем об изменении родительскому компоненту
+      setValue('tariffUuid', '');
+    },
+    [handleServiceLevelChange, setValue],
+  );
+
   useEffect(() => {
-    if (selectedVehicleType && tariffs && !selectedServiceLevel) {
-      const availableServiceLevels = getAvailableServiceLevels();
-      if (availableServiceLevels.length > 0) {
-        const firstServiceLevel = availableServiceLevels[0];
-        handleServiceLevelChange(firstServiceLevel);
+    if (selectedVehicleType && selectedServiceLevel) {
+      const foundTariff = tariffs.find(
+        (tariff) =>
+          tariff.vehicleType === selectedVehicleType &&
+          tariff.serviceLevel === selectedServiceLevel,
+      );
+
+      if (foundTariff) {
+        setValue('tariffUuid', foundTariff.uuid);
+        handleTariffSelect(foundTariff.uuid);
+      } else {
+        setValue('tariffUuid', '');
       }
     }
-  }, [selectedVehicleType, tariffs, handleServiceLevelChange, selectedServiceLevel]);
+  }, [selectedVehicleType, selectedServiceLevel, tariffs, setValue, handleTariffSelect]);
 
   return (
     <div className="w-full h-fit bg-white flex flex-col rounded-md">
@@ -104,170 +109,210 @@ const FilterTariff: React.FC<FilterTariffProps> = ({
           <p className="bg-[#E4E4E4] p-7 text-5 leading-5 text-[#989898] font-light rounded-tl-md">
             Vehicle Type
           </p>
-          {filteredVehicleTypes.map((vt) => (
-            <div key={vt} className="px-7 py-4 text-4 leading-4 text-[#989898] font-light">
-              <RadioInput
-                label={vt}
-                name="vehicleType"
-                checked={selectedVehicleType === vt}
-                onChange={() => handleVehicleTypeRadioChange(vt)}
-                className="w-full items-center justify-center"
-              />
-            </div>
-          ))}
+          <Controller
+            name="tariff.vehicleType"
+            control={control}
+            rules={{ required: 'Выберите тип транспортного средства' }}
+            render={({ field }) => (
+              <>
+                {vehicleTypes.map(
+                  (
+                    vt, //Используем отфильтрованный vehicleTypes
+                  ) => (
+                    <div key={vt} className="px-7 py-4 text-4 leading-4 text-[#989898] font-light">
+                      <CheckboxInput
+                        label={vt}
+                        checked={selectedVehicleType === vt} //Используем effector store для checked
+                        onChange={() => {
+                          const newValue = selectedVehicleType === vt ? null : vt;
+                          field.onChange(newValue);
+                          handleVehicleTypeChangeWithReset(newValue);
+                        }}
+                        className="w-full items-center justify-center"
+                      />
+                    </div>
+                  ),
+                )}
+              </>
+            )}
+          />
         </div>
+
         <div className="w-1/3">
           <p className="bg-[#E4E4E4] p-7 text-5 leading-5 text-[#989898] font-light">
             Service Level
           </p>
-          {filteredServiceLevels.map((sl) => {
-            const isServiceLevelAvailable = getAvailableServiceLevels().includes(sl);
-            return (
-              <div
-                key={sl}
-                className={`px-7 py-4 text-4 leading-4 text-[#989898] font-light ${isServiceLevelAvailable ? '' : 'opacity-50 pointer-events-none'}`}
-              >
-                <RadioInput
-                  label={sl}
-                  name="serviceLevel"
-                  checked={selectedServiceLevel === sl}
-                  onChange={() => handleServiceLevelRadioChange(sl)}
-                  className="w-full"
-                  disabled={!isServiceLevelAvailable}
-                />
-              </div>
-            );
-          })}
+          <Controller
+            name="tariff.serviceLevel"
+            control={control}
+            rules={{ required: 'Выберите уровень обслуживания' }}
+            render={({ field }) => (
+              <>
+                {serviceLevels.map((sl) => {
+                  //Используем отфильтрованный serviceLevels
+                  const isServiceLevelAvailable = getAvailableServiceLevels().includes(sl);
+                  return (
+                    <div
+                      key={sl}
+                      className={`px-7 py-4 text-4 leading-4 text-[#989898] font-light ${
+                        isServiceLevelAvailable ? '' : 'opacity-50 pointer-events-none'
+                      }`}
+                    >
+                      <CheckboxInput
+                        label={sl}
+                        checked={selectedServiceLevel === sl} //Используем effector store для checked
+                        onChange={() => {
+                          const newValue = selectedServiceLevel === sl ? null : sl;
+                          field.onChange(newValue);
+                          handleServiceLevelChangeWithReset(newValue);
+                        }}
+                        className="w-full"
+                        disabled={!isServiceLevelAvailable}
+                      />
+                    </div>
+                  );
+                })}
+              </>
+            )}
+          />
         </div>
+
         <div className="w-1/3">
           <p className="bg-[#E4E4E4] p-7 text-5 leading-5 text-[#989898] font-light rounded-tr-md">
             Tariff
           </p>
-          {selectedVehicleType && tariffs && !isLoadingTariff && (
-            <div>
-              {filteredServiceLevels.map((sl) => (
-                <div key={sl}>
-                  {getTariffsForVehicleType(selectedVehicleType).some(
-                    (tariff) => tariff.serviceLevel === sl,
-                  ) ? (
-                    getTariffsForVehicleType(selectedVehicleType)
-                      .filter((tariff) => tariff.serviceLevel === sl)
-                      .map((tariff) => (
-                        <div key={tariff.uuid} className="px-7 py-4">
-                          <label htmlFor={tariff.uuid} className="ml-1 w-full flex items-center">
-                            <TextInput
-                              readOnly
-                              value={`${tariff.price}c`}
-                              onChange={() => {}}
-                              className={'text-6 leading-6 font-extrabold font-helvetica-neue'}
-                              classNameBg={'bg-transparent'}
-                              classNameBorderRadius={'border-none rounded-md'}
-                              classNamePadding={'p-0'}
-                              classNamePlaceholder={'text-5 leading-5'}
-                            />
-                          </label>
-                        </div>
-                      ))
-                  ) : (
-                    <div className="px-7 py-4 text-4 leading-4 text-[#989898] font-light italic">
-                      Нет тарифов для данного уровня
+          <Controller
+            name="tariffUuid"
+            control={control}
+            render={({ field }) => {
+              const tariffsForVehicleType = getTariffsForVehicleType(selectedVehicleType);
+
+              return (
+                <>
+                  {selectedVehicleType && tariffs.length && !isLoadingTariff ? (
+                    <div>
+                      {serviceLevels.map((serviceLevel) => {
+                        //Используем отфильтрованный serviceLevels
+                        const tariff = tariffsForVehicleType.find(
+                          (t) => t.serviceLevel === serviceLevel,
+                        );
+
+                        return (
+                          <div key={serviceLevel} className="px-7 py-4">
+                            {tariff ? (
+                              <label
+                                htmlFor={tariff.uuid}
+                                className="ml-1 w-full flex items-center"
+                              >
+                                <input
+                                  type="radio"
+                                  id={tariff.uuid}
+                                  name="tariff"
+                                  value={tariff.uuid}
+                                  checked={field.value === tariff.uuid}
+                                  onChange={() => {
+                                    field.onChange(tariff.uuid);
+                                    handleTariffSelect(tariff.uuid);
+                                  }}
+                                  className="hidden"
+                                />
+                                <TextInput
+                                  readOnly
+                                  value={`${tariff.price}c`}
+                                  onChange={() => {}}
+                                  className="text-6 leading-6 font-extrabold font-helvetica-neue"
+                                  classNameBg="bg-transparent"
+                                  classNameBorderRadius="border-none rounded-md"
+                                  classNamePadding="p-0"
+                                  classNamePlaceholder="text-5 leading-5"
+                                />
+                              </label>
+                            ) : (
+                              <div className="text-gray-500">Тариф не существует</div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
+                  ) : null}
+                  {formState.errors.tariffUuid && (
+                    <span className="text-red-500">{formState.errors.tariffUuid.message}</span>
                   )}
-                </div>
-              ))}
-            </div>
-          )}
-          {formState.errors.tariffUuid && (
-            <span className="text-red-500">{formState.errors.tariffUuid.message}</span>
-          )}
+                </>
+              );
+            }}
+          />
         </div>
       </div>
-      <div className="w-full p-4 mt-4 border-t rounded-b-md bg-white flex">
+
+      {combinedErrorMessage && <div className="text-red-500 p-4">{combinedErrorMessage}</div>}
+
+      <div className="w-full p-4 border-t rounded-b-md bg-white flex">
         <div className="w-full flex flex-col gap-4">
           <h2 className="text-5 leading-5 font-extrabold rounded-tl-md">Информация о тарифе</h2>
-          <div className={'w-full flex flex-row gap-2'}>
-            <div className="w-full overflow-x-auto">
+          <div className="w-full flex flex-row gap-2">
+            <div className="w-full overflow-x-auto border rounded-md p-4">
               <table className="w-full table-auto">
                 <tbody>
                   <tr>
                     <td className="w-1/2 font-medium px-2 py-1 border-b">Цена:</td>
                     <td className="w-1/5 px-2 py-1 border-b">
-                      <span>{selectedTariff?.price ? `${selectedTariff.price}c` : ''}</span>
+                      <span>{selectedTariff?.price ?? ''}c</span>
                     </td>
                   </tr>
                   <tr>
-                    <td className="font-medium px-2 py-1 border-b">Доп. цена за точку:</td>
-                    <td className="px-2 py-1 border-b">
-                      <span>
-                        {selectedTariff?.additionalPointPrice
-                          ? `${selectedTariff.additionalPointPrice}c`
-                          : ''}
-                      </span>
+                    <td className="font-medium px-2 py-1 border-б">Доп. цена за точку:</td>
+                    <td className="px-2 py-1 border-б">
+                      <span>{selectedTariff?.additionalPointPrice ?? ''}c</span>
                     </td>
                   </tr>
                   <tr>
-                    <td className="font-medium px-2 py-1 border-b">
+                    <td className="font-medium px-2 py-1 border-б">
                       Бесплатное время ожидания в Бишкеке:
                     </td>
-                    <td className="px-2 py-1 border-b">
-                      <span>
-                        {selectedTariff?.freeWaitTimeBishkek
-                          ? `${selectedTariff.freeWaitTimeBishkek} мин`
-                          : ''}
-                      </span>
+                    <td className="px-2 py-1 border-б">
+                      <span>{selectedTariff?.freeWaitTimeBishkek ?? ''} мин</span>
                     </td>
                   </tr>
                   <tr>
-                    <td className="font-medium px-2 py-1 border-b">
-                      Цена за минуту ожидания после беспл. в Бишкеке:
+                    <td className="font-medium px-2 py-1 border-б">
+                      Цена за минуту ожидания после бесплатного периода в Бишкеке:
                     </td>
-                    <td className="px-2 py-1 border-b">
-                      <span>
-                        {selectedTariff?.pricePerMinuteAfterBishkek
-                          ? `${selectedTariff.pricePerMinuteAfterBishkek}c`
-                          : ''}
-                      </span>
+                    <td className="px-2 py-1 border-б">
+                      <span>{selectedTariff?.pricePerMinuteAfterBishkek ?? ''}c</span>
                     </td>
                   </tr>
                   <tr>
-                    <td className="font-medium px-2 py-1 border-b">
+                    <td className="font-medium px-2 py-1 border-б">
                       Бесплатное время ожидания в аэропорту:
                     </td>
-                    <td className="px-2 py-1 border-b">
-                      <span>
-                        {selectedTariff?.freeWaitTimeAirport
-                          ? `${selectedTariff.freeWaitTimeAirport} мин`
-                          : ''}
-                      </span>
+                    <td className="px-2 py-1 border-б">
+                      <span>{selectedTariff?.freeWaitTimeAirport ?? ''} мин</span>
                     </td>
                   </tr>
                   <tr>
-                    <td className="font-medium px-2 py-1 border-b">
-                      Цена за минуту ожидания после беспл. в аэропорту:
+                    <td className="font-medium px-2 py-1 border-б">
+                      Цена за минуту ожидания после бесплатного периода в аэропорту:
                     </td>
-                    <td className="px-2 py-1 border-b">
-                      <span>
-                        {selectedTariff?.pricePerMinuteAfterAirport
-                          ? `${selectedTariff.pricePerMinuteAfterAirport}c`
-                          : ''}
-                      </span>
+                    <td className="px-2 py-1 border-б">
+                      <span>{selectedTariff?.pricePerMinuteAfterAirport ?? ''}c</span>
                     </td>
                   </tr>
                   <tr>
-                    <td className="font-medium px-2 py-1 border-b">Уровень сервиса:</td>
-                    <td className="px-2 py-1 border-b">{selectedTariff?.serviceLevel || ''}</td>
+                    <td className="font-medium px-2 py-1 border-б">Уровень сервиса:</td>
+                    <td className="px-2 py-1 border-б">{selectedTariff?.serviceLevel ?? ''}</td>
                   </tr>
                   <tr>
-                    <td className="font-medium px-2 py-1 border-b">Тип машины:</td>
-                    <td className="px-2 py-1 border-b">{selectedTariff?.vehicleType || ''}</td>
+                    <td className="font-medium px-2 py-1 border-б">Тип машины:</td>
+                    <td className="px-2 py-1 border-б">{selectedTariff?.vehicleType ?? ''}</td>
                   </tr>
                 </tbody>
               </table>
             </div>
             <div className="w-full flex flex-col gap-2">
-              <span className="font-medium text-center">Описание:</span>
-              <div className="h-full overflow-auto border-l bg-white p-2 italic">
-                {selectedTariff?.description || ''}
+              <h2 className="text-5 leading-5 font-extrabолд rounded-тл-md">Описание тарифа</h2>
+              <div className="h-full overflow-auto rounded-md bg-white п-2 italic">
+                {selectedTariff?.description ?? ''}
               </div>
             </div>
           </div>

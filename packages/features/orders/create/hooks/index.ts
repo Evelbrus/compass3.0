@@ -9,3 +9,5 @@ export * from './clients/useClients';
 export * from './clients/useOrderCreateClients';
 export * from './additional-service/useAdditionalServices';
 export * from './additional-service/useOrderCreateAdditionalServices';
+export * from './time/useOrdertime';
+export * from './price/useOrderPriceCalculation';

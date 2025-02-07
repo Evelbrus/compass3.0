@@ -28,7 +28,15 @@ export async function GET(req: Request, { params }: { params: Params }) {
       },
       include: {
         createdBy: true,
-        tariff: true,
+        tariff: {
+          include: {
+            tariffAdditionalServices: {
+              include: {
+                service: true,
+              },
+            },
+          },
+        },
         departurePoint: true,
         arrivalPoint: true,
         assignedDriver: true,
@@ -51,56 +59,36 @@ export async function GET(req: Request, { params }: { params: Params }) {
 
     log('Fetched order:', order);
 
-    const response = {
-      ...order,
-      createdBy: {
-        uuid: order.createdBy.uuid,
-        fullName: order.createdBy.fullName,
-        email: order.createdBy.email,
-        phone: order.createdBy.phone,
-      },
-      assignedDriver: order.assignedDriver
-        ? {
-            uuid: order.assignedDriver.uuid,
-            fullName: order.assignedDriver.fullName,
-            email: order.assignedDriver.email,
-            phone: order.assignedDriver.phone,
-          }
-        : null,
+    //Преобразуем orderTariffAdditionalServices в нужный формат
+    const formattedOrderTariffAdditionalServices = order.orderTariffAdditionalServices.map(
+      (orderService) => ({
+        serviceUuid: orderService.tariffOnService.uuid, //Извлекаем uuid из TariffOnService!
+        name: orderService.tariffOnService.service.name, //Извлекаем name
+        price: orderService.tariffOnService.price, //Извлекаем price
+      }),
+    );
+
+    const formattedOrder = {
+      createdBy: order.createdById,
+      assignedDriverId: order.assignedDriverId || null,
+      departurePoint: order.departurePoint.uuid,
+      arrivalPoint: order.arrivalPoint.uuid,
+      intermediatePoints: order.intermediatePoints,
       tariff: {
-        uuid: order.tariff.uuid,
-        name: order.tariff.name,
-        vehicleTypes: order.tariff.vehicleType,
-        serviceLevel: order.tariff.serviceLevel,
+        ...order.tariff,
+        tariffAdditionalServices: order.tariff.tariffAdditionalServices, //Include tariff additional services
       },
-      departurePoint: {
-        uuid: order.departurePoint.uuid,
-        address: order.departurePoint.address,
-        basePrice: order.departurePoint.basePrice,
-      },
-      arrivalPoint: {
-        uuid: order.arrivalPoint.uuid,
-        address: order.arrivalPoint.address,
-        basePrice: order.arrivalPoint.basePrice,
-      },
-      orderTariffAdditionalServices: order.orderTariffAdditionalServices.map((ots) => ({
-        uuid: ots.uuid,
-        tariffOnServiceUuid: ots.tariffOnServiceUuid,
-        createdAt: ots.createdAt,
-        updatedAt: ots.updatedAt,
-        tariffOnService: {
-          uuid: ots.tariffOnService.uuid,
-          price: ots.tariffOnService.price,
-          isAvailable: ots.tariffOnService.isAvailable,
-          serviceUuid: ots.tariffOnService.serviceUuid,
-          createdAt: ots.tariffOnService.createdAt,
-          updatedAt: ots.tariffOnService.updatedAt,
-          name: ots.tariffOnService.service.name,
-        },
-      })),
+      description: order.description,
+      status: order.status,
+      flightNumber: order.flightNumber,
+      waitingTimeMinutes: order.waitingTimeMinutes,
+      departureTime: order.departureTime,
+      createdAt: order.createdAt,
+      updatedAt: order.updatedAt,
+      orderTariffAdditionalServices: formattedOrderTariffAdditionalServices, //Используем преобразованный массив
     };
 
-    return NextResponse.json(response);
+    return NextResponse.json(formattedOrder);
   } catch (error) {
     log('Error fetching order:', error);
     if (error instanceof Error) {
@@ -138,9 +126,10 @@ export async function PUT(req: Request, { params }: { params: Params }) {
     basePrice,
     selectedServices,
     assignedDriverId,
+    status,
   } = data;
 
-  const orderStatus = assignedDriverId ? OrderStatus.PLANNED : OrderStatus.PENDING;
+  console.log('selectedServices отправленные на сервер:', selectedServices);
 
   try {
     const result = await prisma.$transaction(async (prismaTx) => {
@@ -170,7 +159,15 @@ export async function PUT(req: Request, { params }: { params: Params }) {
       //3. Проверка существования тарифа
       const tariffRecord = await prismaTx.tariff.findUnique({
         where: { uuid: tariffUuid },
+        include: {
+          tariffAdditionalServices: {
+            include: {
+              service: true,
+            },
+          },
+        },
       });
+
       if (!tariffRecord) {
         log(`Tariff with UUID ${tariffUuid} not found`);
         throw new Error('Tariff not found');
@@ -218,8 +215,8 @@ export async function PUT(req: Request, { params }: { params: Params }) {
           departureTime: new Date(departureTime!),
           departurePointId: departurePoint,
           arrivalPointId: arrivalPoint,
-          basePrice: basePrice !== undefined ? new Decimal(basePrice) : new Decimal(0),
-          status: orderStatus,
+          basePrice: new Decimal(basePrice ?? 0),
+          status: status,
           assignedDriverId: assignedDriverId || null,
           intermediatePoints: (intermediatePoints || []).filter(Boolean),
         },
@@ -243,11 +240,19 @@ export async function PUT(req: Request, { params }: { params: Params }) {
               in: selectedServices,
             },
           },
+          include: {
+            service: true, //Добавьте include, чтобы видеть больше информации
+          },
         });
         log(
-          'Found tariffOnServices:',
-          tariffOnServices.map((tos) => tos.uuid),
+          'Найденные tariffOnServices:',
+          tariffOnServices.map((tos) => ({ uuid: tos.uuid, name: tos.service.name })), //Показывать имя услуги
         );
+
+        const foundUuids = tariffOnServices.map((tos) => tos.uuid);
+        const missingUuids = selectedServices.filter((uuid) => !foundUuids.includes(uuid));
+        log('Отсутствующие UUID tariffOnService:', missingUuids);
+
         if (tariffOnServices.length !== selectedServices.length) {
           log(
             `Not all services found for tariff ${tariffUuid}. Selected services: ${selectedServices.join(', ')}`,
@@ -268,6 +273,15 @@ export async function PUT(req: Request, { params }: { params: Params }) {
       const finalOrder = await prismaTx.order.findUnique({
         where: { uuid: updatedOrder.uuid },
         include: {
+          tariff: {
+            include: {
+              tariffAdditionalServices: {
+                include: {
+                  service: true,
+                },
+              },
+            },
+          },
           orderTariffAdditionalServices: {
             include: {
               tariffOnService: true,

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import NoData from '@shared/components/errors/noData';
 import AnimatedComponent from '@shared/components/animated/CommonAnimated/AnimatedComponent';
 import Pagination from '@shared/components/ui/pagination/Pagination';
@@ -14,46 +14,37 @@ interface DriversNearbyProps {
   drivers: User[] | null;
   page: number;
   perPage: number;
-  total: number;
+  currentTotal: number;
   isDriversLoading: boolean;
   searchDriver: string;
+  selectedDriverInfo: User | null;
+  serverTime?: Date | null;
+  handleSearchDriverChange: (value: string) => void;
+  handlePageChange: (newPage: number) => void;
   handleDriverClick: (driverId: string) => void;
-  setSearchDriver: (value: string) => void;
-  setPage: (newPage: number) => void;
-  selectedDriverInfo: {
-    uuid: string;
-    fullName: string;
-  } | null;
 }
 
 const DriversNearby: React.FC<DriversNearbyProps> = ({
   drivers,
   page,
   perPage,
-  total,
+  currentTotal,
   isDriversLoading,
   searchDriver,
+  handleSearchDriverChange,
+  handlePageChange,
   handleDriverClick,
-  setSearchDriver,
-  setPage,
   selectedDriverInfo,
+  serverTime,
 }) => {
   const { watch, setValue } = useFormContext();
   const formData = watch();
 
-  const handleSearchChange = useCallback(
-    (value: string) => {
-      setSearchDriver(value);
-    },
-    [setSearchDriver],
-  );
-
-  const handlePageChange = useCallback(
-    (newPage: number) => {
-      setPage(newPage);
-    },
-    [setPage],
-  );
+  useEffect(() => {
+    if (selectedDriverInfo) {
+      setValue('assignedDriverId', selectedDriverInfo.uuid);
+    }
+  }, [selectedDriverInfo, setValue]);
 
   const handleDriverRowClick = useCallback(
     (driverId: string) => {
@@ -75,23 +66,32 @@ const DriversNearby: React.FC<DriversNearbyProps> = ({
           classNamePadding="text-5 font-light leading-5 p-5 rounded-3xl shadow-3xl"
           placeholder="Поиск по ФИО"
           value={searchDriver}
-          onChange={handleSearchChange}
+          onChange={(e) => {
+            if (typeof e === 'string') {
+              handleSearchDriverChange(e);
+            } else {
+              handleSearchDriverChange(e.target.value);
+            }
+          }}
         />
         <AnimatedComponent className="w-full h-full bg-transparent rounded-lg">
           {isDriversLoading ? null : !drivers || drivers.length === 0 ? (
             <NoData message="Нет доступных водителей" />
           ) : (
             <div className="w-full overflow-x-auto">
-              <table className="w-full border-collapse border border-[#0000001A] rounded-lg ">
+              <table className="w-full border-collapse rounded-md bg-white border-[#0000001A]">
                 <tbody>
-                  {drivers.map((driver) => {
-                    const isSelected = formData.assignedDriverId === driver.uuid;
-                    const isOnline = isDriverOnline(driver.lastActive);
+                  {drivers?.map((driver) => {
+                    const isSelected = selectedDriverInfo?.uuid === driver.uuid;
+                    const isOnline = isDriverOnline(
+                      driver.lastActive,
+                      serverTime instanceof Date ? serverTime.toISOString() : null,
+                    );
                     return (
                       <tr
                         key={driver.uuid}
-                        className={`relative flex p-4 gap-4 cursor-pointer border-b border-[#0000001A] hover:bg-[#00000005] last:border-b-0 w-full ${
-                          isSelected ? 'bg-[#00ff0010] hover:bg-[#00ff0020]' : ''
+                        className={`relative flex p-4 gap-4 cursor-pointer border-b border-[#0000001A] hover:bg-gray-100 last:border-b-0 w-full ${
+                          isSelected ? 'bg-blue-100' : ''
                         }`}
                         onClick={() => {
                           handleDriverRowClick(driver.uuid);
@@ -124,6 +124,24 @@ const DriversNearby: React.FC<DriversNearbyProps> = ({
                             <p className="text-4 leading-4 font-light">{driver.phone}</p>
                           </div>
                         </td>
+                        {isSelected && (
+                          <td className="absolute right-4 top-1/2 -translate-y-1/2">
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-6 w-6 text-green-500"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M5 13l4 4L19 7"
+                              />
+                            </svg>
+                          </td>
+                        )}
                       </tr>
                     );
                   })}
@@ -133,16 +151,12 @@ const DriversNearby: React.FC<DriversNearbyProps> = ({
           )}
         </AnimatedComponent>
       </div>
-      {selectedDriverInfo && (
-        <h2 className="text-5 leading-4 font-semibold">
-          Выбран водитель: {selectedDriverInfo.fullName}
-        </h2>
-      )}
-      {total > 0 && total > perPage && (
+
+      {currentTotal > perPage && (
         <Pagination
           pageNumber={page}
           pageSize={perPage}
-          totalCount={total}
+          totalCount={currentTotal}
           setPageNumber={handlePageChange}
         />
       )}

@@ -1,13 +1,34 @@
-export const isDriverOnline = (lastActive: Date | string | null): boolean => {
-  if (!lastActive) return false;
-
-  const lastActiveDate = typeof lastActive === 'string' ? new Date(lastActive) : lastActive;
-
-  if (isNaN(lastActiveDate.getTime())) {
+//@widgets/drivers-nearby/fucntions/isDriverOnline.ts
+export const isDriverOnline = (
+  lastActive: Date | string | null,
+  serverTime: string | null,
+): boolean => {
+  if (!lastActive || !serverTime) {
     return false;
   }
 
-  const currentDate = new Date();
-  const differenceInMinutes = (currentDate.getTime() - lastActiveDate.getTime()) / (1000 * 60);
-  return differenceInMinutes <= 6;
+  try {
+    const lastActiveDate =
+      typeof lastActive === 'string'
+        ? new Date(lastActive)
+        : lastActive instanceof Date
+          ? lastActive
+          : new Date(lastActive);
+    const serverDate = new Date(serverTime);
+
+    if (isNaN(lastActiveDate.getTime())) {
+      return false;
+    }
+
+    const differenceInMinutes = (serverDate.getTime() - lastActiveDate.getTime()) / (1000 * 60);
+
+    if (differenceInMinutes <= 6) {
+      return true;
+    } else {
+      return false;
+    }
+  } catch (error) {
+    console.error('Ошибка в isDriverOnline:', error);
+    return false;
+  }
 };

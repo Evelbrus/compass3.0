@@ -1,93 +1,97 @@
-import { useState, useEffect, useCallback } from 'react';
-import { fetchDrivers } from '@features/orders/create/api/orderApi';
+import { useState, useCallback, useEffect } from 'react';
 import { User } from '@prisma/client';
+import { fetchDrivers, fetchAssignedDriver } from '@features/orders/create/api/orderApi';
 
 interface UseDriversProps {
-  selectedServiceLevel?: string;
-  selectedVehicleType?: string;
-  searchDriver?: string;
-  initialPage?: number;
-  initialPerPage?: number;
-  setErrorMessage: (error: Error | null | undefined, message: string) => void;
-}
-
-export interface UseDriversResult {
-  drivers: User[] | null;
-  page: number;
-  perPage: number;
-  total: number;
-  changePage: (newPage: number) => void;
-  changePerPage: (newPerPage: number) => void;
-  isDriversLoading: boolean;
-  fetchAllDrivers: () => void;
+  vehicleType?: string;
+  serviceLevel?: string | null;
+  search?: string;
+  setErrorMessage: (error: Error | null, message: string) => void;
 }
 
 export const useDrivers = ({
-  selectedServiceLevel,
-  selectedVehicleType,
-  searchDriver,
+  vehicleType,
+  serviceLevel,
+  search,
   setErrorMessage,
-  initialPage = 1,
-  initialPerPage = 5,
-}: UseDriversProps): UseDriversResult => {
+}: UseDriversProps) => {
   const [drivers, setDrivers] = useState<User[] | null>(null);
-  const [page, setPage] = useState(initialPage);
-  const [perPage, setPerPage] = useState(initialPerPage);
-  const [total, setTotal] = useState(0);
+  const [assignedDriver, setAssignedDriver] = useState<User | null>(null);
+  const [page, setPage] = useState<number>(1);
+  const [perPage, setPerPage] = useState<number>(2);
+  const [total, setTotal] = useState<number>(0);
   const [isDriversLoading, setIsLoading] = useState(false);
+  const [serverTime, setServerTime] = useState<Date | null>(null);
 
-  const fetchAllDrivers = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const driversData = await fetchDrivers(
-        selectedServiceLevel,
-        selectedVehicleType,
-        searchDriver,
-        page,
-        perPage,
-      );
-      if (driversData) {
+  const fetchDriversData = useCallback(
+    async (
+      vehicleTypeQuery: string | null,
+      serviceLevelQuery: string | null,
+      searchQuery: string = '',
+    ) => {
+      setIsLoading(true);
+      try {
+        const driversData = await fetchDrivers(
+          serviceLevelQuery,
+          vehicleTypeQuery,
+          searchQuery,
+          page,
+          perPage,
+        );
         setDrivers(driversData.drivers);
         setTotal(driversData.total);
-      } else {
+        setServerTime(driversData.serverTime);
+      } catch (error) {
+        setErrorMessage(error, 'Error fetching drivers');
         setDrivers(null);
         setTotal(0);
       }
-    } catch (error) {
-      setErrorMessage(error, 'Error fetching drivers');
-      setDrivers(null);
-      setTotal(0);
-    } finally {
       setIsLoading(false);
-    }
-  }, [selectedServiceLevel, selectedVehicleType, searchDriver, setErrorMessage, page, perPage]);
+    },
+    [setErrorMessage, page, perPage],
+  );
+
+  const refetchDrivers = useCallback(
+    (searchQuery: string = '', vehicleTypeQuery?: string, serviceLevelQuery?: string | null) => {
+      fetchDriversData(
+        searchQuery ? undefined : vehicleTypeQuery, //Если есть поисковый запрос, не передаем vehicleType
+        searchQuery ? undefined : serviceLevelQuery, //Если есть поисковый запрос, не передаем serviceLevel
+        searchQuery,
+      );
+    },
+    [fetchDriversData],
+  );
 
   useEffect(() => {
-    setPage(1);
-  }, [searchDriver]);
+    fetchDriversData(vehicleType, serviceLevel, '');
+  }, [fetchDriversData, vehicleType, serviceLevel]);
 
-  useEffect(() => {
-    fetchAllDrivers();
-  }, [fetchAllDrivers]);
-
-  const changePage = (newPage: number) => {
-    if (newPage > 0) {
-      setPage(newPage);
-    }
-  };
-
-  const changePerPage = (newPerPage: number) => {
-    setPerPage(newPerPage);
-  };
+  const fetchAssignedDriverData = useCallback(
+    async (assignedDriverId: string) => {
+      setIsLoading(true);
+      try {
+        const driverData = await fetchAssignedDriver(assignedDriverId);
+        setAssignedDriver(driverData);
+      } catch (error) {
+        setErrorMessage(error, 'Error fetching assigned driver');
+        setAssignedDriver(null);
+      }
+      setIsLoading(false);
+    },
+    [setErrorMessage],
+  );
 
   return {
     drivers,
-    total,
-    fetchAllDrivers,
+    assignedDriver,
+    isDriversLoading,
+    refetchDrivers,
+    fetchAssignedDriverData,
     page,
     perPage,
-    changePage,
-    changePerPage,
-    isDriversLoading,
+    setPage,
+    setPerPage,
+    total,
+    serverTime,
   };
 };

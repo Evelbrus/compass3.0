@@ -1,0 +1,8 @@
+model Notification {
+  uuid      String   @id @default(uuid())
+  userId    String
+  title     String
+  message   String
+  createdAt DateTime @default(now())
+  read      Boolean  @default(false)
+}

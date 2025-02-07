@@ -16,8 +16,9 @@ export async function GET(request: Request) {
     const serviceLevel = searchParams.get('serviceLevel');
     const vehicleType = searchParams.get('vehicleType');
     const search = searchParams.get('search');
+    const assignedDriverId = searchParams.get('assignedDriverId');
 
-    //Валидация параметров
+    //Валидация параметров запроса
     const errors = [];
 
     if (isNaN(page) || page < 1) {
@@ -54,6 +55,9 @@ export async function GET(request: Request) {
           mode: 'insensitive' as const,
         },
       }),
+      ...(assignedDriverId && {
+        uuid: assignedDriverId,
+      }),
       vehicleDriver: {
         is: {
           vehicle: {
@@ -64,48 +68,103 @@ export async function GET(request: Request) {
       },
     };
 
-    //Параллельное выполнение запросов
-    const [totalDrivers, drivers] = await Promise.all([
-      prisma.user.count({ where: whereClause }),
-      prisma.user.findMany({
-        where: whereClause,
+    //Если указан assignedDriverId, ищем только одного водителя
+    if (assignedDriverId) {
+      const driver = await prisma.user.findUnique({
+        where: {
+          uuid: assignedDriverId,
+        },
         select: {
           uuid: true,
           fullName: true,
           phone: true,
           profilePhotoPath: true,
           lastActive: true,
+          vehicleDriver: {
+            //Загружаем информацию об автомобиле
+            select: {
+              vehicle: {
+                select: {
+                  vehicleType: true,
+                  serviceLevels: true,
+                },
+              },
+            },
+          },
         },
-        orderBy: { lastActive: 'desc' },
-        skip: (page - 1) * perPage,
-        take: perPage,
-      }),
-    ]);
+      });
 
-    log(`Fetched ${drivers.length} drivers with filters`, {
-      serviceLevel,
-      vehicleType,
-      search,
-    });
+      if (!driver) {
+        return NextResponse.json({ status: 'error', message: 'Driver not found' }, { status: 404 });
+      }
 
-    return NextResponse.json({
-      status: 'success',
-      data: {
-        page,
-        perPage,
-        total: totalDrivers,
-        totalPages: Math.ceil(totalDrivers / perPage),
-        filters: {
-          ...(serviceLevel && { serviceLevel }),
-          ...(vehicleType && { vehicleType }),
-          ...(search && { search }),
+      log(`Fetched driver with assignedDriverId: ${assignedDriverId}`);
+
+      return NextResponse.json({
+        status: 'success',
+        data: {
+          driver,
+          serverTime: new Date().toISOString(),
         },
-        drivers: drivers.map((driver) => ({
-          ...driver,
-          uuid: driver.uuid,
-        })),
-      },
-    });
+      });
+    } else {
+      //Иначе выполняем старый код с пагинацией
+      //Параллельное выполнение запросов
+      const [totalDrivers, drivers] = await Promise.all([
+        prisma.user.count({ where: whereClause }),
+        prisma.user.findMany({
+          where: whereClause,
+          select: {
+            uuid: true,
+            fullName: true,
+            phone: true,
+            profilePhotoPath: true,
+            lastActive: true,
+            vehicleDriver: {
+              //Загружаем информацию об автомобиле
+              select: {
+                vehicle: {
+                  select: {
+                    vehicleType: true,
+                    serviceLevels: true,
+                  },
+                },
+              },
+            },
+          },
+          orderBy: { lastActive: 'desc' },
+          skip: (page - 1) * perPage,
+          take: perPage,
+        }),
+      ]);
+
+      log(`Fetched ${drivers.length} drivers with filters`, {
+        serviceLevel,
+        vehicleType,
+        search,
+      });
+
+      return NextResponse.json({
+        status: 'success',
+        data: {
+          page,
+          perPage,
+          total: totalDrivers,
+          filters: {
+            ...(serviceLevel && { serviceLevel }),
+            ...(vehicleType && { vehicleType }),
+            ...(search && { search }),
+          },
+          drivers: drivers.map((driver) => ({
+            ...driver,
+            vehicleType: driver.vehicleDriver?.vehicle.vehicleType || null,
+            serviceLevels: driver.vehicleDriver?.vehicle.serviceLevels || null,
+            uuid: driver.uuid,
+          })),
+          serverTime: new Date().toISOString(),
+        },
+      });
+    }
   } catch (error) {
     console.error('Error fetching drivers:', error);
     log(

@@ -2,23 +2,27 @@ import { ExtendedTariff } from '@shared/prisma/interface/orders/interface';
 import { Point } from '@prisma/client';
 
 interface CalculateTotalPriceParams {
-  selectedTariff: ExtendedTariff | null;
-  selectedAdditionalServices: string[];
+  selectedTariff?: ExtendedTariff | null;
+  selectedAdditionalServices?: string[];
   intermediatePoints?: string[];
   arrivalPointUuid?: string;
-  points: Point[];
+  departurePointUuid?: string;
+  points?: Point[];
   waitingTimeMinutes?: number;
 }
 
 export const calculateTotalPrice = ({
   selectedTariff,
-  selectedAdditionalServices,
+  selectedAdditionalServices = [],
   intermediatePoints = [],
   arrivalPointUuid,
-  points,
+  departurePointUuid,
+  points = [],
   waitingTimeMinutes = 0,
 }: CalculateTotalPriceParams): number => {
-  if (!selectedTariff) return 0;
+  if (!selectedTariff) {
+    return 0;
+  }
 
   let total = selectedTariff.price;
 
@@ -31,28 +35,33 @@ export const calculateTotalPrice = ({
   if (arrivalPointUuid) {
     const arrivalPoint = points.find((point) => point.uuid === arrivalPointUuid);
     if (arrivalPoint && arrivalPoint.basePrice) {
+      let arrivalPointBasePrice = 0;
       if (typeof arrivalPoint.basePrice === 'object' && arrivalPoint.basePrice.toNumber) {
-        total += arrivalPoint.basePrice.toNumber();
+        arrivalPointBasePrice = arrivalPoint.basePrice.toNumber();
       } else if (typeof arrivalPoint.basePrice === 'number') {
-        total += arrivalPoint.basePrice;
+        arrivalPointBasePrice = arrivalPoint.basePrice;
       } else if (typeof arrivalPoint.basePrice === 'string') {
-        total += parseFloat(arrivalPoint.basePrice);
+        arrivalPointBasePrice = parseFloat(arrivalPoint.basePrice);
       }
-    }
-    if (arrivalPoint) {
-      let freeWaitTime = 5;
-      let pricePerMinute = 0;
-      if (arrivalPoint.airport) {
-        freeWaitTime = selectedTariff.freeWaitTimeAirport;
-        pricePerMinute = selectedTariff.pricePerMinuteAfterAirport;
-      } else {
-        freeWaitTime = selectedTariff.freeWaitTimeBishkek;
-        pricePerMinute = selectedTariff.pricePerMinuteAfterBishkek;
-      }
-      const chargeableWaitTime = Math.max(0, waitingTimeMinutes - freeWaitTime);
-      total += chargeableWaitTime * pricePerMinute;
+      total += arrivalPointBasePrice;
     }
   }
 
+  //Расчет стоимости ожидания
+  if (selectedTariff && departurePointUuid) {
+    const departurePoint = points.find((point) => point.uuid === departurePointUuid);
+    if (departurePoint) {
+      const freeWaitTime = departurePoint.airport
+        ? selectedTariff.freeWaitTimeAirport
+        : selectedTariff.freeWaitTimeBishkek;
+      const pricePerMinute = departurePoint.airport
+        ? selectedTariff.pricePerMinuteAfterAirport
+        : selectedTariff.pricePerMinuteAfterBishkek;
+
+      if (waitingTimeMinutes > freeWaitTime) {
+        total += (waitingTimeMinutes - freeWaitTime) * pricePerMinute;
+      }
+    }
+  }
   return total;
 };

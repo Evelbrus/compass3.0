@@ -1,12 +1,10 @@
 /* Общий контейнер для календаря */
 .react-datepicker {
-  border: 1px solid #e5e7eb;
-  border-radius: 24px;
+  border: 1px solid rgba(128, 128, 128, 0.3);
+  border-radius: 10px;
+  padding: 14px;
+  position: relative;
   background-color: #ffffff;
-  box-shadow:
-    0 10px 15px -3px rgba(0, 0, 0, 0.1),
-    0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  padding: 16px;
   font-family: 'Inter', sans-serif;
   display: flex; /* Добавляем flex, чтобы календарь и время располагались в строку */
   flex-direction: row; /* Размещаем календарь и время горизонтально */
@@ -27,10 +25,9 @@
 
 /* Заголовок */
 .react-datepicker__header {
-  position: relative; /* Для абсолютного позиционирования стрелок */
+  position: relative;
   background-color: transparent;
   color: #374151;
-  border-bottom: 1px solid #e5e7eb;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -96,7 +93,6 @@
 /* Стили для предыдущей (левой) кнопки навигации */
 .react-datepicker__navigation--previous {
   position: absolute;
-  left: 0;
   top: 35px;
   transform: translateY(-50%);
   background-color: transparent;
@@ -108,7 +104,7 @@
 /* Стили для следующей (правой) кнопки навигации */
 .react-datepicker__navigation--next {
   position: absolute;
-  right: 50%;
+  right: 55%;
   top: 35px;
   transform: translateY(-50%);
   background-color: transparent;
@@ -139,6 +135,10 @@
   justify-content: space-between;
   align-items: center;
   gap: 8px;
+}
+
+.react-datepicker__month {
+  padding: 16px;
 }
 
 /* Селекторы месяца и года */
@@ -233,17 +233,20 @@
   top: 5px !important;
 }
 
+.react-datepicker__time {
+  width: 100%;
+}
+
 /* Контейнер времени */
 .react-datepicker__time-container {
+  width: 100%;
   border-left: 1px solid #e5e7eb;
   border-radius: 0 24px 24px 0;
-  background-color: #f9fafb;
+
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  width: auto;
-  padding: 15px;
 }
 
 /* Список времени с 4 колонками */
@@ -255,10 +258,10 @@
   max-height: 300px;
   overflow-y: auto;
   margin: 0;
-  scrollbar-width: thin;
   scrollbar-color: #9ca3af #e5e7eb;
   width: auto;
-  background: #ffffff;
+    background: #ffffff;
+  border-radius: 20px;
 }
 
 /* Элементы времени */

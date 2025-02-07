@@ -26,6 +26,8 @@ export interface BaseSelectProps<T extends string | number> {
   isLoading?: boolean;
   message?: string;
   onInputChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onClose?: () => void;
+  onOpen?: () => void;
 }
 
 export interface SelectSingleProps<T extends string | number> extends BaseSelectProps<T> {
