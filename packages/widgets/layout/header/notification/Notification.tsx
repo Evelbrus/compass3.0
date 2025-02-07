@@ -10,8 +10,7 @@ interface NotificationIslandProps {
 const Notification = ({ userSession }: NotificationIslandProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const userId = useMemo(() => userSession?.uuid, [userSession]);
-  const { notifications, clearNotifications, isLoading, error, markAsRead } =
-    useNotifications(userId);
+  const { notifications, clearNotifications, markAsRead } = useNotifications(userId);
 
   //Вычисляем количество непрочитанных уведомлений
   const unreadCount = useMemo(() => {

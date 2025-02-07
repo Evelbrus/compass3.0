@@ -36,7 +36,7 @@ interface OrderCreateWidgetProps {
   waitingTimeMinutes: number;
   extraWaitingTimeCost: number;
   selectedAdditionalServices: SelectedAdditionalService[];
-  isEditingProp: boolean; //Renamed to isEditingProp to avoid confusion
+  isEditingProp: boolean;
 }
 
 const OrderCreateWidget: React.FC<OrderCreateWidgetProps> = ({
@@ -53,7 +53,7 @@ const OrderCreateWidget: React.FC<OrderCreateWidgetProps> = ({
   waitingTimeMinutes,
   extraWaitingTimeCost,
   selectedAdditionalServices,
-  isEditingProp, //Get isEditing from props
+  isEditingProp,
 }) => {
   const { setValue, handleSubmit, formState, trigger, watch } = useFormContext<CreateOrderData>();
   const [editedPrice, setEditedPrice] = useState<number | null>(null);
@@ -126,7 +126,7 @@ const OrderCreateWidget: React.FC<OrderCreateWidgetProps> = ({
       const orderData = {
         ...data,
         basePrice: Number(data.basePrice),
-        status: selectedStatus as OrderStatus, //Pass selected status
+        status: selectedStatus as OrderStatus,
       };
       console.log('Order data before onSubmit:', orderData);
       onSubmit(orderData);

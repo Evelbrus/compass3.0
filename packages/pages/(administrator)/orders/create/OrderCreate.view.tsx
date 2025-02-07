@@ -4,7 +4,7 @@ import React from 'react';
 import { useOrderCreateLogic } from '@features/orders/create/OrderCreate.logic';
 import DriversNearby from '@widgets/drivers-nearby/ui/DriversNearby';
 import MapDriver from '@widgets/map/ui/MapDriver';
-import OrderStartEndSelector from '@widgets/order-route/OrderRouteSelector';
+import OrderStartEndSelector from '@widgets/orders/order-route/OrderRouteSelector';
 import FilterTariff from '@widgets/filter-tariff/FilterTariff';
 import OrderCreateWidget from '@widgets/order-create-widget/OrderCreateWidget';
 import { FormProvider } from 'react-hook-form';

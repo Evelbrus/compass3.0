@@ -16,12 +16,12 @@ export const useNotifications = (userId?: string) => {
 
   //Функция, обрабатывающая уведомления, полученные через сокет
   const handleNotification = useCallback((notification: Notification) => {
-    console.log('Получено уведомление через сокет:', notification); //Логирование объекта
+    console.log('Получено уведомление через сокет:', notification);
     setNotifications((prev) => [
       ...prev,
       {
         ...notification,
-        read: false, //Предполагаем, что новые уведомления всегда непрочитаны
+        read: false,
       },
     ]);
   }, []);
@@ -43,7 +43,7 @@ export const useNotifications = (userId?: string) => {
 
         const data: Notification[] = await response.json();
         setNotifications(data);
-      } catch (err: any) {
+      } catch (err) {
         console.error('Ошибка при получении уведомлений:', err);
         setError(err.message || 'Не удалось получить уведомления');
         setNotifications([]);
@@ -52,7 +52,7 @@ export const useNotifications = (userId?: string) => {
       }
     };
 
-    fetchNotifications(); //Загружаем уведомления при монтировании компонента
+    fetchNotifications();
 
     //Подключаемся к сокету, если есть ID пользователя
     if (socket && userId) {
@@ -96,13 +96,13 @@ export const useNotifications = (userId?: string) => {
 
       //После успешного удаления всех уведомлений, очищаем локальное состояние
       setNotifications([]);
-    } catch (err: any) {
+    } catch (err) {
       console.error('Ошибка при очистке уведомлений:', err);
       setError(err.message || 'Не удалось очистить уведомления');
     } finally {
       setIsLoading(false);
     }
-  }, [notifications]); //Важно: notifications в зависимостях
+  }, [notifications]);
 
   //Функция для пометки уведомления как прочитанного
   const markAsRead = useCallback(async (notificationId: string) => {
@@ -125,7 +125,7 @@ export const useNotifications = (userId?: string) => {
           notification.uuid === notificationId ? { ...notification, read: true } : notification,
         ),
       );
-    } catch (err: any) {
+    } catch (err) {
       console.error('Ошибка при пометке уведомления как прочитанного:', err);
       setError(err.message || 'Не удалось пометить уведомление как прочитанное');
     }
@@ -146,7 +146,7 @@ export const useNotifications = (userId?: string) => {
       setNotifications((prev) =>
         prev.filter((notification) => notification.uuid !== notificationId),
       );
-    } catch (err: any) {
+    } catch (err) {
       console.error('Ошибка при удалении уведомления:', err);
       setError(err.message || 'Не удалось удалить уведомление');
     }
