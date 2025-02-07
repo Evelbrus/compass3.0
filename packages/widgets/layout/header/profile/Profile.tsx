@@ -6,7 +6,6 @@ import { profileMenuRoutes } from '@shared/utils/routing';
 import Icon from '@shared/components/ui/icon/Icon';
 import { roleTranslations } from '@shared/lib/effector/(users)/options-and-translation/optionsTranslationUser';
 import { UserSession } from '@shared/prisma/interface/users/interface';
-import { useSession } from '@shared/utils/hooks/useSession';
 
 interface ProfileIslandProps {
   userSession?: UserSession | null;
@@ -26,8 +25,6 @@ const Profile = ({
     setIsMenuOpen(false);
     onNavigate?.(route);
   };
-
-  const User = useSession();
 
   return (
     <div className="relative" ref={menuRef}>

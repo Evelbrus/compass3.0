@@ -53,7 +53,7 @@ const NotificationList: React.FC<NotificationListProps> = ({
     return () => {
       //Cleanup: Unobserve all notifications
       observer.current?.disconnect();
-      notificationRefs.current = []; //Clear the refs array
+      notificationRefs.current = [];
     };
   }, [handleIntersection, notifications]);
 
