@@ -68,7 +68,10 @@ export const TextInput: React.FC<TextInputProps> = ({
           ref={inputRef as React.RefObject<HTMLInputElement>}
           type={type}
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) => {
+            const newValue = type === 'number' ? Number(e.target.value) || 0 : e.target.value;
+            onChange(newValue);
+          }}
           required={required}
           disabled={disabled}
           readOnly={readOnly}

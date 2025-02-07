@@ -131,7 +131,7 @@ const TariffCreateForm: React.FC = () => {
               htmlFor="vehicleType"
               className="block mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px]"
             >
-              Vehicle Type:
+              Тип авто:
             </label>
             <select
               className="w-full bg-white px-3 py-2 rounded-md border border-gray-300 focus:bg-gray-100 text-4 text-[#2A3037] font-extrabold"
@@ -266,7 +266,7 @@ const TariffCreateForm: React.FC = () => {
               htmlFor="serviceLevel"
               className=" block mb-2 text-[#989898] font-normal text-[14px] leading-[13.93px]"
             >
-              Service Level:
+              Уровень обслуживания
             </label>
             <select
               id="serviceLevel"

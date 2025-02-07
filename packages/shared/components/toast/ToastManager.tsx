@@ -19,7 +19,7 @@ export interface ToastManagerProps extends ToastOptions {
 }
 
 export const ToastManager: React.FC<ToastManagerProps> = ({
-  position = 'bottom-right',
+  position = 'top-right',
   autoClose = 5000,
   hideProgressBar = false,
   closeOnClick = true,

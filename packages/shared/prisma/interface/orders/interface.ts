@@ -1,9 +1,10 @@
-import { Order, User, Tariff, Point } from '@prisma/client';
+import { Order, User, Tariff, Point, VehicleType, ServiceLevels } from '@prisma/client';
 
 export interface TariffAdditionalService {
   uuid: string;
   name: string;
   price: number;
+  isAvailable: boolean;
   serviceUuid: string;
 }
 
@@ -24,7 +25,6 @@ export interface CreateOrderData
     | 'departurePointId'
     | 'assignedDriverId'
     | 'arrivalPointId'
-    | 'status'
     | 'departureTime'
     | 'intermediatePoints'
   > {
@@ -40,6 +40,8 @@ export interface CreateOrderData
   departureTime?: string;
   fullName?: string;
   phone?: string;
+  vehicleType?: VehicleType;
+  serviceLevel?: ServiceLevels;
 }
 
 //Тип данных для редактирования заказа

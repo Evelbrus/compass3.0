@@ -83,6 +83,7 @@ export async function POST(request: NextRequest) {
     const newRefreshTokenUUID = uuidv4();
 
     //Создаем новый refreshToken (JWT)
+
     const newRefreshToken = await new SignJWT({
       uuid: user.uuid,
       sessionVersion: user.sessionVersion,
@@ -98,13 +99,16 @@ export async function POST(request: NextRequest) {
       .filter((token) => token !== refreshTokenUUID)
       .concat(newRefreshTokenUUID);
 
-    await prisma.user.update({
-      where: { uuid: user.uuid },
-      data: {
-        refreshTokens: {
-          set: updatedRefreshTokens,
+    await prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { uuid: user.uuid },
+        data: {
+          refreshTokens: {
+            set: updatedRefreshTokens,
+          },
+          lastActive: new Date(),
         },
-      },
+      });
     });
 
     const response = NextResponse.json(

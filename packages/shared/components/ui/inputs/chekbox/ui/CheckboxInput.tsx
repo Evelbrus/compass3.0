@@ -11,7 +11,7 @@ interface CheckboxInputProps {
   message?: string;
   className?: string;
   position?: 'left' | 'right';
-  disabled?: boolean; //Added disabled prop
+  disabled?: boolean;
 }
 
 export const CheckboxInput: React.FC<CheckboxInputProps> = ({
@@ -24,13 +24,13 @@ export const CheckboxInput: React.FC<CheckboxInputProps> = ({
   message = 'Ошибка: Выберите корректное значение.',
   className = '',
   position = 'left',
-  disabled = false, //Default to false
+  disabled = false,
 }) => (
   <label
     className={`${styles.checkboxInput} ${className} ${
       error ? styles.checkboxError : ''
     } ${position === 'right' ? styles.checkboxRight : ''} ${
-      disabled ? styles.checkboxDisabled : '' //Add disabled style
+      disabled ? styles.checkboxDisabled : ''
     }`}
   >
     {position === 'right' && (
@@ -46,7 +46,7 @@ export const CheckboxInput: React.FC<CheckboxInputProps> = ({
       onChange={onChange}
       required={required}
       className={styles.checkboxHidden}
-      disabled={disabled} //Apply disabled prop to input
+      disabled={disabled}
     />
     <div className={styles.customCheckbox}>
       {checked && <span className={styles.checkboxTick}></span>}

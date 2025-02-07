@@ -1,49 +1,156 @@
 import { useCallback } from 'react';
 import { useSocket } from '@shared/utils/hooks/useSocket';
 import { CreateOrderData } from '@shared/prisma/interface/orders/interface';
+import { useSession } from '@shared/utils/hooks/useSession';
+import { Tariff, Point } from '@prisma/client';
+import { ExtendedDriver, ExtendedUser } from '@features/orders/create/hooks';
 
 interface UseNotificationsProps {
   formData: Partial<CreateOrderData>;
   message: string;
-  setInitialFormData: () => void;
+  selectedClientInfo: ExtendedUser | null;
+  selectedDriverInfo: ExtendedDriver | null;
+  selectedTariff: Tariff | null;
+  departurePoint: Point | null;
+  arrivalPoint: Point | null;
   setErrorMessage: (error: Error | null | undefined, message: string) => void;
+  setInitialFormData: () => void;
+  isEditing: boolean;
 }
 
 export const useNotifications = ({
   formData,
-  message,
+  selectedDriverInfo,
+  departurePoint,
+  arrivalPoint,
   setErrorMessage,
   setInitialFormData,
+  isEditing,
 }: UseNotificationsProps) => {
   const socket = useSocket();
+  const { userSession } = useSession();
 
-  const sendNotification = useCallback(async () => {
-    if (socket && formData.assignedDriverId) {
-      socket.emit('notification', {
-        userId: formData.assignedDriverId,
-        notification: {
-          title: 'Новый заказ',
-          message: `Вам назначен новый заказ от ${formData.departurePoint} до ${formData.arrivalPoint}`,
-        },
-      });
+  const formatOrderNumber = (date: Date | null | undefined): string => {
+    if (!date) {
+      console.warn('Invalid date provided to formatOrderNumber:', date);
+      return 'N/A';
     }
-  }, [formData, socket]);
+    try {
+      const formatter = new Intl.DateTimeFormat('ru-RU', {
+        year: '2-digit',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+      return formatter.format(date).replace(/[.,\s:]/g, '');
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return 'N/A';
+    }
+  };
 
-  const handleOrderSuccess = useCallback(
-    (result: { uuid: string }) => {
-      setInitialFormData();
-      sendNotification();
-      setErrorMessage(null, `Order created successfully: ${result.uuid}`);
+  const sendNotification = useCallback(
+    async (userId: string, title: string, message: string) => {
+      //Generate UUID before sending
+      //Сохраняем уведомление в базе данных (вызываем API endpoint)
+      try {
+        const response = await fetch('/api/notifications', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            userId: userId,
+            title: title,
+            message: message,
+          }),
+        });
+
+        if (!response.ok) {
+          console.error('Failed to save notification to database:', response.statusText);
+          return;
+        }
+
+        const data = await response.json();
+
+        if (socket && userId && data.uuid) {
+          socket.emit('notification', {
+            userId: userId,
+            notification: {
+              uuid: data.uuid,
+              title: title,
+              message: message,
+            },
+          });
+        }
+      } catch (error) {
+        console.error('Error saving notification to database:', error);
+      }
     },
-    [setErrorMessage, setInitialFormData, sendNotification],
+    [socket],
   );
 
+  const sendDriverNotification = useCallback(async () => {
+    if (
+      socket &&
+      formData.assignedDriverId &&
+      selectedDriverInfo &&
+      departurePoint &&
+      arrivalPoint
+    ) {
+      const action = isEditing ? 'обновлен' : 'назначен';
+      const vehicleInfo = selectedDriverInfo.vehicleDriver?.vehicle
+        ? ` (${selectedDriverInfo.vehicleDriver.vehicle.vehicleType}, ${selectedDriverInfo.vehicleDriver.vehicle.serviceLevels})`
+        : '';
+      const orderNumber = formatOrderNumber(new Date());
+      sendNotification(
+        formData.assignedDriverId,
+        `Заказ ${action}`,
+        `${selectedDriverInfo.fullName}, вам ${action} заказ N ${orderNumber} от ${departurePoint.address} до ${arrivalPoint.address}${vehicleInfo}`,
+      );
+    }
+  }, [
+    socket,
+    sendNotification,
+    formData.assignedDriverId,
+    selectedDriverInfo,
+    departurePoint,
+    arrivalPoint,
+    isEditing,
+  ]);
+
+  const sendCreatorNotification = useCallback(async () => {
+    if (socket && userSession?.uuid && departurePoint && arrivalPoint) {
+      const action = isEditing ? 'обновлен' : 'создан';
+      const orderNumber = formatOrderNumber(new Date());
+      sendNotification(
+        userSession.uuid,
+        `Заказ ${action}`,
+        `Заказ N ${orderNumber} ${action} от ${departurePoint.address} до ${arrivalPoint.address}`,
+      );
+    }
+  }, [socket, userSession, sendNotification, departurePoint, arrivalPoint, isEditing]);
+
+  const handleOrderSuccess = useCallback(() => {
+    setInitialFormData();
+    sendDriverNotification();
+    sendCreatorNotification();
+    setErrorMessage(null, `Заказ успешно создан.`);
+  }, [setErrorMessage, setInitialFormData, sendDriverNotification, sendCreatorNotification]);
+
   const handleOrderError = useCallback(
-    (error: any) => {
+    (error) => {
       setErrorMessage(error, `Error creating order: ${(error as Error).message}`);
     },
     [setErrorMessage],
   );
 
-  return { handleOrderSuccess, handleOrderError, sendNotification };
+  return {
+    handleOrderSuccess,
+    handleOrderError,
+    sendNotification,
+    sendDriverNotification,
+    sendCreatorNotification,
+  };
 };

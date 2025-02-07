@@ -1,93 +1,245 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useDrivers } from '@features/orders/create/hooks';
 import useDebounce from '@shared/utils/hooks/useDebounce';
+import { UseFormSetValue, UseFormWatch } from 'react-hook-form';
+import { CreateOrderData } from '@shared/prisma/interface/orders/interface';
+import { User } from '@prisma/client';
+import { showToast } from '@shared/components/toast/ToastManager';
+import { useUnit } from 'effector-react';
+import {
+  $selectedServiceLevel,
+  $selectedVehicleType,
+  $areValuesFromProps,
+  setSelectedVehicleType,
+  setSelectedServiceLevel,
+} from '@shared/lib/effector/orders/stateStore';
+
+export interface ExtendedDriver extends User {
+  vehicleDriver?: {
+    vehicle: {
+      serviceLevels: string;
+      vehicleType: string;
+    };
+  };
+}
 
 interface UseOrderCreateDriversProps {
+  setValue: UseFormSetValue<CreateOrderData>;
+  watch: UseFormWatch<CreateOrderData>;
+  assignedDriverId?: string | null;
   setErrorMessage: (error: Error | null | undefined, message: string) => void;
-  selectedVehicleType: string;
-  selectedServiceLevel: string;
 }
 
 export const useOrderCreateDrivers = ({
+  setValue,
+  watch,
+  assignedDriverId,
   setErrorMessage,
-  selectedVehicleType,
-  selectedServiceLevel,
 }: UseOrderCreateDriversProps) => {
-  const [searchDriver, setSearchDriver] = useState('');
-  const debouncedSearchDriver = useDebounce(searchDriver, 300);
+  //Берем данные из Effector
+  const selectedVehicleType = useUnit($selectedVehicleType);
+  const selectedServiceLevel = useUnit($selectedServiceLevel);
+  const areValuesFromProps = useUnit($areValuesFromProps);
 
-  const [selectedDriverInfo, setSelectedDriverInfo] = useState<{
-    uuid: string;
-    fullName: string;
-  } | null>(null);
+  const [searchDriver, setSearchDriver] = useState('');
+  const [selectedDriverInfo, setSelectedDriverInfo] = useState<ExtendedDriver | null>(null);
+  const debouncedSearchDriver = useDebounce(searchDriver, 500);
+  const selectOpenRef = useRef(false);
+  const isInitialMount = useRef(true);
+  const cancelledToastShownRef = useRef(false);
+  const [currentTotal, setCurrentTotal] = useState(0);
 
   const {
-    drivers,
-    total,
+    drivers: rawDrivers,
+    assignedDriver,
+    isDriversLoading,
+    refetchDrivers,
+    fetchAssignedDriverData,
     page,
     perPage,
-    changePage,
-    changePerPage,
-    isDriversLoading,
-    fetchAllDrivers,
+    setPage,
+    total,
+    serverTime,
   } = useDrivers({
-    selectedServiceLevel,
-    selectedVehicleType,
-    searchDriver: debouncedSearchDriver,
+    vehicleType: selectedVehicleType,
+    serviceLevel: selectedServiceLevel,
     setErrorMessage,
+    search: debouncedSearchDriver,
   });
 
-  const handleSearchDriver = (value: string) => {
-    setSearchDriver(value);
-  };
+  const drivers: ExtendedDriver[] | undefined = rawDrivers as ExtendedDriver[];
 
-  const handleDriverClick = useCallback((driverId: string) => {
-    console.log('handleDriverClick', driverId);
-  }, []);
+  useEffect(() => {
+    setCurrentTotal(total);
+  }, [total]);
 
-  const setPage = useCallback(
-    (newPage: number) => {
-      if (newPage > 0) {
-        changePage(newPage);
-      }
+  useEffect(() => {
+    if (assignedDriverId) {
+      fetchAssignedDriverData(assignedDriverId);
+    }
+  }, [assignedDriverId, fetchAssignedDriverData]);
+
+  const validateDriverCompatibility = useCallback(
+    (driver: ExtendedDriver): boolean => {
+      if (!driver.vehicleDriver?.vehicle) return false;
+      const { vehicle } = driver.vehicleDriver;
+
+      //If areValuesFromProps = false, do NOT check compatibility
+      if (!areValuesFromProps) return true;
+
+      return (
+        vehicle.vehicleType === selectedVehicleType &&
+        (!selectedServiceLevel || vehicle.serviceLevels === selectedServiceLevel)
+      );
     },
-    [changePage],
-  );
-
-  const handleDriverClickWithInfo = useCallback(
-    (driverId: string) => {
-      const selectedDriver = drivers?.find((driver) => driver.uuid === driverId);
-      setSelectedDriverInfo((prev) => {
-        if (prev?.uuid === driverId) return null;
-        return selectedDriver
-          ? { uuid: selectedDriver.uuid, fullName: selectedDriver.fullName }
-          : null;
-      });
-      handleDriverClick(driverId);
-    },
-    [drivers, handleDriverClick],
+    [selectedVehicleType, selectedServiceLevel, areValuesFromProps],
   );
 
   useEffect(() => {
-    if (selectedVehicleType && selectedServiceLevel) {
-      fetchAllDrivers();
+    if (selectedDriverInfo && !validateDriverCompatibility(selectedDriverInfo)) {
+      if (!cancelledToastShownRef.current) {
+        showToast.info('Водитель отменён');
+        cancelledToastShownRef.current = true;
+      }
+      setSelectedDriverInfo(null);
+      setValue('assignedDriverId', '');
     }
-  }, [fetchAllDrivers, selectedServiceLevel, selectedVehicleType]);
+  }, [
+    selectedDriverInfo,
+    selectedVehicleType,
+    selectedServiceLevel,
+    setValue,
+    validateDriverCompatibility,
+  ]);
+
+  useEffect(() => {
+    if (assignedDriverId && assignedDriver) {
+      if (validateDriverCompatibility(assignedDriver as ExtendedDriver)) {
+        setSelectedDriverInfo(assignedDriver as ExtendedDriver);
+        setValue('assignedDriverId', assignedDriver.uuid);
+        cancelledToastShownRef.current = false;
+      } else {
+        if (!cancelledToastShownRef.current) {
+          showToast.info('Водитель отменён');
+          cancelledToastShownRef.current = true;
+        }
+        setSelectedDriverInfo(null);
+        setValue('assignedDriverId', '');
+      }
+    }
+  }, [assignedDriverId, assignedDriver, setValue, validateDriverCompatibility]);
+
+  useEffect(() => {
+    if (isInitialMount.current && !searchDriver) {
+      isInitialMount.current = false;
+      return;
+    }
+    refetchDrivers(debouncedSearchDriver, selectedVehicleType, selectedServiceLevel);
+  }, [
+    debouncedSearchDriver,
+    page,
+    perPage,
+    refetchDrivers,
+    selectedVehicleType,
+    selectedServiceLevel,
+  ]);
+
+  const handleSearchDriverChange = useCallback(
+    (value: string) => {
+      setSearchDriver(value);
+      setPage(1);
+    },
+    [setPage],
+  );
+
+  const handleSelectOpenChange = useCallback((isOpen: boolean) => {
+    selectOpenRef.current = isOpen;
+    setSearchDriver('');
+  }, []);
+
+  const handleDriverSelect = useCallback(
+    (driver: ExtendedDriver) => {
+      if (!driver.vehicleDriver?.vehicle) {
+        setSelectedDriverInfo(null);
+        setValue('assignedDriverId', '');
+        return;
+      }
+
+      const { vehicle } = driver.vehicleDriver;
+
+      //Проверяем, нужно ли обновлять значения в effector store
+      if (
+        vehicle.vehicleType !== selectedVehicleType ||
+        vehicle.serviceLevels !== selectedServiceLevel
+      ) {
+        setSelectedVehicleType(vehicle.vehicleType);
+        setSelectedServiceLevel(vehicle.serviceLevels);
+        //Явно устанавливаем значения в react-hook-form
+        setValue('tariff.vehicleType', vehicle.vehicleType);
+        setValue('tariff.serviceLevel', vehicle.serviceLevels);
+      }
+
+      if (!validateDriverCompatibility(driver)) {
+        setSelectedDriverInfo(null);
+        setValue('assignedDriverId', '');
+        return;
+      }
+      cancelledToastShownRef.current = false;
+      setSelectedDriverInfo(driver);
+      setValue('assignedDriverId', driver.uuid);
+      showToast.success('Водитель выбран');
+    },
+    [
+      setValue,
+      validateDriverCompatibility,
+      setSelectedVehicleType,
+      setSelectedServiceLevel,
+      selectedVehicleType,
+      selectedServiceLevel,
+    ],
+  );
+
+  const handleDriverDeselect = useCallback(() => {
+    setSelectedDriverInfo(null);
+    setValue('assignedDriverId', '');
+    showToast.info('Водитель отменён');
+  }, [setValue]);
+
+  const handleDriverClick = useCallback(
+    (driverId: string) => {
+      if (selectedDriverInfo?.uuid === driverId) {
+        handleDriverDeselect();
+      } else {
+        const selectedDriver = drivers?.find((driver) => driver.uuid === driverId);
+        if (selectedDriver) {
+          handleDriverSelect(selectedDriver);
+        }
+      }
+    },
+    [drivers, handleDriverSelect, handleDriverDeselect, selectedDriverInfo],
+  );
+
+  const handlePageChange = useCallback(
+    (newPage: number) => {
+      setPage(newPage);
+    },
+    [setPage],
+  );
 
   return {
     drivers,
-    total,
+    searchDriver,
+    isDriversLoading,
+    selectedDriverInfo,
     page,
     perPage,
-    changePage,
-    changePerPage,
-    isDriversLoading,
-    handleSearchDriver,
-    searchDriver,
-    setSearchDriver,
-    setPage,
-    handleDriverClick: handleDriverClickWithInfo,
-    selectedDriverInfo,
-    setSelectedDriverInfo,
+    currentTotal,
+    serverTime,
+    handleSearchDriverChange,
+    handleSelectOpenChange,
+    handleDriverSelect,
+    handleDriverDeselect,
+    handleDriverClick,
+    handlePageChange,
   };
 };

@@ -1,50 +1,73 @@
-import React from 'react';
-import { useState, useEffect, useCallback } from 'react';
-import { useClients } from './useClients';
-import { User } from '@prisma/client';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { useClients } from '@features/orders/create/hooks';
 import useDebounce from '@shared/utils/hooks/useDebounce';
+import { CompanyProfile, User } from '@prisma/client';
+
+export interface ExtendedUser extends User {
+  companyProfile?: CompanyProfile | null;
+}
 
 interface UseOrderCreateClientsProps {
+  assignedClientId?: string | null;
   setErrorMessage: (error: Error | null | undefined, message: string) => void;
 }
 
-interface UseOrderCreateClientsResult {
-  clients: User[] | null;
-  isClientsLoading: boolean;
-  searchClient: string;
-  setSearchClient: React.Dispatch<React.SetStateAction<string>>;
-  refetchClients: () => void;
-  selectedClientInfo: User | null;
-  setSelectedClientInfo: React.Dispatch<React.SetStateAction<User | null>>;
-}
-
 export const useOrderCreateClients = ({
+  assignedClientId,
   setErrorMessage,
-}: UseOrderCreateClientsProps): UseOrderCreateClientsResult => {
+}: UseOrderCreateClientsProps) => {
   const [searchClient, setSearchClient] = useState('');
-  const [selectedClientInfo, setSelectedClientInfo] = useState<User | null>(null);
-  const debouncedSearchValue = useDebounce(searchClient, 500);
-  const {
-    clients,
-    isClientsLoading,
-    refetchClients: refetchClientsFromUseClients,
-  } = useClients({ setErrorMessage });
+  const [selectedClientInfo, setSelectedClientInfo] = useState<ExtendedUser | null>(null);
+  const debouncedSearchClient = useDebounce(searchClient, 500);
+  const isClientAssigned = useRef(false);
 
-  const refetchClients = useCallback(() => {
-    refetchClientsFromUseClients(debouncedSearchValue);
-  }, [debouncedSearchValue, refetchClientsFromUseClients]);
+  const { clients, refetchClients, fetchClientByUuidCallback, loadMore, total, currentPage } =
+    useClients({ setErrorMessage });
 
+  //Эффект для загрузки назначенного клиента (режим редактирования)
   useEffect(() => {
-    refetchClientsFromUseClients(debouncedSearchValue);
-  }, [debouncedSearchValue, refetchClientsFromUseClients]);
+    const fetchAssignedClient = async () => {
+      if (assignedClientId) {
+        const client = await fetchClientByUuidCallback(assignedClientId);
+        if (client) {
+          setSelectedClientInfo(client);
+          isClientAssigned.current = true;
+        }
+      }
+    };
 
+    fetchAssignedClient();
+  }, [assignedClientId, fetchClientByUuidCallback]);
+
+  //Эффект для загрузки списка клиентов по умолчанию (режим создания)
+  useEffect(() => {
+    if (!assignedClientId) {
+      refetchClients('');
+    }
+  }, [assignedClientId, refetchClients]);
+
+  //Эффект для поиска клиентов при изменении debouncedSearchClient
+  useEffect(() => {
+    if (debouncedSearchClient !== undefined) {
+      refetchClients(debouncedSearchClient);
+    }
+  }, [debouncedSearchClient, refetchClients]);
+
+  //Обработчик изменения поискового запроса
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchClient(value);
+  }, []);
+
+  //Возвращаемые значения
   return {
     clients,
-    isClientsLoading,
-    searchClient,
-    setSearchClient,
-    refetchClients,
     selectedClientInfo,
+    searchClient,
     setSelectedClientInfo,
+    handleSearchChange,
+    refetchClients,
+    loadMore,
+    total,
+    currentPage,
   };
 };

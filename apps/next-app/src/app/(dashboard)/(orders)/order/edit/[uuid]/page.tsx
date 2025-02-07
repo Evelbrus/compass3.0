@@ -1,6 +1,7 @@
+//Page.tsx
 import React, { JSX } from 'react';
 import { getLayoutData } from '@shared/utils/cookie/layout-data/getLayoutData';
-import OrderEditView from '@pages/(administrator)/orders/edit/OrderEdit.view';
+import OrderCreateView from '@pages/(administrator)/orders/create/OrderCreate.view';
 import Loading from '@entities/loading/loading';
 import { UserRole } from '@prisma/client';
 import { redirect } from 'next/navigation';
@@ -18,7 +19,7 @@ const Page = async ({ params }: PageProps): Promise<JSX.Element> => {
 
   if (refreshToken) {
     if (role === UserRole.Admin || role === UserRole.Operator) {
-      return <OrderEditView orderId={uuid} />;
+      return <OrderCreateView uuid={uuid} />;
     } else {
       return <Loading />;
     }

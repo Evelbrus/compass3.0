@@ -4,7 +4,7 @@ import { CreateOrderData } from '@shared/prisma/interface/orders/interface';
 interface UseIntermediatePointsManagerResult {
   handleAddIntermediatePoint: () => void;
   handleRemoveIntermediatePoint: (index: number) => void;
-  handleChangeIntermediatePoint: (index: number, value: string) => void;
+  handleChangeIntermediatePoint: (index: number, value: string | undefined) => void;
 }
 
 export const useIntermediatePointsManager = (
@@ -13,20 +13,28 @@ export const useIntermediatePointsManager = (
   const { watch, setValue } = formMethods;
 
   const handleAddIntermediatePoint = () => {
-    const currentPoints = watch().intermediatePoints || [];
+    const currentPoints = watch('intermediatePoints') || [];
     setValue('intermediatePoints', [...currentPoints, '']);
   };
 
   const handleRemoveIntermediatePoint = (index: number) => {
-    const currentPoints = watch().intermediatePoints || [];
+    const currentPoints = watch('intermediatePoints') || [];
     const updatedPoints = currentPoints.filter((_, i) => i !== index);
-    setValue('intermediatePoints', updatedPoints);
+    //Фильтруем updatedPoints, чтобы убрать undefined
+    setValue(
+      'intermediatePoints',
+      updatedPoints.filter((point): point is string => point !== undefined),
+    );
   };
 
-  const handleChangeIntermediatePoint = (index: number, value: string) => {
-    const currentPoints = watch().intermediatePoints || [];
+  const handleChangeIntermediatePoint = (index: number, value: string | undefined) => {
+    const currentPoints = watch('intermediatePoints') || [];
     const updatedPoints = currentPoints.map((point, i) => (i === index ? value : point));
-    setValue('intermediatePoints', updatedPoints);
+    //Фильтруем updatedPoints, чтобы убрать undefined
+    setValue(
+      'intermediatePoints',
+      updatedPoints.filter((point): point is string => point !== undefined),
+    );
   };
 
   return {

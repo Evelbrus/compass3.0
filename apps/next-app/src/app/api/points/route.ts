@@ -1,90 +1,67 @@
 import { NextResponse } from 'next/server';
-import debug from 'debug';
-import { CreatePointData } from '@shared/prisma/interface/point/interface';
-import { v4 as uuidv4 } from 'uuid';
 import { prisma } from '@shared/prisma/prisma-client';
+import { Prisma } from '@prisma/client';
+import debug from 'debug';
 
 const log = debug('app:points');
 
-//GET запрос для получения всех точек с пагинацией и сортировкой
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
-  const parsedParams = {
-    page: parseInt(searchParams.get('page') || '1', 10),
-    per_page: parseInt(searchParams.get('per_page') || '10', 10),
-    sort_by:
-      (searchParams.get('sort_by') as 'address' | 'basePrice' | 'createdAt' | 'updatedAt') ||
-      'createdAt',
-    sort_order: (searchParams.get('sort_order') as 'asc' | 'desc') || 'asc',
+  const search = searchParams.get('search') || '';
+  const page = searchParams.get('page') || '1';
+  const per_page = searchParams.get('per_page') || '4';
+  const sort_by = searchParams.get('sort_by') as
+    | 'address'
+    | 'basePrice'
+    | 'createdAt'
+    | 'updatedAt'
+    | undefined;
+  const sort_order = searchParams.get('sort_order') as 'asc' | 'desc' | undefined;
+
+  const pageNumber = parseInt(page);
+  const perPage = parseInt(per_page);
+
+  const where: Prisma.PointWhereInput = {
+    address: {
+      startsWith: search,
+      mode: 'insensitive',
+    },
   };
 
-  log('Parsed parameters:', parsedParams);
+  //Добавляем вторичный критерий сортировки
+  const orderBy: Prisma.PointOrderByWithRelationInput[] = [];
 
-  try {
-    const points = await prisma.point.findMany({
-      skip: (parsedParams.page - 1) * parsedParams.per_page,
-      take: parsedParams.per_page,
-      orderBy: {
-        [parsedParams.sort_by]: parsedParams.sort_order,
-      },
-    });
-
-    const total = await prisma.point.count();
-
-    log('Fetched points:', points);
-
-    return NextResponse.json({
-      status: 'success',
-      message: 'Fetched point successfully',
-      data: {
-        page: parsedParams.page,
-        per_page: parsedParams.per_page,
-        total,
-        points,
-      },
-    });
-  } catch (error) {
-    log('Error fetching points:', error);
-    if (error instanceof Error) {
-      log('Error message:', error.message);
-      log('Error stack:', error.stack);
-    }
-    return NextResponse.json({ error: 'Unable to fetch points' }, { status: 500 });
+  if (sort_by && sort_order) {
+    orderBy.push({ [sort_by]: sort_order });
+  } else {
+    orderBy.push({ createdAt: 'asc' });
   }
-}
 
-//POST запрос для создания новой точки
-export async function POST(req: Request) {
+  //Всегда добавляем сортировку по UUID для стабильности
+  orderBy.push({ uuid: 'asc' });
+
   try {
-    const data: CreatePointData = await req.json();
-    const { address, basePrice } = data;
+    const [points, total] = await Promise.all([
+      prisma.point.findMany({
+        where,
+        orderBy,
+        skip: (pageNumber - 1) * perPage,
+        take: perPage,
+      }),
+      prisma.point.count({ where }),
+    ]);
 
-    log('Received data:', data);
-
-    const now = new Date();
-    const uuid = uuidv4();
-
-    const point = {
-      uuid,
-      address,
-      basePrice,
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    const createdPoint = await prisma.point.create({
-      data: point,
+    //Единая структура ответа для всех страниц
+    return NextResponse.json({
+      data: {
+        points,
+        total,
+        page: pageNumber,
+        per_page: perPage,
+      },
     });
-
-    log('Created point:', createdPoint);
-
-    return NextResponse.json(createdPoint);
   } catch (error) {
-    log('Error creating point:', error);
-    if (error instanceof Error) {
-      log('Error message:', error.message);
-      log('Error stack:', error.stack);
-    }
-    return NextResponse.json({ error: 'Unable to create point' }, { status: 500 });
+    console.error('Error fetching points:', error);
+    return NextResponse.json({ message: 'Ошибка при получении точек' }, { status: 500 });
   }
 }

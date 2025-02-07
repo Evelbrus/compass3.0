@@ -1,223 +1,155 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { UseFormSetValue } from 'react-hook-form';
 import { ExtendedTariff } from '@shared/prisma/interface/orders/interface';
-import {
-  calculateTotalPrice,
-  handleAdditionalServiceChange,
-} from '@features/orders/create/helpers';
-import { UseFormSetValue, UseFormWatch } from 'react-hook-form';
-import { CreateOrderData } from '@shared/prisma/interface/orders/interface';
-import { Point, ServiceLevels, VehicleType } from '@prisma/client';
+import { OrderData } from '@features/orders/create/OrderCreate.logic';
+import { ServiceLevels, VehicleType } from '@prisma/client';
 import { useTariffs } from '@features/orders/create/hooks';
+import { showToast } from '@shared/components/toast/ToastManager';
+import { useUnit } from 'effector-react';
+import {
+  $selectedServiceLevel,
+  $selectedVehicleType,
+  setSelectedServiceLevel,
+  setSelectedVehicleType,
+} from '@shared/lib/effector/orders/stateStore';
 
 interface UseOrderCreateHandlersProps {
-  setValue: UseFormSetValue<CreateOrderData>;
-  watch: UseFormWatch<CreateOrderData>;
-  points: Point[];
+  setValue: UseFormSetValue<OrderData>;
+  selectedVehicleType?: VehicleType;
+  selectedServiceLevel?: ServiceLevels;
   setErrorMessage: (error: Error | null | undefined, message: string) => void;
 }
 
 export const useOrderConfiguration = ({
   setValue,
-  watch,
-  points,
+  selectedVehicleType: propSelectedVehicleType,
+  selectedServiceLevel: propSelectedServiceLevel,
   setErrorMessage,
 }: UseOrderCreateHandlersProps) => {
-  const vehicleTypes = Object.values(VehicleType);
-  const serviceLevels = Object.values(ServiceLevels);
-
-  const [selectedVehicleType, setSelectedVehicleType] = useState<string>('Sedan');
-  const [selectedServiceLevel, setSelectedServiceLevel] = useState<string>('');
+  const [tariffs, setTariffs] = useState<ExtendedTariff[]>([]);
   const [selectedTariff, setSelectedTariff] = useState<ExtendedTariff | null>(null);
-  const [selectedAdditionalServices, setSelectedAdditionalServices] = useState<string[]>([]);
-  const [allTariffs, setAllTariffs] = useState<ExtendedTariff[]>([]);
-  const [waitingTimeMinutes, setWaitingTimeMinutes] = useState<number>(0);
-  const [waitingInfo, setWaitingInfo] = useState<{
-    freeWaitTime: number;
-    pricePerMinute: number;
-    isAirport: boolean;
-  } | null>(null);
+
+  const effectorSelectedVehicleType = useUnit($selectedVehicleType);
+  const effectorSelectedServiceLevel = useUnit($selectedServiceLevel);
+
+  const effectiveSelectedVehicleType = effectorSelectedVehicleType;
+  const effectiveSelectedServiceLevel = effectorSelectedServiceLevel;
+
   const [isLoadingTariff, setIsLoadingTariff] = useState<boolean>(true);
 
   const { updateTariffs: fetchTariffs } = useTariffs({
-    selectedServiceLevel: '',
-    selectedVehicleType: selectedVehicleType,
+    selectedVehicleType: effectiveSelectedVehicleType,
     setErrorMessage,
   });
 
-  const handleVehicleTypeChange = useCallback((value: string) => {
-    setSelectedVehicleType(value);
-    setSelectedServiceLevel('');
-  }, []);
-
-  const handleServiceLevelChange = useCallback((value: string) => {
-    setSelectedServiceLevel(value);
-  }, []);
-
-  useEffect(() => {
-    setIsLoadingTariff(true);
-    fetchTariffs().then((data) => {
-      setAllTariffs(data);
-      setIsLoadingTariff(false);
-    });
-  }, [fetchTariffs]);
-
-  useEffect(() => {
-    if (selectedVehicleType) {
-      const filteredTariffs = allTariffs.filter(
-        (tariff) => tariff.vehicleType === selectedVehicleType,
-      );
-      if (filteredTariffs.length > 0) {
-        const defaultTariff =
-          filteredTariffs.find((t) => t.serviceLevel === selectedServiceLevel) ||
-          filteredTariffs[0];
-        setSelectedTariff(defaultTariff);
-        setValue('tariffUuid', defaultTariff.uuid);
-        let freeWaitTime = 5;
-        let pricePerMinute = 0;
-        let isAirport = false;
-        if (watch().departurePoint) {
-          const departurePoint = points.find((point) => point.uuid === watch().departurePoint);
-          if (departurePoint?.airport) {
-            freeWaitTime = defaultTariff.freeWaitTimeAirport;
-            pricePerMinute = defaultTariff.pricePerMinuteAfterAirport;
-            isAirport = true;
-          } else {
-            freeWaitTime = defaultTariff.freeWaitTimeBishkek;
-            pricePerMinute = defaultTariff.pricePerMinuteAfterBishkek;
-            isAirport = false;
-          }
-        }
-        setWaitingTimeMinutes(freeWaitTime);
-        setWaitingInfo({ freeWaitTime, pricePerMinute, isAirport });
-        const newPrice = calculateTotalPrice({
-          selectedTariff: defaultTariff,
-          selectedAdditionalServices,
-          intermediatePoints: (watch().intermediatePoints || []).filter((p) => !!p), //Фильтрация пустых значений
-          arrivalPointUuid: watch().arrivalPoint,
-          points,
-          waitingTimeMinutes,
-        });
-        setValue('basePrice', newPrice);
-      } else {
-        setSelectedTariff(null);
-        setValue('tariffUuid', '');
-        setValue('basePrice', 0);
-        setWaitingTimeMinutes(0);
-        setWaitingInfo(null);
-      }
-    }
-  }, [
-    selectedVehicleType,
-    allTariffs,
-    setValue,
-    watch,
-    points,
-    selectedAdditionalServices,
-    waitingTimeMinutes,
-    selectedServiceLevel,
-  ]);
-
-  useEffect(() => {
-    if (selectedTariff) {
-      const newPrice = calculateTotalPrice({
-        selectedTariff,
-        selectedAdditionalServices,
-        intermediatePoints: (watch().intermediatePoints || []).filter((p) => !!p), //Фильтрация пустых значений
-        arrivalPointUuid: watch().arrivalPoint,
-        points,
-        waitingTimeMinutes,
-      });
-      setValue('basePrice', newPrice);
-    }
-  }, [
-    watch().arrivalPoint,
-    watch().intermediatePoints,
-    selectedTariff,
-    selectedAdditionalServices,
-    points,
-    setValue,
-    watch,
-    waitingTimeMinutes,
-  ]);
-
-  const handleAdditionalServiceChangeCallback = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>, serviceUuid: string) => {
-      const newServices = handleAdditionalServiceChange(
-        e.target.checked,
-        serviceUuid,
-        selectedAdditionalServices,
-      );
-      setSelectedAdditionalServices(newServices);
-      if (selectedTariff) {
-        const newPrice = calculateTotalPrice({
-          selectedTariff,
-          selectedAdditionalServices: newServices,
-          intermediatePoints: (watch().intermediatePoints || []).filter((p) => !!p), //Фильтрация пустых значений
-          arrivalPointUuid: watch().arrivalPoint,
-          points,
-          waitingTimeMinutes,
-        });
-        setValue('basePrice', newPrice);
-      }
+  const handleVehicleTypeChange = useCallback(
+    (value: VehicleType | null) => {
+      console.log('Vehicle type changed to:', value);
+      setSelectedVehicleType(value);
+      setSelectedServiceLevel(null);
+      setValue('tariffUuid', '');
+      setValue('tariff.vehicleType', value as VehicleType);
+      setValue('tariff.serviceLevel', null as unknown as ServiceLevels);
+      setSelectedTariff(null);
+      fetchTariffs();
     },
-    [selectedAdditionalServices, setValue, selectedTariff, watch, points, waitingTimeMinutes],
+    [setValue, fetchTariffs],
   );
 
-  const handleWaitingTimeChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const newWaitingTime = parseInt(e.target.value, 10) || 0;
-      setWaitingTimeMinutes(newWaitingTime);
-      if (selectedTariff) {
-        const newPrice = calculateTotalPrice({
-          selectedTariff,
-          selectedAdditionalServices,
-          intermediatePoints: (watch().intermediatePoints || []).filter((p) => !!p), //Фильтрация пустых значений
-          arrivalPointUuid: watch().arrivalPoint,
-          points,
-          waitingTimeMinutes: newWaitingTime,
-        });
-        setValue('basePrice', newPrice);
-      }
+  const handleServiceLevelChange = useCallback(
+    (value: ServiceLevels | null) => {
+      console.log('Service level changed to:', value);
+      setSelectedServiceLevel(value);
+      setValue('tariffUuid', '');
+      setValue('tariff.serviceLevel', value as ServiceLevels);
+      setSelectedTariff(null);
     },
-    [selectedTariff, selectedAdditionalServices, points, setValue, watch, waitingTimeMinutes],
+    [setValue],
   );
 
+  const handleTariffSelect = useCallback(
+    (tariffUuid: string) => {
+      console.log('Tariff selected:', tariffUuid);
+      const foundTariff = tariffs.find((tariff) => tariff.uuid === tariffUuid);
+      setSelectedTariff(foundTariff || null);
+      setValue('tariffUuid', tariffUuid);
+    },
+    [tariffs, setValue],
+  );
+
+  //useEffect для инициализации effector store из пропсов
   useEffect(() => {
-    if (selectedTariff) {
-      let freeWaitTime = 5;
-      let pricePerMinute = 0;
-      let isAirport = false;
-      if (watch().departurePoint) {
-        const departurePoint = points.find((point) => point.uuid === watch().departurePoint);
-        if (departurePoint?.airport) {
-          freeWaitTime = selectedTariff.freeWaitTimeAirport;
-          pricePerMinute = selectedTariff.pricePerMinuteAfterAirport;
-          isAirport = true;
-        } else {
-          freeWaitTime = selectedTariff.freeWaitTimeBishkek;
-          pricePerMinute = selectedTariff.pricePerMinuteAfterBishkek;
-          isAirport = false;
-        }
-      }
-      setWaitingTimeMinutes(freeWaitTime);
-      setWaitingInfo({ freeWaitTime, pricePerMinute, isAirport });
+    if (propSelectedVehicleType) {
+      setSelectedVehicleType(propSelectedVehicleType);
+      setValue('tariff.vehicleType', propSelectedVehicleType);
     }
-  }, [watch().departurePoint, selectedTariff, points]);
+
+    if (propSelectedServiceLevel) {
+      setSelectedServiceLevel(propSelectedServiceLevel);
+      setValue('tariff.serviceLevel', propSelectedServiceLevel);
+    }
+  }, [propSelectedVehicleType, propSelectedServiceLevel, setValue]);
+
+  useEffect(() => {
+    if (effectiveSelectedVehicleType) {
+      setIsLoadingTariff(true);
+      fetchTariffs()
+        .then((data) => {
+          setTariffs(data);
+          setIsLoadingTariff(false);
+        })
+        .catch((error) => {
+          setErrorMessage(error, 'Ошибка при загрузке тарифов');
+          setIsLoadingTariff(false);
+        });
+    }
+  }, [effectiveSelectedVehicleType, fetchTariffs]);
+
+  const previousTariffRef = useRef<ExtendedTariff | null>(null);
+
+  useEffect(() => {
+    if (!effectiveSelectedVehicleType || !effectiveSelectedServiceLevel || tariffs.length === 0) {
+      setValue('tariffUuid', '');
+      setSelectedTariff(null);
+      previousTariffRef.current = null;
+      return;
+    }
+
+    const foundTariff = tariffs.find(
+      (tariff) =>
+        tariff.vehicleType === effectiveSelectedVehicleType &&
+        tariff.serviceLevel === effectiveSelectedServiceLevel,
+    );
+
+    if (foundTariff) {
+      setValue('tariffUuid', foundTariff.uuid);
+      setSelectedTariff(foundTariff);
+
+      //Проверяем, изменился ли тариф
+      if (previousTariffRef.current?.uuid !== foundTariff.uuid) {
+        showToast.success(`Выбран тариф: ${foundTariff.vehicleType} - ${foundTariff.serviceLevel}`);
+        previousTariffRef.current = foundTariff;
+      }
+    } else {
+      setValue('tariffUuid', '');
+      setSelectedTariff(null);
+
+      //Показываем toast только если предыдущий тариф был выбран
+      if (previousTariffRef.current !== null) {
+        showToast.error('Тариф не найден');
+        previousTariffRef.current = null;
+      }
+    }
+  }, [effectiveSelectedVehicleType, effectiveSelectedServiceLevel, tariffs, setValue]);
 
   return {
-    vehicleTypes,
-    serviceLevels,
-    selectedVehicleType,
-    selectedServiceLevel,
+    tariffs,
+    isLoadingTariff,
     selectedTariff,
-    selectedAdditionalServices,
+    selectedVehicleType: effectiveSelectedVehicleType,
+    selectedServiceLevel: effectiveSelectedServiceLevel,
     handleVehicleTypeChange,
     handleServiceLevelChange,
-    handleAdditionalServiceChangeCallback,
-    tariffs: allTariffs,
-    handleWaitingTimeChange,
-    waitingTimeMinutes,
-    waitingInfo,
-    isLoadingTariff,
+    handleTariffSelect,
   };
 };

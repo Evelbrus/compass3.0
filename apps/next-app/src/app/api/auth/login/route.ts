@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+///api/login/route.ts
+import { NextResponse, NextRequest } from 'next/server';
 import { SignJWT } from 'jose';
 import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
@@ -124,19 +124,21 @@ export async function POST(request: NextRequest) {
     const newRefreshToken = uuidv4();
 
     //Обновляем пользователя: добавляем новый refreshToken в массив и увеличиваем sessionVersion
-    const updatedUser = await prisma.user.update({
-      where: { uuid: user.uuid },
-      data: {
-        refreshTokens: {
-          push: newRefreshToken,
+    const updatedUser = await prisma.$transaction(async (tx) => {
+      return await tx.user.update({
+        where: { uuid: user.uuid },
+        data: {
+          refreshTokens: {
+            push: newRefreshToken,
+          },
+          lastActive: new Date(),
+          sessionVersion: { increment: 1 },
         },
-        lastActive: new Date(),
-        sessionVersion: { increment: 1 },
-      },
-      select: {
-        sessionVersion: true,
-        refreshTokens: true,
-      },
+        select: {
+          sessionVersion: true,
+          refreshTokens: true,
+        },
+      });
     });
 
     //Генерация accessToken

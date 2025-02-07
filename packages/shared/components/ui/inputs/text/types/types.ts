@@ -3,13 +3,13 @@ import React from 'react';
 export interface TextInputProps {
   label?: string;
   placeholder?: string;
-  value: string;
-  onChange: (value: string) => void;
+  value: string | number;
+  onChange: (value: string | number) => void;
   required?: boolean;
   requiredStar?: boolean;
   disabled?: boolean;
   readOnly?: boolean;
-  type?: React.HTMLInputTypeAttribute | 'textarea';
+  type?: React.HTMLInputTypeAttribute | 'textarea' | 'number';
   error?: boolean;
   errorBorder?: boolean;
   minLength?: number;
