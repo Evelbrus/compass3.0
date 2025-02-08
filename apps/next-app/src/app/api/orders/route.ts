@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
-import { Gender, OrderStatus, UserRole } from '@prisma/client';
+import { Gender, OrderStatus, UserRole, DriverAcceptanceStatus } from '@prisma/client';
 import debug from 'debug';
 import { CreateOrderData } from '@shared/prisma/interface/orders/interface';
 import { v4 as uuidv4 } from 'uuid';
 import { Decimal } from 'decimal.js';
 import { prisma } from '@shared/prisma/prisma-client';
+import { orderQueue } from '@next-app/src/lib/queues/orderQueue';
 
 const log = debug('app:orders');
 
@@ -126,9 +127,9 @@ export async function POST(req: Request) {
   let data: CreateOrderData;
   try {
     data = await req.json();
-    log('Received data:', data);
+    log('Получены данные:', data);
   } catch (error) {
-    log('Error parsing JSON:', error);
+    log('Ошибка разбора JSON:', error);
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
@@ -150,15 +151,16 @@ export async function POST(req: Request) {
   } = data;
 
   const orderStatus = assignedDriverId ? OrderStatus.PLANNED : OrderStatus.PENDING;
+  const driverAcceptanceStatus = assignedDriverId ? DriverAcceptanceStatus.PENDING : undefined;
 
   try {
     const result = await prisma.$transaction(async (prismaTx) => {
-      log('Starting transaction');
+      log('Начинаем транзакцию');
 
       let clientUuid = createdBy;
       //1. Проверка существования клиента или создание нового
       if (fullName && phone) {
-        log('Creating new temporary user');
+        log('Создаем нового временного пользователя');
         const newUser = await prismaTx.user.create({
           data: {
             fullName,
@@ -170,17 +172,16 @@ export async function POST(req: Request) {
           },
         });
         clientUuid = newUser.uuid;
-        log('New temporary user created:', newUser);
+        log('Новый временный пользователь создан:', newUser);
       } else {
-        //1.1 Проверка существования клиента
         const client = await prismaTx.user.findUnique({
           where: { uuid: createdBy },
         });
         if (!client) {
-          log(`Client with UUID ${createdBy} not found`);
+          log(`Клиент с UUID ${createdBy} не найден`);
           throw new Error('Client not found');
         }
-        log('Client found:', client);
+        log('Клиент найден:', client);
       }
 
       //2. Проверка существования тарифа
@@ -188,30 +189,30 @@ export async function POST(req: Request) {
         where: { uuid: tariffUuid },
       });
       if (!tariffRecord) {
-        log(`Tariff with UUID ${tariffUuid} not found`);
+        log(`Тариф с UUID ${tariffUuid} не найден`);
         throw new Error('Tariff not found');
       }
-      log('Tariff found:', tariffRecord);
+      log('Тариф найден:', tariffRecord);
 
       //3. Проверка существования точки отправления
       const departurePointRecord = await prismaTx.point.findUnique({
         where: { uuid: departurePoint },
       });
       if (!departurePointRecord) {
-        log(`Departure point with UUID ${departurePoint} not found`);
+        log(`Точка отправления с UUID ${departurePoint} не найдена`);
         throw new Error('Departure point not found');
       }
-      log('Departure point found:', departurePointRecord);
+      log('Точка отправления найдена:', departurePointRecord);
 
       //4. Проверка существования точки прибытия
       const arrivalPointRecord = await prismaTx.point.findUnique({
         where: { uuid: arrivalPoint },
       });
       if (!arrivalPointRecord) {
-        log(`Arrival point with UUID ${arrivalPoint} not found`);
+        log(`Точка прибытия с UUID ${arrivalPoint} не найдена`);
         throw new Error('Arrival point not found');
       }
-      log('Arrival point found:', arrivalPointRecord);
+      log('Точка прибытия найдена:', arrivalPointRecord);
 
       //5. Проверка существования водителя
       if (assignedDriverId) {
@@ -219,10 +220,10 @@ export async function POST(req: Request) {
           where: { uuid: assignedDriverId },
         });
         if (!driver) {
-          log(`Driver with UUID ${assignedDriverId} not found`);
+          log(`Водитель с UUID ${assignedDriverId} не найден`);
           throw new Error('Driver not found');
         }
-        log('Driver found:', driver);
+        log('Водитель найден:', driver);
       }
 
       //6. Создание заказа
@@ -241,27 +242,22 @@ export async function POST(req: Request) {
           description: description || null,
           flightNumber: flightNumber || null,
           waitingTimeMinutes: waitingTimeMinutes,
+          driverAcceptanceStatus: driverAcceptanceStatus,
         },
       });
-      log('Order created:', order);
+      log('Заказ создан:', order);
 
-      //7. Добавление дополнительных услуг
+      //7. Добавление дополнительных услуг (аналогичная логика, как и ранее)
       if (selectedServices && selectedServices.length > 0) {
-        log('Selected services (tariffOnServiceUuid):', selectedServices);
+        log('Выбранные услуги (tariffOnServiceUuid):', selectedServices);
         const tariffOnServices = await prismaTx.tariffOnService.findMany({
           where: {
-            uuid: {
-              in: selectedServices,
-            },
+            uuid: { in: selectedServices },
           },
         });
-        log(
-          'Found tariffOnServices:',
-          tariffOnServices.map((tos) => tos.uuid),
-        );
         if (tariffOnServices.length !== selectedServices.length) {
           log(
-            `Not all services found for tariff ${tariffUuid}. Selected services: ${selectedServices.join(', ')}`,
+            `Не все услуги найдены для тарифа ${tariffUuid}. Выбранные услуги: ${selectedServices.join(', ')}`,
           );
           throw new Error('Not all services found for tariff');
         }
@@ -273,28 +269,66 @@ export async function POST(req: Request) {
             tariffOnServiceUuid: tariffOnService.uuid,
           })),
         });
-        log('Additional services added');
+        log('Дополнительные услуги добавлены');
       }
 
-      //8. Обновление заказа
-      const updatedOrder = await prismaTx.order.findUnique({
-        where: { uuid: order.uuid },
-        include: {
-          orderTariffAdditionalServices: {
-            include: {
-              tariffOnService: true,
-            },
-          },
-        },
-      });
-      log('Updated order:', updatedOrder);
-
-      return updatedOrder;
+      //8. Завершаем транзакцию и возвращаем заказ
+      return order;
     });
+
+    console.log('result', result);
+
+    //После успешного создания заказа, добавляем задачи в очередь
+    const now = new Date();
+    const departureDate = new Date(result.departureTime);
+
+    //Задача для обновления статуса до OVERDUE в момент наступления departureTime
+    const delayForOverdue = departureDate.getTime() - now.getTime();
+    if (delayForOverdue > 0) {
+      console.log(`Добавляем задачу checkOverdue с задержкой ${delayForOverdue} мс`);
+      const checkOverdueOptions = {
+        delay: delayForOverdue,
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 1000 },
+        jobId: `checkOverdue-${result.uuid}`,
+      };
+      try {
+        await orderQueue.add('checkOverdue', { orderUuid: result.uuid }, checkOverdueOptions);
+        console.log(`Задача checkOverdue успешно добавлена, jobId: ${checkOverdueOptions.jobId}`);
+        log(
+          `Задача checkOverdue добавлена с задержкой ${delayForOverdue} мс, jobId: ${checkOverdueOptions.jobId}`,
+        );
+      } catch (error) {
+        log(`Ошибка при добавлении задачи checkOverdue: ${error}`, error);
+      }
+    }
+
+    //Если водитель назначен, добавляем задачу уведомления за 1 минуту до departureTime
+    if (result.assignedDriverId) {
+      const notifyDelay = departureDate.getTime() - now.getTime() - 60 * 1000;
+      if (notifyDelay > 0) {
+        console.log(`Добавляем задачу notifyDriver с задержкой ${notifyDelay} мс`);
+        const notifyDriverOptions = {
+          delay: notifyDelay,
+          attempts: 3,
+          backoff: { type: 'exponential', delay: 1000 },
+          jobId: `notifyDriver-${result.uuid}`,
+        };
+        try {
+          await orderQueue.add('notifyDriver', { orderUuid: result.uuid }, notifyDriverOptions);
+          console.log(`Задача notifyDriver успешно добавлена, jobId: ${notifyDriverOptions.jobId}`);
+          log(
+            `Задача notifyDriver добавлена с задержкой ${notifyDelay} мс, jobId: ${notifyDriverOptions.jobId}`,
+          );
+        } catch (error) {
+          log(`Неизвестная ошибка при добавлении задачи notifyDriver: ${error}`, error);
+        }
+      }
+    }
 
     return NextResponse.json(result, { status: 201 });
   } catch (error) {
-    log('Error creating order:', error);
+    log('Ошибка создания заказа:', error);
     return NextResponse.json({ error: 'Unable to create order' }, { status: 500 });
   }
 }
