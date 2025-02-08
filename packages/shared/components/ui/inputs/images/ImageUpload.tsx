@@ -3,6 +3,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { useFormContext, useWatch } from 'react-hook-form';
 import { IButton } from '@shared/components/ui/buttons';
+import { LazyImage } from '../../images';
 
 interface ImageUploadProps {
   name: string;
@@ -16,6 +17,8 @@ interface ImageUploadProps {
   value?: string;
   readonly?: boolean;
   requiredStar?: boolean;
+  licensePhoto?: boolean;
+  passportPhoto?: boolean;
 }
 
 export const ImageUpload: React.FC<ImageUploadProps> = ({
@@ -27,6 +30,8 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   message = '',
   className = '',
   placeholder = '/placeholderImage.png',
+  passportPhoto = false,
+  licensePhoto = false,
   value,
   readonly = false,
   requiredStar = false, //Добавлено свойство requiredStar
@@ -99,13 +104,14 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
       <label className="text-5 leading-5 text-gray-500 font-extrabold mb-3 flex justify-center">
         {label} {requiredStar && <span className="text-red-500">*</span>}
       </label>
-      <div className="w-full min-h-[340px] border-2 border-dashed border-gray-400 rounded-lg flex flex-col gap-8 items-center justify-center bg-white overflow-hidden relative">
+      <div className="w-full min-h-fit border-2 border-dashed border-gray-400 rounded-lg flex flex-col gap-[15px] items-center justify-center bg-white overflow-hidden relative">
         {preview ? (
           <>
             <img
               src={preview}
               alt="Предпросмотр изображения"
-              className="absolute inset-0 w-full h-full object-cover rounded-lg p-1"
+              className="inset-0 w-full object-cover rounded-lg p-1"
+              style={{ height: licensePhoto || passportPhoto ? '150px' : '260px' }}
             />
             {!readonly && (
               <IButton
@@ -119,7 +125,23 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
           </>
         ) : (
           <>
-            {placeholder ? (
+            {passportPhoto ? (
+              <div className="w-full h-fit bg-white flex items-center justify-center pt-[16px]">
+                <div className="flex items-center gap-[18px]">
+                  <LazyImage src="/doc_icon3.png" alt="logotype" className="w-[76px] h-[76px]" />
+                  <LazyImage src="/doc_icon2.png" alt="doc_icons2" className="w-[160px] h-[56px]" />
+                </div>
+              </div>
+            ) : null}
+            {licensePhoto ? (
+              <div className="w-full h-fit bg-white flex items-center justify-center pt-[16px]">
+                <div className="flex items-center gap-[18px]">
+                  <LazyImage src="/doc_icon1.png" alt="doc_icons1" className="w-[50px] h-[40px]" />
+                  <LazyImage src="/doc_icon2.png" alt="doc_icons2" className="w-[170px] h-[66px]" />
+                </div>
+              </div>
+            ) : null}
+            {!passportPhoto && !licensePhoto && placeholder ? (
               <img
                 src={placeholder}
                 alt="Плейсхолдер изображения"
@@ -127,12 +149,12 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
               />
             ) : null}
             {!readonly && (
-              <div className={'relative flex flex-col gap-2'}>
+              <div className={'relative flex flex-col gap-2 pb-[16px]'}>
                 <IButton
                   type="button"
                   onClick={() => inputRef.current?.click()}
-                  className="px-6 py-2 bg-[#989898] text-white rounded-lg"
-                  textClassName={'text-5 leading-5 justify-center'}
+                  className="px-6 py-[5px] bg-[#989898] text-white rounded-lg"
+                  textClassName={'text-base leading-5 justify-center'}
                 >
                   Загрузить фото
                 </IButton>

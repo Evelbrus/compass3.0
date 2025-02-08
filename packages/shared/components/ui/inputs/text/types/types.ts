@@ -27,4 +27,5 @@ export interface TextInputProps {
   icon?: React.ReactNode;
   minDate?: Date;
   message?: string;
+  ref?:  React.Ref<HTMLInputElement | HTMLTextAreaElement | HTMLDivElement>
 }
