@@ -58,7 +58,7 @@ const NotificationList: React.FC<NotificationListProps> = ({
   }, [handleIntersection, notifications]);
 
   return (
-    <div className="absolute w-[400px] right-0 top-10 z-50 bg-white p-4 rounded-md shadow-lg">
+    <div className="absolute w-[400px] h-[400px] right-0 top-10 z-50 bg-white p-4 rounded-md shadow-lg overflow-auto">
       <IButton
         variant="close"
         onClick={onClose}

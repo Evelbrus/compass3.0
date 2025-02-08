@@ -7,6 +7,13 @@ enum OrderStatus {
   OVERDUE
 }
 
+enum DriverAcceptanceStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  TIMEOUT
+}
+
 model Order {
   uuid                          String                           @id @default(uuid()) @map("uuid")
   createdById                   String                           @map("created_by_id")
@@ -30,6 +37,8 @@ model Order {
   description                   String?                          @map("description")
   flightNumber                  String?                          @map("flight_number")
   waitingTimeMinutes            Int                              @default(0) @map("waiting_time_minutes")
+  driverAcceptanceStatus        DriverAcceptanceStatus           @default(PENDING) @map("driver_acceptance_status")
+  driverOrderNotifications      DriverOrderNotification[]
 
   @@map("orders")
 }

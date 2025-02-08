@@ -8,7 +8,11 @@
     "./packages/*"
   ],
   "scripts": {
+    "devdev": "yarn workspace next-app dev",
     "dev": "concurrently \"yarn workspace next-app dev\" \"yarn workspace next-app devWS\"",
+    "build:worker": "echo \"Running tsc...\" && tsc -p tsconfig.worker.json && echo \"Running tsc-alias...\" && tsc-alias -p tsconfig.worker.json",
+    "worker": "yarn workspace next-app worker",
+    "webS": "yarn workspace next-app devW",
     "prod": "yarn workspace next-app build",
     "serve": "yarn workspace next-app start",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
@@ -37,6 +41,7 @@
     "axios": "^1.7.7",
     "bcrypt": "^5.1.1",
     "bcryptjs": "^2.4.3",
+    "bullmq": "^5.40.2",
     "clsx": "^2.1.1",
     "critters": "^0.0.25",
     "debug": "^4.4.0",
@@ -48,6 +53,7 @@
     "framer-motion": "^11.11.11",
     "jose": "^5.9.6",
     "jscodeshift": "^17.1.1",
+    "module-alias": "^2.2.3",
     "next": "^15.0.2",
     "next-intl": "^3.23.5",
     "path-to-regexp": "^8.2.0",
@@ -79,6 +85,7 @@
     "@types/debug": "^4",
     "@types/eslint-plugin-tailwindcss": "^3",
     "@types/formidable": "^3",
+    "@types/module-alias": "^2",
     "@types/pg": "^8",
     "@types/react": "npm:types-react@19.0.0-rc.1",
     "@types/react-dom": "npm:types-react-dom@19.0.0-rc.1",
@@ -105,6 +112,7 @@
     "stylelint-scss": "^6.8.1",
     "tailwindcss": "^3.4.16",
     "ts-node": "^10.9.2",
+    "tsc-alias": "^1.8.10",
     "typescript": "^5.7.3",
     "typescript-plugin-css-modules": "^5.1.0"
   }

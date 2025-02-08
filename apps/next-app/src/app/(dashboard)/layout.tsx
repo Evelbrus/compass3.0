@@ -5,6 +5,7 @@ import Sidebar from '@shared/components/layout/sidebar/ui/Sidebar';
 import Header from '@widgets/layout/header/Header';
 import { SocketProvider } from '@app/provider/SocketProvider';
 import GradientBackground from '@shared/components/background/GradientBackground';
+import ModalDriver from '@shared/components/modal/modal-driver/ModalDriver';
 
 type RootLayoutProps = {
   children: ReactNode;
@@ -26,8 +27,10 @@ const BaseLayout = async ({ children }: RootLayoutProps): Promise<JSX.Element> =
             </div>
           </div>
         </div>
+        {role === 'Driver' && <ModalDriver />}{' '}
+        {/*Рендерим ModalDriver, только если роль - Driver */}
+        {role && <ModalManagerComponent role={role} />}
       </SocketProvider>
-      {role && <ModalManagerComponent role={role} />}
     </>
   );
 };

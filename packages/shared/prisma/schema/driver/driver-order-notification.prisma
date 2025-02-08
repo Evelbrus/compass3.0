@@ -1,0 +1,13 @@
+model DriverOrderNotification {
+  uuid      String   @id @default(uuid()) @map("uuid")
+  orderId   String   @map("order_id")
+  order     Order    @relation(fields: [orderId], references: [uuid], onDelete: Cascade)
+  driverId  String   @map("driver_id")
+  driver    User     @relation(fields: [driverId], references: [uuid], onDelete: Cascade)
+  title     String   @map("title")
+  message   String   @map("message")
+  isRead    Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("driver_order_notifications")
+}
