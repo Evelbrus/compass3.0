@@ -1,5 +1,5 @@
-import { Column, TableOrdersRow } from '@shared/components/ui/table';
-import { renderDateTime } from '@shared/components/ui/table/ui/TableRenders';
+import { Column, TableDriversRow, TableOrdersRow } from '@shared/components/ui/table';
+import { renderCustomerPhone, renderDateTime } from '@shared/components/ui/table/ui/TableRenders';
 
 export const ordersColumns: Column<TableOrdersRow, keyof TableOrdersRow>[] = [
   {
@@ -10,15 +10,22 @@ export const ordersColumns: Column<TableOrdersRow, keyof TableOrdersRow>[] = [
   },
   {
     accessor: 'createdBy',
-    header: 'Создано',
-    render: (row: TableOrdersRow) => (
-      <div>
-        <div>{row.createdBy.fullName}</div>
-        <div>{row.createdBy.phone}</div>
-      </div>
-    ),
+    header: 'Телефон и ФИО',
+    render: (row: TableOrdersRow) => {
+      if (row.createdBy === null) {
+        return 'Не указано';
+      }
+      return (
+        <>
+          {renderCustomerPhone(
+            row.createdBy.phone || 'Не указано',
+            row.createdBy.fullName || 'Не указано',
+          )}
+        </>
+      );
+    },
     sortable: false,
-    className: 'w-[200px]',
+    className: 'w-[350px]',
   },
   {
     accessor: 'tariff',

@@ -41,10 +41,10 @@ export const driversColumns: Column<TableDriversRow, keyof TableDriversRow>[] = 
       row.passportPhotoPath ? (
         <img src={row.passportPhotoPath} alt="Фото паспорта" className="w-[50px] h-[50px]" />
       ) : (
-        'Не указано'
+        <button className={'flex p-4 bg-gray-500 text-white rounded-lg'}>Загрузить фото</button>
       ),
     sortable: false,
-    className: 'w-[100px] text-center',
+    className: 'flex-grow text-center',
   },
   {
     accessor: 'createdAt',
