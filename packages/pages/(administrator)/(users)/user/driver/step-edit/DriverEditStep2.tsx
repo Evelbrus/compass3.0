@@ -220,7 +220,6 @@ const DriverEditStep2 = (): JSX.Element => {
         </div>
       </div>
       <div className="w-1/3 mb-4 col-span-1">
-        <label className="block mb-2 font-bold">Passport Photo Path:</label>
         <Controller
           name="driverProfile.passportPhotoPath"
           control={control}

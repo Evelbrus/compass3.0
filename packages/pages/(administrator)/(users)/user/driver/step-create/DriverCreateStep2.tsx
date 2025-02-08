@@ -221,14 +221,28 @@ const DriverCreateStep2 = (): JSX.Element => {
         </div>
       </div>
       <div className=" w-1/3 mb-4 col-span-1">
-        <label className="block mb-2 font-bold">Путь к фотографии на паспорт:</label>
         <Controller
           name="driverProfile.passportPhotoPath"
           control={control}
           render={({ field, fieldState }) => (
             <ImageUpload
+              passportPhoto
               name={field.name}
               label="Загрузите фотографию паспорта"
+              error={!!fieldState.error}
+              message={fieldState.error?.message || ''}
+              value={field.value}
+            />
+          )}
+        />
+        <Controller
+          name="driverProfile.passportPhotoPath"
+          control={control}
+          render={({ field, fieldState }) => (
+            <ImageUpload
+              licensePhoto
+              name={field.name}
+              label=""
               error={!!fieldState.error}
               message={fieldState.error?.message || ''}
               value={field.value}

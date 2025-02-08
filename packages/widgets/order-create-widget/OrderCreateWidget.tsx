@@ -8,8 +8,6 @@ import { TextInput } from '@shared/components/ui/inputs';
 import { showToast } from '@shared/components/toast/ToastManager';
 import { Point } from '@prisma/client';
 import { ExtendedTariff } from '@shared/prisma/interface/orders/interface';
-import { format } from 'date-fns';
-import { ru } from 'date-fns/locale';
 import {
   ExtendedDriver,
   ExtendedUser,
@@ -18,6 +16,7 @@ import {
 import { CloseIcon } from '@shared/components/ui/icon';
 import { OrderStatus } from '@prisma/client';
 import { orderStatusOptions } from '@shared/lib/effector/orders/options-and-translation/optionsStatusOrder';
+import ModalContent from './order-info-modal/OrderInfo';
 
 //Определяем тип для OrderStatus на основе orderStatusOptions
 type OrderStatusType = (typeof orderStatusOptions)[number]['value'];
@@ -36,7 +35,7 @@ interface OrderCreateWidgetProps {
   waitingTimeMinutes: number;
   extraWaitingTimeCost: number;
   selectedAdditionalServices: SelectedAdditionalService[];
-  isEditingProp: boolean; //Renamed to isEditingProp to avoid confusion
+  isEditingProp: boolean;
 }
 
 const OrderCreateWidget: React.FC<OrderCreateWidgetProps> = ({
@@ -53,7 +52,7 @@ const OrderCreateWidget: React.FC<OrderCreateWidgetProps> = ({
   waitingTimeMinutes,
   extraWaitingTimeCost,
   selectedAdditionalServices,
-  isEditingProp, //Get isEditing from props
+  isEditingProp,
 }) => {
   const { setValue, handleSubmit, formState, trigger, watch } = useFormContext<CreateOrderData>();
   const [editedPrice, setEditedPrice] = useState<number | null>(null);
@@ -126,15 +125,13 @@ const OrderCreateWidget: React.FC<OrderCreateWidgetProps> = ({
       const orderData = {
         ...data,
         basePrice: Number(data.basePrice),
-        status: selectedStatus as OrderStatus, //Pass selected status
+        status: selectedStatus as OrderStatus,
       };
       console.log('Order data before onSubmit:', orderData);
       onSubmit(orderData);
       setIsModalOpen(false);
     })();
   };
-
-  console.log('base', price);
 
   return (
     <>
@@ -243,145 +240,38 @@ const OrderCreateWidget: React.FC<OrderCreateWidgetProps> = ({
             </IButton>
             <h2 className="text-2xl font-bold mb-4 text-center">Подтверждение заказа</h2>
             {/*Display only the status in the modal */}
-            <div className="mb-4">
-              <h3 className="text-lg font-semibold mb-2">Статус заказа</h3>
-              <p>{orderStatusOptions.find((option) => option.value === selectedStatus)?.label}</p>
-            </div>
-            <div className="mb-4">
-              <h3 className="text-lg font-semibold mb-2">Информация о маршруте</h3>
-              <div className="flex gap-4">
-                <p className="mb-1">
-                  <span className="font-medium">Отправление:</span>{' '}
-                  {selectedDeparturePoint ? selectedDeparturePoint.address : 'Не выбрано'}
-                </p>
-                <p className="mb-1">
-                  <span className="font-medium">Прибытие:</span>{' '}
-                  {selectedArrivalPoint ? selectedArrivalPoint.address : 'Не выбрано'}
-                </p>
-              </div>
-
-              {selectedIntermediatePoints.length > 0 && (
-                <>
-                  <h4 className="text-md font-semibold mt-2 mb-1">Промежуточные точки:</h4>
-                  <table className="w-full">
-                    <thead>
-                      <tr className="text-left">
-                        <th className="py-2 px-4 font-semibold text-gray-700">#</th>
-                        <th className="py-2 px-4 font-semibold text-gray-700">Адрес</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {selectedIntermediatePoints.map((point, index) => (
-                        <tr key={index} className="border-b border-gray-200">
-                          <td className="py-2 px-4">{index + 1}</td>
-                          <td className="py-2 px-4">{point ? point.address : 'Не выбрано'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </>
-              )}
-            </div>
-            <div className="mb-4 flex gap-4">
-              <div className="w-1/2">
-                <h3 className="text-lg font-semibold mb-2">Информация о заказе</h3>
-                <p className="mb-1">
-                  <span className="font-medium">Тариф:</span>{' '}
-                  {selectedTariff
-                    ? `${selectedTariff.vehicleType} - ${selectedTariff.serviceLevel}`
-                    : 'Не выбран'}
-                </p>
-                <p className="mb-1">
-                  <span className="font-medium">Время отправления:</span>{' '}
-                  {departureTime
-                    ? format(new Date(departureTime), 'dd MMMM yyyy HH:mm', { locale: ru })
-                    : 'Не выбрано'}
-                </p>
-                <p className="mb-1">
-                  <span className="font-medium">Номер рейса:</span> {flightNumber || 'Не указан'}
-                </p>
-                {description && (
-                  <p className="mb-1">
-                    <span className="font-medium">Описание:</span> {description}
-                  </p>
-                )}
-              </div>
-
-              <div className="w-1/2">
-                <h3 className="text-lg font-semibold mb-2">Информация о клиенте</h3>
-                <p className="mb-1">
-                  <span className="font-medium">Клиент:</span>{' '}
-                  {selectedClientInfo ? selectedClientInfo.fullName : 'Не выбран'}
-                </p>
-                {selectedClientInfo && (
-                  <p className="mb-1">
-                    <span className="font-medium">Телефон:</span> {selectedClientInfo.phone}
-                  </p>
-                )}
-              </div>
-            </div>
-            <div className="mb-4">
-              <h3 className="text-lg font-semibold mb-2">Информация о водителе</h3>
-              <p className="mb-1">
-                <span className="font-medium">Водитель:</span>{' '}
-                {selectedDriverInfo ? selectedDriverInfo.fullName : 'Не выбран'}
-              </p>
-              {selectedDriverInfo && selectedDriverInfo.vehicleDriver && (
-                <>
-                  <p className="mb-1">
-                    <span className="font-medium">Тип авто:</span>{' '}
-                    {selectedDriverInfo.vehicleDriver.vehicle.vehicleType}
-                  </p>
-                  <p className="mb-1">
-                    <span className="font-medium">Уровень сервиса:</span>{' '}
-                    {selectedDriverInfo.vehicleDriver.vehicle.serviceLevels}
-                  </p>
-                </>
-              )}
-            </div>
-            <div className="mb-4">
-              <h3 className="text-lg font-semibold mb-2">Время ожидания</h3>
-              <p className="mb-1">
-                <span className="font-medium">Бесплатное время ожидания:</span> {freeWaitTime} минут
-              </p>
-              <p className="mb-1">
-                <span className="font-medium">Время ожидания:</span> {waitingTimeMinutes} минут
-              </p>
-              <p className="mb-1">
-                <span className="font-medium">Стоимость ожидания:</span> {extraWaitingTimeCost} сом
-              </p>
-            </div>
-            <div className="mb-4">
-              <h3 className="text-lg font-semibold mb-2">Дополнительные услуги</h3>
-              {selectedAdditionalServices.length > 0 ? (
-                <table className="w-full">
-                  <thead>
-                    <tr className="text-left">
-                      <th className="py-2 px-4 font-semibold text-gray-700">Услуга</th>
-                      <th className="py-2 px-4 font-semibold text-gray-700">Цена</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {selectedAdditionalServices.map((service) => (
-                      <tr key={service.uuid} className="border-b border-gray-200">
-                        <td className="py-2 px-4">{service.name}</td>
-                        <td className="py-2 px-4">{service.price} сом</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
-                <p>Нет дополнительных услуг</p>
-              )}
-            </div>
-            <div className="mb-4">
-              <h3 className="text-xl font-bold mb-2">Итоговая сумма: {price} сом</h3>
-            </div>
+            <ModalContent
+              selectedStatus={selectedStatus}
+              selectedDeparturePoint={selectedDeparturePoint}
+              selectedArrivalPoint={selectedArrivalPoint}
+              selectedIntermediatePoints={selectedIntermediatePoints}
+              selectedTariff={selectedTariff}
+              departureTime={departureTime ?? ''}
+              flightNumber={flightNumber ?? ''}
+              description={description ?? ''}
+              selectedClientInfo={selectedClientInfo}
+              selectedDriverInfo={selectedDriverInfo}
+              freeWaitTime={freeWaitTime ?? 0}
+              waitingTimeMinutes={waitingTimeMinutes}
+              extraWaitingTimeCost={extraWaitingTimeCost}
+              selectedAdditionalServices={selectedAdditionalServices}
+              price={price}
+            />
             <div className="flex justify-end gap-4 mt-4">
-              <IButton onClick={handleCloseModal} className={'bg-gray-300 p-2'}>
+              <IButton
+                onClick={handleCloseModal}
+                className={
+                  'p-3 bg-gray-500 opacity-50 text-[color:var(--text-white)] rounded-lg hover:bg-[color:var(--button-secondary-hover)] transition'
+                }
+              >
                 Вернуться
               </IButton>
-              <IButton onClick={handleCreateOrder} className={'bg-blue-500 text-white p-2'}>
+              <IButton
+                onClick={handleCreateOrder}
+                className={
+                  'p-3 bg-[color:var(--button-secondary)] text-[color:var(--text-white)] rounded-lg hover:bg-[color:var(--button-secondary-hover)] transition'
+                }
+              >
                 Создать заказ
               </IButton>
             </div>

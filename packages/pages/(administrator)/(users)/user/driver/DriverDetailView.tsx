@@ -170,7 +170,10 @@ const DriverDetailView = ({ userData }: DriverDetailViewProps): JSX.Element => {
                   className="rounded-lg object-cover"
                 />
               ) : (
-                <LazyImage src="/new-user.svg" alt="logotype" className="w-[330px] h-[140px]" />
+                <div className="flex items-center gap-[18px]">
+                  <LazyImage src="/doc_icon3.png" alt="logotype" className="w-[76px] h-[76px]" />
+                  <LazyImage src="/doc_icon2.png" alt="doc_icons2" className="w-[160px] h-[56px]" />
+                </div>
               )}
             </div>
 
@@ -182,7 +185,7 @@ const DriverDetailView = ({ userData }: DriverDetailViewProps): JSX.Element => {
                   className="rounded-lg object-cover"
                 />
               ) : (
-                <div className='flex items-center gap-[18px]'>
+                <div className="flex items-center gap-[18px]">
                   <LazyImage src="/doc_icon1.png" alt="doc_icons1" className="w-[50px] h-[40px]" />
                   <LazyImage src="/doc_icon2.png" alt="doc_icons2" className="w-[170px] h-[66px]" />
                 </div>
@@ -198,7 +201,7 @@ const DriverDetailView = ({ userData }: DriverDetailViewProps): JSX.Element => {
           />
         </div>
       </section>
-      <h2 className="text-2xl font-bold text-gray-800 my-6">Company Profile</h2>
+      <h2 className="text-2xl font-bold text-gray-800 my-6">Driver Profile</h2>
       <div className="rounded-lg p-6 bg-white shadow-md rounded-lg border border-gray-200 grid grid-cols-1 sm:grid-cols-1 lg:grid-cols-2 md:grid-cols-2 gap-4">
         {companyFields.map((field, index) => (
           <DetailItem key={index} label={field.label} value={field.value} />
