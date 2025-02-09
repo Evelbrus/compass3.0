@@ -1,7 +1,6 @@
-import React, { JSX } from 'react';
+import React, { JSX, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Gender, UserRole } from '@prisma/client';
-import { CreateUserData } from '@shared/prisma/interface/users/interface';
 import { useForm, FormProvider, Controller } from 'react-hook-form';
 import { ImageUpload, PhoneInput, RadioInput, TextInput } from '@shared/components/ui/inputs';
 import { IButton } from '@shared/components/ui/buttons';
@@ -12,9 +11,11 @@ import {
   validatePassword,
   validatePhoneNumber,
 } from '@shared/utils/validations';
+import { CreateUserData } from '@shared/prisma/interface/users/interface';
+import { v4 as uuidv4 } from 'uuid';
 
 interface ClientCreateFormProps {
-  onSubmit: (formData: CreateUserData) => void;
+  onSubmit: (data: CreateUserData) => Promise<string | null>;
 }
 
 interface FormData extends Omit<CreateUserData, 'gender'> {
@@ -23,44 +24,88 @@ interface FormData extends Omit<CreateUserData, 'gender'> {
   firstName: string;
   middleName: string;
   gender: Gender | undefined;
+  profileImage?: File | null;
+  email: string;
+  phone: string;
+  address: string;
+  password: string;
 }
 
 const ClientCreateForm = ({ onSubmit }: ClientCreateFormProps): JSX.Element => {
   const methods = useForm<FormData>({
     defaultValues: {
-      email: '',
-      password: '',
-      confirmPassword: '',
       role: UserRole.Client,
-      availability: true,
-      lastName: '',
-      firstName: '',
-      middleName: '',
-      phone: '',
-      gender: undefined,
-      address: '',
-      profilePhotoPath: '',
+      gender: 'Male',
+      email: 'qwerty1@gmail.com',
+      lastName: 'qwerty1',
+      firstName: 'qwerty1',
+      middleName: 'qwerty1',
+      confirmPassword: 'String3!',
+      password: 'String3!',
+      phone: '111-111-111',
+      address: 'dads',
+      profilePhotoPath: null,
     },
   });
 
   const { handleSubmit, control, watch } = methods;
   const router = useRouter();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const onSubmitForm = (data: FormData) => {
-    const { confirmPassword, lastName, firstName, middleName, gender, ...rest } = data;
-    const fullName = `${lastName} ${firstName} ${middleName}`;
-    const createUserData: CreateUserData = {
-      ...rest,
-      fullName,
-      gender: gender ?? Gender.Male,
-    };
-    onSubmit(createUserData);
+  const onSubmitForm = async (data: FormData) => {
+    setIsSubmitting(true);
+    let profilePhotoPath: string | null = null;
+
+    try {
+      const { confirmPassword, lastName, firstName, middleName, gender, profileImage, ...rest } =
+        data;
+      const fullName = `${lastName} ${firstName} ${middleName}`;
+
+      if (profileImage) {
+        const uniqueFilename = `${uuidv4()}-${profileImage.name}`;
+        profilePhotoPath = `/client/${uniqueFilename}`;
+      }
+
+      const createUserData: CreateUserData = {
+        ...rest,
+        fullName,
+        gender: gender ?? Gender.Male,
+        profilePhotoPath: profilePhotoPath,
+      };
+
+      const userUuid = await onSubmit(createUserData);
+
+      if (userUuid && profileImage) {
+        const uploadFormData = new FormData();
+        uploadFormData.append('profileImage', profileImage);
+        uploadFormData.append('profilePhotoPath', profilePhotoPath!);
+        uploadFormData.append('uuid', userUuid);
+
+        const uploadResponse = await fetch('/api/upload', {
+          method: 'POST',
+          body: uploadFormData,
+        });
+
+        if (!uploadResponse.ok) {
+          throw new Error('Ошибка при загрузке изображения');
+        }
+
+        const uploadResult = await uploadResponse.json();
+        console.log('uploadResult', uploadResult);
+      }
+
+      if (userUuid) {
+        router.push(`/user/detail/${userUuid}`);
+      }
+    } catch (error) {
+      console.error('Ошибка создания пользователя:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  //Получаем значение поля password для проверки совпадения паролей
   const password = watch('password');
 
-  //Функция для обработки кнопки "Назад"
   const handleBack = () => {
     router.push('/users');
   };
@@ -263,15 +308,15 @@ const ClientCreateForm = ({ onSubmit }: ClientCreateFormProps): JSX.Element => {
           </div>
           <div className="w-1/3 flex items-start justify-center p-6">
             <Controller
-              name="profilePhotoPath"
+              name="profileImage"
               control={control}
-              render={({ field, fieldState }) => (
+              render={({ fieldState }) => (
                 <ImageUpload
-                  {...field}
-                  value={field.value ?? undefined}
+                  name="profileImage"
                   label="Аватар клиента"
                   error={!!fieldState.error}
                   message={fieldState.error?.message || ''}
+                  requiredStar={true}
                 />
               )}
             />
@@ -295,6 +340,7 @@ const ClientCreateForm = ({ onSubmit }: ClientCreateFormProps): JSX.Element => {
             text-[color:var(--text-white)] rounded-lg
             hover:bg-[color:var(--button-secondary-hover)] transition"
             textClassName="w-full text-center justify-center"
+            disabled={isSubmitting}
           >
             Создать клиента
           </IButton>

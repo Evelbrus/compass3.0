@@ -1,22 +1,27 @@
 import { NextResponse } from 'next/server';
+import { prisma } from '@shared/prisma/prisma-client';
 import { User, UserRole } from '@prisma/client';
 import debug from 'debug';
-import { CreateUserData } from '@shared/prisma/interface/users/interface';
 import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcrypt';
-import { prisma } from '@shared/prisma/prisma-client';
+import { CreateUserData } from '@shared/prisma/interface/users/interface';
+import { ValidationError } from '@next-app/src/dto/error/ValidationError';
 
 const log = debug('app:users');
 
 export async function POST(req: Request) {
-  try {
-    const data: CreateUserData = await req.json();
+  const data: CreateUserData = await req.json();
 
+  //Валидация данных
+  if (!data.email || !data.password || !data.role || !data.fullName) {
+    throw new ValidationError('Отсутствуют обязательные поля');
+  }
+
+  try {
     const {
       email,
       password,
       role,
-      availability,
       fullName,
       phone,
       gender,
@@ -27,11 +32,6 @@ export async function POST(req: Request) {
     } = data;
 
     log('Received data:', data);
-
-    //Валидация данных
-    if (!email || !password || !role || !fullName) {
-      throw new Error('Missing required fields');
-    }
 
     //Хеширование пароля
     const saltRounds = 10;
@@ -45,7 +45,7 @@ export async function POST(req: Request) {
       email,
       password: hashedPassword,
       role,
-      availability,
+      availability: data.availability !== undefined ? data.availability : true,
       fullName,
       phone,
       gender,

@@ -19,6 +19,8 @@ const renderField = (label: string, value?: string | null) => (
 );
 
 const ClientDetailView = ({ userData }: ClientDetailViewProps): JSX.Element => {
+  console.log('userData', userData);
+
   const userFields = [
     { label: 'Email', value: userData.email },
     { label: 'Availability', value: userData.availability ? 'Available' : 'Unavailable' },
@@ -29,13 +31,17 @@ const ClientDetailView = ({ userData }: ClientDetailViewProps): JSX.Element => {
     { label: 'Profile Photo Path', value: userData.profilePhotoPath },
   ];
 
+  const imageSrc = userData.profilePhotoPath
+    ? `/api/images/${userData.profilePhotoPath.split('/').pop()}?type=client`
+    : null;
+
   return (
     <>
       <h2 className="text-3xl font-bold text-gray-800 mb-6">Client Details</h2>
       <section className="nx-auto flex gap-[12px] p-6 bg-white shadow-md rounded-lg border border-gray-200">
-        {userData.profilePhotoPath ? (
+        {imageSrc ? (
           <Image
-            src={userData.profilePhotoPath}
+            src={imageSrc}
             alt="Profile Photo"
             width={180}
             height={180}

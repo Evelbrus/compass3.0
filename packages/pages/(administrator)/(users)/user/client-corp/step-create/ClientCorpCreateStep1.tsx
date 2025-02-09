@@ -202,12 +202,11 @@ const ClientCorpCreateStep1 = (): JSX.Element => {
       </div>
       <div className="w-1/3 flex items-start justify-center p-6">
         <Controller
-          name="profilePhotoPath"
+          name="profileImage"
           control={control}
           render={({ field, fieldState }) => (
             <ImageUpload
-              {...field}
-              value={field.value ?? undefined}
+              name="profileImage"
               label="Фото Корпоративного Клиента"
               error={!!fieldState.error}
               message={fieldState.error?.message || ''}

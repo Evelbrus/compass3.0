@@ -10,6 +10,14 @@ import { Skeleton } from '@shared/components/ui/skeleton/Skeleton';
 import { SelectOption } from '@shared/lib/effector';
 import { cn } from '@shared/lib';
 
+interface Country {
+  code: string;
+  dialCode: string;
+  flag: string;
+  name: string;
+  maxLength: number;
+}
+
 export const PhoneInput: React.FC<PhoneInputProps> = ({
   value,
   onChange,
@@ -24,27 +32,27 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({
   message = 'Ошибка: Выберите корректное значение.',
 }) => {
   const initialCountry = useMemo(() => {
-    return countryData.find((country) => value.startsWith(country.dialCode)) || countryData[0];
-  }, []);
+    return countryData.find((country) => value?.startsWith(country.dialCode)) || countryData[0];
+  }, [value]);
 
-  const [selectedCountry, setSelectedCountry] = useState(initialCountry);
+  const [selectedCountry, setSelectedCountry] = useState<Country>(initialCountry);
   const [localNumber, setLocalNumber] = useState<string>(
-    value.startsWith(initialCountry.dialCode) ? value.replace(initialCountry.dialCode, '') : '',
+    value?.startsWith(initialCountry.dialCode) ? value.replace(initialCountry.dialCode, '') : '',
   );
 
   useEffect(() => {
     if (value && value.trim() !== '') {
-      const country = countryData.find((c) => value.startsWith(c.dialCode)) || selectedCountry;
+      const country = countryData.find((c) => value.startsWith(c.dialCode)) || initialCountry;
       const local = value.startsWith(country.dialCode) ? value.replace(country.dialCode, '') : '';
       setSelectedCountry(country);
       setLocalNumber(local);
     }
-  }, [value, selectedCountry]);
+  }, [value, initialCountry]);
 
   const handleCountryChange = (option: SelectOption<string> | null) => {
     if (!option) return;
 
-    const newCountry = countryData.find((c) => c.code === option.value) || selectedCountry;
+    const newCountry = countryData.find((c) => c.code === option.value) || initialCountry;
     setSelectedCountry(newCountry);
     setLocalNumber('');
     onChange(newCountry.dialCode);
@@ -87,6 +95,7 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({
             options={filteredCountryOptions}
             label=""
             value={{
+              //Всегда передается объект, даже если выбрана начальная страна
               value: selectedCountry.code,
               label: (
                 <div className="flex items-center flex-shrink-0">

@@ -30,19 +30,20 @@ enum ServiceLevels {
 }
 
 model Vehicle {
-  uuid           String          @id @default(uuid()) @map("uuid")
-  vehicleType    VehicleType     @map("vehicle_type")
-  brand          String          @map("brand")
-  model          String          @map("model")
-  year           DateTime?       @map("year")
-  color          String          @map("color")
-  plateNumber    String          @unique @map("plate_number")
-  isAvailable    Boolean         @default(true) @map("is_available")
-  photoPath      String?         @map("photo_path")
-  serviceLevels  ServiceLevels   @map("service_levels")
-  vehicleDrivers VehicleDriver[] @relation("vehicle_to_vehicle_driver")
-  createdAt      DateTime        @default(now()) @map("created_at")
-  updatedAt      DateTime        @updatedAt @map("updated_at")
+  uuid                         String          @id @default(uuid()) @map("uuid")
+  vehicleType                  VehicleType     @map("vehicle_type")
+  brand                        String          @map("brand")
+  model                        String          @map("model")
+  year                         DateTime?       @map("year")
+  color                        String          @map("color")
+  plateNumber                  String          @unique @map("plate_number")
+  isAvailable                  Boolean         @default(true) @map("is_available")
+  photoPath                    String?         @map("photo_path")
+  photoRegistrationCertificate String?         @map("photo_registration_certificate")
+  serviceLevels                ServiceLevels   @map("service_levels")
+  vehicleDrivers               VehicleDriver[] @relation("vehicle_to_vehicle_driver")
+  createdAt                    DateTime        @default(now()) @map("created_at")
+  updatedAt                    DateTime        @updatedAt @map("updated_at")
 
   @@map("vehicles")
 }

@@ -5,11 +5,11 @@ import { useRouter } from 'next/navigation';
 import { showToast } from '@shared/components/toast/ToastManager';
 import { UserRole } from '@prisma/client';
 import {
-  AdminCreateForm,
-  ClientCorpCreateForm,
   ClientCreateForm,
+  ClientCorpCreateForm,
   DriverCreateForm,
   OperatorCreateForm,
+  AdminCreateForm,
 } from '@pages/(administrator)/(users)/user/index';
 import { CreateUserData } from '@shared/prisma/interface/users/interface';
 
@@ -22,7 +22,9 @@ const ClientsCreateAdminPage = ({ role }: ClientsCreateAdminPageProps): JSX.Elem
 
   console.log('role:', role);
 
-  const handleSubmit = async (formData: CreateUserData) => {
+  const handleSubmit = async (
+    formData: Omit<CreateUserData, 'profilePhotoPath'>,
+  ): Promise<string | null> => {
     try {
       const response = await fetch('/api/users', {
         method: 'POST',
@@ -33,18 +35,23 @@ const ClientsCreateAdminPage = ({ role }: ClientsCreateAdminPageProps): JSX.Elem
       });
 
       if (!response.ok) {
-        throw new Error('Network response was not ok');
+        const errorData = await response.json();
+        throw new Error(
+          `Ошибка при создании пользователя: ${response.status} - ${errorData.message || 'Неизвестная ошибка'}`,
+        );
       }
 
-      const data = await response.json();
-      showToast.success('User created successfully!');
-      console.log('User created:', data);
+      const userData = await response.json();
+      const userUuid = userData.uuid;
 
-      //Перенаправление на страницу деталей пользователя
-      router.push(`/user/detail/${data.uuid}`);
+      showToast.success('Пользователь успешно создан!');
+      console.log('Пользователь создан:', userData);
+
+      return userUuid; //Возвращаем UUID при успехе
     } catch (error) {
-      showToast.error('Failed to create user');
-      console.error('Error creating user:', error);
+      showToast.error(`Не удалось создать пользователя: ${error.message}`);
+      console.error('Ошибка создания пользователя:', error);
+      return null; //Возвращаем null при ошибке
     }
   };
 

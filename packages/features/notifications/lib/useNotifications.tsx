@@ -18,11 +18,11 @@ export const useNotifications = (userId?: string) => {
   const handleNotification = useCallback((notification: Notification) => {
     console.log('Получено уведомление через сокет:', notification);
     setNotifications((prev) => [
-      ...prev,
       {
         ...notification,
         read: false,
       },
+      ...prev,
     ]);
   }, []);
 

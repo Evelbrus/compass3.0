@@ -17,6 +17,9 @@ CREATE TYPE "Status" AS ENUM ('free', 'busy', 'none');
 CREATE TYPE "OrderStatus" AS ENUM ('PENDING', 'PLANNED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'OVERDUE');
 
 -- CreateEnum
+CREATE TYPE "DriverAcceptanceStatus" AS ENUM ('PENDING', 'ACCEPTED', 'REJECTED', 'TIMEOUT');
+
+-- CreateEnum
 CREATE TYPE "UserRole" AS ENUM ('client', 'client_corp', 'driver', 'operator', 'admin', 'none');
 
 -- CreateEnum
@@ -30,6 +33,19 @@ CREATE TYPE "VehicleType" AS ENUM ('sedan', 'minivan', 'sprinter', 'bus', 'none'
 
 -- CreateEnum
 CREATE TYPE "ServiceLevels" AS ENUM ('basic', 'premium', 'vip', 'none');
+
+-- CreateTable
+CREATE TABLE "driver_order_notifications" (
+    "uuid" TEXT NOT NULL,
+    "order_id" TEXT NOT NULL,
+    "driver_id" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "message" TEXT NOT NULL,
+    "is_read" BOOLEAN NOT NULL DEFAULT false,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "driver_order_notifications_pkey" PRIMARY KEY ("uuid")
+);
 
 -- CreateTable
 CREATE TABLE "driver_experience" (
@@ -121,6 +137,7 @@ CREATE TABLE "orders" (
     "description" TEXT,
     "flight_number" TEXT,
     "waiting_time_minutes" INTEGER NOT NULL DEFAULT 0,
+    "driver_acceptance_status" "DriverAcceptanceStatus" NOT NULL DEFAULT 'PENDING',
 
     CONSTRAINT "orders_pkey" PRIMARY KEY ("uuid")
 );
@@ -256,6 +273,7 @@ CREATE TABLE "vehicles" (
     "plate_number" TEXT NOT NULL,
     "is_available" BOOLEAN NOT NULL DEFAULT true,
     "photo_path" TEXT,
+    "photo_registration_certificate" TEXT,
     "service_levels" "ServiceLevels" NOT NULL,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
@@ -310,6 +328,12 @@ CREATE UNIQUE INDEX "vehicle_drivers_driver_id_key" ON "vehicle_drivers"("driver
 
 -- CreateIndex
 CREATE UNIQUE INDEX "vehicle_drivers_vehicle_id_driver_id_key" ON "vehicle_drivers"("vehicle_id", "driver_id");
+
+-- AddForeignKey
+ALTER TABLE "driver_order_notifications" ADD CONSTRAINT "driver_order_notifications_order_id_fkey" FOREIGN KEY ("order_id") REFERENCES "orders"("uuid") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "driver_order_notifications" ADD CONSTRAINT "driver_order_notifications_driver_id_fkey" FOREIGN KEY ("driver_id") REFERENCES "users"("uuid") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "driver_experience" ADD CONSTRAINT "driver_experience_driverProfileId_fkey" FOREIGN KEY ("driverProfileId") REFERENCES "driver_profile"("uuid") ON DELETE SET NULL ON UPDATE CASCADE;

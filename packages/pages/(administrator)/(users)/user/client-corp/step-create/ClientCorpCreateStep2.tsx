@@ -1,6 +1,6 @@
 import React, { JSX } from 'react';
 import { useFormContext, Controller } from 'react-hook-form';
-import { TextInput, PhoneInput } from '@shared/components/ui/inputs';
+import { TextInput, PhoneInput, ImageUpload } from '@shared/components/ui/inputs';
 import { validateEmail, validatePhoneNumber } from '@shared/utils/validations';
 
 const ClientCorpCreateStep2 = (): JSX.Element => {
@@ -95,6 +95,20 @@ const ClientCorpCreateStep2 = (): JSX.Element => {
                 label="PIN-код компании:"
                 type="text"
                 {...field}
+                error={!!fieldState.error}
+                message={fieldState.error?.message || ''}
+              />
+            )}
+          />
+        </div>
+        <div className="mb-4 col-span-2">
+          <Controller
+            name="companyProfile.logoImage"
+            control={control}
+            render={({ field, fieldState }) => (
+              <ImageUpload
+                name="companyProfile.logoImage"
+                label="Логотип компании:"
                 error={!!fieldState.error}
                 message={fieldState.error?.message || ''}
               />

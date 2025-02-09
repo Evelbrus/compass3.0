@@ -6,42 +6,53 @@ import { useForm, FormProvider } from 'react-hook-form';
 import { IButton } from '@shared/components/ui/buttons';
 import ClientCorpCreateStep1 from '@pages/(administrator)/(users)/user/client-corp/step-create/ClientCorpCreateStep1';
 import ClientCorpCreateStep2 from '@pages/(administrator)/(users)/user/client-corp/step-create/ClientCorpCreateStep2';
+import { v4 as uuidv4 } from 'uuid';
 
 interface ClientCorpCreateFormProps {
-  onSubmit: (formData: CreateUserData) => void;
+  onSubmit: (formData: CreateUserData) => Promise<string | null>;
 }
 
-interface FormData extends Omit<CreateUserData, 'gender'> {
+interface FormData extends Omit<CreateUserData, 'gender' | 'profilePhotoPath' | 'companyProfile'> {
   confirmPassword: string;
   lastName: string;
   firstName: string;
   middleName: string;
   gender: Gender | undefined;
+  profileImage?: File | null;
+  companyProfile?: {
+    companyName: string;
+    email: string;
+    phone: string;
+    address: string;
+    website: string;
+    companyPin: string;
+    logoImage?: File | null;
+  };
 }
 
 const ClientCorpCreateForm = ({ onSubmit }: ClientCorpCreateFormProps): JSX.Element => {
   const [step, setStep] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const methods = useForm<FormData>({
     defaultValues: {
-      email: '',
-      password: '',
-      confirmPassword: '',
+      email: 'qwertyop@gmail.com',
+      password: 'String3!',
+      confirmPassword: 'String3!',
       role: UserRole.ClientCorp,
       availability: true,
-      lastName: '',
-      firstName: '',
-      middleName: '',
-      phone: '',
-      gender: undefined,
-      address: '',
-      profilePhotoPath: '',
+      lastName: 'asdas',
+      firstName: 'asdsa',
+      middleName: 'asd',
+      phone: '111-111-111',
+      gender: Gender.Male,
+      address: 'asdsad',
       companyProfile: {
-        companyName: '',
-        email: '',
-        phone: '',
-        address: '',
-        website: '',
-        companyPin: '',
+        companyName: 'asd',
+        email: 'asdadsa@gmail.com',
+        phone: '111-111-111',
+        address: 'asdasd',
+        website: 'https://asdasd.com',
+        companyPin: 'asad',
       },
     },
   });
@@ -49,21 +60,102 @@ const ClientCorpCreateForm = ({ onSubmit }: ClientCorpCreateFormProps): JSX.Elem
   const { handleSubmit, trigger } = methods;
   const router = useRouter();
 
-  //Функция для обработки данных формы при отправке
-  const onSubmitForm = (data: FormData) => {
-    const { confirmPassword, lastName, firstName, middleName, gender, companyProfile, ...rest } =
-      data;
-    const fullName = `${lastName} ${firstName} ${middleName}`;
-    const createUserData: CreateUserData = {
-      ...rest,
-      fullName,
-      gender: gender ?? Gender.Male,
-      companyProfile,
-    };
-    onSubmit(createUserData);
+  const onSubmitForm = async (data: FormData) => {
+    setIsSubmitting(true);
+    let profilePhotoPath: string | null = null;
+    let logoImagePath: string | null = null;
+
+    try {
+      const {
+        confirmPassword,
+        lastName,
+        firstName,
+        middleName,
+        gender,
+        profileImage,
+        companyProfile,
+        ...rest
+      } = data;
+
+      const fullName = `${lastName} ${firstName} ${middleName}`;
+
+      if (profileImage) {
+        const uniqueFilename = `${uuidv4()}-${profileImage.name}`;
+        profilePhotoPath = `/client-corp/${uniqueFilename}`;
+      }
+
+      if (companyProfile?.logoImage) {
+        const uniqueFilename = `${uuidv4()}-${companyProfile.logoImage.name}`;
+        logoImagePath = `/logos/${uniqueFilename}`;
+      }
+
+      const createUserData: CreateUserData = {
+        ...rest,
+        fullName,
+        gender: gender ?? Gender.Male,
+        profilePhotoPath: profilePhotoPath,
+        companyProfile: companyProfile
+          ? {
+              companyName: companyProfile.companyName,
+              email: companyProfile.email,
+              phone: companyProfile.phone,
+              address: companyProfile.address,
+              website: companyProfile.website,
+              companyPin: companyProfile.companyPin,
+              logoImagePath: logoImagePath,
+            }
+          : undefined,
+      };
+
+      const userUuid = await onSubmit(createUserData);
+
+      if (userUuid) {
+        //Загрузка изображений после создания пользователя
+        if (profileImage && profilePhotoPath) {
+          await uploadImage(profileImage, profilePhotoPath);
+        }
+        if (companyProfile?.logoImage && logoImagePath) {
+          await uploadImage(companyProfile.logoImage, logoImagePath);
+        }
+
+        router.push(`/user/detail/${userUuid}`);
+      }
+    } catch (error) {
+      console.error('Ошибка при создании корпоративного клиента:', error);
+      //Handle the error appropriately (e.g., show an error message to the user)
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  //Функция для обработки кнопки "Назад"
+  const uploadImage = async (file: File, path: string) => {
+    if (!file || !path) {
+      console.error('Нет файла или пути для загрузки.');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('profileImage', file);
+    formData.append('profilePhotoPath', path);
+
+    try {
+      const uploadResponse = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!uploadResponse.ok) {
+        console.error('Ошибка при загрузке изображения:', uploadResponse.statusText);
+        return;
+      }
+
+      const uploadResult = await uploadResponse.json();
+      console.log('uploadResult', uploadResult);
+    } catch (error) {
+      console.error('Ошибка при отправке запроса на загрузку:', error);
+    }
+  };
+
   const handleBack = () => {
     if (step === 1) {
       router.push('/users');
@@ -72,7 +164,6 @@ const ClientCorpCreateForm = ({ onSubmit }: ClientCorpCreateFormProps): JSX.Elem
     }
   };
 
-  //Функция для перехода на следующий шаг с проверкой валидации
   const handleNext = async () => {
     const valid = await trigger();
     if (valid) {
@@ -80,7 +171,6 @@ const ClientCorpCreateForm = ({ onSubmit }: ClientCorpCreateFormProps): JSX.Elem
     }
   };
 
-  //Массив шагов
   const steps = ['Аккаунт', 'Личная информация корпоративного клиента'];
 
   return (
@@ -134,6 +224,7 @@ const ClientCorpCreateForm = ({ onSubmit }: ClientCorpCreateFormProps): JSX.Elem
               form="client-corp-create-form"
               className="min-w-[205px] p-4 bg-[color:var(--button-secondary)] text-[color:var(--text-white)] rounded-lg hover:bg-[color:var(--button-secondary-hover)] transition"
               textClassName="w-full text-center justify-center"
+              disabled={isSubmitting}
             >
               Создать корпоративного клиента
             </IButton>
