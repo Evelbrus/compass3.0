@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useCallback } from 'react';
 import { Notification } from '@features/notifications/lib/useNotifications';
 import { CloseIcon } from 'next/dist/client/components/react-dev-overlay/internal/icons/CloseIcon';
 import { IButton } from '@shared/components/ui/buttons';
+import { TextInput } from '@shared/components/ui/inputs';
 
 interface NotificationListProps {
   notifications: Notification[];
@@ -67,7 +68,7 @@ const NotificationList: React.FC<NotificationListProps> = ({
       >
         <CloseIcon />
       </IButton>
-      <ul className="max-h-68 overflow-y-auto">
+      <ul className="max-h-68 overflow-y-auto mt-4">
         {notifications.map((notification, index) => (
           <li
             key={notification.uuid}
@@ -79,12 +80,20 @@ const NotificationList: React.FC<NotificationListProps> = ({
             }}
             data-uuid={notification.uuid}
           >
-            <h4 className="font-semibold">{notification.title}</h4>
-            <p className="text-sm text-gray-600">{notification.message}</p>
+            <TextInput
+              label={`${notification.title}:`}
+              value={notification.message}
+              onChange={() => null}
+              classNameLabel="font-medium text-sm text-gray-600"
+              classNamePlaceholder="font-semibold text-sm"
+              disabled
+            />
           </li>
         ))}
       </ul>
-      <button onClick={onClear}>Очистить</button>
+      <button onClick={onClear} className="text-sm font-semibold text-red-500 hover:text-red-600">
+        Очистить
+      </button>
     </div>
   );
 };

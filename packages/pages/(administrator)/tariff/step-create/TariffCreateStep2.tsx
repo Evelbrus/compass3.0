@@ -20,8 +20,13 @@ const TariffCreateStep2: React.FC<TariffCreateStep2Props> = ({
   setFormData,
   handleInputChange,
 }) => {
+  const handleFreeWaitTimeChange = (value: string | number) => {
+    const numberValue = Number(value);
+    return numberValue <= 60 ? numberValue : 60;
+  };
+
   return (
-    <div className='grid grid-cols-2 gap-4'>
+    <div className="grid grid-cols-2 gap-4">
       <div>
         <TextInput
           type="number"
@@ -42,8 +47,12 @@ const TariffCreateStep2: React.FC<TariffCreateStep2Props> = ({
           value={formData.freeWaitTimeBishkek}
           onChange={(value) =>
             handleInputChange({
-              target: { id: 'freeWaitTimeBishkek', value, type: 'number' },
-            } as ChangeEvent<HTMLInputElement>)
+              target: {
+                id: 'freeWaitTimeBishkek',
+                value: handleFreeWaitTimeChange(value),
+                type: 'number',
+              },
+            } as unknown as ChangeEvent<HTMLInputElement>)
           }
           required
         />
@@ -68,8 +77,12 @@ const TariffCreateStep2: React.FC<TariffCreateStep2Props> = ({
           value={formData.freeWaitTimeAirport}
           onChange={(value) =>
             handleInputChange({
-              target: { id: 'freeWaitTimeAirport', value, type: 'number' },
-            } as ChangeEvent<HTMLInputElement>)
+              target: {
+                id: 'freeWaitTimeAirport',
+                value: handleFreeWaitTimeChange(value),
+                type: 'number',
+              },
+            } as unknown as ChangeEvent<HTMLInputElement>)
           }
           required
         />

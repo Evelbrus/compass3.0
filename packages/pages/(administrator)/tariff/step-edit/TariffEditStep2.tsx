@@ -5,6 +5,12 @@ import { Controller, useFormContext } from 'react-hook-form';
 
 const TariffEditStep2: React.FC = () => {
   const { control } = useFormContext();
+
+  const handleFreeWaitTimeChange = (value: string | number) => {
+    const numberValue = Number(value);
+    return numberValue <= 60 ? numberValue : 60;
+  };
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 sm:grid-cols-2 lg:grid-cols-2 gap-4">
       <div className="form-group">
@@ -31,6 +37,8 @@ const TariffEditStep2: React.FC = () => {
               {...field}
               placeholder="freeWaitTimeBishkek"
               label="freeWaitTimeBishkek"
+              value={handleFreeWaitTimeChange(field.value)}
+              onChange={(value) => field.onChange(handleFreeWaitTimeChange(value))}
             />
           )}
         />
@@ -59,6 +67,8 @@ const TariffEditStep2: React.FC = () => {
               {...field}
               placeholder="freeWaitTimeAirport"
               label="freeWaitTimeAirport"
+              value={handleFreeWaitTimeChange(field.value)}
+              onChange={(value) => field.onChange(handleFreeWaitTimeChange(value))}
             />
           )}
         />
