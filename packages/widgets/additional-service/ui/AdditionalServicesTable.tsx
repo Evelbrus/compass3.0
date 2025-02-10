@@ -5,6 +5,7 @@ import { AdditionalService } from '@prisma/client';
 import AnimatedComponent from '@shared/components/animated/CommonAnimated/AnimatedComponent';
 import { CheckIcon, CloseIcon } from '@shared/components/ui/icon';
 import { DetailTariffData } from '@shared/prisma/interface/tariff/interface';
+import { Skeleton } from '@shared/components/ui/skeleton/Skeleton';
 
 type TStatus = 'loading' | 'success' | 'error';
 
@@ -21,8 +22,14 @@ const AdditionalServicesTable: React.FC<AdditionalServicesTableProps> = ({
   statusadditionalServices,
   selectedTariff,
 }) => {
-  if (statusTariffs === 'loading') {
-    return <p>Загрузка тарифов...</p>;
+  if (statusTariffs === 'loading' || statusadditionalServices === 'loading') {
+    return (
+      <div className="w-full">
+        <Skeleton width={300} height={40} />
+        <Skeleton width={300} height={40} />
+        <Skeleton width={300} height={40} />
+      </div>
+    );
   }
 
   if (statusTariffs === 'error') {

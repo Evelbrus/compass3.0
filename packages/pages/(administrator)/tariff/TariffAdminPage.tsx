@@ -11,6 +11,9 @@ import { useRouter } from 'next/navigation';
 import AdditionalServicesTable from '@widgets/additional-service/ui/AdditionalServicesTable';
 
 import { AdditionalService } from '@prisma/client';
+import NoData from '@shared/components/errors/noData';
+import SkeletonTable from '@shared/components/ui/table/ui/SkeletonTable';
+import { Column } from '@shared/components/ui/table';
 
 type TStatus = 'loading' | 'success' | 'error';
 
@@ -95,6 +98,11 @@ const TariffAdminPage = (): JSX.Element => {
 
   console.log(selectedTariff);
 
+  const columns: Column<DetailTariffData, keyof DetailTariffData>[] = [
+    { header: 'Название', accessor: 'name', sortable: true },
+    { header: 'Цена', accessor: 'price', sortable: true },
+  ];
+
   return (
     <AnimatedComponent duration={500}>
       <div className="min-h-[calc(100vh-80px)] p-5 flex flex-col gap-4">
@@ -111,9 +119,13 @@ const TariffAdminPage = (): JSX.Element => {
           </IButton>
         </div>
 
-        {selectedTariff ? <Tariff data={selectedTariff} /> : <p>No tariff selected</p>}
-
-        {statusTariffs === 'loading' && <p>Загрузка тарифов...</p>}
+        {statusTariffs === 'loading' ? (
+          <SkeletonTable columns={columns} rows={5} />
+        ) : selectedTariff ? (
+          <Tariff data={selectedTariff} />
+        ) : (
+          <NoData message="Тариф не выбран" />
+        )}
         {statusTariffs === 'error' && (
           <p className="text-red-500">Ошибка: Error fetching tariffs</p>
         )}

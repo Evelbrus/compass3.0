@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { cn } from '@shared/lib';
 import { profileMenuRoutes } from '@shared/utils/routing';
 import Icon from '@shared/components/ui/icon/Icon';
@@ -19,12 +19,30 @@ const Profile = ({
   onNavigate,
 }: ProfileIslandProps) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
 
   const handleMenuAction = (route: string) => {
     setIsMenuOpen(false);
     onNavigate?.(route);
   };
+
+  useEffect(() => {
+    const handleClick = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false);
+      }
+    };
+    const handleScroll = () => {
+      setIsMenuOpen(false);
+    };
+
+    document.addEventListener('mousedown', handleClick);
+    document.addEventListener('scroll', handleScroll);
+    return () => {
+      document.removeEventListener('mousedown', handleClick);
+      document.addEventListener('scroll', handleScroll);
+    };
+  }, []);
 
   return (
     <div className="relative" ref={menuRef}>
