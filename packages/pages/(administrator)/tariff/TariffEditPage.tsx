@@ -2,15 +2,10 @@
 
 import { ServiceLevels, VehicleType } from '@prisma/client';
 import { showToast } from '@shared/components/toast/ToastManager';
-import { CheckboxInput, SelectSingle, TextInput } from '@shared/components/ui/inputs';
 import { DetailTariffData, EditTariffData } from '@shared/prisma/interface/tariff/interface';
 import { useRouter } from 'next/navigation';
-import {
-  vehicleTypeOptions,
-  serviceLevelOptions,
-} from '@shared/lib/effector/vehicles/optionsTranslation/optionsTranslationVehicle';
 import React, { useState } from 'react';
-import { Controller, FormProvider, useForm } from 'react-hook-form';
+import { FormProvider, useForm } from 'react-hook-form';
 import { IButton } from '@shared/components/ui/buttons';
 import { steps } from './constants/_tariff';
 import TariffEditStep1 from './step-edit/TariffEditStep1';
@@ -44,9 +39,8 @@ const TariffEdit: React.FC<TariffsEditProps> = ({ data }) => {
     },
   });
 
-  const [isOpen, setIsOpen] = useState(false);
   const [step, setStep] = useState(1);
-  const { control, handleSubmit } = methods;
+  const { handleSubmit } = methods;
   const router = useRouter();
 
   const onSubmit = async (formData: EditTariffData) => {
@@ -113,8 +107,8 @@ const TariffEdit: React.FC<TariffsEditProps> = ({ data }) => {
             ))}
           </div>
           {step === 1 && <TariffEditStep1 />}
-          {step === 2 && <TariffEditStep2 />}
-          {step === 3 && <TariffEditStep3 data={data} />}
+          {step === 2 && <TariffEditStep3 data={data} />}
+          {step === 3 && <TariffEditStep2 />}
         </form>
         <div className={'w-full flex justify-end gap-4 p-6'}>
           <IButton

@@ -103,7 +103,7 @@ const ClientsAdminPage = (): JSX.Element => {
   }, []);
 
   const handleSort = useCallback(
-    (sortByKey: keyof TableUsersRow, sortDirection: 'asc' | 'desc') => {
+    (sortByKey: keyof TableUsersRow, w: 'asc' | 'desc') => {
       startTransition(() => {
         setSortBy(sortByKey);
         setSortOrder(sortDirection);
