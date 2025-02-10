@@ -66,11 +66,14 @@ const DriversNearby: React.FC<DriversNearbyProps> = ({
           classNamePadding="text-5 font-light leading-5 p-5 rounded-3xl shadow-3xl"
           placeholder="Поиск по ФИО"
           value={searchDriver}
-          onChange={(e) => {
-            if (typeof e === 'string') {
-              handleSearchDriverChange(e);
+          onChange={(value: string | number) => {
+            //Явно указываем тип аргумента
+            //Предполагаем, что value - это строка (поиск по ФИО)
+            if (typeof value === 'string') {
+              handleSearchDriverChange(value);
             } else {
-              handleSearchDriverChange(e.target.value);
+              //Обработка случая, когда value - число (если это возможно)
+              console.warn('TextInput returned a number value.  Unexpected for search by name.');
             }
           }}
         />
@@ -83,10 +86,16 @@ const DriversNearby: React.FC<DriversNearbyProps> = ({
                 <tbody>
                   {drivers?.map((driver) => {
                     const isSelected = selectedDriverInfo?.uuid === driver.uuid;
-                    const isOnline = isDriverOnline(
-                      driver.lastActive,
-                      serverTime instanceof Date ? serverTime.toISOString() : null,
-                    );
+
+                    //Преобразуем serverTime в ISO строку или используем текущее время в качестве значения по умолчанию
+                    const serverTimeISO = serverTime
+                      ? serverTime instanceof Date
+                        ? serverTime.toISOString()
+                        : serverTime
+                      : new Date().toISOString();
+
+                    const isOnline = isDriverOnline(driver.lastActive, serverTimeISO);
+
                     return (
                       <tr
                         key={driver.uuid}
@@ -118,7 +127,7 @@ const DriversNearby: React.FC<DriversNearbyProps> = ({
                                 isOnline ? 'text-green-500' : 'text-red-500'
                               }`}
                             >
-                              {isOnline ? 'Онлайн' : 'Офлайн'}
+                              {isOnline ? 'В сети' : 'Не в сети'}
                             </span>
                             <p className="text-5 leading-5 font-medium">{driver.fullName}</p>
                             <p className="text-4 leading-4 font-light">{driver.phone}</p>

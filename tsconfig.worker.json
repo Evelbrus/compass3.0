@@ -16,7 +16,8 @@
   },
   "include": [
     "./apps/next-app/worker.ts",
-    "./apps/next-app/server.ts"
+    "./apps/next-app/server.ts",
+    "./apps/next-app/src/lib/queues/orderQueue.ts"
   ],
   "exclude": ["node_modules"]
 }

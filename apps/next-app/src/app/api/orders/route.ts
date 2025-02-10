@@ -278,11 +278,9 @@ export async function POST(req: Request) {
 
     console.log('result', result);
 
-    //После успешного создания заказа, добавляем задачи в очередь
+    //Добавляем задачу на проверку OVERDUE в момент наступления departureTime
     const now = new Date();
     const departureDate = new Date(result.departureTime);
-
-    //Задача для обновления статуса до OVERDUE в момент наступления departureTime
     const delayForOverdue = departureDate.getTime() - now.getTime();
     if (delayForOverdue > 0) {
       console.log(`Добавляем задачу checkOverdue с задержкой ${delayForOverdue} мс`);
@@ -293,36 +291,21 @@ export async function POST(req: Request) {
         jobId: `checkOverdue-${result.uuid}`,
       };
       try {
-        await orderQueue.add('checkOverdue', { orderUuid: result.uuid }, checkOverdueOptions);
+        await orderQueue.add(
+          'checkOverdue',
+          {
+            orderUuid: result.uuid,
+            driverId: result.assignedDriverId,
+            type: 'overdue',
+          },
+          checkOverdueOptions,
+        );
         console.log(`Задача checkOverdue успешно добавлена, jobId: ${checkOverdueOptions.jobId}`);
         log(
           `Задача checkOverdue добавлена с задержкой ${delayForOverdue} мс, jobId: ${checkOverdueOptions.jobId}`,
         );
       } catch (error) {
         log(`Ошибка при добавлении задачи checkOverdue: ${error}`, error);
-      }
-    }
-
-    //Если водитель назначен, добавляем задачу уведомления за 1 минуту до departureTime
-    if (result.assignedDriverId) {
-      const notifyDelay = departureDate.getTime() - now.getTime() - 60 * 1000;
-      if (notifyDelay > 0) {
-        console.log(`Добавляем задачу notifyDriver с задержкой ${notifyDelay} мс`);
-        const notifyDriverOptions = {
-          delay: notifyDelay,
-          attempts: 3,
-          backoff: { type: 'exponential', delay: 1000 },
-          jobId: `notifyDriver-${result.uuid}`,
-        };
-        try {
-          await orderQueue.add('notifyDriver', { orderUuid: result.uuid }, notifyDriverOptions);
-          console.log(`Задача notifyDriver успешно добавлена, jobId: ${notifyDriverOptions.jobId}`);
-          log(
-            `Задача notifyDriver добавлена с задержкой ${notifyDelay} мс, jobId: ${notifyDriverOptions.jobId}`,
-          );
-        } catch (error) {
-          log(`Неизвестная ошибка при добавлении задачи notifyDriver: ${error}`, error);
-        }
       }
     }
 

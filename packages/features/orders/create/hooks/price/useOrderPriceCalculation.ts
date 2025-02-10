@@ -68,8 +68,6 @@ export const useOrderPriceCalculation = ({
     console.log('Setting basePrice to:', price);
   };
 
-  console.log('price', price);
-
   return {
     price,
     handleUpdatePrice,

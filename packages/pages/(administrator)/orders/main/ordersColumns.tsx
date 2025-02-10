@@ -1,4 +1,4 @@
-import { Column, TableDriversRow, TableOrdersRow } from '@shared/components/ui/table';
+import { Column, TableOrdersRow } from '@shared/components/ui/table';
 import { renderCustomerPhone, renderDateTime } from '@shared/components/ui/table/ui/TableRenders';
 
 export const ordersColumns: Column<TableOrdersRow, keyof TableOrdersRow>[] = [

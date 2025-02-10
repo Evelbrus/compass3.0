@@ -10,12 +10,19 @@ interface MapDriverProps {
 }
 
 const MapDriver: React.FC<MapDriverProps> = ({ selectedDriverInfo, serverTime }) => {
+  //Преобразуем serverTime в ISO строку или используем текущее время в качестве значения по умолчанию
+  const isoServerTime = serverTime
+    ? serverTime instanceof Date
+      ? serverTime.toISOString()
+      : serverTime
+    : new Date().toISOString();
+
   return (
     <>
       <div className="relative w-full h-full flex flex-col justify-center items-center">
         {/*Карточка выбранного водителя */}
         {selectedDriverInfo && (
-          <div className={'absolute flex flex-col  top-2 left-2 rounded-md gap-2 z-30'}>
+          <div className={'absolute flex flex-col top-2 left-2 rounded-md gap-2 z-30'}>
             <label className="text-5 leading-5 font-bold">Выбранный водитель:</label>
 
             <div className="min-w-[500px] bg-blue-200 p-4 border rounded-md flex gap-4 items-center">
@@ -27,7 +34,7 @@ const MapDriver: React.FC<MapDriverProps> = ({ selectedDriverInfo, serverTime })
                 />
                 <div
                   className={`absolute top-0 left-0 w-4 h-4 rounded-full border-2 ${
-                    isDriverOnline(selectedDriverInfo.lastActive, serverTime || null)
+                    isDriverOnline(selectedDriverInfo.lastActive, isoServerTime)
                       ? 'bg-green-500'
                       : 'bg-red-500'
                   }`}

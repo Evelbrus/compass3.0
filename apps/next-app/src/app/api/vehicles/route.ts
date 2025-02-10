@@ -4,23 +4,11 @@ import debug from 'debug';
 import { CreateVehicleData } from '@shared/prisma/interface/vehicles/interface';
 import { v4 as uuidv4 } from 'uuid';
 import { prisma } from '@shared/prisma/prisma-client';
-import { jwtVerify } from 'jose';
 import { ACCESS_TOKEN_COOKIE } from '@shared/utils/cookie';
 import { authConfig } from '@shared/utils/cookie/get-cookie/auth';
+import { verifyJWT } from '@shared/utils/parse-jwt/parseJwt';
 
 const log = debug('app:vehicles');
-
-//Функция для верификации JWT
-async function verifyJWT(token: string, secret: string): Promise<any> {
-  try {
-    const secretKey = new TextEncoder().encode(secret);
-    const { payload } = await jwtVerify(token, secretKey);
-    return payload;
-  } catch (error) {
-    console.error('JWT verification error:', error);
-    throw new Error('Invalid token');
-  }
-}
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);

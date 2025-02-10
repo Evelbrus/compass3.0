@@ -12,7 +12,12 @@ export type View =
   | 'success'
   | 'error';
 
-export type ModalType = 'createUserModal' | 'deleteModal' | 'createTariffModal' | null;
+export type ModalType =
+  | 'createUserModal'
+  | 'deleteModal'
+  | 'createTariffModal'
+  | 'orderDetailDriver'
+  | null;
 
 export type EntityToDelete = {
   entity?: 'users' | 'orders' | 'vehicles';
@@ -52,3 +57,9 @@ export const resetSelectedStatus = createEvent();
 export const $selectedStatus = createStore<OrderStatus | null>(null)
   .on(selectStatus, (_, status) => status)
   .reset(resetSelectedStatus);
+
+//New store and event for selectedOrderUuid
+export const setOrderUuid = createEvent<string | null>();
+export const $orderUuid = createStore<string | null>(null)
+  .on(setOrderUuid, (_, uuid) => uuid)
+  .reset(closeModal); //Reset when modal closes

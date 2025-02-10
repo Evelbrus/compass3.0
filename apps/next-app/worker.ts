@@ -1,41 +1,30 @@
-//worker.ts
 import { Worker, Job } from 'bullmq';
-import { OrderStatus } from '@prisma/client';
+import { OrderStatus, DriverAcceptanceStatus } from '@prisma/client';
 import dotenv from 'dotenv';
 import { prisma } from '../../packages/shared/prisma/prisma-client.js';
 import { io } from 'socket.io-client';
 
+dotenv.config();
+
 export interface CheckOverdueJobData {
   orderUuid: string;
+  driverId: string | null | undefined;
+  type: 'overdue' | 'preOrder';
 }
-
-export interface NotifyDriverJobData {
-  orderUuid: string;
-}
-
-dotenv.config();
 
 const redisOptions = {
   host: process.env.REDIS_HOST || '127.0.0.1',
   port: process.env.REDIS_PORT ? parseInt(process.env.REDIS_PORT) : 6379,
 };
 
-console.log('Воркер подключается к очереди orderQueue...');
-
-//Подключаемся к серверу сокетов
 const socket = io('http://localhost:4000', {
   transports: ['websocket'],
   path: '/socket.io',
-  autoConnect: true, //Автоматическое подключение
+  autoConnect: true,
 });
 
-socket.on('connect', () => {
-  console.log('Подключено к серверу сокетов');
-});
-
-socket.on('disconnect', () => {
-  console.log('Отключено от сервера сокетов');
-});
+socket.on('connect', () => console.log('Подключено к серверу сокетов'));
+socket.on('disconnect', () => console.log('Отключено от сервера сокетов'));
 
 export const worker = new Worker(
   'orderQueue',
@@ -44,120 +33,149 @@ export const worker = new Worker(
       console.log(`Начало обработки задачи ${job.name} с ID ${job.id}`);
       switch (job.name) {
         case 'checkOverdue':
-          console.log(`Выполняется задача checkOverdue для заказа ${job.data.orderUuid}`);
           await processCheckOverdueJob(job as Job<CheckOverdueJobData>);
           break;
-        case 'notifyDriver':
-          console.log(`Выполняется задача notifyDriver для заказа ${job.data.orderUuid}`);
-          await processNotifyDriverJob(job as Job<NotifyDriverJobData>);
-          break;
         default:
-          console.log(`Неизвестная задача: ${job.name}`);
+          console.warn(`Неизвестная задача: ${job.name}`);
       }
       console.log(`Задача ${job.name} с ID ${job.id} успешно выполнена.`);
     } catch (error) {
-      if (error instanceof Error) {
-        console.error(
-          `Задача ${job?.id} (${job?.name}) завершилась с ошибкой: ${error.message}`,
-          error,
-        );
-      } else {
-        console.error(`Задача ${job?.id} (${job?.name}) завершилась с неизвестной ошибкой:`, error);
-      }
+      console.error(`Ошибка при выполнении задачи ${job?.name}:`, error);
       throw error;
     }
   },
   { connection: redisOptions },
 );
 
-worker.on('completed', (job: Job) => {
-  console.log(`Задача ${job.id} (${job.name}) выполнена`);
-});
-
-worker.on('failed', (job?: Job, err?: Error) => {
-  //Исправлено: job теперь может быть undefined, и err тоже
-  console.error(`Задача ${job?.id} (${job?.name}) завершилась с ошибкой: ${err?.message}`);
-});
-
-console.log('Воркер подключен к очереди orderQueue.');
+worker.on('completed', (job: Job) => console.log(`Задача ${job.id} (${job.name}) выполнена`));
+worker.on('failed', (job?: Job, err?: Error) => console.error(`Ошибка: ${err?.message}`));
 
 async function processCheckOverdueJob(job: Job<CheckOverdueJobData>) {
-  const { orderUuid } = job.data;
+  const { orderUuid, driverId, type } = job.data;
+  const order = await prisma.order.findUnique({
+    where: { uuid: orderUuid },
+    include: { assignedDriver: true, departurePoint: true, arrivalPoint: true },
+  });
+  if (!order) return console.log(`Заказ ${orderUuid} не найден`);
 
-  try {
-    console.log(`Ищем заказ с UUID: ${orderUuid}`);
-    const order = await prisma.order.findUnique({ where: { uuid: orderUuid } });
+  if (order.driverAcceptanceStatus === DriverAcceptanceStatus.PENDING && order.assignedDriverId) {
+    await prisma.order.update({
+      where: { uuid: orderUuid },
+      data: { driverAcceptanceStatus: DriverAcceptanceStatus.REJECTED },
+    });
+    let notification = await prisma.driverOrderNotification.findFirst({
+      where: {
+        orderId: orderUuid,
+        driverId: driverId !== null && driverId !== undefined ? driverId : undefined,
+      },
+    });
 
-    if (!order) {
-      console.log(`Заказ ${orderUuid} не найден`);
-      return;
+    if (notification) {
+      await prisma.driverOrderNotification.update({
+        where: { uuid: notification.uuid },
+        data: { status: DriverAcceptanceStatus.REJECTED },
+      });
+      console.log(`Водитель ${driverId} не принял заказ ${orderUuid}, статус обновлен.`);
+      socket.emit('driverOrderNotification', {
+        userId: driverId,
+        notification: { ...notification, status: DriverAcceptanceStatus.REJECTED },
+      });
     }
+  }
 
-    const now = new Date();
-
-    if (new Date(order.departureTime) < now && order.status !== OrderStatus.OVERDUE) {
+  //Проверяем, что за тип уведомления и делаем нужные вещи
+  if (type === 'overdue') {
+    if (new Date(order.departureTime) < new Date() && order.status !== OrderStatus.OVERDUE) {
       await prisma.order.update({
         where: { uuid: orderUuid },
         data: { status: OrderStatus.OVERDUE },
       });
-      console.log(`Заказ ${orderUuid} обновлен до OVERDUE`);
-    }
-  } catch (error) {
-    if (error instanceof Error) {
-      console.error(`Ошибка при обработке заказа ${orderUuid}: ${error.message}`, error);
-    } else {
-      console.error(`Ошибка при обработке заказа ${orderUuid}:`, error);
-    }
-    throw error;
-  }
-}
 
-async function processNotifyDriverJob(job: Job<NotifyDriverJobData>) {
-  const { orderUuid } = job.data;
-  console.log(`Отправка уведомления водителю для заказа ${orderUuid}`);
+      //Попытка найти существующее уведомление
+      let notification = await prisma.driverOrderNotification.findFirst({
+        where: {
+          orderId: order.uuid,
+          driverId: order.assignedDriverId || undefined,
+        },
+      });
 
-  try {
-    //1. Получаем информацию о заказе из базы данных
-    const order = await prisma.order.findUnique({
-      where: { uuid: orderUuid },
-      include: {
-        assignedDriver: true,
-        departurePoint: true,
-        arrivalPoint: true,
+      //Если существует - обновляем
+      if (notification) {
+        await prisma.driverOrderNotification.update({
+          where: { uuid: notification.uuid },
+          data: {
+            status: DriverAcceptanceStatus.REJECTED,
+          },
+        });
+        console.log(`Уведомление ${notification.uuid} обновлено, статус Overdue`);
+
+        socket.emit('driverOrderNotification', {
+          userId: driverId,
+          notification: {
+            ...notification,
+            status: DriverAcceptanceStatus.REJECTED,
+          },
+        });
+      }
+
+      console.log(`Заказ ${orderUuid} обновлен до OVERDUE и уведомление обновлен`);
+    }
+  } else if (type === 'preOrder') {
+    if (!order.assignedDriver)
+      return console.error(`Заказ ${orderUuid} не найден или водитель не назначен`);
+
+    //Попытка найти существующее уведомление
+    let notification = await prisma.driverOrderNotification.findFirst({
+      where: {
+        orderId: order.uuid,
+        driverId: order.assignedDriver.uuid,
       },
     });
 
-    if (!order) {
-      console.error(`Заказ с UUID ${orderUuid} не найден`);
-      return;
+    if (notification) {
+      //Уведомление существует, обновляем его
+      await prisma.driverOrderNotification.update({
+        where: { uuid: notification.uuid },
+        data: {
+          message: `Вам назначен новый заказ от ${order.departurePoint?.address} до ${order.arrivalPoint?.address}.`,
+          status: DriverAcceptanceStatus.PENDING,
+        },
+      });
+      console.log(`Уведомление ${notification.uuid} обновлено`);
+    } else {
+      //Уведомление не существует, создаем новое
+      const createNotificationData = {
+        orderId: order.uuid,
+        driverId: order.assignedDriver.uuid,
+        title: 'Новый заказ!',
+        message: `Вам назначен новый заказ от ${order.departurePoint?.address} до ${order.arrivalPoint?.address}.`,
+        status: DriverAcceptanceStatus.PENDING,
+      };
+      notification = await prisma.driverOrderNotification.create({
+        data: createNotificationData,
+      });
+      console.log(`Уведомление ${notification.uuid} создано`);
     }
-
-    if (!order.assignedDriver) {
-      console.error(`Для заказа с UUID ${orderUuid} не назначен водитель`);
-      return;
-    }
-
-    const driver = order.assignedDriver;
-    const departurePoint = order.departurePoint;
-    const arrivalPoint = order.arrivalPoint;
-
-    //2. Формируем данные для отправки уведомления
-    const title = 'Скоро поездка!';
-    const message = `Ваша поездка начнется через 1 минуту. От ${departurePoint?.address} до ${arrivalPoint?.address}`;
 
     const notificationData = {
-      userId: driver.uuid,
-      title: title,
-      message: message,
+      uuid: notification.uuid,
+      orderId: order.uuid,
+      driverId: order.assignedDriver.uuid,
+      title: 'Новый заказ!',
+      message: notification.message,
+      isRead: notification.isRead,
+      createdAt: notification.createdAt.toISOString(),
+      status: DriverAcceptanceStatus.PENDING,
+      type: type,
     };
 
-    //3. Отправляем уведомление через сокет (теперь используем socket.emit и новое событие)
-    socket.emit('driverOrderNotification', { userId: driver.uuid, notification: notificationData });
-    console.log(
-      `Уведомление отправлено водителю ${driver.uuid} (driverOrderNotification) через WebSocket`,
-    );
-  } catch (error) {
-    console.error(`Ошибка при обработке задачи notifyDriver для заказа ${orderUuid}:`, error);
-    throw error;
+    socket.emit('driverOrderNotification', {
+      userId: order.assignedDriver.uuid,
+      notification: notificationData,
+    });
+    console.log('📡 Уведомление отправлено через сокет:', {
+      userId: order.assignedDriver.uuid,
+      notification: notificationData,
+    });
   }
 }

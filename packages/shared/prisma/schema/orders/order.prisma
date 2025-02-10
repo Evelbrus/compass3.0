@@ -8,10 +8,16 @@ enum OrderStatus {
 }
 
 enum DriverAcceptanceStatus {
-  PENDING
-  ACCEPTED
-  REJECTED
-  TIMEOUT
+  PENDING // 0: Ожидание решения водителя
+  TAKEN // 1: Водитель принял к сведению (готов к выполнению)
+  ACCEPTED // 2: Водитель принял заказ (в работу) - Устаревший?
+  REJECTED // 3: Водитель отклонил заказ
+  TIMEOUT // 4: Водитель не принял заказ в течение отведенного времени
+  ON_THE_WAY // 5: Водитель в пути к клиенту
+  ARRIVED // 6: Водитель прибыл к клиенту
+  PICKED_UP // 7: Водитель забрал клиента
+  COMPLETED // 8: Заказ завершен
+  CANCELED // 9: Заказ отменен
 }
 
 model Order {

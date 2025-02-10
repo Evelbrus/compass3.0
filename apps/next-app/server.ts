@@ -49,7 +49,7 @@ io.on('connection', (socket: Socket) => {
     }
   });
 
-  //Новое событие для уведомлений о заказах для водителя
+  //Событие для уведомлений водителя
   socket.on('driverOrderNotification', (data: any) => {
     const { userId, notification } = data;
     const targetSocketId = users[userId];

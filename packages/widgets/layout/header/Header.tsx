@@ -2,6 +2,7 @@ import React, { Suspense } from 'react';
 import { StaticHeader } from '@entities/layout/header/static-header';
 import HeaderContainer from '@widgets/layout/header/HeaderContainer';
 import { UserSession } from '@shared/prisma/interface/users/interface';
+import ModalDriver from '@widgets/modal-driver/ModalDriver';
 
 interface HeaderProps {
   userSession?: UserSession | null;
@@ -11,6 +12,7 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({ userSession }) => {
   return (
     <div className="flex flex-col relative">
+      <ModalDriver userSession={userSession} />
       <StaticHeader
         additionalContent={
           <Suspense fallback={<HeaderIslandsSkeleton />}>

@@ -280,12 +280,6 @@ const ClientSelector: React.FC<ClientSelectorProps> = ({
                             {option.label}
                           </div>
                         ))}
-                        {/*Скрываем сообщение, если достигли конца списка */}
-                        {!isAtLastPage && (
-                          <div ref={loaderRef} className="p-2 text-center text-gray-500">
-                            {isLoadingRef.current ? 'Загрузка...' : ''}
-                          </div>
-                        )}
                       </div>
                     )}
                   </div>

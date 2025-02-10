@@ -5,27 +5,21 @@ import { fetchDrivers, fetchAssignedDriver } from '@features/orders/create/api/o
 interface UseDriversProps {
   vehicleType?: string;
   serviceLevel?: string | null;
-  search?: string;
   setErrorMessage: (error: Error | null, message: string) => void;
 }
 
-export const useDrivers = ({
-  vehicleType,
-  serviceLevel,
-  search,
-  setErrorMessage,
-}: UseDriversProps) => {
+export const useDrivers = ({ vehicleType, serviceLevel, setErrorMessage }: UseDriversProps) => {
   const [drivers, setDrivers] = useState<User[] | null>(null);
   const [assignedDriver, setAssignedDriver] = useState<User | null>(null);
-  const [page, setPage] = useState<number>(1);
-  const [perPage, setPerPage] = useState<number>(2);
+  const [page, setPage] = useState<string>('1');
+  const [perPage, setPerPage] = useState<string>('2');
   const [total, setTotal] = useState<number>(0);
   const [isDriversLoading, setIsLoading] = useState(false);
   const [serverTime, setServerTime] = useState<Date | null>(null);
 
   const fetchDriversData = useCallback(
     async (
-      vehicleTypeQuery: string | null,
+      vehicleTypeQuery: string | undefined,
       serviceLevelQuery: string | null,
       searchQuery: string = '',
     ) => {
@@ -54,8 +48,10 @@ export const useDrivers = ({
   const refetchDrivers = useCallback(
     (searchQuery: string = '', vehicleTypeQuery?: string, serviceLevelQuery?: string | null) => {
       fetchDriversData(
-        searchQuery ? undefined : vehicleTypeQuery, //Если есть поисковый запрос, не передаем vehicleType
-        searchQuery ? undefined : serviceLevelQuery, //Если есть поисковый запрос, не передаем serviceLevel
+        //Если есть поисковый запрос, не передаем vehicleType (undefined вместо null)
+        searchQuery ? undefined : vehicleTypeQuery,
+        //Если есть поисковый запрос, не передаем serviceLevel; также, если serviceLevelQuery undefined, то приводим к null
+        searchQuery ? null : (serviceLevelQuery ?? null),
         searchQuery,
       );
     },
@@ -63,7 +59,8 @@ export const useDrivers = ({
   );
 
   useEffect(() => {
-    fetchDriversData(vehicleType, serviceLevel, '');
+    //Если serviceLevel undefined, то приводим к null, чтобы соответствовать типу параметра
+    fetchDriversData(vehicleType, serviceLevel ?? null, '');
   }, [fetchDriversData, vehicleType, serviceLevel]);
 
   const fetchAssignedDriverData = useCallback(

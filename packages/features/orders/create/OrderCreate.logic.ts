@@ -102,8 +102,7 @@ export const useOrderCreateLogic = (uuid?: string) => {
   });
 
   const { ...drivers } = useOrderCreateDrivers({
-    setValue,
-    watch,
+    setValue: formMethods.setValue as unknown as UseFormSetValue<OrderData>,
     assignedDriverId: orderData?.assignedDriverId,
     setErrorMessage: message.setErrorMessage,
   });
@@ -166,8 +165,6 @@ export const useOrderCreateLogic = (uuid?: string) => {
         const errorData = await response.json();
         showToast.error(errorData.error || `Network response was not ok: ${response.statusText}`);
       }
-
-      const result = await response.json();
       showToast.success(uuid ? 'Order updated successfully!' : 'Order created successfully!');
       notification.handleOrderSuccess();
       router.push('/orders');

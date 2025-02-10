@@ -1,9 +1,8 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useDrivers } from '@features/orders/create/hooks';
 import useDebounce from '@shared/utils/hooks/useDebounce';
-import { UseFormSetValue, UseFormWatch } from 'react-hook-form';
-import { CreateOrderData } from '@shared/prisma/interface/orders/interface';
-import { User } from '@prisma/client';
+import { UseFormSetValue } from 'react-hook-form';
+import { ServiceLevels, User, VehicleType } from '@prisma/client';
 import { showToast } from '@shared/components/toast/ToastManager';
 import { useUnit } from 'effector-react';
 import {
@@ -13,6 +12,7 @@ import {
   setSelectedVehicleType,
   setSelectedServiceLevel,
 } from '@shared/lib/effector/orders/stateStore';
+import { OrderData } from '@features/orders/create/OrderCreate.logic';
 
 export interface ExtendedDriver extends User {
   vehicleDriver?: {
@@ -24,15 +24,13 @@ export interface ExtendedDriver extends User {
 }
 
 interface UseOrderCreateDriversProps {
-  setValue: UseFormSetValue<CreateOrderData>;
-  watch: UseFormWatch<CreateOrderData>;
+  setValue: UseFormSetValue<OrderData>;
   assignedDriverId?: string | null;
   setErrorMessage: (error: Error | null | undefined, message: string) => void;
 }
 
 export const useOrderCreateDrivers = ({
   setValue,
-  watch,
   assignedDriverId,
   setErrorMessage,
 }: UseOrderCreateDriversProps) => {
@@ -61,10 +59,9 @@ export const useOrderCreateDrivers = ({
     total,
     serverTime,
   } = useDrivers({
-    vehicleType: selectedVehicleType,
+    vehicleType: selectedVehicleType ?? undefined,
     serviceLevel: selectedServiceLevel,
     setErrorMessage,
-    search: debouncedSearchDriver,
   });
 
   const drivers: ExtendedDriver[] | undefined = rawDrivers as ExtendedDriver[];
@@ -134,7 +131,7 @@ export const useOrderCreateDrivers = ({
       isInitialMount.current = false;
       return;
     }
-    refetchDrivers(debouncedSearchDriver, selectedVehicleType, selectedServiceLevel);
+    refetchDrivers(debouncedSearchDriver, selectedVehicleType ?? undefined, selectedServiceLevel);
   }, [
     debouncedSearchDriver,
     page,
@@ -147,7 +144,7 @@ export const useOrderCreateDrivers = ({
   const handleSearchDriverChange = useCallback(
     (value: string) => {
       setSearchDriver(value);
-      setPage(1);
+      setPage('1');
     },
     [setPage],
   );
@@ -172,11 +169,11 @@ export const useOrderCreateDrivers = ({
         vehicle.vehicleType !== selectedVehicleType ||
         vehicle.serviceLevels !== selectedServiceLevel
       ) {
-        setSelectedVehicleType(vehicle.vehicleType);
-        setSelectedServiceLevel(vehicle.serviceLevels);
+        setSelectedVehicleType(vehicle.vehicleType as VehicleType);
+        setSelectedServiceLevel(vehicle.serviceLevels as ServiceLevels);
         //Явно устанавливаем значения в react-hook-form
-        setValue('tariff.vehicleType', vehicle.vehicleType);
-        setValue('tariff.serviceLevel', vehicle.serviceLevels);
+        setValue('tariff.vehicleType', vehicle.vehicleType as VehicleType);
+        setValue('tariff.serviceLevel', vehicle.serviceLevels as ServiceLevels);
       }
 
       if (!validateDriverCompatibility(driver)) {
@@ -220,7 +217,7 @@ export const useOrderCreateDrivers = ({
   );
 
   const handlePageChange = useCallback(
-    (newPage: number) => {
+    (newPage: string) => {
       setPage(newPage);
     },
     [setPage],

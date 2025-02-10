@@ -1,8 +1,7 @@
-//app/api/notifications/route.ts
 import { NextResponse, NextRequest } from 'next/server';
 import debug from 'debug';
 import { prisma } from '@shared/prisma/prisma-client';
-import { v4 as uuidv4 } from 'uuid'; // Import uuid
+import { v4 as uuidv4 } from 'uuid';
 
 const log = debug('app:api:notifications');
 
@@ -18,11 +17,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    const uuid = uuidv4(); //Generate UUID here
+    const uuid = uuidv4();
 
     const notification = await prisma.notification.create({
       data: {
-        uuid: uuid, //Save UUID to database
+        uuid: uuid,
         userId,
         title,
         message,

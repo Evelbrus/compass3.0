@@ -5,6 +5,7 @@ import { handleEdit } from '@shared/components/ui/table/handlers/handleEdit';
 import { handleDownload } from '@shared/components/ui/table/handlers/handleDownload';
 import { handleDelete } from '@shared/components/ui/table/handlers/handleDelete';
 import { handleDetail } from '@shared/components/ui/table/handlers/handleDetail';
+import { handleOrderDriverDetail } from '@shared/components/ui/table/handlers/drivers/handleOrderDriverDetail';
 
 export const renderActions = (
   entity?: 'users' | 'orders' | 'vehicles',
@@ -112,16 +113,18 @@ export const renderCustomerPhone = (phone: string, fullName: string) => {
   );
 };
 
-export const renderAddress = (city: string, address: string) => (
-  <div className="flex flex-col gap-1">
-    <span>{city}</span>
-    <span>{address}</span>
-  </div>
-);
+interface RenderOrderDriverActionsProps {
+  entity: 'orders';
+  uuid?: string;
+}
 
-export const renderAuto = (brand: string, model: string) => (
-  <div className="flex flex-col gap-1">
-    <span>{brand}</span>
-    <span>{model}</span>
+export const renderOrderDriverActions = ({ entity, uuid }: RenderOrderDriverActionsProps) => (
+  <div className="flex">
+    <div
+      className="p-2 hover:bg-blue-100 rounded-full flex justify-center items-center cursor-pointer transition-colors duration-300"
+      onClick={() => handleOrderDriverDetail(entity, uuid)}
+    >
+      <Icon name="view" alt="Просмотр" className="w-6 h-6 text-blue-500 hover:text-blue-700" />
+    </div>
   </div>
 );

@@ -56,6 +56,7 @@
     "module-alias": "^2.2.3",
     "next": "^15.0.2",
     "next-intl": "^3.23.5",
+    "overlayscrollbars": "^2.10.1",
     "path-to-regexp": "^8.2.0",
     "patronum": "^2.3.0",
     "pg": "^8.13.1",
