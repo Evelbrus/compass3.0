@@ -10,7 +10,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     const onConnect = () => {
-      console.log('Socket connected:', socket.id);
+      // console.log('Socket connected:', socket.id);
     };
 
     const onDisconnect = () => {

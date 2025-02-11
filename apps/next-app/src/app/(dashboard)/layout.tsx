@@ -5,7 +5,6 @@ import Sidebar from '@shared/components/layout/sidebar/ui/Sidebar';
 import Header from '@widgets/layout/header/Header';
 import { SocketProvider } from '@app/provider/SocketProvider';
 import GradientBackground from '@shared/components/background/GradientBackground';
-import ModalDriver from '@widgets/modal-driver/ModalDriver';
 
 type RootLayoutProps = {
   children: ReactNode;

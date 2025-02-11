@@ -8,6 +8,7 @@
     "devWS": "node --experimental-modules worker-dist/apps/next-app/server.js",
     "devW": "node worker-dist/apps/next-app/server.js",
     "worker": "node worker-dist/apps/next-app/worker.js",
+    "bullmq": "node worker-dist/apps/next-app/bullmq-ui.js",
     "build": "next build",
     "start": "next start -p 3008",
     "startWS": "node --experimental-modules server.mjs",

@@ -17,6 +17,7 @@ export type ModalType =
   | 'deleteModal'
   | 'createTariffModal'
   | 'orderDetailDriver'
+  | 'createClientCorpOrder'
   | null;
 
 export type EntityToDelete = {

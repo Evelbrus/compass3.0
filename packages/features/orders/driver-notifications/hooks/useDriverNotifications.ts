@@ -40,25 +40,31 @@ export const useDriverNotifications = (userId?: string) => {
             return prevIds;
           }
 
-          console.log('Новый ID, добавляем в Set:', notification.uuid);
+          //Добавляем новый UUID в Set
           const newIds = new Set(prevIds);
           newIds.add(notification.uuid);
 
-          setNotifications((prev) => {
-            const newNotification = {
-              ...notification,
-              isRead: false,
-            };
-            const updatedNotifications = [newNotification, ...prev];
-            console.log('Обновленный список уведомлений:', updatedNotifications);
-            return updatedNotifications;
-          });
+          //Добавляем новое уведомление в список
+          setNotifications((prev) => [notification, ...prev]);
 
-          //Проверяем, что за тип уведомления и если нужно открываем другую модалку
-          if (notification.type === 'preOrder') {
-            openPreOrderNotificationModalRef.current(notification);
-          } else {
-            openNotificationModal(notification);
+          //Теперь проверяем статус для определения, какой модалкой открывать
+          switch (notification.status) {
+            case OrderStatus.PENDING:
+            case OrderStatus.PLANNED:
+              openNotificationModal(notification);
+              break;
+            case OrderStatus.IN_PROGRESS:
+              openNotificationModal(notification);
+              break;
+            case OrderStatus.COMPLETED:
+              openNotificationModal(notification);
+              break;
+            case OrderStatus.CANCELLED:
+              openNotificationModal(notification);
+              break;
+            default:
+              console.log('Неопознанный статус уведомления');
+              break;
           }
 
           return newIds;
@@ -67,11 +73,11 @@ export const useDriverNotifications = (userId?: string) => {
         console.log('❌ Уведомление не для этого водителя');
       }
     },
-    [userSessionDep, openNotificationModal], //Удалили openPreOrderNotificationModal
+    [userSessionDep, openNotificationModal],
   );
 
   useEffect(() => {
-    console.log('Состояние уведомлений (внутри useEffect):', notifications);
+    // console.log('Состояние уведомлений (внутри useEffect):', notifications);
   }, [notifications]);
 
   const socket = useSocket('driverOrderNotification', (data: DriverNotification) => {
@@ -80,7 +86,7 @@ export const useDriverNotifications = (userId?: string) => {
   });
 
   useEffect(() => {
-    console.log('Хук useSocket:', socket);
+    // console.log('Хук useSocket:', socket);
 
     const fetchNotifications = async () => {
       if (!userSessionDep) return;
@@ -115,16 +121,16 @@ export const useDriverNotifications = (userId?: string) => {
       };
 
       if (!socket.connected) {
-        console.log('Соединение с сокетом отсутствует, подключаемся...');
+        // console.log('Соединение с сокетом отсутствует, подключаемся...');
         socket.connect();
       }
       registerUser();
 
-      console.log('Устанавливаем обработчик событий сокета для driverOrderNotification');
+      // console.log('Устанавливаем обработчик событий сокета для driverOrderNotification');
       socket.on('driverOrderNotification', handleDriverNotification);
 
       return () => {
-        console.log('Очищаем обработчик событий сокета');
+        // console.log('Очищаем обработчик событий сокета');
         socket.off('driverOrderNotification', handleDriverNotification);
         setReceivedNotificationIds(new Set());
       };

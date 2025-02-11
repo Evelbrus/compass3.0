@@ -128,3 +128,44 @@ export const renderOrderDriverActions = ({ entity, uuid }: RenderOrderDriverActi
     </div>
   </div>
 );
+
+export const renderOrdersActions = (
+  entity?: 'users' | 'orders' | 'vehicles',
+  uuid?: string,
+  navigate?: (path: string) => void,
+) => (
+  <div className="flex">
+    <div
+      className="p-2 hover:bg-blue-100 rounded-full flex justify-center items-center cursor-pointer transition-colors duration-300"
+      onClick={() => handleOrderDriverDetail(entity, uuid)}
+    >
+      <Icon name="view" alt="Редактировать" className="w-6 h-6 text-blue-500 hover:text-blue-700" />
+    </div>
+    <div
+      className="p-2 hover:bg-blue-100 rounded-full flex justify-center items-center cursor-pointer transition-colors duration-300"
+      onClick={() => handleEdit(entity, uuid, navigate)}
+    >
+      <Icon name="edit" alt="Редактировать" className="w-6 h-6 text-blue-500 hover:text-blue-700" />
+    </div>
+    <div
+      className="p-2 hover:bg-green-100 rounded-full flex justify-center items-center cursor-pointer transition-colors duration-300"
+      //onClick={() => handleDownload(uuid, navigate)}
+    >
+      <Icon
+        name="download"
+        alt="Скачать"
+        className="relative left-[1.5px] text-green-500 hover:text-green-700"
+      />
+    </div>
+    <div
+      className="p-2 hover:bg-red-100 rounded-full flex justify-center items-center cursor-pointer transition-colors duration-300"
+      onClick={() => handleDelete(entity, uuid)}
+    >
+      <Icon
+        name="delete"
+        alt="Удалить"
+        className="relative left-[1.5px] w-6 h-6 text-red-500 hover:text-red-700"
+      />
+    </div>
+  </div>
+);

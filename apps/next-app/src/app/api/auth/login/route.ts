@@ -1,4 +1,3 @@
-///api/login/route.ts
 import { NextResponse, NextRequest } from 'next/server';
 import { SignJWT } from 'jose';
 import { v4 as uuidv4 } from 'uuid';
@@ -11,13 +10,11 @@ import { ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE } from '@shared/utils/cookie'
 const maskEmail = (email: string): string => {
   const [name, domain] = email.split('@');
   if (!name || !domain) return 'invalid-email';
-
   const maskedName = name.slice(0, 2) + '*'.repeat(Math.max(0, name.length - 2));
   const [domainPart, ...tldParts] = domain.split('.');
   const maskedDomain = domainPart
     ? domainPart.slice(0, 2) + '*'.repeat(Math.max(0, domainPart.length - 2))
     : '*';
-
   return `${maskedName}@${maskedDomain}.${tldParts.join('.') || '*'}`;
 };
 
@@ -65,6 +62,7 @@ export async function POST(request: NextRequest) {
 
     const { email, password } = validationResult.data;
 
+    //Получаем IP-адрес клиента
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
     const attemptCount = await prisma.loginAttempt.count({
       where: {
@@ -82,6 +80,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    //Ищем пользователя по email
+    console.log('Поиск пользователя в базе:', email);
     const user = await prisma.user.findUnique({
       where: { email: email.toLowerCase() },
       select: {
@@ -94,8 +94,12 @@ export async function POST(request: NextRequest) {
         sessionVersion: true,
       },
     });
+    console.log('Найден пользователь:', user);
+    if (user) {
+      user.refreshTokens = Array.isArray(user.refreshTokens) ? user.refreshTokens : [];
+    }
 
-    //Проверяем пароль с помощью bcryptjs
+    //Проверяем корректность пароля
     const isPasswordValid = await bcrypt.compare(password, user?.password || '');
 
     if (!user || !isPasswordValid) {
@@ -120,16 +124,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    //Генерация нового refreshToken
-    const newRefreshToken = uuidv4();
+    //Upsert записи LoginAttempt для данного пользователя (привязка к устройству)
+    const loginAttemptRecord = await prisma.loginAttempt.upsert({
+      where: { userId: user.uuid },
+      update: {
+        ip,
+        userAgent: request.headers.get('user-agent') || 'unknown',
+      },
+      create: {
+        ip,
+        userAgent: request.headers.get('user-agent') || 'unknown',
+        emailAttempt: null,
+        userId: user.uuid,
+      },
+    });
 
-    //Обновляем пользователя: добавляем новый refreshToken в массив и увеличиваем sessionVersion
+    const loginAttemptId = loginAttemptRecord.id;
+
+    //Генерируем новое значение refresh-токена (UUID)
+    const newRefreshTokenValue = uuidv4();
+
+    //Обновляем пользователя: добавляем новый refresh-токен в массив и инкрементируем sessionVersion
     const updatedUser = await prisma.$transaction(async (tx) => {
       return await tx.user.update({
         where: { uuid: user.uuid },
         data: {
           refreshTokens: {
-            push: newRefreshToken,
+            set: [...(user.refreshTokens || []), newRefreshTokenValue],
           },
           lastActive: new Date(),
           sessionVersion: { increment: 1 },
@@ -141,11 +162,13 @@ export async function POST(request: NextRequest) {
       });
     });
 
-    //Генерация accessToken
-    const accessTokenSecret = new TextEncoder().encode(authConfig.accessToken.secret);
-    const refreshTokenSecret = new TextEncoder().encode(authConfig.refreshToken.secret);
+    //Генерируем sessionId для данной сессии
     const sessionId = uuidv4();
 
+    const accessTokenSecret = new TextEncoder().encode(authConfig.accessToken.secret);
+    const refreshTokenSecret = new TextEncoder().encode(authConfig.refreshToken.secret);
+
+    //Генерируем access-токен (JWT)
     const accessToken = await new SignJWT({
       uuid: user.uuid,
       email: user.email,
@@ -158,12 +181,13 @@ export async function POST(request: NextRequest) {
       .setExpirationTime(authConfig.accessToken.expiresIn)
       .sign(accessTokenSecret);
 
-    //Генерация refreshToken (JWT)
+    //Генерируем refresh-токен (JWT) с привязкой к устройству (loginAttemptId)
     const refreshToken = await new SignJWT({
       uuid: user.uuid,
       sessionId,
       sessionVersion: updatedUser.sessionVersion,
-      refreshToken: newRefreshToken,
+      refreshToken: newRefreshTokenValue,
+      loginAttemptId,
     })
       .setProtectedHeader({ alg: 'HS256' })
       .setIssuedAt()
@@ -182,6 +206,7 @@ export async function POST(request: NextRequest) {
       { status: 200 },
     );
 
+    //Настройка cookie (домен, secure и т.д.)
     const domainValidation = () => {
       if (process.env.NODE_ENV !== 'production') return undefined;
       if (!process.env.NEXTAUTH_URL) return undefined;
@@ -214,7 +239,6 @@ export async function POST(request: NextRequest) {
     response.headers.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
     response.headers.set('Access-Control-Allow-Headers', 'Content-Type');
     response.headers.set('Access-Control-Allow-Credentials', 'true');
-
     response.headers.set('X-Content-Type-Options', 'nosniff');
     response.headers.set('X-Frame-Options', 'DENY');
     response.headers.set('X-XSS-Protection', '1; mode=block');

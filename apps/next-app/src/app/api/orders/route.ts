@@ -279,35 +279,18 @@ export async function POST(req: Request) {
     console.log('result', result);
 
     //Добавляем задачу на проверку OVERDUE в момент наступления departureTime
-    const now = new Date();
-    const departureDate = new Date(result.departureTime);
-    const delayForOverdue = departureDate.getTime() - now.getTime();
-    if (delayForOverdue > 0) {
-      console.log(`Добавляем задачу checkOverdue с задержкой ${delayForOverdue} мс`);
-      const checkOverdueOptions = {
-        delay: delayForOverdue,
+
+    await orderQueue.add(
+      'preOrderNotification',
+      { order: result },
+      {
         attempts: 3,
         backoff: { type: 'exponential', delay: 1000 },
-        jobId: `checkOverdue-${result.uuid}`,
-      };
-      try {
-        await orderQueue.add(
-          'checkOverdue',
-          {
-            orderUuid: result.uuid,
-            driverId: result.assignedDriverId,
-            type: 'overdue',
-          },
-          checkOverdueOptions,
-        );
-        console.log(`Задача checkOverdue успешно добавлена, jobId: ${checkOverdueOptions.jobId}`);
-        log(
-          `Задача checkOverdue добавлена с задержкой ${delayForOverdue} мс, jobId: ${checkOverdueOptions.jobId}`,
-        );
-      } catch (error) {
-        log(`Ошибка при добавлении задачи checkOverdue: ${error}`, error);
-      }
-    }
+        jobId: `preOrder-${result.uuid}`,
+      },
+    );
+
+    console.log(`📌 Задача preOrderNotification добавлена, jobId: preOrder-${result.uuid}`);
 
     return NextResponse.json(result, { status: 201 });
   } catch (error) {

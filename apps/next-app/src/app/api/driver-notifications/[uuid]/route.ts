@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@shared/prisma/prisma-client';
-import { DriverAcceptanceStatus, OrderStatus } from '@prisma/client';
+import { DriverAcceptanceStatus, OrderStatus } from '@prisma/client'; //Обновляем для импорта обоих типов
 
 interface Params {
   uuid?: string;
@@ -14,6 +14,7 @@ export async function PATCH(request: Request, { params }: { params: Params }) {
     return NextResponse.json({ message: 'Не указан uuid' }, { status: 400 });
   }
 
+  //Проверка на допустимость статуса для заказа
   if (
     !status ||
     !Object.values(DriverAcceptanceStatus).includes(status as DriverAcceptanceStatus)
@@ -24,7 +25,7 @@ export async function PATCH(request: Request, { params }: { params: Params }) {
     );
   }
 
-  //orderStatus теперь не обязательный. Если его нет - то заказ не меняется.
+  //orderStatus теперь не обязательный. Если его нет, заказ не меняется.
   if (orderStatus && !Object.values(OrderStatus).includes(orderStatus as OrderStatus)) {
     return NextResponse.json({ message: 'Недопустимый статус OrderStatus' }, { status: 400 });
   }
@@ -45,8 +46,8 @@ export async function PATCH(request: Request, { params }: { params: Params }) {
       //Проверяем, нужно ли обновлять статус заказа
       if (orderStatus) {
         const orderUpdateData = {
-          driverAcceptanceStatus: status as DriverAcceptanceStatus,
-          status: orderStatus as OrderStatus,
+          status: orderStatus as OrderStatus, //Обновляем статус заказа
+          driverAcceptanceStatus: status as DriverAcceptanceStatus, //Обновляем статус принятия водителем
         };
 
         try {
@@ -60,10 +61,10 @@ export async function PATCH(request: Request, { params }: { params: Params }) {
         }
       }
 
-      //Обновляем статус уведомления ИЛИ удаляем его, если COMPLETED ИЛИ CANCELED
+      //Обновляем статус уведомления ИЛИ удаляем его, если COMPLETED ИЛИ CANCELLED
       if (
-        status === DriverAcceptanceStatus.COMPLETED ||
-        status === DriverAcceptanceStatus.CANCELED
+        status === DriverAcceptanceStatus.COMPLETED || //Проверка на DriverAcceptanceStatus
+        status === DriverAcceptanceStatus.CANCELED //Проверка на DriverAcceptanceStatus
       ) {
         console.log(`Попытка удалить уведомление с UUID: ${uuid}`);
         try {
@@ -77,11 +78,11 @@ export async function PATCH(request: Request, { params }: { params: Params }) {
           throw new Error('Ошибка при удалении уведомления'); //Важно пробрасывать ошибку
         }
       } else {
-        //Обновляем isRead и status
+        //Обновляем isRead и статус уведомления
         const updatedNotification = await tx.driverOrderNotification.update({
           where: { uuid: uuid },
           data: {
-            status: status as DriverAcceptanceStatus,
+            status: orderStatus as OrderStatus, //Оставляем статус как OrderStatus для уведомления
             isRead: isRead !== undefined ? isRead : false, //Явно устанавливаем false, если не передано
           },
         });
@@ -92,7 +93,7 @@ export async function PATCH(request: Request, { params }: { params: Params }) {
 
     return NextResponse.json(result);
   } catch (error: any) {
-    //Correctly type the error
+    //Правильно типизируем ошибку
     console.error('Ошибка при обновлении статуса уведомления:', error);
     return NextResponse.json(
       { message: error.message || 'Ошибка при обновлении статуса уведомления' },

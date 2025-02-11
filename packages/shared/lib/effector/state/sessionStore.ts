@@ -1,23 +1,26 @@
 import { createStore, createEvent, sample, createEffect } from 'effector';
 import { parseJwt } from '@shared/utils/parse-jwt/parseJwt';
 
-//Типы
+//====================
+//Типы и хранилища
+//====================
+
 type TokenType = 'access';
 
-//Хранилища
 export const $accessToken = createStore<string | null>(null);
 export const $refreshToken = createStore<string | null>(null);
 
-//События
 export const setAccessToken = createEvent<string>();
 export const resetAccessToken = createEvent();
 export const setRefreshToken = createEvent<string>();
 export const resetRefreshToken = createEvent();
 
-//Таймеры (только для access токена)
+//====================
+//Таймеры для access-токена
+//====================
+
 const tokenTimers = new Map<TokenType, NodeJS.Timeout>();
 
-//Утилиты для таймера access токена
 const clearTokenTimer = (type: TokenType) => {
   const timer = tokenTimers.get(type);
   if (timer) {
@@ -28,46 +31,77 @@ const clearTokenTimer = (type: TokenType) => {
 
 const scheduleTokenRefresh = (type: TokenType, expiresIn: number) => {
   clearTokenTimer(type);
+  const bufferTime = 60000; //буфер 1 минута
+  let actualTime = expiresIn - bufferTime;
+  if (actualTime < 1000) actualTime = 1000;
 
-  const bufferTime = 60000;
-  const actualTime = expiresIn - bufferTime;
+  console.log(`[SCHEDULE] Обновление ${type}-токена через ${actualTime} мс`);
 
   const timer = setTimeout(() => {
-    refreshAccessTokenFx();
+    refreshToken();
   }, actualTime);
 
   tokenTimers.set(type, timer);
 };
 
+//====================
 //Обработка истечения refresh-токена
-export const handleRefreshTokenExpiration = async () => {
-  await fetch('/api/auth/logout', {
-    method: 'POST',
-  });
+//====================
 
+export const handleRefreshTokenExpiration = async () => {
+  console.warn('[SESSION] Refresh токен истек, выполняем logout');
+  await fetch('/api/auth/logout', { method: 'POST' });
   resetRefreshToken();
   resetAccessToken();
 };
 
-//Эффект обновления access-токена
-export const refreshAccessTokenFx = createEffect<string | void, boolean, Error>(async (token) => {
-  try {
-    const refreshToken = token || $refreshToken.getState();
+//====================
+//Синхронизация между вкладками
+//====================
 
-    if (!refreshToken) {
-      console.error('[ОШИБКА] Refresh токен отсутствует');
+let isRefreshing = false;
+const tokenChannel = new BroadcastChannel('token_channel');
+
+tokenChannel.onmessage = (event) => {
+  const { type, tokens } = event.data;
+  if (type === 'TOKEN_REFRESH_START') {
+    isRefreshing = true;
+  } else if (type === 'TOKEN_REFRESH_COMPLETE') {
+    isRefreshing = false;
+    if (tokens) {
+      setAccessToken(tokens.accessToken);
+      setRefreshToken(tokens.refreshToken);
+    }
+  }
+};
+
+//====================
+//Эффект обновления access-токена
+//====================
+
+export const refreshAccessTokenFx = createEffect(async () => {
+  try {
+    const refreshTokenValue = $refreshToken.getState();
+    if (!refreshTokenValue) {
+      console.error('[ERROR] Refresh токен отсутствует');
       resetRefreshToken();
       return false;
     }
 
+    //Логируем перед запросом для отладки
+    console.log('refreshAccessTokenFx: refreshTokenValue =', refreshTokenValue);
+
+    const loginAttemptId = getLoginAttemptId();
+    console.log('refreshAccessTokenFx: loginAttemptId =', loginAttemptId);
+
     const response = await fetch('/api/auth/refresh', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refreshToken }),
+      body: JSON.stringify({ refreshToken: refreshTokenValue, loginAttemptId }),
     });
 
     if (!response.ok) {
-      console.error(`[ОШИБКА] HTTP статус: ${response.status}`);
+      console.error(`[ERROR] HTTP статус: ${response.status}`);
       throw new Error('Ошибка обновления токена');
     }
 
@@ -75,77 +109,105 @@ export const refreshAccessTokenFx = createEffect<string | void, boolean, Error>(
 
     if (data.accessToken) {
       setAccessToken(data.accessToken);
-
       const decoded = parseJwt(data.accessToken);
-      const expiresIn = decoded.exp * 1000 - Date.now();
+      scheduleTokenRefresh('access', decoded.exp * 1000 - Date.now());
     }
 
     if (data.refreshToken) {
       setRefreshToken(data.refreshToken);
-
-      const decoded = parseJwt(data.refreshToken);
-      const expiresIn = decoded.exp * 1000 - Date.now();
     }
     return true;
   } catch (error) {
+    console.error('Ошибка в refreshAccessTokenFx:', error);
     return false;
   }
 });
 
-//Обработчики для токенов
+//====================
+//Обработчики токенов
+//====================
+
 const handleAccessToken = (token: string) => {
-  const decoded = parseJwt(token);
-  if (!decoded?.exp) {
-    refreshAccessTokenFx();
-    return;
-  }
-
-  const expiresIn = decoded.exp * 1000 - Date.now();
-
-  if (expiresIn > 0) {
-    scheduleTokenRefresh('access', expiresIn);
-  } else {
+  try {
+    const decoded = parseJwt(token);
+    if (!decoded?.exp) {
+      console.warn('[ACCESS] Нет exp в токене, обновляем');
+      refreshAccessTokenFx();
+      return;
+    }
+    scheduleTokenRefresh('access', decoded.exp * 1000 - Date.now());
+  } catch (err) {
+    console.error('Ошибка обработки access-токена:', err);
     refreshAccessTokenFx();
   }
 };
 
 const handleRefreshToken = (token: string) => {
-  const decoded = parseJwt(token);
-  if (!decoded?.exp) {
-    handleRefreshTokenExpiration();
-    return;
-  }
-
-  const expiresIn = decoded.exp * 1000 - Date.now();
-
-  if (expiresIn <= 0) {
+  try {
+    const decoded = parseJwt(token);
+    if (!decoded?.exp || decoded.exp * 1000 - Date.now() <= 0) {
+      console.warn('[REFRESH] Refresh-токен истек');
+      handleRefreshTokenExpiration();
+    }
+  } catch (err) {
+    console.error('Ошибка обработки refresh-токена:', err);
     handleRefreshTokenExpiration();
   }
 };
 
-//Связка событий
 $accessToken.on(setAccessToken, (_, token) => token).reset(resetAccessToken);
-
 $refreshToken.on(setRefreshToken, (_, token) => token).reset(resetRefreshToken);
 
-//Обработка side-эффектов
 sample({
   source: setAccessToken,
-  fn: (token) => handleAccessToken(token),
+  fn: handleAccessToken,
 });
 
 sample({
   source: setRefreshToken,
-  fn: (token) => handleRefreshToken(token),
+  fn: handleRefreshToken,
 });
 
 sample({
   clock: [resetAccessToken, resetRefreshToken],
-  fn: () => {
-    clearTokenTimer('access');
-  },
+  fn: () => clearTokenTimer('access'),
 });
 
-//Геттеры
+//====================
+//Вспомогательные функции
+//====================
+
 export const getAccessToken = () => $accessToken.getState();
 export const getRefreshToken = () => $refreshToken.getState();
+
+function getLoginAttemptId(): string {
+  const refreshTokenValue = $refreshToken.getState();
+  if (!refreshTokenValue) throw new Error('Отсутствует refresh токен');
+
+  const decoded = parseJwt(refreshTokenValue);
+  if (!decoded.loginAttemptId) throw new Error('loginAttemptId отсутствует');
+  return decoded.loginAttemptId;
+}
+
+//====================
+//Функция обновления токена (для планового обновления)
+//====================
+
+export async function refreshToken() {
+  if (isRefreshing) return;
+  isRefreshing = true;
+  tokenChannel.postMessage({ type: 'TOKEN_REFRESH_START' });
+  try {
+    const success = await refreshAccessTokenFx();
+    if (success) {
+      tokenChannel.postMessage({
+        type: 'TOKEN_REFRESH_COMPLETE',
+        tokens: { accessToken: getAccessToken(), refreshToken: getRefreshToken() },
+      });
+    }
+  } catch (error) {
+    console.error('Ошибка обновления токена:', error);
+  } finally {
+    isRefreshing = false;
+  }
+}

@@ -6,6 +6,7 @@ import { UserRole } from '@prisma/client';
 import { redirect } from 'next/navigation';
 import { publicRoutes } from '@shared/utils/routing';
 import OrderDriverPage from '@pages/(driver)/orders/main/OrderDriverPage';
+import OrderClientCorpPage from '@pages/(client-corp)/orders/main/OrderClientCorpPage';
 
 export const revalidate = 60;
 
@@ -17,6 +18,8 @@ const Page = async (): Promise<JSX.Element> => {
       return <OrderAdminPage />;
     } else if (role === UserRole.Driver) {
       return <OrderDriverPage />;
+    } else if (role === UserRole.ClientCorp) {
+      return <OrderClientCorpPage />;
     } else {
       return <Loading />;
     }

@@ -7,6 +7,7 @@ import { UserRole } from '@prisma/client';
 import DeleteModal from '@shared/components/modal/delete-modal/DeleteModal';
 import CreateUserModal from '@shared/components/modal/create-user-modal/ui/CreateUserModal';
 import OrderDetailDriverModal from '@shared/components/modal/order-detail-driver-modal/OrderDetailDriverModal';
+import CreateClientCorpOrder from '@shared/components/modal/create-client-corp-order/CreateClientCorpOrder';
 
 interface ModalManagerComponentProps {
   role: UserRole;
@@ -23,6 +24,7 @@ const ModalManagerComponent: React.FC<ModalManagerComponentProps> = ({ role }) =
         )}
       {modalType === 'orderDetailDriver' && <OrderDetailDriverModal />}
       {modalType === 'deleteModal' && <DeleteModal onClose={closeModal} />}
+      {modalType === 'createClientCorpOrder' && <CreateClientCorpOrder onClose={closeModal} />}
     </>
   );
 };

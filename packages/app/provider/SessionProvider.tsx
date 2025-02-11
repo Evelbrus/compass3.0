@@ -27,45 +27,54 @@ export const SessionProvider = ({
   accessToken,
   refreshToken,
 }: SessionProviderProps) => {
+  console.log('userSession', userSession);
+  console.log('isAuthenticated', isAuthenticated);
+  console.log('accessToken', accessToken);
+  console.log('refreshToken', refreshToken);
+
   const isFirstRender = useRef(true);
 
   useEffect(() => {
+    //Сначала устанавливаем токены в стор, если они переданы в пропсах.
+    //Это необходимо, чтобы внутри refreshAccessTokenFx вызов $refreshToken.getState() вернул нужное значение.
+    if (accessToken) {
+      setAccessToken(accessToken);
+    }
+    if (refreshToken) {
+      setRefreshToken(refreshToken);
+    }
+    //Если ни одного токена нет, сбрасываем стор
+    if (!accessToken && !refreshToken) {
+      resetAccessToken();
+      resetRefreshToken();
+    }
+
+    //На первом рендере пытаемся обновить access-токен,
+    //если присутствует refresh-токен, но access-токен отсутствует.
     if (isFirstRender.current) {
       isFirstRender.current = false;
       if (refreshToken && !accessToken) {
         console.log('1 ШАГ: "Начинаем обновление токенов..."');
-        refreshAccessTokenFx(refreshToken)
-          .then(() => {
+        refreshAccessTokenFx().then((result) => {
+          if (result) {
             console.log('2 ШАГ: "Токены успешно обновлены!"');
             console.log('3 ШАГ: "Перезагружаем текущую страницу через 2.5 секунды"');
             setTimeout(() => {
               window.location.reload();
             }, 2500);
-          })
-          .catch(() => {
+          } else {
             console.log('2 ШАГ: "Ошибка при обновлении токенов!"');
             handleRefreshTokenExpiration();
-          });
+          }
+        });
       } else if (accessToken && !refreshToken) {
         console.warn(
-          '[ПРЕДУПРЕЖДЕНИЕ] Обнаружен access token без refresh token. Выполняется logout.',
+          '[ПРЕДУПРЕЖДЕНИЕ] Обнаружен access-токен без refresh-токена. Выполняется logout.',
         );
         handleRefreshTokenExpiration();
       }
     }
-    //Обновление токенов при изменении auth state
-    if (isAuthenticated) {
-      if (accessToken) {
-        setAccessToken(accessToken);
-      }
-      if (refreshToken) {
-        setRefreshToken(refreshToken);
-      }
-    } else {
-      resetAccessToken();
-      resetRefreshToken();
-    }
-  }, [refreshToken, accessToken, isAuthenticated]);
+  }, [accessToken, refreshToken]);
 
   return <SessionContext.Provider value={{ userSession }}>{children}</SessionContext.Provider>;
 };

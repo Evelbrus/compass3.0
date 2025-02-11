@@ -1,3 +1,5 @@
+//@shared/utils/hooks/useNotifications.ts
+
 import { useCallback } from 'react';
 import { useSocket } from '@shared/utils/hooks/useSocket';
 import { CreateOrderData } from '@shared/prisma/interface/orders/interface';
@@ -132,12 +134,31 @@ export const useNotifications = ({
     }
   }, [socket, userSession, sendNotification, departurePoint, arrivalPoint, isEditing]);
 
+  const sendCreatedByNotification = useCallback(async () => {
+    //Проверяем, что createdBy существует и не является пустым
+    if (formData.createdBy && departurePoint && arrivalPoint) {
+      const orderNumber = formatOrderNumber(new Date());
+      const action = isEditing ? 'обновлен' : 'создан';
+      const message = isEditing
+        ? `Ваш заказ N ${orderNumber} обновлен`
+        : `Вам создан заказ N ${orderNumber} от ${departurePoint.address} до ${arrivalPoint.address}`;
+      sendNotification(formData.createdBy, `Заказ ${action}`, message);
+    }
+  }, [socket, sendNotification, formData, departurePoint, arrivalPoint, isEditing]);
+
   const handleOrderSuccess = useCallback(() => {
     setInitialFormData();
     sendDriverNotification();
     sendCreatorNotification();
+    sendCreatedByNotification();
     setErrorMessage(null, `Заказ успешно создан.`);
-  }, [setErrorMessage, setInitialFormData, sendDriverNotification, sendCreatorNotification]);
+  }, [
+    setErrorMessage,
+    setInitialFormData,
+    sendDriverNotification,
+    sendCreatorNotification,
+    sendCreatedByNotification,
+  ]);
 
   const handleOrderError = useCallback(
     (error) => {
@@ -152,5 +173,6 @@ export const useNotifications = ({
     sendNotification,
     sendDriverNotification,
     sendCreatorNotification,
+    sendCreatedByNotification,
   };
 };

@@ -10,7 +10,7 @@ import NoData from '@shared/components/errors/noData';
 import AnimatedComponent from '@shared/components/animated/CommonAnimated/AnimatedComponent';
 import { IButton } from '@shared/components/ui/buttons';
 import Filters from '@widgets/filters/ui/Filters';
-import { renderActions } from '@shared/components/ui/table/ui/TableRenders';
+import { renderActions, renderOrdersActions } from '@shared/components/ui/table/ui/TableRenders';
 import { $updateFlag, View } from '@shared/lib/effector/state/state';
 import { useUnit } from 'effector-react';
 import { DetailOrderData } from '@shared/prisma/interface/orders/interface';
@@ -130,7 +130,7 @@ const OrderAdminPage = (): JSX.Element => {
     createdAt: order.createdAt,
     updatedAt: order.updatedAt,
     basePrice: parseFloat(order.basePrice.toString()),
-    actions: renderActions('orders', order.uuid, router.push),
+    actions: renderOrdersActions('orders', order.uuid, router.push),
   }));
 
   return (

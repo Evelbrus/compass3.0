@@ -45,7 +45,7 @@ model User {
   isBlocked    Boolean   @default(false) @map("is_blocked")
 
   sessionVersion Int      @default(0)
-  refreshTokens  String[] @map("refresh_tokens")
+  refreshTokens  String[] @default([]) @map("refresh_tokens")
 
   driverOrderNotifications DriverOrderNotification[]
 

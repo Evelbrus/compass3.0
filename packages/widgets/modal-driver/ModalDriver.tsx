@@ -51,14 +51,14 @@ const ModalDriver: React.FC<ModalDriverProps> = ({ userSession }) => {
     }
   }, [preOrderModalType, closeFirstModal, isModalOpen]);
 
-  console.log('ModalDriver re-rendered:', { userSession, notifications });
+  // console.log('ModalDriver re-rendered:', { userSession, notifications });
 
   if (isLoading) {
-    return <div>Загрузка уведомлений...</div>;
+    return null;
   }
 
   if (error) {
-    return <div>Ошибка при загрузке уведомлений: {error}</div>;
+    return null;
   }
 
   return (

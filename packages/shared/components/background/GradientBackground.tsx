@@ -53,7 +53,7 @@ const GradientBackground: React.FC = () => {
     <div className="absolute inset-0">
       <AnimatedComponent visible={!!newGradient} duration={1000}>
         <div
-          className={`absolute inset-0 bg-gradient-to-r rounded-l-3xl ${newGradient}`}
+          className={`absolute inset-0 bg-gradient-to-r md:rounded-l-3xl ${newGradient}`}
           style={{ pointerEvents: 'none' }}
         />
       </AnimatedComponent>
