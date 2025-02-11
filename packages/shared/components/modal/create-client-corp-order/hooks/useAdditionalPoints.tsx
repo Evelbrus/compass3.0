@@ -10,8 +10,8 @@ interface AdditionalPointState {
   isOpen: boolean;
   currentPage: number;
   totalPoints: number;
-  observerRef: React.RefObject<HTMLDivElement>;
-  ref: React.RefObject<HTMLDivElement>;
+  observerRef: React.RefObject<HTMLDivElement | null>;
+  ref: React.RefObject<HTMLDivElement | null>;
   loading: boolean;
 }
 
@@ -27,21 +27,22 @@ interface UseAdditionalPointsReturn {
   handleSetAdditionalPoints: (index: number, point: Point | null) => void;
   getAvailablePoints: () => Point[];
 }
+
 const useAdditionalPoints = (
   departurePoint: string,
   arrivalPoint: string,
   departurePoints: Point[],
 ): UseAdditionalPointsReturn => {
-  //Инициализируем состояние для 5 дополнительных точек, создавая refs через React.createRef
+  //Инициализируем состояние для 5 дополнительных точек с корректной типизацией ссылок
   const [additionalPointStates, setAdditionalPointStates] = useState<AdditionalPointState[]>(() => {
     return Array.from({ length: 5 }, () => ({
-      points: [],
+      points: [] as Point[],
       search: '',
       searchValue: '',
       isOpen: false,
       currentPage: 1,
       totalPoints: 0,
-      observerRef: React.createRef<HTMLDivElement>(),
+      observerRef: React.createRef<HTMLDivElement>(), //тип: RefObject<HTMLDivElement | null>
       ref: React.createRef<HTMLDivElement>(),
       loading: false,
     }));
@@ -51,11 +52,10 @@ const useAdditionalPoints = (
     Array(5).fill(null),
   );
 
-  //Создаем массивы для refs дополнительных наблюдателей и селекторов
-  const additionalPointObservers = useRef<React.RefObject<HTMLDivElement>[]>(
+  const additionalPointObservers = useRef<React.RefObject<HTMLDivElement | null>[]>(
     Array.from({ length: 5 }, () => React.createRef<HTMLDivElement>()),
   );
-  const additionalPointRefs = useRef<React.RefObject<HTMLDivElement>[]>(
+  const additionalPointRefs = useRef<React.RefObject<HTMLDivElement | null>[]>(
     Array.from({ length: 5 }, () => React.createRef<HTMLDivElement>()),
   );
 
