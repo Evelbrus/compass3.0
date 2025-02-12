@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useSocket } from '@shared/utils/hooks/useSocket';
-import { DriverAcceptanceStatus, OrderStatus } from '@prisma/client';
+import { DriverAcceptanceStatus } from '@prisma/client';
 import {
   DriverNotification,
   useModalManager,
@@ -12,7 +12,7 @@ export const useDriverNotifications = (userId?: string) => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [userSessionDep, setUserSessionDep] = useState<string | null>(userId || null);
-  const { openNotificationModal, openOrderModal, closeModal, modalType } = useModalManager();
+  const { openNotificationModal } = useModalManager();
   const [receivedNotificationIds, setReceivedNotificationIds] = useState<Set<string>>(new Set());
   const { openPreOrderNotificationModal } = usePreOrderModalManager();
   const openPreOrderNotificationModalRef = useRef(openPreOrderNotificationModal);
@@ -49,17 +49,10 @@ export const useDriverNotifications = (userId?: string) => {
 
           //Теперь проверяем статус для определения, какой модалкой открывать
           switch (notification.status) {
-            case OrderStatus.PENDING:
-            case OrderStatus.PLANNED:
-              openNotificationModal(notification);
-              break;
-            case OrderStatus.IN_PROGRESS:
-              openNotificationModal(notification);
-              break;
-            case OrderStatus.COMPLETED:
-              openNotificationModal(notification);
-              break;
-            case OrderStatus.CANCELLED:
+            case DriverAcceptanceStatus.PENDING:
+            case DriverAcceptanceStatus.TAKEN:
+            case DriverAcceptanceStatus.ACCEPTED:
+            case DriverAcceptanceStatus.REJECTED:
               openNotificationModal(notification);
               break;
             default:
@@ -76,18 +69,13 @@ export const useDriverNotifications = (userId?: string) => {
     [userSessionDep, openNotificationModal],
   );
 
-  useEffect(() => {
-    // console.log('Состояние уведомлений (внутри useEffect):', notifications);
-  }, [notifications]);
-
+  //Теперь socket доступен в пределах useEffect
   const socket = useSocket('driverOrderNotification', (data: DriverNotification) => {
     console.log('📡 WebSocket-сообщение (внутри useSocket):', data);
     handleDriverNotification(data);
   });
 
   useEffect(() => {
-    // console.log('Хук useSocket:', socket);
-
     const fetchNotifications = async () => {
       if (!userSessionDep) return;
       setIsLoading(true);
@@ -121,25 +109,18 @@ export const useDriverNotifications = (userId?: string) => {
       };
 
       if (!socket.connected) {
-        // console.log('Соединение с сокетом отсутствует, подключаемся...');
         socket.connect();
       }
       registerUser();
 
-      // console.log('Устанавливаем обработчик событий сокета для driverOrderNotification');
       socket.on('driverOrderNotification', handleDriverNotification);
 
       return () => {
-        // console.log('Очищаем обработчик событий сокета');
         socket.off('driverOrderNotification', handleDriverNotification);
         setReceivedNotificationIds(new Set());
       };
     }
   }, [userSessionDep, socket, handleDriverNotification]);
-
-  useEffect(() => {
-    setUserSessionDep(userId || null);
-  }, [userId]);
 
   const markAsRead = useCallback(async (notificationId: string) => {
     try {
@@ -176,7 +157,7 @@ export const useDriverNotifications = (userId?: string) => {
         },
         body: JSON.stringify({
           status: DriverAcceptanceStatus.ACCEPTED,
-          orderStatus: OrderStatus.IN_PROGRESS,
+          orderStatus: DriverAcceptanceStatus.TAKEN,
         }),
       });
 
@@ -192,118 +173,11 @@ export const useDriverNotifications = (userId?: string) => {
     }
   }, []);
 
-  const onTheWay = useCallback(async (notificationId: string) => {
-    try {
-      const response = await fetch(`/api/driver-notifications/${notificationId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          status: DriverAcceptanceStatus.ON_THE_WAY,
-          orderStatus: OrderStatus.IN_PROGRESS,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Не удалось изменить статус: ${response.statusText}`);
-      }
-      setNotifications((prev) =>
-        prev.filter((notification) => notification.uuid !== notificationId),
-      );
-    } catch (err: any) {
-      console.error('Ошибка при изменении статуса:', err);
-      setError(err.message || 'Не удалось изменить статус');
-    }
-  }, []);
-
-  const arrived = useCallback(async (notificationId: string) => {
-    try {
-      const response = await fetch(`/api/driver-notifications/${notificationId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          status: DriverAcceptanceStatus.ARRIVED,
-          orderStatus: OrderStatus.IN_PROGRESS,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Не удалось изменить статус: ${response.statusText}`);
-      }
-
-      setNotifications((prev) =>
-        prev.filter((notification) => notification.uuid !== notificationId),
-      );
-    } catch (err: any) {
-      console.error('Ошибка при изменении статуса:', err);
-      setError(err.message || 'Не удалось изменить статус');
-    }
-  }, []);
-
-  const pickedUp = useCallback(async (notificationId: string) => {
-    try {
-      const response = await fetch(`/api/driver-notifications/${notificationId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          status: DriverAcceptanceStatus.PICKED_UP,
-          orderStatus: OrderStatus.IN_PROGRESS,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Не удалось изменить статус: ${response.statusText}`);
-      }
-
-      setNotifications((prev) =>
-        prev.filter((notification) => notification.uuid !== notificationId),
-      );
-    } catch (err: any) {
-      console.error('Ошибка при изменении статуса:', err);
-      setError(err.message || 'Не удалось изменить статус');
-    }
-  }, []);
-
-  const completed = useCallback(async (notificationId: string) => {
-    try {
-      const response = await fetch(`/api/driver-notifications/${notificationId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          status: DriverAcceptanceStatus.COMPLETED,
-          orderStatus: OrderStatus.COMPLETED,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Не удалось изменить статус: ${response.statusText}`);
-      }
-
-      setNotifications((prev) =>
-        prev.filter((notification) => notification.uuid !== notificationId),
-      );
-    } catch (err: any) {
-      console.error('Ошибка при изменении статуса:', err);
-      setError(err.message || 'Не удалось изменить статус');
-    }
-  }, []);
-
   return {
     notifications,
     isLoading,
     error,
     markAsRead,
     acceptOrder,
-    onTheWay,
-    arrived,
-    pickedUp,
-    completed,
   };
 };

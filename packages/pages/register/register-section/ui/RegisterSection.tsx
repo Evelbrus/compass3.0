@@ -8,6 +8,19 @@ import { IButton } from '@shared/components/ui/buttons';
 import { Checkbox, TextInput, RadioInput } from '@shared/components/ui/inputs';
 import { Gender } from '@prisma/client';
 
+//Определяем тип для ключей формы
+type FormKey =
+  | 'email'
+  | 'password'
+  | 'fullName'
+  | 'phone'
+  | 'gender'
+  | 'address'
+  | 'companyName'
+  | 'companyPin'
+  | 'confirmPassword'
+  | 'isAgree';
+
 interface FormValues {
   email: string;
   password: string;
@@ -28,7 +41,6 @@ const RegisterSection: React.FC = () => {
     handleSubmit,
     clearErrors,
     formState: { errors },
-    watch,
     getValues,
     setError,
   } = useForm<FormValues>({
@@ -148,13 +160,13 @@ const RegisterSection: React.FC = () => {
 
       if (!response.ok) {
         const errorMessage = result.message || 'Ошибка регистрации.';
-        showToast.error(errorMessage); //Покажем сообщение через Toast
+        showToast.error(errorMessage);
         if (currentStep === 1) {
           setError('email', { type: 'server', message: errorMessage });
         } else {
           setError('companyName', { type: 'server', message: errorMessage });
         }
-        throw new Error(errorMessage); //Пробросим ошибку для catch
+        throw new Error(errorMessage);
       }
 
       showToast.success('Регистрация прошла успешно!');
@@ -214,29 +226,38 @@ const RegisterSection: React.FC = () => {
     clearErrors();
   };
 
-  const renderInput = (name: string, placeholder: string, type: string | undefined = 'text') => (
+  const renderInput = (name: FormKey, placeholder: string, type: string | undefined = 'text') => (
     <Controller
       name={name}
       control={control}
       rules={{ required: `Введите ${placeholder}.` }}
-      render={({ field }) => (
-        <div className="flex flex-col">
-          <TextInput
-            {...field}
-            value={field.value || ''}
-            placeholder={placeholder}
-            type={type}
-            error={!!errors[name as keyof FormValues]}
-            disabled={loading}
-            aria-invalid={!!errors[name as keyof FormValues]}
-            onChange={(value: string) => {
-              field.onChange(value);
-              handleChange();
-            }}
-            className="rounded-lg"
-          />
-        </div>
-      )}
+      render={({ field }) => {
+        let value: string | boolean = field.value ?? '';
+
+        //If value is boolean (for checkbox or other boolean fields), make it a string
+        if (typeof value === 'boolean') {
+          value = value ? 'true' : 'false';
+        }
+
+        return (
+          <div className="flex flex-col">
+            <TextInput
+              {...field}
+              value={value}
+              placeholder={placeholder}
+              type={type}
+              error={!!errors[name as keyof FormValues]}
+              disabled={loading}
+              aria-invalid={!!errors[name as keyof FormValues]}
+              onChange={(value: string | number) => {
+                field.onChange(value);
+                handleChange();
+              }}
+              className="rounded-lg"
+            />
+          </div>
+        );
+      }}
     />
   );
 

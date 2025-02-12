@@ -51,7 +51,7 @@ const ModalDriver: React.FC<ModalDriverProps> = ({ userSession }) => {
     }
   }, [preOrderModalType, closeFirstModal, isModalOpen]);
 
-  // console.log('ModalDriver re-rendered:', { userSession, notifications });
+  //console.log('ModalDriver re-rendered:', { userSession, notifications });
 
   if (isLoading) {
     return null;
@@ -102,7 +102,7 @@ const ModalDriver: React.FC<ModalDriverProps> = ({ userSession }) => {
               padding: '20px',
               border: '1px solid #ccc',
               borderRadius: '8px',
-              zIndex: 1001, //Чтобы перекрывала первую модалку
+              zIndex: 1001,
               boxShadow: '0 2px 10px rgba(0, 0, 0, 0.3)',
             }}
           >

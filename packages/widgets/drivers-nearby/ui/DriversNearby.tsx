@@ -12,8 +12,8 @@ import { useFormContext } from 'react-hook-form';
 
 interface DriversNearbyProps {
   drivers: User[] | null;
-  page: number;
-  perPage: number;
+  page?: number;
+  perPage?: number;
   currentTotal: number;
   isDriversLoading: boolean;
   searchDriver: string;
@@ -26,8 +26,8 @@ interface DriversNearbyProps {
 
 const DriversNearby: React.FC<DriversNearbyProps> = ({
   drivers,
-  page,
-  perPage,
+  page = 1,
+  perPage = 10,
   currentTotal,
   isDriversLoading,
   searchDriver,
@@ -67,13 +67,10 @@ const DriversNearby: React.FC<DriversNearbyProps> = ({
           placeholder="Поиск по ФИО"
           value={searchDriver}
           onChange={(value: string | number) => {
-            //Явно указываем тип аргумента
-            //Предполагаем, что value - это строка (поиск по ФИО)
             if (typeof value === 'string') {
               handleSearchDriverChange(value);
             } else {
-              //Обработка случая, когда value - число (если это возможно)
-              console.warn('TextInput returned a number value.  Unexpected for search by name.');
+              console.warn('TextInput returned a number value. Unexpected for search by name.');
             }
           }}
         />
@@ -84,10 +81,9 @@ const DriversNearby: React.FC<DriversNearbyProps> = ({
             <div className="w-full overflow-x-auto">
               <table className="w-full border-collapse rounded-md bg-white border-[#0000001A]">
                 <tbody>
-                  {drivers?.map((driver) => {
+                  {drivers.map((driver) => {
                     const isSelected = selectedDriverInfo?.uuid === driver.uuid;
 
-                    //Преобразуем serverTime в ISO строку или используем текущее время в качестве значения по умолчанию
                     const serverTimeISO = serverTime
                       ? serverTime instanceof Date
                         ? serverTime.toISOString()
@@ -102,9 +98,7 @@ const DriversNearby: React.FC<DriversNearbyProps> = ({
                         className={`relative flex p-4 gap-4 cursor-pointer border-b border-[#0000001A] hover:bg-gray-100 last:border-b-0 w-full ${
                           isSelected ? 'bg-blue-100' : ''
                         }`}
-                        onClick={() => {
-                          handleDriverRowClick(driver.uuid);
-                        }}
+                        onClick={() => handleDriverRowClick(driver.uuid)}
                       >
                         <td className="flex justify-center">
                           <div className="relative w-[50px] h-[50px]">
@@ -166,7 +160,7 @@ const DriversNearby: React.FC<DriversNearbyProps> = ({
           pageNumber={page}
           pageSize={perPage}
           totalCount={currentTotal}
-          setPageNumber={handlePageChange}
+          setPageNumber={(newPage) => handlePageChange(Number(newPage))}
         />
       )}
     </>

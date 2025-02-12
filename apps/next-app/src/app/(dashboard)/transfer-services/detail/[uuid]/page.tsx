@@ -11,7 +11,7 @@ interface PageProps {
   params: Promise<{ uuid: string }>;
 }
 
-export const revalidate = 60;
+export const revalidate = 10;
 
 const Page: React.FC<PageProps> = async ({ params }) => {
   try {
@@ -42,6 +42,7 @@ const Page: React.FC<PageProps> = async ({ params }) => {
           plateNumber: true,
           isAvailable: true,
           photoPath: true,
+          photoRegistrationCertificate: true,
           serviceLevels: true,
           createdAt: true,
           updatedAt: true,
@@ -77,6 +78,8 @@ const Page: React.FC<PageProps> = async ({ params }) => {
       //Форматирование данных для компонента
       const detailVehicleData = {
         ...vehicle,
+        //Если поле отсутствует, установим значение null
+        photoRegistrationCertificate: vehicle.photoRegistrationCertificate || null,
         drivers: vehicle.vehicleDrivers.map((vd) => ({
           assignmentUuid: vd.uuid,
           assignmentDate: vd.assignmentDate,
@@ -86,6 +89,7 @@ const Page: React.FC<PageProps> = async ({ params }) => {
           status: vd.driver.driverProfile?.status,
         })),
       };
+
       return <VehiclesDetail data={detailVehicleData} />;
     } else {
       redirect(publicRoutes.LOGIN);
@@ -97,4 +101,3 @@ const Page: React.FC<PageProps> = async ({ params }) => {
 };
 
 export default Page;
- 

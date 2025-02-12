@@ -88,7 +88,7 @@ const OrderCreateWidget: React.FC<OrderCreateWidgetProps> = ({
     handleUpdatePrice();
   };
 
-  const handlePriceChange = (value: string) => {
+  const handlePriceChange = (value: string | number) => {
     const newPrice = Number(value);
     setEditedPrice(newPrice);
     setValue('basePrice', newPrice);

@@ -1,20 +1,20 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@shared/prisma/prisma-client';
-import { DriverAcceptanceStatus, OrderStatus } from '@prisma/client'; //Обновляем для импорта обоих типов
+import { DriverAcceptanceStatus, OrderStatus } from '@prisma/client';
 
 interface Params {
   uuid?: string;
 }
 
-export async function PATCH(request: Request, { params }: { params: Params }) {
-  const { uuid } = params;
+export async function PATCH(request: Request, { params }: { params: Promise<Params> }) {
+  const resolvedParams = await params;
+  const { uuid } = resolvedParams;
   const { status, orderStatus, isRead } = await request.json();
 
-  if (!uuid || typeof uuid !== 'string') {
+  if (!uuid) {
     return NextResponse.json({ message: 'Не указан uuid' }, { status: 400 });
   }
 
-  //Проверка на допустимость статуса для заказа
   if (
     !status ||
     !Object.values(DriverAcceptanceStatus).includes(status as DriverAcceptanceStatus)
@@ -25,14 +25,13 @@ export async function PATCH(request: Request, { params }: { params: Params }) {
     );
   }
 
-  //orderStatus теперь не обязательный. Если его нет, заказ не меняется.
   if (orderStatus && !Object.values(OrderStatus).includes(orderStatus as OrderStatus)) {
     return NextResponse.json({ message: 'Недопустимый статус OrderStatus' }, { status: 400 });
   }
 
   try {
     const notification = await prisma.driverOrderNotification.findUnique({
-      where: { uuid: uuid },
+      where: { uuid },
       include: { order: true },
     });
 
@@ -40,14 +39,12 @@ export async function PATCH(request: Request, { params }: { params: Params }) {
       return NextResponse.json({ message: 'Notification Not Found' }, { status: 404 });
     }
 
-    //Используем транзакцию
     const result = await prisma.$transaction(async (tx) => {
-      //Обновляем заказ
-      //Проверяем, нужно ли обновлять статус заказа
+      //Если указан orderStatus, обновляем заказ
       if (orderStatus) {
         const orderUpdateData = {
-          status: orderStatus as OrderStatus, //Обновляем статус заказа
-          driverAcceptanceStatus: status as DriverAcceptanceStatus, //Обновляем статус принятия водителем
+          status: orderStatus as OrderStatus,
+          driverAcceptanceStatus: status as DriverAcceptanceStatus,
         };
 
         try {
@@ -55,49 +52,60 @@ export async function PATCH(request: Request, { params }: { params: Params }) {
             where: { uuid: notification.orderId },
             data: orderUpdateData,
           });
-        } catch (orderUpdateError) {
-          console.error('Ошибка при обновлении заказа:', orderUpdateError);
-          throw new Error('Ошибка при обновлении заказа'); //Важно пробрасывать ошибку, чтобы отменить транзакцию
+        } catch (orderUpdateError: unknown) {
+          if (orderUpdateError instanceof Error) {
+            console.error('Ошибка при обновлении заказа:', orderUpdateError);
+          } else {
+            console.error('Ошибка при обновлении заказа:', orderUpdateError);
+          }
+          throw new Error('Ошибка при обновлении заказа');
         }
       }
 
-      //Обновляем статус уведомления ИЛИ удаляем его, если COMPLETED ИЛИ CANCELLED
+      //Если статус COMPLETED или CANCELED — удаляем уведомление
       if (
-        status === DriverAcceptanceStatus.COMPLETED || //Проверка на DriverAcceptanceStatus
-        status === DriverAcceptanceStatus.CANCELED //Проверка на DriverAcceptanceStatus
+        status === DriverAcceptanceStatus.COMPLETED ||
+        status === DriverAcceptanceStatus.CANCELED
       ) {
         console.log(`Попытка удалить уведомление с UUID: ${uuid}`);
         try {
-          await tx.driverOrderNotification.delete({
-            where: { uuid: uuid },
-          });
+          await tx.driverOrderNotification.delete({ where: { uuid } });
           console.log(`Уведомление ${uuid} успешно удалено`);
           return { message: 'Уведомление успешно удалено' };
-        } catch (deleteError) {
-          console.error(`Ошибка при удалении уведомления ${uuid}:`, deleteError);
-          throw new Error('Ошибка при удалении уведомления'); //Важно пробрасывать ошибку
+        } catch (deleteError: unknown) {
+          if (deleteError instanceof Error) {
+            console.error(`Ошибка при удалении уведомления ${uuid}:`, deleteError);
+          } else {
+            console.error(`Ошибка при удалении уведомления ${uuid}:`, deleteError);
+          }
+          throw new Error('Ошибка при удалении уведомления');
         }
       } else {
-        //Обновляем isRead и статус уведомления
-        const updatedNotification = await tx.driverOrderNotification.update({
-          where: { uuid: uuid },
+        //Иначе сразу возвращаем результат обновления уведомления
+        return await tx.driverOrderNotification.update({
+          where: { uuid },
           data: {
-            status: orderStatus as OrderStatus, //Оставляем статус как OrderStatus для уведомления
-            isRead: isRead !== undefined ? isRead : false, //Явно устанавливаем false, если не передано
+            status: orderStatus as OrderStatus,
+            isRead: isRead !== undefined ? isRead : false,
           },
         });
-
-        return updatedNotification;
       }
     });
 
     return NextResponse.json(result);
-  } catch (error: any) {
-    //Правильно типизируем ошибку
-    console.error('Ошибка при обновлении статуса уведомления:', error);
-    return NextResponse.json(
-      { message: error.message || 'Ошибка при обновлении статуса уведомления' },
-      { status: 500 },
-    );
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      console.error('Ошибка при обновлении статуса уведомления:', error);
+      return NextResponse.json(
+        { message: error.message || 'Ошибка при обновлении статуса уведомления' },
+        { status: 500 },
+      );
+    } else {
+      console.error('Ошибка при обновлении статуса уведомления:', error);
+      return NextResponse.json(
+        { message: 'Ошибка при обновлении статуса уведомления' },
+        { status: 500 },
+      );
+    }
   }
 }

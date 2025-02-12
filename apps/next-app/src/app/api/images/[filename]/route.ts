@@ -1,4 +1,3 @@
-//app/api/images/[filename]/route.ts
 import { NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
@@ -11,9 +10,9 @@ interface SearchParams {
   type: 'client' | 'client-corp' | 'logos';
 }
 
-export async function GET(request: Request, { params }: { params: Params }) {
+export async function GET(request: Request, { params }: { params: Promise<Params> }) {
   try {
-    const { filename } = params;
+    const { filename } = await params;
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type') as SearchParams['type'] | null;
 

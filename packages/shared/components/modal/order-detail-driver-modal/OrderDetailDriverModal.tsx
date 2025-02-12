@@ -1,5 +1,3 @@
-//@shared/components/modal/order-detail-driver-modal/OrderDetailDriverModal.tsx
-
 import React, { useEffect, useState } from 'react';
 import { useUnit } from 'effector-react';
 import { $orderUuid, closeModal } from '@shared/lib/effector';
@@ -12,6 +10,16 @@ import { LazyImage } from '@shared/components/ui/images';
 import { orderStatusOptions } from '@shared/lib/effector/orders/options-and-translation/optionsStatusOrder';
 import OrderDetailDriverModalSkeleton from '@shared/components/modal/order-detail-driver-modal/OrderDetailDriverModalSkeleton';
 
+interface TariffOnService {
+  name: string;
+  price: number;
+}
+
+interface OrderTariffAdditionalService {
+  uuid: string;
+  tariffOnService?: TariffOnService;
+}
+
 const OrderDetailDriverModal = () => {
   const orderUuid = useUnit($orderUuid);
   const [orderData, setOrderData] = useState<any>(null);
@@ -23,7 +31,7 @@ const OrderDetailDriverModal = () => {
       if (orderUuid) {
         setLoading(true);
         try {
-          const response = await fetch(`/api/drivers/orders/${orderUuid}`); //Обновленный URL
+          const response = await fetch(`/api/drivers/orders/${orderUuid}`);
           if (!response.ok) {
             throw new Error(`Failed to fetch order details: ${response.status}`);
           }
@@ -212,12 +220,14 @@ const OrderDetailDriverModal = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {orderData.orderTariffAdditionalServices.map((service) => (
-                    <tr key={service.uuid} className="border-b border-gray-200">
-                      <td className="py-2 px-4">{service.tariffOnService?.name || 'N/A'}</td>
-                      <td className="py-2 px-4">{service.tariffOnService?.price || 0} сом</td>
-                    </tr>
-                  ))}
+                  {orderData.orderTariffAdditionalServices.map(
+                    (service: OrderTariffAdditionalService) => (
+                      <tr key={service.uuid} className="border-b border-gray-200">
+                        <td className="py-2 px-4">{service.tariffOnService?.name || 'N/A'}</td>
+                        <td className="py-2 px-4">{service.tariffOnService?.price || 0} сом</td>
+                      </tr>
+                    ),
+                  )}
                 </tbody>
               </table>
             ) : (

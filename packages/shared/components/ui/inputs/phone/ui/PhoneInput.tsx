@@ -58,14 +58,27 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({
     onChange(newCountry.dialCode);
   };
 
-  const handleNumberChange = (val: string) => {
-    const inputNumber = val.replace(/\D/g, '');
-    const limitedNumber = inputNumber.slice(0, selectedCountry.maxLength);
-    setLocalNumber(limitedNumber);
-    if (limitedNumber) {
-      onChange(selectedCountry.dialCode + limitedNumber);
+  const handleNumberChange = (val: string | number) => {
+    //Accept string | number
+    if (typeof val === 'string') {
+      const inputNumber = val.replace(/\D/g, '');
+      const limitedNumber = inputNumber.slice(0, selectedCountry.maxLength);
+      setLocalNumber(limitedNumber);
+      if (limitedNumber) {
+        onChange(selectedCountry.dialCode + limitedNumber);
+      } else {
+        onChange('');
+      }
     } else {
-      onChange('');
+      //Handle Number
+      const inputNumber = String(val).replace(/\D/g, '');
+      const limitedNumber = inputNumber.slice(0, selectedCountry.maxLength);
+      setLocalNumber(limitedNumber);
+      if (limitedNumber) {
+        onChange(selectedCountry.dialCode + limitedNumber);
+      } else {
+        onChange('');
+      }
     }
   };
 

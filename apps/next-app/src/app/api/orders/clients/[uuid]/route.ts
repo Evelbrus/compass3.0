@@ -4,14 +4,12 @@ import { prisma } from '@shared/prisma/prisma-client';
 
 const log = debug('app:api:orders:clients:[uuid]');
 
-export async function GET(req: Request, { params }: { params: { uuid: string } }) {
-  const uuid = params.uuid;
+export async function GET(req: Request, { params }: { params: Promise<{ uuid: string }> }) {
+  const { uuid } = await params;
 
   try {
     const user = await prisma.user.findUnique({
-      where: {
-        uuid,
-      },
+      where: { uuid },
       select: {
         uuid: true,
         fullName: true,

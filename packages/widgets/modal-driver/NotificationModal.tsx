@@ -6,7 +6,7 @@ interface NotificationModalProps {
   notification: DriverNotification;
   closeModal: () => void;
   markAsRead: (notificationId: string) => Promise<void>;
-  //acceptOrder: (notificationId: string, orderId: string) => Promise<void>;
+  acceptOrder: (notificationId: string, orderId: string) => Promise<void>;
 }
 
 export const NotificationModal: React.FC<NotificationModalProps> = ({

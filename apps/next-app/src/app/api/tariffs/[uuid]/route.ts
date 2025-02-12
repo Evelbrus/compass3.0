@@ -4,36 +4,38 @@ import { EditTariffData } from '@shared/prisma/interface/tariff/interface';
 import { prisma } from '@shared/prisma/prisma-client';
 import { v4 as uuidv4 } from 'uuid';
 
-const log = debug('app:vehicles');
+const log = debug('app:tariffs:uuid');
 
-//Интерфейс для параметров запроса
+// Интерфейс для параметров запроса
 interface Params {
   uuid: string;
 }
-export async function PUT(req: NextRequest, { params }: { params: Params }) {
-  const data = await req.json();
-  const { uuid } = params;
-  const updateData: EditTariffData = data;
 
-  if (!uuid) {
-    return NextResponse.json({ error: 'Missing required parameter: uuid' }, { status: 400 });
-  }
-
-  const {
-    name,
-    vehicleType,
-    description,
-    price,
-    additionalPointPrice,
-    freeWaitTimeBishkek,
-    pricePerMinuteAfterBishkek,
-    freeWaitTimeAirport,
-    pricePerMinuteAfterAirport,
-    serviceLevel,
-    tariffAdditionalServices,
-  } = data;
-
+export async function PUT(req: NextRequest, { params }: { params: Promise<Params> }) {
   try {
+    // Await params to resolve the Promise
+    const { uuid } = await params;
+    const data = await req.json();
+    const updateData: EditTariffData = data;
+
+    if (!uuid) {
+      return NextResponse.json({ error: 'Missing required parameter: uuid' }, { status: 400 });
+    }
+
+    const {
+      name,
+      vehicleType,
+      description,
+      price,
+      additionalPointPrice,
+      freeWaitTimeBishkek,
+      pricePerMinuteAfterBishkek,
+      freeWaitTimeAirport,
+      pricePerMinuteAfterAirport,
+      serviceLevel,
+      tariffAdditionalServices,
+    } = data;
+
     // Используем транзакцию для обновления тарифа и связанных записей
     const result = await prisma.$transaction(async (prisma) => {
       // Обновляем тариф

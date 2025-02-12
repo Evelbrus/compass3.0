@@ -9,9 +9,8 @@ interface Params {
 }
 
 //GET: Получение заказа по UUID
-export async function GET(req: Request, { params }: { params: Params }) {
-  const { uuid } = params;
-
+export async function GET(req: Request, { params }: { params: Promise<Params> }) {
+  const { uuid } = await params;
   log(`Fetching order with UUID: ${uuid}`);
 
   try {

@@ -1,6 +1,6 @@
 //src/shared/hooks/useModalManager.ts
 import { useState, useCallback } from 'react';
-import { OrderStatus } from '@prisma/client';
+import { DriverAcceptanceStatus, OrderStatus } from '@prisma/client';
 
 export enum ModalType {
   NONE = 'NONE',
@@ -16,7 +16,7 @@ export interface DriverNotification {
   message: string;
   isRead: boolean;
   createdAt: string;
-  status: OrderStatus;
+  status: DriverAcceptanceStatus;
 }
 
 interface UseModalManager {

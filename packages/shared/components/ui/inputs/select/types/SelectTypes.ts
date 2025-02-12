@@ -1,3 +1,4 @@
+//types/SelectTypes.ts (No changes)
 import React, { JSX } from 'react';
 import { SelectOption } from '@shared/lib/effector';
 

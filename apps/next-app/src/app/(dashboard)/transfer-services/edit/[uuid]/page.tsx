@@ -9,15 +9,18 @@ import { redirect } from 'next/navigation';
 import { publicRoutes } from '@shared/utils/routing';
 
 interface PageProps {
-  params: { uuid: string };
+  params: Promise<{ uuid: string }>;
 }
 
 export const revalidate = 60;
 
 const Page = async ({ params }: PageProps): Promise<JSX.Element> => {
   const { role, refreshToken } = await getLayoutData();
+
+  //Ждем разрешения промиса params
   const resolvedParams = await params;
-  const { uuid } = await resolvedParams;
+  //Деструктуризация без лишнего await
+  const { uuid } = resolvedParams;
 
   if (refreshToken) {
     if (role === UserRole.Admin || role === UserRole.Operator) {

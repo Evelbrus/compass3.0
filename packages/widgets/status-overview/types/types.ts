@@ -5,9 +5,9 @@ export interface StatusItem {
   color: string;
 }
 
-export interface StatusOverviewProps {
-  selectedStatus: string | null;
+export interface StatusOverviewProps<T = string> {
+  selectedStatus: T | null;
   statusCounts: Record<string, number>;
-  onSelectStatus: (status: string) => void;
+  onSelectStatus: (status: T) => void;
   statusOverview: StatusItem[];
 }

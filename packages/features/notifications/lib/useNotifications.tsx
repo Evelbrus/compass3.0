@@ -45,7 +45,11 @@ export const useNotifications = (userId?: string) => {
         setNotifications(data);
       } catch (err) {
         console.error('Ошибка при получении уведомлений:', err);
-        setError(err.message || 'Не удалось получить уведомления');
+        if (err instanceof Error) {
+          setError(err.message || 'Не удалось получить уведомления');
+        } else {
+          setError('Не удалось получить уведомления');
+        }
         setNotifications([]);
       } finally {
         setIsLoading(false);
@@ -98,7 +102,11 @@ export const useNotifications = (userId?: string) => {
       setNotifications([]);
     } catch (err) {
       console.error('Ошибка при очистке уведомлений:', err);
-      setError(err.message || 'Не удалось очистить уведомления');
+      if (err instanceof Error) {
+        setError(err.message || 'Не удалось очистить уведомления');
+      } else {
+        setError('Не удалось очистить уведомления');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -127,7 +135,11 @@ export const useNotifications = (userId?: string) => {
       );
     } catch (err) {
       console.error('Ошибка при пометке уведомления как прочитанного:', err);
-      setError(err.message || 'Не удалось пометить уведомление как прочитанное');
+      if (err instanceof Error) {
+        setError(err.message || 'Не удалось пометить уведомление как прочитанное');
+      } else {
+        setError('Не удалось пометить уведомление как прочитанное');
+      }
     }
   }, []);
 
@@ -148,7 +160,11 @@ export const useNotifications = (userId?: string) => {
       );
     } catch (err) {
       console.error('Ошибка при удалении уведомления:', err);
-      setError(err.message || 'Не удалось удалить уведомление');
+      if (err instanceof Error) {
+        setError(err.message || 'Не удалось удалить уведомление');
+      } else {
+        setError('Не удалось удалить уведомление');
+      }
     }
   }, []);
 

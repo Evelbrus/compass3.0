@@ -135,12 +135,19 @@ export const renderOrdersActions = (
   navigate?: (path: string) => void,
 ) => (
   <div className="flex">
-    <div
-      className="p-2 hover:bg-blue-100 rounded-full flex justify-center items-center cursor-pointer transition-colors duration-300"
-      onClick={() => handleOrderDriverDetail(entity, uuid)}
-    >
-      <Icon name="view" alt="Редактировать" className="w-6 h-6 text-blue-500 hover:text-blue-700" />
-    </div>
+    {/*Only show the driver detail button if entity is 'orders' */}
+    {entity === 'orders' && (
+      <div
+        className="p-2 hover:bg-blue-100 rounded-full flex justify-center items-center cursor-pointer transition-colors duration-300"
+        onClick={() => handleOrderDriverDetail(entity, uuid)}
+      >
+        <Icon
+          name="view"
+          alt="Редактировать"
+          className="w-6 h-6 text-blue-500 hover:text-blue-700"
+        />
+      </div>
+    )}
     <div
       className="p-2 hover:bg-blue-100 rounded-full flex justify-center items-center cursor-pointer transition-colors duration-300"
       onClick={() => handleEdit(entity, uuid, navigate)}

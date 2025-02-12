@@ -1,3 +1,4 @@
+//(No changes needed in this file)
 'use client';
 
 import React, { JSX, useEffect, useTransition, useCallback, useState } from 'react';
@@ -84,9 +85,9 @@ const VehiclesDriverPage = (): JSX.Element => {
     [setSortBy, setSortOrder],
   );
 
-  const handleFilterChange = (status: VehicleType) => {
+  const handleFilterChange = (status: string) => {
     startTransition(() => {
-      setVehicleTypeFilter(status);
+      setVehicleTypeFilter(status as VehicleType);
       setPage(1);
     });
   };

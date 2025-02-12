@@ -57,12 +57,19 @@ export const useVehiclesData = () => {
         setVehicleTypeCounts(vehicleTypeCountsData);
         setError(null);
       } catch (error) {
-        if (error.name === 'AbortError') {
-          console.log('Запрос прерван');
-          return;
+        //Use instanceof to check if it's an Error object
+        if (error instanceof Error) {
+          if (error.name === 'AbortError') {
+            console.log('Запрос прерван');
+            return;
+          }
+          console.error('Ошибка загрузки:', error);
+          setError(error.message);
+        } else {
+          //Handle non-Error objects
+          console.error('An unexpected error occurred:', error);
+          setError('An unexpected error occurred.');
         }
-        console.error('Ошибка загрузки:', error);
-        setError(error instanceof Error ? error.message : 'Проблемы с соединением');
       } finally {
         setLoading(false);
         setIsUpdating(false);

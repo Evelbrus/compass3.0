@@ -35,19 +35,18 @@ export const CurrencyInput: React.FC<CurrencyInputProps> = ({
           <Select
             options={availableCurrencies.map((currency) => ({
               value: currency.code,
-              label: currency.name || currency.code, // Генерация label
+              label: currency.name || currency.code,
             }))}
             label=""
             value={{
               value: selectedCurrency.code,
-              label: selectedCurrency.name || selectedCurrency.code, // Генерация label для текущего значения
+              label: selectedCurrency.name || selectedCurrency.code,
             }}
             onChange={(option) => {
               if (option) {
-                // Проверка наличия label
                 const safeOption = {
                   ...option,
-                  label: option.label || option.value, // Подстановка значения по умолчанию
+                  label: option.label || option.value,
                 };
 
                 handleCurrencyChange(

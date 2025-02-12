@@ -3,62 +3,24 @@ import debug from 'debug';
 import { EditVehicleData } from '@shared/prisma/interface/vehicles/interface';
 import { prisma } from '@shared/prisma/prisma-client';
 
-const log = debug('app:vehicles');
+const log = debug('app:vehicles:uuid');
 
 //Интерфейс для параметров запроса
 interface Params {
   uuid: string;
 }
 
-export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
-  const uuid = searchParams.get('uuid');
-
-  //Валидация входного параметра
-  if (!uuid) {
-    return NextResponse.json({ error: 'Missing required parameter: uuid' }, { status: 400 });
-  }
-
+export async function PUT(req: NextRequest, { params }: { params: Promise<Params> }) {
   try {
-    //Получение данных автомобиля по UUID
-    const vehicle = await prisma.vehicle.findUnique({
-      where: { uuid },
-      include: {
-        vehicleDrivers: {
-          include: {
-            driver: true,
-          },
-        },
-      },
-    });
+    //Await params to resolve the Promise
+    const { uuid } = await params;
+    const data = await req.json();
+    const updateData: EditVehicleData = data;
 
-    //Проверка, найден ли автомобиль
-    if (!vehicle) {
-      return NextResponse.json({ error: 'Vehicle not found' }, { status: 404 });
+    if (!uuid) {
+      return NextResponse.json({ error: 'Missing required parameter: uuid' }, { status: 400 });
     }
 
-    log('Fetched vehicle:', vehicle);
-    return NextResponse.json(vehicle, { status: 200 });
-  } catch (error) {
-    log('Error fetching vehicle:', error);
-    if (error instanceof Error) {
-      log('Error message:', error.message);
-      log('Error stack:', error.stack);
-    }
-    return NextResponse.json({ error: 'Unable to fetch vehicle' }, { status: 500 });
-  }
-}
-
-export async function PUT(req: NextRequest, { params }: { params: Params }) {
-  const data = await req.json();
-  const { uuid } = params;
-  const updateData: EditVehicleData = data;
-
-  if (!uuid) {
-    return NextResponse.json({ error: 'Missing required parameter: uuid' }, { status: 400 });
-  }
-
-  try {
     const result = await prisma.$transaction(async (prisma) => {
       const existingVehicle = await prisma.vehicle.findFirst({
         where: {
@@ -166,32 +128,5 @@ export async function PUT(req: NextRequest, { params }: { params: Params }) {
       );
     }
     return NextResponse.json({ error: 'Unable to update vehicle' }, { status: 500 });
-  }
-}
-
-export async function DELETE(req: Request) {
-  const { searchParams } = new URL(req.url);
-  const uuid = searchParams.get('uuid');
-
-  //Валидация входного параметра
-  if (!uuid) {
-    return NextResponse.json({ error: 'Missing required parameter: uuid' }, { status: 400 });
-  }
-
-  try {
-    //Удаление автомобиля по UUID
-    await prisma.vehicle.delete({
-      where: { uuid },
-    });
-
-    log('Deleted vehicle with uuid:', uuid);
-    return NextResponse.json({ message: 'Vehicle deleted successfully' }, { status: 200 });
-  } catch (error) {
-    log('Error deleting vehicle:', error);
-    if (error instanceof Error) {
-      log('Error message:', error.message);
-      log('Error stack:', error.stack);
-    }
-    return NextResponse.json({ error: 'Unable to delete vehicle' }, { status: 500 });
   }
 }

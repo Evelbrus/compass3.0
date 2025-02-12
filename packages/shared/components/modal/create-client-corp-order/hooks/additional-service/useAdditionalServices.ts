@@ -19,9 +19,14 @@ const useAdditionalServices = (selectedTariff: ExtendedTariff | null) => {
       try {
         const services = await fetchAdditionalServices();
         setAllServices(services);
-      } catch (err) {
+      } catch (err: unknown) {
         console.error('Failed to fetch additional services:', err);
-        setError(err.message || 'Не удалось загрузить дополнительные услуги');
+        //Проверяем, является ли err экземпляром Error
+        if (err instanceof Error) {
+          setError(err.message || 'Не удалось загрузить дополнительные услуги');
+        } else {
+          setError('Не удалось загрузить дополнительные услуги');
+        }
       } finally {
         setLoading(false);
       }

@@ -14,6 +14,7 @@ import AdditionalServices from '@widgets/orders/additional-services/AdditionalSe
 import WaitingTimeControl from '@widgets/orders/waiting-time-control/WaitingTimeControl';
 import HeaderOrder from '@widgets/orders/header-order/HeaderOrder';
 import CalendarOrder from '@widgets/orders/calendar-order/CalendarOrder';
+import { CreateOrderData } from '@shared/prisma/interface/orders/interface';
 
 interface OrderCreateViewProps {
   uuid?: string;
@@ -32,7 +33,14 @@ const OrderCreateView: React.FC<OrderCreateViewProps> = ({ uuid }) => {
               <MapDriver {...formMethods} />
             </div>
             <div className="flex-1 flex-shrink-0 basis-[calc(35%-1.5rem)] h-auto flex flex-col justify-between gap-4">
-              <DriversNearby {...formMethods} />
+              <DriversNearby
+                {...formMethods}
+                page={formMethods.page ? Number(formMethods.page) : 1}
+                perPage={formMethods.perPage ? Number(formMethods.perPage) : 10}
+                handlePageChange={(newPage: number) =>
+                  formMethods.setValue('page' as keyof CreateOrderData, newPage)
+                }
+              />
             </div>
           </div>
           <div className={'flex flex-row gap-4'}>

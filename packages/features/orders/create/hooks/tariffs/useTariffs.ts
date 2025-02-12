@@ -23,11 +23,17 @@ export const useTariffs = ({
 
   const updateTariffs = useCallback(async (): Promise<ExtendedTariff[]> => {
     try {
-      const tariffsData = await fetchTariffs(selectedServiceLevel, selectedVehicleType);
+      const tariffsData = await fetchTariffs(
+        selectedServiceLevel,
+        selectedVehicleType ?? undefined,
+      );
       setTariffs(tariffsData);
       return tariffsData;
     } catch (error) {
-      setErrorMessage(error, 'Error fetching tariffs');
+      setErrorMessage(
+        error instanceof Error ? error : new Error(String(error)),
+        'Error fetching tariffs',
+      );
       return [];
     }
   }, [setErrorMessage, selectedServiceLevel, selectedVehicleType]);

@@ -46,12 +46,13 @@ const ClientsCreateAdminPage = ({ role }: ClientsCreateAdminPageProps): JSX.Elem
 
       showToast.success('Пользователь успешно создан!');
       console.log('Пользователь создан:', userData);
-
-      return userUuid; //Возвращаем UUID при успехе
+      router.push(`/detail/{userUuid}`);
+      return userUuid;
     } catch (error) {
-      showToast.error(`Не удалось создать пользователя: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      showToast.error(`Не удалось создать пользователя: ${errorMessage}`);
       console.error('Ошибка создания пользователя:', error);
-      return null; //Возвращаем null при ошибке
+      return null;
     }
   };
 

@@ -311,8 +311,8 @@ const CreateClientCorpOrder: React.FC<CreateClientCorpOrderProps> = ({ onClose }
                   basePrice: new Decimal(point.basePrice),
                 }))}
                 loading={additionalLoading}
-                onSelectPoint={(point: Point, index: number) =>
-                  handleAdditionalSelectPoint(point, index)
+                onSelectPoint={(point: Point, index?: number) =>
+                  handleAdditionalSelectPoint(point, index ?? 0)
                 }
                 selectorRef={additionalSelectorRef}
                 observerRef={additionalObserverRef}

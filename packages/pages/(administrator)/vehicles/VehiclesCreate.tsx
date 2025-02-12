@@ -26,6 +26,7 @@ interface FormData extends Omit<CreateVehicleData, 'serviceLevels' | 'driverIds'
   serviceLevels: ServiceLevels | undefined;
   driverIds: string[];
   year: Date | null;
+  photoRegistrationCertificate: string | null;
 }
 
 const VehiclesCreate: React.FC = () => {
@@ -41,6 +42,7 @@ const VehiclesCreate: React.FC = () => {
       driverIds: [],
       serviceLevels: undefined,
       photoPath: '',
+      photoRegistrationCertificate: '',
     },
   });
   const { control, handleSubmit } = methods;
@@ -74,6 +76,7 @@ const VehiclesCreate: React.FC = () => {
       photoPath: formData.photoPath,
       serviceLevels: formData.serviceLevels as ServiceLevels,
       driverIds: formData.driverIds,
+      photoRegistrationCertificate: formData.photoRegistrationCertificate,
     };
 
     try {
@@ -121,6 +124,8 @@ const VehiclesCreate: React.FC = () => {
             onSubmit={handleSubmit(onSubmit)}
             className="bg-white p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 md:grid-cols-2 gap-4 rounded-lg shadow-md border border-gray-200"
           >
+            {/*... other form fields ... */}
+
             {/*Vehicle Type */}
             <div className="form-group">
               <Controller
@@ -315,12 +320,6 @@ const VehiclesCreate: React.FC = () => {
               />
             </div>
 
-            <IButton
-              type="submit"
-              className="bg-[#2A3037] rounded-[8px] font-inter font-normal text-[17px] leading-[20.57px] p-[10px] text-white h-fit mt-[22px]"
-            >
-              Создать автомобиль
-            </IButton>
             {/*Photo Upload */}
             <div className=" flex items-start justify-center">
               <Controller
@@ -337,6 +336,30 @@ const VehiclesCreate: React.FC = () => {
                 )}
               />
             </div>
+
+            {/*Photo Registration Certificate Upload */}
+            <div className="flex items-start justify-center">
+              <Controller
+                name="photoRegistrationCertificate"
+                control={control}
+                render={({ field, fieldState }) => (
+                  <ImageUpload
+                    {...field}
+                    value={field.value ?? ''}
+                    label="Vehicle Registration Certificate Photo"
+                    error={!!fieldState.error}
+                    message={fieldState.error?.message || ''}
+                  />
+                )}
+              />
+            </div>
+
+            <IButton
+              type="submit"
+              className="bg-[#2A3037] rounded-[8px] font-inter font-normal text-[17px] leading-[20.57px] p-[10px] text-white h-fit mt-[22px]"
+            >
+              Создать автомобиль
+            </IButton>
           </form>
         </div>
         {message && (

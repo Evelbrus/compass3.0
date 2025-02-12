@@ -1,3 +1,4 @@
+//../../packages/widgets/filter-tariff/FilterTariff.tsx
 import React, { useCallback, useEffect } from 'react';
 import { ExtendedTariff } from '@shared/prisma/interface/orders/interface';
 import { useFormContext, Controller } from 'react-hook-form';
@@ -31,7 +32,7 @@ const FilterTariff: React.FC<FilterTariffProps> = ({
   handleServiceLevelChange,
   handleTariffSelect,
 }) => {
-  const { formState, setValue, control, watch } = useFormContext<OrderData>();
+  const { formState, setValue, control } = useFormContext<OrderData>();
   const [combinedErrorMessage, setCombinedErrorMessage] = React.useState('');
 
   //Получаем значения из effector store
@@ -54,7 +55,7 @@ const FilterTariff: React.FC<FilterTariffProps> = ({
 
   const getAvailableServiceLevels = useCallback(() => {
     if (!selectedVehicleType) {
-      return serviceLevels; //Использовать отфильтрованный serviceLevels
+      return serviceLevels;
     }
     return tariffs
       .filter((tariff) => tariff.vehicleType === selectedVehicleType)
@@ -70,16 +71,21 @@ const FilterTariff: React.FC<FilterTariffProps> = ({
 
   const handleVehicleTypeChangeWithReset = useCallback(
     (value: VehicleType | null) => {
-      handleVehicleTypeChange(value); //Сообщаем об изменении родительскому компоненту
-      setValue('tariff.serviceLevel', null);
+      handleVehicleTypeChange(value);
+
+      //Убедитесь, что serviceLevels не пустой
+      if (serviceLevels.length > 0) {
+        setValue('tariff.serviceLevel', serviceLevels[0]);
+      }
+
       setValue('tariffUuid', '');
     },
-    [handleVehicleTypeChange, setValue],
+    [handleVehicleTypeChange, setValue, serviceLevels],
   );
 
   const handleServiceLevelChangeWithReset = useCallback(
     (value: ServiceLevels | null) => {
-      handleServiceLevelChange(value); //Сообщаем об изменении родительскому компоненту
+      handleServiceLevelChange(value);
       setValue('tariffUuid', '');
     },
     [handleServiceLevelChange, setValue],
@@ -115,24 +121,20 @@ const FilterTariff: React.FC<FilterTariffProps> = ({
             rules={{ required: 'Выберите тип транспортного средства' }}
             render={({ field }) => (
               <>
-                {vehicleTypes.map(
-                  (
-                    vt, //Используем отфильтрованный vehicleTypes
-                  ) => (
-                    <div key={vt} className="px-7 py-4 text-4 leading-4 text-[#989898] font-light">
-                      <CheckboxInput
-                        label={vt}
-                        checked={selectedVehicleType === vt} //Используем effector store для checked
-                        onChange={() => {
-                          const newValue = selectedVehicleType === vt ? null : vt;
-                          field.onChange(newValue);
-                          handleVehicleTypeChangeWithReset(newValue);
-                        }}
-                        className="w-full items-center justify-center"
-                      />
-                    </div>
-                  ),
-                )}
+                {vehicleTypes.map((vt) => (
+                  <div key={vt} className="px-7 py-4 text-4 leading-4 text-[#989898] font-light">
+                    <CheckboxInput
+                      label={vt}
+                      checked={selectedVehicleType === vt}
+                      onChange={() => {
+                        const newValue = selectedVehicleType === vt ? null : vt;
+                        field.onChange(newValue);
+                        handleVehicleTypeChangeWithReset(newValue);
+                      }}
+                      className="w-full items-center justify-center"
+                    />
+                  </div>
+                ))}
               </>
             )}
           />
@@ -160,7 +162,7 @@ const FilterTariff: React.FC<FilterTariffProps> = ({
                     >
                       <CheckboxInput
                         label={sl}
-                        checked={selectedServiceLevel === sl} //Используем effector store для checked
+                        checked={selectedServiceLevel === sl}
                         onChange={() => {
                           const newValue = selectedServiceLevel === sl ? null : sl;
                           field.onChange(newValue);
@@ -185,7 +187,9 @@ const FilterTariff: React.FC<FilterTariffProps> = ({
             name="tariffUuid"
             control={control}
             render={({ field }) => {
-              const tariffsForVehicleType = getTariffsForVehicleType(selectedVehicleType);
+              const tariffsForVehicleType = selectedVehicleType
+                ? getTariffsForVehicleType(selectedVehicleType)
+                : [];
 
               return (
                 <>

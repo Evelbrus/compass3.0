@@ -25,6 +25,7 @@ interface FormData extends Omit<EditVehicleData, 'serviceLevels' | 'driverIds' |
   serviceLevels: ServiceLevels | undefined;
   driverIds: string[];
   year: Date | null;
+  photoRegistrationCertificate: string | null;
 }
 
 interface VehiclesEditProps {
@@ -41,6 +42,7 @@ const VehiclesEdit: React.FC<VehiclesEditProps> = ({ data }) => {
       color: data.color as Color,
       vehicleType: data.vehicleType as VehicleType,
       photoPath: data.photoPath || undefined,
+      photoRegistrationCertificate: data.photoRegistrationCertificate || undefined,
     },
   });
   const { control, handleSubmit } = methods;
@@ -69,6 +71,7 @@ const VehiclesEdit: React.FC<VehiclesEditProps> = ({ data }) => {
       photoPath: formData.photoPath,
       serviceLevels: formData.serviceLevels as ServiceLevels,
       driverIds: formData.driverIds,
+      photoRegistrationCertificate: formData.photoRegistrationCertificate,
     };
 
     try {
@@ -113,6 +116,7 @@ const VehiclesEdit: React.FC<VehiclesEditProps> = ({ data }) => {
           onSubmit={handleSubmit(onSubmit)}
           className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 md:grid-cols-2 gap-4 mb-6 p-6 bg-white shadow-md rounded-lg border border-gray-200"
         >
+          {/*... other form fields ... */}
           {/*Vehicle Type */}
           <div className="form-group">
             <Controller
@@ -293,13 +297,6 @@ const VehiclesEdit: React.FC<VehiclesEditProps> = ({ data }) => {
               )}
             />
           </div>
-
-          <IButton
-            type="submit"
-            className="bg-[#2A3037] rounded-[8px] font-inter font-normal text-[17px] leading-[20.57px] p-[10px] text-white h-fit mt-[22px]"
-          >
-            Save
-          </IButton>
           {/*Photo Upload */}
           <div className=" flex items-start justify-center">
             <Controller
@@ -310,6 +307,28 @@ const VehiclesEdit: React.FC<VehiclesEditProps> = ({ data }) => {
               )}
             />
           </div>
+
+          {/*Photo Registration Certificate Upload */}
+          <div className="flex items-start justify-center">
+            <Controller
+              name="photoRegistrationCertificate"
+              control={control}
+              render={({ field }) => (
+                <ImageUpload
+                  {...field}
+                  label="Vehicle Registration Certificate Photo"
+                  value={field.value || undefined}
+                />
+              )}
+            />
+          </div>
+
+          <IButton
+            type="submit"
+            className="bg-[#2A3037] rounded-[8px] font-inter font-normal text-[17px] leading-[20.57px] p-[10px] text-white h-fit mt-[22px]"
+          >
+            Save
+          </IButton>
         </form>
       </div>
       {message && (

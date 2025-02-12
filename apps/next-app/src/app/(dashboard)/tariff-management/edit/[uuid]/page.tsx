@@ -9,15 +9,16 @@ import { publicRoutes } from '@shared/utils/routing';
 import { JSX } from 'react';
 
 interface PageProps {
-  params: { uuid: string };
+  params: Promise<{ uuid: string }>;
 }
 
 export const revalidate = 60;
 
 const TariffEditPage = async ({ params }: PageProps): Promise<JSX.Element> => {
   const { role, refreshToken } = await getLayoutData();
+  //Ожидаем разрешения промиса params
   const resolvedParams = await params;
-  const { uuid } = await resolvedParams;
+  const { uuid } = resolvedParams;
 
   if (refreshToken) {
     if (role === UserRole.Admin || role === UserRole.Operator) {
@@ -39,11 +40,13 @@ const TariffEditPage = async ({ params }: PageProps): Promise<JSX.Element> => {
       const tariffData: DetailTariffData = {
         ...tariff,
         tariffAdditionalServices: tariff.tariffAdditionalServices.map((serviceRelation) => ({
-          service: {
-            ...serviceRelation.service,
-          },
+          uuid: serviceRelation.uuid,
+          service: serviceRelation.service,
+          serviceUuid: serviceRelation.serviceUuid,
           price: serviceRelation.price,
           isAvailable: serviceRelation.isAvailable,
+          createdAt: serviceRelation.createdAt,
+          updatedAt: serviceRelation.updatedAt,
         })),
       };
 

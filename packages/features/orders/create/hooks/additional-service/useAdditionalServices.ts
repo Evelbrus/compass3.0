@@ -14,7 +14,8 @@ export const useAdditionalServices = ({ setErrorMessage }: UseAdditionalServices
       const servicesData = await fetchAdditionalServices();
       setAdditionalServices(servicesData);
     } catch (error) {
-      setErrorMessage(error, 'Error fetching additional services');
+      const normalizedError = error instanceof Error ? error : new Error(String(error));
+      setErrorMessage(normalizedError, 'Error fetching additional services');
     }
   }, [setErrorMessage]);
 

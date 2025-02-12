@@ -1,5 +1,3 @@
-//@shared/utils/hooks/useNotifications.ts
-
 import { useCallback } from 'react';
 import { useSocket } from '@shared/utils/hooks/useSocket';
 import { CreateOrderData } from '@shared/prisma/interface/orders/interface';
@@ -54,19 +52,13 @@ export const useNotifications = ({
 
   const sendNotification = useCallback(
     async (userId: string, title: string, message: string) => {
-      //Generate UUID before sending
-      //Сохраняем уведомление в базе данных (вызываем API endpoint)
       try {
         const response = await fetch('/api/notifications', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            userId: userId,
-            title: title,
-            message: message,
-          }),
+          body: JSON.stringify({ userId, title, message }),
         });
 
         if (!response.ok) {
@@ -78,12 +70,8 @@ export const useNotifications = ({
 
         if (socket && userId && data.uuid) {
           socket.emit('notification', {
-            userId: userId,
-            notification: {
-              uuid: data.uuid,
-              title: title,
-              message: message,
-            },
+            userId,
+            notification: { uuid: data.uuid, title, message },
           });
         }
       } catch (error) {
@@ -135,7 +123,6 @@ export const useNotifications = ({
   }, [socket, userSession, sendNotification, departurePoint, arrivalPoint, isEditing]);
 
   const sendCreatedByNotification = useCallback(async () => {
-    //Проверяем, что createdBy существует и не является пустым
     if (formData.createdBy && departurePoint && arrivalPoint) {
       const orderNumber = formatOrderNumber(new Date());
       const action = isEditing ? 'обновлен' : 'создан';
@@ -161,8 +148,9 @@ export const useNotifications = ({
   ]);
 
   const handleOrderError = useCallback(
-    (error) => {
-      setErrorMessage(error, `Error creating order: ${(error as Error).message}`);
+    (error: unknown) => {
+      const normalizedError = error instanceof Error ? error : new Error(String(error));
+      setErrorMessage(normalizedError, `Error creating order: ${normalizedError.message}`);
     },
     [setErrorMessage],
   );

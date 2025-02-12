@@ -1,6 +1,7 @@
 import React, { ChangeEvent, useState } from 'react';
 import { AdditionalService } from '@prisma/client';
 import { SelectSingle, TextInput } from '@shared/components/ui/inputs';
+import { SelectOption } from '@shared/lib/effector';
 
 interface AdditionalServiceEntry {
   serviceUuid: string;
@@ -10,18 +11,10 @@ interface AdditionalServiceEntry {
 
 interface TariffCreateStep3Props {
   formData: {
-    tariffAdditionalServices: {
-      serviceUuid: string;
-      price: number;
-      isAvailable: boolean;
-    }[];
+    tariffAdditionalServices: AdditionalServiceEntry[];
   };
   additionalServices: AdditionalService[];
-  handleAddAdditionalService: (service: {
-    serviceUuid: string;
-    price: number;
-    isAvailable: boolean;
-  }) => void;
+  handleAddAdditionalService: (service: AdditionalServiceEntry) => void;
   handleRemoveAdditionalService: (serviceUuid: string) => void;
 }
 
@@ -35,15 +28,15 @@ const TariffCreateStep3: React.FC<TariffCreateStep3Props> = ({
     AdditionalServiceEntry[]
   >([]);
 
-  const selectOptions = additionalServices.map((service) => ({
+  const selectOptions: SelectOption<string>[] = additionalServices.map((service) => ({
     label: service.name,
     value: service.uuid,
   }));
 
-  const handleSelectChange = (option: { label: string; value: string } | null) => {
+  const handleSelectChange = (option: SelectOption<string> | null) => {
     if (!option) return;
 
-    if (selectedAdditionalServices.find((service) => service.serviceUuid === option.value)) {
+    if (selectedAdditionalServices.some((service) => service.serviceUuid === option.value)) {
       return;
     }
 
@@ -56,6 +49,7 @@ const TariffCreateStep3: React.FC<TariffCreateStep3Props> = ({
     setSelectedAdditionalServices((prev) => [...prev, newService]);
     handleAddAdditionalService(newService);
   };
+
   const handleLocalChange = (index: number, event: ChangeEvent<HTMLInputElement>) => {
     const { name, value, checked } = event.target;
 
@@ -71,7 +65,7 @@ const TariffCreateStep3: React.FC<TariffCreateStep3Props> = ({
   };
 
   const handleDelete = (serviceUuid: string) => {
-    setSelectedAdditionalServices((id) => id.filter((s) => s.serviceUuid !== serviceUuid));
+    setSelectedAdditionalServices((prev) => prev.filter((s) => s.serviceUuid !== serviceUuid));
     handleRemoveAdditionalService(serviceUuid);
   };
 
@@ -96,14 +90,13 @@ const TariffCreateStep3: React.FC<TariffCreateStep3Props> = ({
             return (
               <div
                 key={`${service.serviceUuid}-${index}`}
-                className="flex items-center md:flex-row items-start md:items-center gap-4  rounded-md w-1/2"
+                className="flex md:flex-row items-start md:items-center gap-4 rounded-md w-1/2"
               >
                 <div className="w-full md:w-1/3 font-medium">{serviceName}</div>
 
-                <div className="w-full flex md:w-1/3 w-1/3 gap-2">
+                <div className="w-full flex md:w-1/3 gap-2">
                   <TextInput
                     type="number"
-                    label=""
                     value={service.price}
                     onChange={(e) =>
                       handleLocalChange(index, {

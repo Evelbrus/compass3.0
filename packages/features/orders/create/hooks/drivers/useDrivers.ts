@@ -36,7 +36,8 @@ export const useDrivers = ({ vehicleType, serviceLevel, setErrorMessage }: UseDr
         setTotal(driversData.total);
         setServerTime(driversData.serverTime);
       } catch (error) {
-        setErrorMessage(error, 'Error fetching drivers');
+        const normalizedError = error instanceof Error ? error : new Error(String(error));
+        setErrorMessage(normalizedError, 'Error fetching drivers');
         setDrivers(null);
         setTotal(0);
       }
@@ -48,9 +49,7 @@ export const useDrivers = ({ vehicleType, serviceLevel, setErrorMessage }: UseDr
   const refetchDrivers = useCallback(
     (searchQuery: string = '', vehicleTypeQuery?: string, serviceLevelQuery?: string | null) => {
       fetchDriversData(
-        //Если есть поисковый запрос, не передаем vehicleType (undefined вместо null)
         searchQuery ? undefined : vehicleTypeQuery,
-        //Если есть поисковый запрос, не передаем serviceLevel; также, если serviceLevelQuery undefined, то приводим к null
         searchQuery ? null : (serviceLevelQuery ?? null),
         searchQuery,
       );
@@ -59,7 +58,6 @@ export const useDrivers = ({ vehicleType, serviceLevel, setErrorMessage }: UseDr
   );
 
   useEffect(() => {
-    //Если serviceLevel undefined, то приводим к null, чтобы соответствовать типу параметра
     fetchDriversData(vehicleType, serviceLevel ?? null, '');
   }, [fetchDriversData, vehicleType, serviceLevel]);
 
@@ -70,7 +68,8 @@ export const useDrivers = ({ vehicleType, serviceLevel, setErrorMessage }: UseDr
         const driverData = await fetchAssignedDriver(assignedDriverId);
         setAssignedDriver(driverData);
       } catch (error) {
-        setErrorMessage(error, 'Error fetching assigned driver');
+        const normalizedError = error instanceof Error ? error : new Error(String(error));
+        setErrorMessage(normalizedError, 'Error fetching assigned driver');
         setAssignedDriver(null);
       }
       setIsLoading(false);

@@ -1,4 +1,3 @@
-//@widgets/drivers-nearby/fucntions/isDriverOnline.ts
 export const isDriverOnline = (
   lastActive: Date | string | null,
   serverTime: string | null,

@@ -4,12 +4,13 @@ import debug from 'debug';
 
 const log = debug('app:api:points:uuid');
 
-export async function GET(req: Request, { params }: { params: { uuid: string } }) {
-  const uuid = params.uuid;
-
-  log('Fetching point with UUID:', uuid);
-
+export async function GET(req: Request, { params }: { params: Promise<{ uuid: string }> }) {
   try {
+    //Await the params to resolve it before using it
+    const { uuid } = await params;
+
+    log('Fetching point with UUID:', uuid);
+
     const point = await prisma.point.findUnique({
       where: {
         uuid: uuid,

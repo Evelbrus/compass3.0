@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import debug from 'debug';
 import { prisma } from '@shared/prisma/prisma-client';
 import { CreateOrderData } from '@shared/prisma/interface/orders/interface';
-import { OrderStatus } from '@prisma/client';
 import { Decimal } from 'decimal.js';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -12,8 +11,9 @@ interface Params {
   uuid: string;
 }
 
-export async function GET(req: Request, { params }: { params: Params }) {
-  const { uuid } = params;
+//GET-запрос
+export async function GET(req: Request, { params }: { params: Promise<Params> }) {
+  const { uuid } = await params;
   log(`Fetching order with UUID: ${uuid}`);
 
   if (!uuid) {
@@ -23,9 +23,7 @@ export async function GET(req: Request, { params }: { params: Params }) {
 
   try {
     const order = await prisma.order.findUnique({
-      where: {
-        uuid: uuid,
-      },
+      where: { uuid },
       include: {
         createdBy: true,
         tariff: {
@@ -62,9 +60,9 @@ export async function GET(req: Request, { params }: { params: Params }) {
     //Преобразуем orderTariffAdditionalServices в нужный формат
     const formattedOrderTariffAdditionalServices = order.orderTariffAdditionalServices.map(
       (orderService) => ({
-        serviceUuid: orderService.tariffOnService.uuid, //Извлекаем uuid из TariffOnService!
-        name: orderService.tariffOnService.service.name, //Извлекаем name
-        price: orderService.tariffOnService.price, //Извлекаем price
+        serviceUuid: orderService.tariffOnService.uuid,
+        name: orderService.tariffOnService.service.name,
+        price: orderService.tariffOnService.price,
       }),
     );
 
@@ -76,7 +74,7 @@ export async function GET(req: Request, { params }: { params: Params }) {
       intermediatePoints: order.intermediatePoints,
       tariff: {
         ...order.tariff,
-        tariffAdditionalServices: order.tariff.tariffAdditionalServices, //Include tariff additional services
+        tariffAdditionalServices: order.tariff.tariffAdditionalServices,
       },
       description: order.description,
       status: order.status,
@@ -85,7 +83,7 @@ export async function GET(req: Request, { params }: { params: Params }) {
       departureTime: order.departureTime,
       createdAt: order.createdAt,
       updatedAt: order.updatedAt,
-      orderTariffAdditionalServices: formattedOrderTariffAdditionalServices, //Используем преобразованный массив
+      orderTariffAdditionalServices: formattedOrderTariffAdditionalServices,
     };
 
     return NextResponse.json(formattedOrder);
@@ -99,9 +97,9 @@ export async function GET(req: Request, { params }: { params: Params }) {
   }
 }
 
-export async function PUT(req: Request, { params }: { params: Params }) {
-  const { uuid } = params;
-
+//PUT-запрос
+export async function PUT(req: Request, { params }: { params: Promise<Params> }) {
+  const { uuid } = await params;
   if (!uuid) {
     log('Order UUID is missing');
     return NextResponse.json({ error: 'Order UUID is required' }, { status: 400 });
@@ -136,10 +134,7 @@ export async function PUT(req: Request, { params }: { params: Params }) {
       log('Starting transaction for order update');
 
       //1. Проверка существования заказа
-      const existingOrder = await prismaTx.order.findUnique({
-        where: { uuid: uuid },
-      });
-
+      const existingOrder = await prismaTx.order.findUnique({ where: { uuid } });
       if (!existingOrder) {
         log(`Order with UUID ${uuid} not found`);
         throw new Error('Order not found');
@@ -147,9 +142,7 @@ export async function PUT(req: Request, { params }: { params: Params }) {
       log('Order found:', existingOrder);
 
       //2. Проверка существования клиента
-      const client = await prismaTx.user.findUnique({
-        where: { uuid: createdBy },
-      });
+      const client = await prismaTx.user.findUnique({ where: { uuid: createdBy } });
       if (!client) {
         log(`Client with UUID ${createdBy} not found`);
         throw new Error('Client not found');
@@ -167,7 +160,6 @@ export async function PUT(req: Request, { params }: { params: Params }) {
           },
         },
       });
-
       if (!tariffRecord) {
         log(`Tariff with UUID ${tariffUuid} not found`);
         throw new Error('Tariff not found');
@@ -185,9 +177,7 @@ export async function PUT(req: Request, { params }: { params: Params }) {
       log('Departure point found:', departurePointRecord);
 
       //5. Проверка существования точки прибытия
-      const arrivalPointRecord = await prismaTx.point.findUnique({
-        where: { uuid: arrivalPoint },
-      });
+      const arrivalPointRecord = await prismaTx.point.findUnique({ where: { uuid: arrivalPoint } });
       if (!arrivalPointRecord) {
         log(`Arrival point with UUID ${arrivalPoint} not found`);
         throw new Error('Arrival point not found');
@@ -196,9 +186,7 @@ export async function PUT(req: Request, { params }: { params: Params }) {
 
       //6. Проверка существования водителя
       if (assignedDriverId) {
-        const driver = await prismaTx.user.findUnique({
-          where: { uuid: assignedDriverId },
-        });
+        const driver = await prismaTx.user.findUnique({ where: { uuid: assignedDriverId } });
         if (!driver) {
           log(`Driver with UUID ${assignedDriverId} not found`);
           throw new Error('Driver not found');
@@ -208,7 +196,7 @@ export async function PUT(req: Request, { params }: { params: Params }) {
 
       //7. Обновление заказа
       const updatedOrder = await prismaTx.order.update({
-        where: { uuid: uuid },
+        where: { uuid },
         data: {
           createdById: createdBy,
           tariffUuid,
@@ -221,45 +209,32 @@ export async function PUT(req: Request, { params }: { params: Params }) {
           intermediatePoints: (intermediatePoints || []).filter(Boolean),
         },
       });
-
       log('Order updated:', updatedOrder);
 
       //8. Удаление старых дополнительных услуг
-      await prismaTx.orderOnTariffAdditionalService.deleteMany({
-        where: {
-          orderUuid: uuid,
-        },
-      });
+      await prismaTx.orderOnTariffAdditionalService.deleteMany({ where: { orderUuid: uuid } });
       log('Old additional services removed');
+
       //9. Добавление новых дополнительных услуг
       if (selectedServices && selectedServices.length > 0) {
         log('Selected services (tariffOnServiceUuid):', selectedServices);
         const tariffOnServices = await prismaTx.tariffOnService.findMany({
-          where: {
-            uuid: {
-              in: selectedServices,
-            },
-          },
-          include: {
-            service: true, //Добавьте include, чтобы видеть больше информации
-          },
+          where: { uuid: { in: selectedServices } },
+          include: { service: true },
         });
         log(
           'Найденные tariffOnServices:',
-          tariffOnServices.map((tos) => ({ uuid: tos.uuid, name: tos.service.name })), //Показывать имя услуги
+          tariffOnServices.map((tos) => ({ uuid: tos.uuid, name: tos.service.name })),
         );
-
         const foundUuids = tariffOnServices.map((tos) => tos.uuid);
         const missingUuids = selectedServices.filter((uuid) => !foundUuids.includes(uuid));
         log('Отсутствующие UUID tariffOnService:', missingUuids);
-
         if (tariffOnServices.length !== selectedServices.length) {
           log(
             `Not all services found for tariff ${tariffUuid}. Selected services: ${selectedServices.join(', ')}`,
           );
           throw new Error('Not all services found for tariff');
         }
-
         await prismaTx.orderOnTariffAdditionalService.createMany({
           data: tariffOnServices.map((tariffOnService) => ({
             uuid: uuidv4(),
@@ -269,6 +244,7 @@ export async function PUT(req: Request, { params }: { params: Params }) {
         });
         log('New additional services added');
       }
+
       //10. Возвращение обновленного заказа с дополнительными услугами
       const finalOrder = await prismaTx.order.findUnique({
         where: { uuid: updatedOrder.uuid },
@@ -276,21 +252,16 @@ export async function PUT(req: Request, { params }: { params: Params }) {
           tariff: {
             include: {
               tariffAdditionalServices: {
-                include: {
-                  service: true,
-                },
+                include: { service: true },
               },
             },
           },
           orderTariffAdditionalServices: {
-            include: {
-              tariffOnService: true,
-            },
+            include: { tariffOnService: true },
           },
         },
       });
       log('Updated order with additional services:', finalOrder);
-
       return finalOrder;
     });
 
@@ -301,8 +272,9 @@ export async function PUT(req: Request, { params }: { params: Params }) {
   }
 }
 
-export async function DELETE(req: Request, { params }: { params: Params }) {
-  const { uuid } = params;
+//DELETE-запрос
+export async function DELETE(req: Request, { params }: { params: Promise<Params> }) {
+  const { uuid } = await params;
   log(`Attempting to delete order with UUID: ${uuid}`);
 
   if (!uuid) {
@@ -311,19 +283,12 @@ export async function DELETE(req: Request, { params }: { params: Params }) {
   }
 
   try {
-    const order = await prisma.order.findUnique({
-      where: { uuid },
-    });
-
+    const order = await prisma.order.findUnique({ where: { uuid } });
     if (!order) {
       log(`Order with UUID ${uuid} not found`);
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
-
-    await prisma.order.delete({
-      where: { uuid },
-    });
-
+    await prisma.order.delete({ where: { uuid } });
     log(`Order with UUID ${uuid} deleted successfully`);
     return NextResponse.json({ message: 'Order deleted successfully' }, { status: 200 });
   } catch (error) {
