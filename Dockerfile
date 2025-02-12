@@ -1,23 +1,14 @@
-# Используем легковесный образ Node.js 20 на Alpine
 FROM node:20-alpine3.19
 
-# Устанавливаем необходимые пакеты
-RUN apk add --no-cache bash
+# Устанавливаем bash и Corepack (управляет версиями Yarn)
+RUN apk add --no-cache bash && corepack enable
 
-# Устанавливаем рабочую директорию
 WORKDIR /app
-
-# Копируем только файлы зависимостей для кеширования слоев Docker
 COPY package.json yarn.lock ./
 
-# Устанавливаем зависимости
-RUN yarn install --frozen-lockfile
+# Убеждаемся, что используется нужная версия Yarn
+RUN corepack prepare yarn@4.4.1 --activate && yarn install --frozen-lockfile
 
-# Копируем оставшиеся файлы проекта
 COPY . .
 
-# Открываем порт (если worker взаимодействует по сети, например, с WebSocket)
-EXPOSE 4000
-
-# Запускаем worker
 CMD ["yarn", "worker"]
