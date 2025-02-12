@@ -1,4 +1,3 @@
-//socket-server.ts
 import { createServer } from 'node:http';
 import { Server, Socket } from 'socket.io';
 
@@ -13,7 +12,7 @@ const users: UsersMap = {};
 
 const io = new Server(httpServer, {
   cors: {
-    origin: 'http://localhost:3008',
+    origin: 'https://operator.garage.kg', //Разрешаем подключения только с этого домена
     methods: ['GET', 'POST'],
     allowedHeaders: ['my-custom-header'],
     credentials: true,

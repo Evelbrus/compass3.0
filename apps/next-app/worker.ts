@@ -16,7 +16,8 @@ const redisOptions = {
   port: process.env.REDIS_PORT ? parseInt(process.env.REDIS_PORT) : 6379,
 };
 
-const socket = io('http://localhost:4000', {
+//Подключаем сокет к серверу на домене
+const socket = io('https://operator.garage.kg', {
   transports: ['websocket'],
   path: '/socket.io',
   autoConnect: true,
@@ -135,7 +136,6 @@ async function processPreOrderNotificationJob(job: Job<CheckOverdueJobData>) {
     }
   });
 
-  //Транзакция завершена
   console.log('Транзакция выполнена успешно');
 }
 
@@ -212,6 +212,5 @@ async function processCheckOverdueJob(job: Job<CheckOverdueJobData>) {
     }
   });
 
-  //Транзакция завершена
   console.log('Транзакция для проверки просроченного заказа выполнена успешно');
 }
