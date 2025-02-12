@@ -1,13 +1,11 @@
 version: '3.8'
 
 services:
-  web:
+  bullmq:
     build:
       context: .
-    container_name: web
+    container_name: bullmq
     command: ["yarn", "bullmq"]
-    depends_on:
-      - redis
     networks:
       - app-network
     ports:
