@@ -9,7 +9,7 @@ services:
     env_file:
       - ./apps/next-app/.env.production
     command: >
-      sh -c "yarn generate:cookie-name && yarn prod"
+      sh -c "yarn prod"
     networks:
       - app-network
 

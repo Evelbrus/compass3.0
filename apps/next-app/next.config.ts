@@ -26,7 +26,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: '/socket.io/:path*',
-        destination: 'http://localhost:4000/socket.io/:path*',
+        destination: 'https://operator.garage.kg/socket.io/:path*',
       },
     ];
   },
