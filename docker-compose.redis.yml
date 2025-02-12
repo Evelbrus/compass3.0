@@ -8,8 +8,8 @@ services:
       - "6380:6379"
     networks:
       - app-network
-    environment:
-      - REDIS_PASSWORD=${REDIS_PASSWORD}
+    env_file:
+      - ./apps/next-app/.env.production
     restart: always
 
   worker:
@@ -18,14 +18,8 @@ services:
     container_name: worker
     depends_on:
       - redis
-    environment:
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - REDIS_PASSWORD=${REDIS_PASSWORD}
-      - NODE_ENV=production
-      - JWT_SECRET=${JWT_SECRET}
-      - NEXT_PUBLIC_BACKEND_URL=${NEXT_PUBLIC_BACKEND_URL}
-      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+    env_file:
+      - ./apps/next-app/.env.production
     command: ["yarn", "worker"]
     networks:
       - app-network

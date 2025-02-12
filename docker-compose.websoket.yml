@@ -6,8 +6,8 @@ services:
       - .:/app
     ports:
       - '4000:4000'
-    environment:
-      NODE_ENV: production
+    env_file:
+      - ./apps/next-app/.env.production
     command: >
       sh -c "yarn webS"
     networks:
