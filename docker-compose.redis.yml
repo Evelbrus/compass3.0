@@ -18,8 +18,9 @@ services:
     container_name: worker
     depends_on:
       - redis
-    env_file:
-      - ./apps/next-app/.env.production
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
     command: ["yarn", "worker"]
     networks:
       - app-network

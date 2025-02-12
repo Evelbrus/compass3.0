@@ -1,4 +1,3 @@
-//socket-server.ts
 import { createServer } from 'node:http';
 import { Server } from 'socket.io';
 const port = 4000;
@@ -6,7 +5,7 @@ const httpServer = createServer();
 const users = {};
 const io = new Server(httpServer, {
     cors: {
-        origin: 'http://localhost:3008',
+        origin: 'https://operator.garage.kg', //Разрешаем подключения только с этого домена
         methods: ['GET', 'POST'],
         allowedHeaders: ['my-custom-header'],
         credentials: true,
