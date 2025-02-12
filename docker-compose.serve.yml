@@ -8,8 +8,18 @@ services:
       - '3008:3008'
     environment:
       NODE_ENV: production
-      NEXT_PUBLIC_BACKEND_URL: https://operator.garage.kg
-      JWT_SECRET: 2f7b9e5c3a8d457e1f4d5a7c9e5b2d3f9a8c6b4e1f2d7c3a8e1f4b2c6d7a9e5
+      NEXT_PUBLIC_BACKEND_URL: ${NEXT_PUBLIC_BACKEND_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+      NEXTAUTH_URL: ${NEXTAUTH_URL}
+      ACCESS_TOKEN_SECRET: ${ACCESS_TOKEN_SECRET}
+      REFRESH_TOKEN_SECRET: ${REFRESH_TOKEN_SECRET}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      RATE_LIMIT_MAX_ATTEMPTS: ${RATE_LIMIT_MAX_ATTEMPTS}
+      CLIENT_URL: ${CLIENT_URL}
+      RABBITMQ_URL: ${RABBITMQ_URL}
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PORT: ${REDIS_PORT}
     command: >
       sh -c "yarn serve"
     networks:
