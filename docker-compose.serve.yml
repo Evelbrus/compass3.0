@@ -1,6 +1,6 @@
 services:
   nextjs:
-    image: node:20-alpine3.19
+      image: node:20-alpine3.19
     working_dir: /app
     volumes:
       - .:/app
