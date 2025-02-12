@@ -7,7 +7,7 @@ WORKDIR /app
 COPY package.json yarn.lock ./
 
 # Подготавливаем нужную версию Yarn и фиксируем зависимости
-RUN corepack prepare yarn@4.4.1 --activate && yarn install --immutable
+RUN yarn install
 
 COPY . .
 
