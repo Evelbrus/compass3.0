@@ -1,82 +1,77 @@
-import { useCallback } from 'react';
-import { DetailTariffData } from '@shared/prisma/interface/tariff/interface';
-import { AdditionalService, Point } from '@prisma/client';
+import { Point } from '@prisma/client';
+
+const fetchData = async (url: string) => {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`Network response was not ok: ${response.statusText}`);
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error(`Error fetching data from ${url}:`, error);
+    throw error;
+  }
+};
 
 export interface FetchPointsResponse {
-  data: {
-    points: Point[];
-    total: number;
-    page: number;
-    per_page: number;
-  };
+  points: Point[];
+  total: number;
+  page: number;
+  per_page: number;
 }
 
-export const useApi = () => {
-  //Мемоизируем функцию запроса точек
-  const fetchPoints = useCallback(
-    async (
-      search: string = '',
-      page: string = '1',
-      per_page: string = '10',
-      sort_by: 'address' | 'basePrice' | 'createdAt' | 'updatedAt' = 'createdAt',
-      sort_order: 'asc' | 'desc' = 'asc',
-    ): Promise<FetchPointsResponse> => {
-      const params = new URLSearchParams({
-        page,
-        per_page,
-        sort_by,
-        sort_order,
-        search,
-      });
+export const fetchPoints = async (
+  search: string = '',
+  page: string = '1',
+  per_page: string,
+  sort_by: 'address' | 'basePrice' | 'createdAt' | 'updatedAt' = 'createdAt',
+  sort_order: 'asc' | 'desc' = 'asc',
+): Promise<FetchPointsResponse> => {
+  const params = new URLSearchParams({
+    page: page,
+    per_page: per_page,
+    sort_by: sort_by,
+    sort_order: sort_order,
+    search: search,
+  });
 
-      const response = await fetch(`/api/points?${params.toString()}`);
-      if (!response.ok) {
-        const error = new Error('Не удалось получить список точек');
-        console.error('Ошибка при получении списка точек:', error);
-        throw error;
-      }
-      const data = await response.json();
-      console.log('data', data);
-      return data as FetchPointsResponse;
-    },
-    [],
-  );
+  const response = await fetch(`/api/points?${params.toString()}`);
+  if (!response.ok) {
+    const error = new Error('Failed to fetch points');
+    console.error('Error fetching points:', error);
+    throw error;
+  }
+  const data = await response.json();
 
-  //Мемоизируем функцию запроса тарифов
-  const fetchTariffs = useCallback(async (): Promise<DetailTariffData[]> => {
-    const response = await fetch('/api/tariffs');
-    if (!response.ok) {
-      throw new Error('Не удалось получить список тарифов');
-    }
-    const data = await response.json();
-    if (data.data && data.data.tariffs) {
-      return data.data.tariffs;
-    } else {
-      console.warn('Неожиданная структура данных для тарифов:', data);
-      return [];
-    }
-  }, []);
+  return data.data as FetchPointsResponse;
+};
 
-  //Мемоизируем функцию запроса дополнительных услуг
-  const fetchAdditionalServices = useCallback(async (): Promise<AdditionalService[]> => {
-    const url = '/api/additional-services?page=1&per_page=100';
-    try {
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`Не удалось получить дополнительные услуги: ${response.status}`);
-      }
-      const data = await response.json();
-      if (data && data.data && data.data.additionalServices) {
-        return data.data.additionalServices as AdditionalService[];
-      } else {
-        console.warn('Неожиданная структура данных для дополнительных услуг:', data);
-        return [];
-      }
-    } catch (error) {
-      console.error('Ошибка при получении дополнительных услуг:', error);
-      return [];
-    }
-  }, []);
+export const fetchPointByUuid = async (uuid: string): Promise<Point> => {
+  const response = await fetch(`/api/points/${uuid}`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch point with UUID: ${uuid}`);
+  }
+  const data = await response.json();
+  return data.data.point as Point;
+};
 
-  return { fetchPoints, fetchTariffs, fetchAdditionalServices };
+export const fetchPointsByUuids = async (uuids: string[]): Promise<Point[]> => {
+  const promises = uuids.map(fetchPointByUuid);
+  return Promise.all(promises);
+};
+
+export const fetchAdditionalServices = async () => {
+  const url = '/api/additional-services?page=1&per_page=100';
+  const data = await fetchData(url);
+  return data.data.additionalServices || [];
+};
+
+export const fetchTariffs = async (serviceLevel?: string, vehicleType?: string) => {
+  let url = '/api/tariffs';
+  const params = new URLSearchParams();
+  if (serviceLevel) params.append('serviceLevel', serviceLevel);
+  if (vehicleType) params.append('vehicleType', vehicleType);
+  if (params.toString()) url += `?${params.toString()}`;
+
+  const data = await fetchData(url);
+  return data.data.tariffs || [];
 };

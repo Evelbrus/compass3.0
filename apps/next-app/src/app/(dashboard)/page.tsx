@@ -2,11 +2,11 @@ import React, { JSX } from 'react';
 import { getLayoutData } from '@shared/utils/cookie/layout-data/getLayoutData';
 import HomeAdminPage from '@pages/(administrator)/home';
 import HomeDriverPage from '@pages/(driver)/home';
-import HomeClientCorpPage from '@pages/(client-corp)/home';
 import Loading from '@entities/loading/loading';
 import { UserRole } from '@prisma/client';
 import { redirect } from 'next/navigation';
-import { publicRoutes } from '@shared/utils/routing';
+import { privateRoutes, publicRoutes } from '@shared/utils/routing';
+import TariffClientCorpPage from '@pages/(client-corp)/tariff/TariffClientCorpPage';
 
 export const revalidate = 60;
 
@@ -15,11 +15,11 @@ const Page = async (): Promise<JSX.Element> => {
 
   if (refreshToken) {
     if (role === UserRole.Admin || role === UserRole.Operator) {
-      return <HomeAdminPage />;
+      redirect(privateRoutes.ORDERS);
     } else if (role === UserRole.Driver) {
-      return <HomeDriverPage />;
+      redirect(privateRoutes.ORDERS);
     } else if (role === UserRole.ClientCorp) {
-      return <HomeClientCorpPage />;
+      return <TariffClientCorpPage />;
     } else {
       return <Loading />;
     }

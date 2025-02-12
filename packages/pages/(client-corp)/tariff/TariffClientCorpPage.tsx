@@ -145,6 +145,7 @@ const TariffClientCorpPage = (): JSX.Element => {
                 tariff={tariff}
                 onSelectTariff={handleSelectTariff}
                 selectedTariff={selectedTariff}
+                clientCorp={true}
               />
             ))}
           </div>

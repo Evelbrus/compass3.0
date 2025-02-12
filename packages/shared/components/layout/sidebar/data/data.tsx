@@ -8,7 +8,7 @@ export const navItems: NavItem[] = [
     href: privateRoutes.HOME,
     icon: (
       <Icon
-        name="shopping-cart"
+        name="dashboard"
         alt="Главная"
         className="w-6 h-6 text-current transition-colors duration-300"
       />

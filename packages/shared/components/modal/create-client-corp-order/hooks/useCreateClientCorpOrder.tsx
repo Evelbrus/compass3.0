@@ -1,181 +1,105 @@
-import { useState } from 'react';
+//useCreateClientCorpOrderLogic.ts
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useForm, UseFormReturn } from 'react-hook-form';
-import { AdditionalService, Point } from '@prisma/client';
-import { closeModal } from '@shared/lib/effector';
-import { DetailTariffData } from '@shared/prisma/interface/tariff/interface';
+import { ServiceLevels, VehicleType } from '@prisma/client';
+import { ExtendedTariff } from '@shared/prisma/interface/orders/interface';
 
-interface SelectedAdditionalService {
-  uuid: string;
-}
-
-interface UseCreateClientCorpOrderProps {
-  onClose: () => void;
-  tariffs: DetailTariffData[];
-  additionalServices: AdditionalService[];
-  isServiceAvailableForTariff: (serviceUuid: string) => any;
-}
-
-interface UseCreateClientCorpOrderReturn {
-  selectedTariff: string;
-  setSelectedTariff: (tariffUuid: string) => void;
-  selectedAdditionalServices: SelectedAdditionalService[];
-  handleAdditionalServiceChangeCallback: (
-    additionalServiceUuid: string,
-    isChecked: boolean,
-  ) => void;
-  handleCreateOrder: () => Promise<void>;
-  closeModalHandler: () => void;
-  formMethods: UseFormReturn<{
-    departureTime: string;
-    flightNumber: string;
-    description: string;
-  }>;
-  isServiceAvailableForTariff: (serviceUuid: string) => any;
+export interface CreateClientCorpOrderData {
+  createdBy: string;
+  tariffUuid: string;
   departurePoint: string;
   arrivalPoint: string;
-  departurePoints: Point[];
-  arrivalPoints: Point[];
-  getAvailablePoints: () => Point[];
-  handleSetAdditionalPoints: (index: number, point: Point | null) => void;
-  additionalPointsSelected: (Point | null)[];
+  intermediatePoints?: string[];
+  selectedServices?: string[];
+  basePrice?: number;
+  departureTime?: string;
+  serviceLevel?: ServiceLevels;
+  vehicleType?: VehicleType;
+  flightNumber?: string;
+  description?: string;
+  waitingTimeMinutes?: number;
 }
 
-const useCreateClientCorpOrder = ({
-  onClose,
-  tariffs,
-  additionalServices,
-  isServiceAvailableForTariff,
-}: UseCreateClientCorpOrderProps): UseCreateClientCorpOrderReturn => {
-  const [selectedTariff, setSelectedTariff] = useState<string>('');
-  const [selectedAdditionalServices, setSelectedAdditionalServices] = useState<
-    SelectedAdditionalService[]
-  >([]);
-  const [error, setError] = useState<string | null>(null);
-  const [departurePoint, setDeparturePoint] = useState<string>('');
-  const [arrivalPoint, setArrivalPoint] = useState<string>('');
-  const [departurePoints, setDeparturePoints] = useState<Point[]>([]);
-  const [arrivalPoints, setArrivalPoints] = useState<Point[]>([]);
-  const [additionalPointsSelected, setAdditionalPointsSelected] = useState<(Point | null)[]>([
-    null,
-    null,
-    null,
-    null,
-    null,
-  ]);
-
-  const formMethods = useForm({
+const useCreateClientCorpOrderLogic = (
+  tariffs: ExtendedTariff[],
+  initialServiceLevel: ServiceLevels | undefined,
+  initialVehicleType: VehicleType | undefined,
+) => {
+  //Инициализируем useForm и получаем полный объект методов
+  const formMethods: UseFormReturn<CreateClientCorpOrderData> = useForm<CreateClientCorpOrderData>({
+    mode: 'onBlur',
     defaultValues: {
-      departureTime: '',
+      serviceLevel: initialServiceLevel || 'Basic',
+      vehicleType: initialVehicleType || 'Sedan',
       flightNumber: '',
       description: '',
     },
   });
-  const { handleSubmit, reset } = formMethods;
 
-  const closeModalHandler = () => {
-    onClose();
-    closeModal();
-  };
+  const { watch, setValue, getValues } = formMethods;
 
-  const handleAdditionalServiceChangeCallback = (
-    additionalServiceUuid: string,
-    isChecked: boolean,
-  ) => {
-    if (isChecked) {
-      setSelectedAdditionalServices((prev) => [...prev, { uuid: additionalServiceUuid }]);
+  //Получаем текущие значения полей формы
+  const selectedServiceLevel = watch('serviceLevel');
+  const selectedVehicleType = watch('vehicleType');
+
+  //Состояние для выбранного тарифа
+  const [selectedTariff, setSelectedTariff] = useState<ExtendedTariff | null>(null);
+
+  //Используем ref для хранения ранее выбранных уровней обслуживания для разных типов авто
+  const serviceLevelMapRef = useRef<Partial<Record<VehicleType, ServiceLevels>>>({});
+
+  //Подбор тарифа по выбранным параметрам
+  useEffect(() => {
+    if (selectedServiceLevel && selectedVehicleType) {
+      const matchingTariff = tariffs.find(
+        (tariff) =>
+          tariff.serviceLevel === selectedServiceLevel &&
+          tariff.vehicleType === selectedVehicleType,
+      );
+      setSelectedTariff(matchingTariff || null);
     } else {
-      setSelectedAdditionalServices((prev) => prev.filter((s) => s.uuid !== additionalServiceUuid));
+      setSelectedTariff(null);
     }
-  };
+  }, [selectedServiceLevel, selectedVehicleType, tariffs]);
 
-  const calculateAdditionalPointsPrice = () => {
-    const selectedTariffData = tariffs.find((tariff) => tariff.uuid === selectedTariff);
-    const additionalPointPrice = selectedTariffData?.additionalPointPrice || 0;
-    return additionalPointsSelected.reduce(
-      (total, point) => total + (point ? additionalPointPrice : 0),
-      0,
-    );
-  };
-
-  const handleCreateOrder = handleSubmit(async (data) => {
-    try {
-      const selectedTariffData = tariffs.find((tariff) => tariff.uuid === selectedTariff);
-      if (!selectedTariffData) {
-        throw new Error('Тариф не выбран.');
+  //Обработчик изменения уровня обслуживания
+  const handleServiceLevelChange = useCallback(
+    (level: ServiceLevels) => {
+      setValue('serviceLevel', level);
+      const currentVehicleType = getValues('vehicleType');
+      if (currentVehicleType) {
+        serviceLevelMapRef.current[currentVehicleType] = level;
       }
-      if (!departurePoint || !arrivalPoint) {
-        throw new Error('Точки отправления и прибытия не выбраны.');
+    },
+    [setValue, getValues],
+  );
+
+  //Обработчик изменения типа авто с сохранением и восстановлением уровня обслуживания
+  const handleVehicleTypeChange = useCallback(
+    (newType: VehicleType) => {
+      //Сохраняем текущий уровень обслуживания для предыдущего типа авто
+      const currentVehicleType = getValues('vehicleType');
+      const currentServiceLevel = getValues('serviceLevel');
+      if (currentVehicleType && currentServiceLevel) {
+        serviceLevelMapRef.current[currentVehicleType] = currentServiceLevel;
       }
-      if (departurePoint === arrivalPoint) {
-        throw new Error('Точки отправления и прибытия не могут быть одинаковыми.');
-      }
-
-      const selectedAdditionalServiceIds = selectedAdditionalServices.map((s) => s.uuid);
-      const response = await fetch('/api/orders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tariffId: selectedTariff,
-          additionalServiceIds: selectedAdditionalServiceIds,
-          departureTime: data.departureTime,
-          departurePointId: departurePoint,
-          arrivalPointId: arrivalPoint,
-          flightNumber: data.flightNumber,
-          description: data.description,
-          basePrice: selectedTariffData.price,
-          additionalPointPrice: calculateAdditionalPointsPrice(),
-          additionalPoints: additionalPointsSelected.map((point) => point?.uuid),
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || `Не удалось создать заказ: ${response.status}`);
-      }
-
-      console.log('Заказ успешно создан!');
-      closeModalHandler();
-      reset();
-    } catch (error) {
-      console.error('Ошибка при создании заказа:', error);
-      setError(error instanceof Error ? error.message : 'Не удалось создать заказ');
-    }
-  });
-
-  const handleSetAdditionalPoints = (index: number, point: Point | null) => {
-    setAdditionalPointsSelected((prev) => {
-      const newPoints = [...prev];
-      newPoints[index] = point;
-      return newPoints;
-    });
-  };
-
-  const getAvailablePoints = () => {
-    return departurePoints.filter(
-      (point) =>
-        point.uuid !== departurePoint &&
-        point.uuid !== arrivalPoint &&
-        !additionalPointsSelected.some((p) => p?.uuid === point.uuid),
-    );
-  };
+      //Устанавливаем новый тип авто
+      setValue('vehicleType', newType);
+      //Восстанавливаем уровень обслуживания, если он уже был выбран для нового типа, иначе сбрасываем
+      const savedServiceLevel = serviceLevelMapRef.current[newType];
+      setValue('serviceLevel', savedServiceLevel ?? undefined);
+    },
+    [setValue, getValues],
+  );
 
   return {
+    selectedServiceLevel,
+    selectedVehicleType,
     selectedTariff,
-    setSelectedTariff,
-    selectedAdditionalServices,
-    handleAdditionalServiceChangeCallback,
-    handleCreateOrder,
-    closeModalHandler,
+    handleServiceLevelChange,
+    handleVehicleTypeChange,
     formMethods,
-    departurePoint,
-    arrivalPoint,
-    departurePoints,
-    arrivalPoints,
-    getAvailablePoints,
-    handleSetAdditionalPoints,
-    additionalPointsSelected,
-    isServiceAvailableForTariff, //Добавляем функцию в возвращаемый объект
   };
 };
 
-export default useCreateClientCorpOrder;
+export default useCreateClientCorpOrderLogic;

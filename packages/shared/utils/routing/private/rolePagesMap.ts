@@ -4,11 +4,10 @@ import { UserRole } from '@prisma/client';
 export type RouteLiteral = PrivatePageType | PublicPageType;
 
 export const rolePagesMap: Record<UserRole, RouteLiteral[]> = {
-  Client: ['HOME', 'ORDERS', 'SETTINGS', 'TARIFFMANAGEMENT'],
-  ClientCorp: ['HOME', 'ORDERS', 'SETTINGS', 'TARIFFMANAGEMENT'],
+  Client: ['HOME'],
+  ClientCorp: ['HOME', 'ORDERS'],
   Driver: ['HOME', 'ORDERS', 'SETTINGS', 'TRANSFERSERVICES'],
   Operator: [
-    'HOME',
     'ORDERS',
     'ORDEREDIT',
     'ORDERCREATE',
@@ -32,12 +31,9 @@ export const rolePagesMap: Record<UserRole, RouteLiteral[]> = {
     'USEROPERATORDETAIL',
     'USEROPERATORCREATE',
     'USEROPERATOREDIT',
-    'ADMIN',
-    'SETTINGS',
     'MAP',
   ],
   Admin: [
-    'HOME',
     'ORDERS',
     'ORDEREDIT',
     'ORDERCREATE',
@@ -64,8 +60,6 @@ export const rolePagesMap: Record<UserRole, RouteLiteral[]> = {
     'USERADMINDETAIL',
     'USERADMINCREATE',
     'USERADMINEDIT',
-    'ADMIN',
-    'SETTINGS',
     'MAP',
   ],
   None: ['LOGIN', 'REGISTER'],

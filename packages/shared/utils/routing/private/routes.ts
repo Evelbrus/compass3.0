@@ -41,4 +41,3 @@ export const privateRoutes = {
 } as const;
 
 export type PrivatePageType = keyof typeof privateRoutes;
-

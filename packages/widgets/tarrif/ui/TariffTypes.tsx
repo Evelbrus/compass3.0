@@ -10,12 +10,14 @@ import {
 } from '@shared/lib/effector/vehicles/optionsTranslation/optionsTranslationVehicle';
 import { DetailTariffData } from '@shared/prisma/interface/tariff/interface';
 import { cn } from '@shared/lib';
+import { openModal } from '@shared/lib/effector';
 
 interface TariffTypesProps {
   tariff: DetailTariffData;
   mode?: string;
   onSelectTariff: (tariff: DetailTariffData) => void;
   selectedTariff: DetailTariffData | undefined;
+  clientCorp?: boolean;
 }
 
 const TariffTypes: React.FC<TariffTypesProps> = ({
@@ -23,6 +25,7 @@ const TariffTypes: React.FC<TariffTypesProps> = ({
   mode,
   onSelectTariff,
   selectedTariff,
+  clientCorp,
 }) => {
   const router = useRouter();
 
@@ -40,6 +43,10 @@ const TariffTypes: React.FC<TariffTypesProps> = ({
 
   const handleEdit = () => {
     router.push(`/tariff-management/edit/${uuid}`);
+  };
+
+  const handleCreate = () => {
+    openModal('createClientCorpOrder');
   };
 
   const isActive = selectedTariff?.uuid === tariff.uuid;
@@ -75,16 +82,17 @@ const TariffTypes: React.FC<TariffTypesProps> = ({
           <p className="p-[10px] flex items-center justify-center border border-gray-200 rounded-lg font-normal text-base">
             {translatedVehicleType}
           </p>
-          {/*Кнопка редактирования */}
+
           <IButton
-            onClick={handleEdit}
+            onClick={clientCorp ? handleCreate : handleEdit}
             className="w-full h-[40px] border-none bg-[color:var(--button-secondary)] rounded-lg
             text-white font-semibold transition duration-300 ease-in-out
             hover:bg-[color:var(--button-secondary-hover)]"
             textClassName="text-end text-4 leading-4 font-normal justify-center"
           >
-            {mode === 'createOrder' ? 'Выбрать' : 'Редактировать'}
+            {clientCorp ? 'Выбрать тариф' : mode === 'createOrder' ? 'Выбрать' : 'Редактировать'}
           </IButton>
+
           <p className="font-helvetica-neue text-sm leading-5 text-end text-black/50 pl-3 pt-3">
             Цена: <strong className="text-black text-5xl">{totalPrice}₽</strong>
           </p>

@@ -84,24 +84,24 @@ const Profile = ({
           <div className="border-t border-gray-100 my-1" />
 
           <ul className="flex flex-col gap-1">
-            <li
-              className="hover:bg-gray-100 px-4 py-2 cursor-pointer text-sm"
-              onClick={() => handleMenuAction(profileMenuRoutes.PROFILE)}
-            >
-              Мой профиль
-            </li>
-            <li
-              className="hover:bg-gray-100 px-4 py-2 cursor-pointer text-sm"
-              onClick={() => handleMenuAction(profileMenuRoutes.SETTINGS)}
-            >
-              Настройки
-            </li>
-            <li
-              className="hover:bg-gray-100 px-4 py-2 cursor-pointer text-sm"
-              onClick={() => handleMenuAction(profileMenuRoutes.NOTIFICATIONS)}
-            >
-              Уведомления
-            </li>
+            {/*<li*/}
+            {/*className="hover:bg-gray-100 px-4 py-2 cursor-pointer text-sm"*/}
+            {/*onClick={() => handleMenuAction(profileMenuRoutes.PROFILE)}*/}
+            {/*>*/}
+            {/*Мой профиль*/}
+            {/*</li>*/}
+            {/*<li*/}
+            {/*className="hover:bg-gray-100 px-4 py-2 cursor-pointer text-sm"*/}
+            {/*onClick={() => handleMenuAction(profileMenuRoutes.SETTINGS)}*/}
+            {/*>*/}
+            {/*Настройки*/}
+            {/*</li>*/}
+            {/*<li*/}
+            {/*className="hover:bg-gray-100 px-4 py-2 cursor-pointer text-sm"*/}
+            {/*onClick={() => handleMenuAction(profileMenuRoutes.NOTIFICATIONS)}*/}
+            {/*>*/}
+            {/*Уведомления*/}
+            {/*</li>*/}
             <li
               className="hover:bg-gray-100 px-4 py-2 cursor-pointer text-sm text-red-600"
               onClick={() => {

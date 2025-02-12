@@ -11,13 +11,13 @@ import AnimatedComponent from '@shared/components/animated/CommonAnimated/Animat
 import { IButton } from '@shared/components/ui/buttons';
 import Filters from '@widgets/filters/ui/Filters';
 import { renderOrderDriverActions } from '@shared/components/ui/table/ui/TableRenders';
-import { $updateFlag, View } from '@shared/lib/effector/state/state';
+import { $updateFlag, openModal, View } from '@shared/lib/effector/state/state';
 import { useUnit } from 'effector-react';
 import StatusOverview from '@widgets/status-overview/ui/StatusOverview';
-import { privateRoutes } from '@shared/utils/routing';
 import { ordersClientCorpColumns } from '@pages/(client-corp)/orders/main/ordersClientCorpColumns';
 import { ordersClientCorpOverview } from '@pages/(client-corp)/orders/main/ordersClientCorpOverview';
 import useClientCorpOrders from '@pages/(client-corp)/orders/main/hooks/useClientCorpOrders';
+import { orderStatusTranslations } from '@shared/lib/effector/orders/options-and-translation/optionsStatusOrder';
 
 const OrderClientCorpPage = (): JSX.Element => {
   const searchParams = useSearchParams();
@@ -103,7 +103,7 @@ const OrderClientCorpPage = (): JSX.Element => {
   );
 
   const handleCreate = () => {
-    router.push(privateRoutes.ORDERCREATE);
+    openModal('createClientCorpOrder');
   };
 
   const tableData: TableOrdersRow[] = orders.map((order, index) => ({
@@ -121,7 +121,7 @@ const OrderClientCorpPage = (): JSX.Element => {
     arrivalPoint: {
       address: order.arrivalPoint.address,
     },
-    status: order.status,
+    status: orderStatusTranslations[order.status],
     createdAt: order.createdAt,
     updatedAt: order.updatedAt,
     basePrice: parseFloat(order.basePrice.toString()),

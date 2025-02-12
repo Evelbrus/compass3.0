@@ -150,6 +150,8 @@ export async function POST(req: Request) {
     phone,
   } = data;
 
+  console.log('Переданные selectedServices:', selectedServices);
+
   const orderStatus = assignedDriverId ? OrderStatus.PLANNED : OrderStatus.PENDING;
   const driverAcceptanceStatus = assignedDriverId ? DriverAcceptanceStatus.PENDING : undefined;
 

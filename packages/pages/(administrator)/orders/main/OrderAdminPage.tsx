@@ -18,6 +18,7 @@ import StatusOverview from '@widgets/status-overview/ui/StatusOverview';
 import { privateRoutes } from '@shared/utils/routing';
 import { ordersOverview } from '@pages/(administrator)/orders/main/ordersOverview';
 import { ordersColumns } from '@pages/(administrator)/orders/main/ordersColumns';
+import { orderStatusTranslations } from '@shared/lib/effector/orders/options-and-translation/optionsStatusOrder';
 
 const OrderAdminPage = (): JSX.Element => {
   const [orders, setOrders] = useState<DetailOrderData[]>([]);
@@ -126,7 +127,7 @@ const OrderAdminPage = (): JSX.Element => {
     arrivalPoint: {
       address: order.arrivalPoint.address,
     },
-    status: order.status,
+    status: orderStatusTranslations[order.status],
     createdAt: order.createdAt,
     updatedAt: order.updatedAt,
     basePrice: parseFloat(order.basePrice.toString()),

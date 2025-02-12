@@ -15,6 +15,7 @@ import {
   publicRoutes,
 } from '@shared/utils/routing';
 import { rolePagesMap } from '@shared/utils/routing/private/rolePagesMap';
+import { UserRole } from '@prisma/client';
 
 const Sidebar: React.FC<SidebarProps> = ({ role }) => {
   const pathname = usePathname();
@@ -103,29 +104,19 @@ const Sidebar: React.FC<SidebarProps> = ({ role }) => {
         </ul>
       </nav>
 
-      <div className="flex justify-center text-sm p-4">
-        <IButton
-          type="button"
-          className="w-full p-3 bg-[color:var(--button-secondary)]
-            text-[color:var(--text-white)] rounded-lg
-            hover:bg-[color:var(--button-secondary-hover)] transition"
-          textClassName="w-full text-center justify-center"
-        >
-          Создать заказ
-        </IButton>
-      </div>
-
-      <div className="flex justify-center text-sm my-2">
-        <IButton
-          type="button"
-          className="relative text-sm text-right text-black hover:underline"
-          badge={5}
-          badgeClassName="top-[-15px] right-[-25px] text-white bg-black"
-          aria-label="Notifications"
-        >
-          Водители на линии
-        </IButton>
-      </div>
+      {role !== UserRole.Client && role !== UserRole.ClientCorp && (
+        <div className="flex justify-center text-sm my-2">
+          <IButton
+            type="button"
+            className="relative text-sm text-right text-black hover:underline"
+            badge={5}
+            badgeClassName="top-[-15px] right-[-25px] text-white bg-black"
+            aria-label="Notifications"
+          >
+            Водители на линии
+          </IButton>
+        </div>
+      )}
     </aside>
   );
 };

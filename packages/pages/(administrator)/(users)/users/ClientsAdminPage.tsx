@@ -102,15 +102,11 @@ const ClientsAdminPage = (): JSX.Element => {
     });
   }, []);
 
-  const handleSort = useCallback(
-    (sortByKey: keyof TableUsersRow, w: 'asc' | 'desc') => {
-      startTransition(() => {
-        setSortBy(sortByKey);
-        setSortOrder(sortDirection);
-      });
-    },
-    [],
-  );
+  const handleSort = useCallback((sortByKey: keyof TableUsersRow, w: 'asc' | 'desc') => {
+    startTransition(() => {
+      setSortBy(sortByKey);
+    });
+  }, []);
 
   const handleCreate = () => {
     openModal('createUserModal');

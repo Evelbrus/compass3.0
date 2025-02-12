@@ -1,44 +1,189 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { FormProvider } from 'react-hook-form';
 import { IButton } from '@shared/components/ui/buttons';
 import { CloseIcon } from '@shared/components/ui/icon';
 import AnimatedComponent from '@shared/components/animated/CommonAnimated/AnimatedComponent';
+import { Decimal } from 'decimal.js';
 
-import useTariffAndServices from '@shared/components/modal/create-client-corp-order/hooks/useTariffAndServices';
-import usePointSelection from '@shared/components/modal/create-client-corp-order/hooks/usePointSelection';
-import useAdditionalPoints from '@shared/components/modal/create-client-corp-order/hooks/useAdditionalPoints';
-import useCreateClientCorpOrder from '@shared/components/modal/create-client-corp-order/hooks/useCreateClientCorpOrder';
+//Типизация
+import { Point, ServiceLevels, VehicleType } from '@prisma/client';
+import { ExtendedTariff } from '@shared/prisma/interface/orders/interface';
 
-import TariffSelector from '@shared/components/modal/create-client-corp-order/TariffSelector';
-import DepartureTimeInput from '@shared/components/modal/create-client-corp-order/DepartureTimeInput';
-import PointSelector from '@shared/components/modal/create-client-corp-order/PointSelector';
-import AdditionalPoints from '@shared/components/modal/create-client-corp-order/AdditionalPoints';
-import OrderDetailsInput from '@shared/components/modal/create-client-corp-order/OrderDetailsInput';
-import AdditionalServiceItem from '@shared/components/modal/create-client-corp-order/AdditionalServiceItem';
-import useAdditionalServices from '@shared/components/modal/create-client-corp-order/hooks/useAdditionalServicesSelection';
+//Хуки
+import useTariffs from '@shared/components/modal/create-client-corp-order/hooks/tariff/useTariffs';
+import usePointSelector from '@shared/components/modal/create-client-corp-order/hooks/point/usePointSelector';
+import useCreateClientCorpOrderLogic, {
+  CreateClientCorpOrderData,
+} from '@shared/components/modal/create-client-corp-order/hooks/useCreateClientCorpOrder';
+import useAdditionalServices from '@shared/components/modal/create-client-corp-order/hooks/additional-service/useAdditionalServices';
+import useWaitTime from '@shared/components/modal/create-client-corp-order/hooks/wait/useWaitTime';
+import useTotalPrice from '@shared/components/modal/create-client-corp-order/hooks/price/useTotalPrice';
+import useSubmitOrder from '@shared/components/modal/create-client-corp-order/hooks/useSubmitOrder';
+import useClientNotifications from '@shared/components/modal/create-client-corp-order/hooks/notifications/useClientNotifications';
+
+//Компоненты
+import TariffCheckbox from '@shared/components/modal/create-client-corp-order/ui/TariffCheckbox';
+import PointSelector from '@shared/components/modal/create-client-corp-order/inputs/PointSelector';
+import AdditionalPoints from '@shared/components/modal/create-client-corp-order/ui/AdditionalPoints';
+import AdditionalServicesList from '@shared/components/modal/create-client-corp-order/ui/AdditionalServicesList';
+import FlightDetails from '@shared/components/modal/create-client-corp-order/ui/FlightDetails';
+import usePointSelectionHandlers from '@shared/components/modal/create-client-corp-order/hooks/point/usePointSelectionHandlers';
+import WaitTimeSelector from '@shared/components/modal/create-client-corp-order/ui/WaitTimeSelector';
+import { showToast } from '@shared/components/toast/ToastManager';
+import { useRouter } from 'next/navigation';
 
 interface CreateClientCorpOrderProps {
   onClose: () => void;
 }
 
 const CreateClientCorpOrder: React.FC<CreateClientCorpOrderProps> = ({ onClose }) => {
-  const additionalServicesData = useAdditionalServices();
-  const tariffAndServices = useTariffAndServices('');
-  const departurePointSelection = usePointSelection({ type: 'departure' });
-  const arrivalPointSelection = usePointSelection({ type: 'arrival' });
-  const additionalPoints = useAdditionalPoints(
-    departurePointSelection.selectedPoint,
-    arrivalPointSelection.selectedPoint,
-    departurePointSelection.points,
-  );
+  const router = useRouter();
 
-  const formMethods = useCreateClientCorpOrder({
-    onClose,
-    tariffs: tariffAndServices.tariffs,
-    additionalServices: additionalServicesData.additionalServices,
-    isServiceAvailableForTariff: tariffAndServices.isServiceAvailableForTariff,
+  const [ServiceLevel, setServiceLevel] = useState<ServiceLevels>();
+  const [VehicleType, setVehicleType] = useState<VehicleType>();
+
+  const tariffAndServices = useTariffs({
+    vehicleType: VehicleType,
+  });
+  const tariffs: ExtendedTariff[] = tariffAndServices.tariffs || [];
+
+  const {
+    selectedServiceLevel,
+    selectedVehicleType,
+    selectedTariff,
+    handleServiceLevelChange,
+    handleVehicleTypeChange,
+    formMethods,
+  } = useCreateClientCorpOrderLogic(tariffs, ServiceLevel, VehicleType);
+
+  //------------------ Селектор для адреса подачи (departure) ------------------
+  const {
+    isOpen: isFromOpen,
+    searchValue: fromSearchValue,
+    search: fromSearch,
+    filteredPoints: fromFilteredPoints,
+    loading: fromLoading,
+    onOpenSelect: onFromOpenSelect,
+    onSearchValueChange: onFromSearchValueChange,
+    handleSearchChange: handleFromSearchChange,
+    onSelectPoint: onFromSelectPoint,
+    selectorRef: fromSelectorRef,
+    observerRef: fromObserverRef,
+    selectedPoint: departurePoint,
+  } = usePointSelector({ mode: 'single' });
+
+  //------------------ Селектор для адреса прибытия (arrival) ------------------
+  const {
+    isOpen: isToOpen,
+    searchValue: toSearchValue,
+    search: toSearch,
+    filteredPoints: toFilteredPoints,
+    loading: toLoading,
+    onOpenSelect: onToOpenSelect,
+    onSearchValueChange: onToSearchValueChange,
+    handleSearchChange: handleToSearchChange,
+    onSelectPoint: onToSelectPoint,
+    selectorRef: toSelectorRef,
+    observerRef: toObserverRef,
+    selectedPoint: arrivalPoint,
+  } = usePointSelector({ mode: 'single' });
+
+  //-------------- Селектор для дополнительных остановок (multiple) --------------
+  const {
+    isOpen: isAdditionalOpen,
+    searchValue: additionalSearchValue,
+    search: additionalSearch,
+    filteredPoints: additionalFilteredPoints,
+    loading: additionalLoading,
+    onOpenSelect: onAdditionalOpenSelect,
+    onSearchValueChange: onAdditionalSearchValueChange,
+    handleSearchChange: onAdditionalHandleSearchChange,
+    onSelectPoint: onAdditionalSelectPoint,
+    selectorRef: additionalSelectorRef,
+    observerRef: additionalObserverRef,
+    selectedPoints: additionalPoints,
+    onRemovePoint,
+    onChangeOrder,
+    totalAdditionalPrice,
+  } = usePointSelector({
+    mode: 'multiple',
+    initialSelectedPoints: Array(5).fill(null),
+    additionalPointPrice: selectedTariff?.additionalPointPrice,
   });
 
-  if (tariffAndServices.loading) {
+  const {
+    availableServices,
+    handleServiceSelection,
+    selectedServices,
+    totalAdditionalServicesPrice,
+  } = useAdditionalServices(selectedTariff);
+
+  const { handleDepartureSelectPoint, handleArrivalSelectPoint, handleAdditionalSelectPoint } =
+    usePointSelectionHandlers({
+      departurePoint: departurePoint
+        ? { ...departurePoint, basePrice: new Decimal(departurePoint.basePrice) }
+        : undefined,
+      arrivalPoint: arrivalPoint
+        ? { ...arrivalPoint, basePrice: new Decimal(arrivalPoint.basePrice) }
+        : undefined,
+      additionalPoints: additionalPoints
+        ? additionalPoints.map((point) =>
+            point ? { ...point, basePrice: new Decimal(point.basePrice) } : null,
+          )
+        : undefined,
+      onFromSelectPoint: (point) =>
+        onFromSelectPoint({ ...point, basePrice: new Decimal(point.basePrice) }),
+      onToSelectPoint: (point) =>
+        onToSelectPoint({ ...point, basePrice: new Decimal(point.basePrice) }),
+      onAdditionalSelectPoint: (point, index) =>
+        onAdditionalSelectPoint({ ...point, basePrice: new Decimal(point.basePrice) }, index),
+    });
+
+  const { waitTime, additionalWaitTimeCost, adjustWaitTime, minWaitTime, maxWaitTime } =
+    useWaitTime({ selectedTariff, departurePoint });
+
+  const totalPrice = useTotalPrice({
+    tariffPrice: selectedTariff?.price,
+    additionalServicesPrice: totalAdditionalServicesPrice,
+    additionalPointsPrice: totalAdditionalPrice,
+    arrivalPrice: arrivalPoint ? arrivalPoint.basePrice : null,
+    waitTimeCost: additionalWaitTimeCost,
+  });
+
+  const { handleOrderSuccess, handleOrderError } = useClientNotifications({
+    departurePoint,
+    arrivalPoint,
+  });
+
+  const { submitOrder, isSubmitting, error } = useSubmitOrder();
+
+  const onSubmit = async (formData: CreateClientCorpOrderData) => {
+    try {
+      //Передаём все необходимые данные в submitOrder
+      await submitOrder({
+        selectedTariff,
+        departurePoint: departurePoint?.uuid ?? '',
+        arrivalPoint: arrivalPoint?.uuid ?? '',
+        additionalPoints: additionalPoints
+          ?.map((point) => point?.uuid)
+          .filter((uuid): uuid is string => Boolean(uuid)),
+        selectedServices,
+        totalPrice,
+        departureTime: formData.departureTime,
+        flightNumber: formData.flightNumber || '',
+        description: formData.description || '',
+        waitingTimeMinutes: waitTime,
+      });
+      showToast.success('Заказ создан успешно!');
+      handleOrderSuccess();
+      router.push('/orders');
+      onClose();
+    } catch (err) {
+      handleOrderError(err);
+    }
+  };
+
+  if (tariffAndServices.isInitialMount) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50 p-4">
         <AnimatedComponent duration={500} className="bg-white rounded-3xl p-8 w-full max-w-3xl">
@@ -53,146 +198,189 @@ const CreateClientCorpOrder: React.FC<CreateClientCorpOrderProps> = ({ onClose }
       <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50 p-4">
         <AnimatedComponent duration={500} className="bg-white rounded-3xl p-8 w-full max-w-3xl">
           <div>Ошибка: {tariffAndServices.error}</div>
-          <IButton onClick={formMethods.closeModalHandler}>Закрыть</IButton>
+          <IButton onClick={onClose}>Закрыть</IButton>
         </AnimatedComponent>
       </div>
     );
   }
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50 p-4 overflow-y-auto">
-      <AnimatedComponent duration={500} className="bg-white rounded-3xl p-8 w-full max-w-3xl">
-        <IButton
-          variant="close"
-          onClick={formMethods.closeModalHandler}
-          aria-label="Закрыть модальное окно"
-          className="absolute top-4 right-4 border border-gray-200 hover:shadow-[0px_0px_5px_rgba(0,0,0,0.15)] hover:bg-blue-100 rounded-full p-2"
+    <FormProvider {...formMethods}>
+      <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50 p-4">
+        <AnimatedComponent
+          duration={500}
+          className="relative flex flex-col bg-white rounded-3xl p-8 w-full h-full max-w-3xl gap-4 overflow-y-auto"
         >
-          <CloseIcon />
-        </IButton>
-        <h2 className="text-2xl font-semibold mb-4">Создать новый заказ</h2>
+          <IButton
+            variant="close"
+            onClick={onClose}
+            aria-label="Закрыть модальное окно"
+            className="absolute top-4 right-4 border border-gray-200 hover:shadow-[0px_0px_5px_rgba(0,0,0,0.15)] hover:bg-blue-100 rounded-full p-2"
+          >
+            <CloseIcon />
+          </IButton>
 
-        <TariffSelector
-          tariffs={tariffAndServices.tariffs}
-          selectedTariff={formMethods.selectedTariff}
-          onTariffChange={formMethods.setSelectedTariff}
-        />
+          {/*Оборачиваем контент в форму и добавляем обработчик onSubmit */}
+          <form className="flex flex-col gap-4" onSubmit={formMethods.handleSubmit(onSubmit)}>
+            <h2 className="text-3xl font-semibold">Создание заказа</h2>
 
-        <DepartureTimeInput
-          {...formMethods.formMethods.register('departureTime')}
-          onTimeChange={(value) => formMethods.formMethods.setValue('departureTime', value)}
-          departureTime={formMethods.formMethods.watch('departureTime')}
-        />
+            <div className="flex border"></div>
 
-        <PointSelector
-          label="Откуда?"
-          points={departurePointSelection.points}
-          selectedValue={formMethods.departurePoint}
-          searchValue={departurePointSelection.searchValue}
-          search={departurePointSelection.search}
-          isOpen={departurePointSelection.isOpen}
-          loading={departurePointSelection.loading}
-          totalPoints={departurePointSelection.totalPoints}
-          currentPage={departurePointSelection.currentPage}
-          observerRef={departurePointSelection.observerRef}
-          selectorRef={departurePointSelection.ref}
-          onOpenSelect={() => departurePointSelection.setIsOpen(true)}
-          onSearchValueChange={departurePointSelection.setSearchValue}
-          onSearchChange={departurePointSelection.setSearch}
-          onSelectPoint={departurePointSelection.handleSelectPoint}
-          onLoadPoints={departurePointSelection.loadPoints}
-          type="departure"
-        />
+            <h2 className="text-2xl font-semibold">
+              1. Выберите тариф
+              <br />
+              (тип авто и уровень обслуживания)
+            </h2>
 
-        <PointSelector
-          label="Куда?"
-          points={arrivalPointSelection.points}
-          selectedValue={formMethods.arrivalPoint}
-          searchValue={arrivalPointSelection.searchValue}
-          search={arrivalPointSelection.search}
-          isOpen={arrivalPointSelection.isOpen}
-          loading={arrivalPointSelection.loading}
-          totalPoints={arrivalPointSelection.totalPoints}
-          currentPage={arrivalPointSelection.currentPage}
-          observerRef={arrivalPointSelection.observerRef}
-          selectorRef={arrivalPointSelection.ref}
-          onOpenSelect={() => arrivalPointSelection.setIsOpen(true)}
-          onSearchValueChange={arrivalPointSelection.setSearchValue}
-          onSearchChange={arrivalPointSelection.setSearch}
-          onSelectPoint={arrivalPointSelection.handleSelectPoint}
-          onLoadPoints={arrivalPointSelection.loadPoints}
-          type="arrival"
-        />
+            <TariffCheckbox
+              tariffs={tariffs}
+              selectedServiceLevel={selectedServiceLevel}
+              selectedVehicleType={selectedVehicleType}
+              selectedTariffUuid={selectedTariff?.uuid || null}
+              handleServiceLevelChange={handleServiceLevelChange}
+              handleVehicleTypeChange={handleVehicleTypeChange}
+              {...formMethods}
+            />
 
-        {/*Дополнительные услуги */}
-        <div>
-          <label className="block text-5 leading-5 font-bold mb-2">Дополнительные услуги</label>
-          <ul className="space-y-2">
-            {tariffAndServices.additionalServices.map((service) => {
-              const tas = formMethods.isServiceAvailableForTariff(service.uuid);
-              const isAvailable = tas ? tas.isAvailable : false;
-              const price = tas ? tas.price : 0;
-              const isChecked = formMethods.selectedAdditionalServices.some(
-                (s) => s.uuid === service.uuid,
-              );
-              return (
-                <AdditionalServiceItem
-                  key={service.uuid}
-                  serviceUuid={service.uuid}
-                  name={service.name}
-                  isAvailable={isAvailable}
-                  price={price}
-                  isChecked={isChecked}
-                  onAdditionalServiceChange={formMethods.handleAdditionalServiceChangeCallback}
+            <div className="w-[50%] flex border"></div>
+
+            <h2 className="text-2xl font-semibold">2. Выберите адрес подачи</h2>
+
+            <div className="flex flex-row gap-4">
+              <div className="w-full flex flex-col gap-4 p-4 border-2 rounded-md">
+                <PointSelector
+                  control={formMethods.control}
+                  name="departurePoint"
+                  label="Адрес подачи"
+                  isOpen={isFromOpen}
+                  searchValue={fromSearchValue}
+                  onOpenSelect={onFromOpenSelect}
+                  onSearchValueChange={onFromSearchValueChange}
+                  search={fromSearch}
+                  handleSearchChange={handleFromSearchChange}
+                  filteredPoints={fromFilteredPoints.map((point) => ({
+                    ...point,
+                    basePrice: new Decimal(point.basePrice),
+                  }))}
+                  loading={fromLoading}
+                  onSelectPoint={handleDepartureSelectPoint}
+                  selectorRef={fromSelectorRef}
+                  observerRef={fromObserverRef}
+                  selectedPoint={
+                    departurePoint
+                      ? { ...departurePoint, basePrice: new Decimal(departurePoint.basePrice) }
+                      : null
+                  }
                 />
-              );
-            })}
-          </ul>
-        </div>
+                <PointSelector
+                  control={formMethods.control}
+                  name="arrivalPoint"
+                  label="Адрес прибытия"
+                  isOpen={isToOpen}
+                  searchValue={toSearchValue}
+                  onOpenSelect={onToOpenSelect}
+                  onSearchValueChange={onToSearchValueChange}
+                  search={toSearch}
+                  handleSearchChange={handleToSearchChange}
+                  filteredPoints={toFilteredPoints.map((point) => ({
+                    ...point,
+                    basePrice: new Decimal(point.basePrice),
+                  }))}
+                  loading={toLoading}
+                  onSelectPoint={handleArrivalSelectPoint}
+                  selectorRef={toSelectorRef}
+                  observerRef={toObserverRef}
+                  selectedPoint={
+                    arrivalPoint
+                      ? { ...arrivalPoint, basePrice: new Decimal(arrivalPoint.basePrice) }
+                      : null
+                  }
+                  arrivalPointPrice={arrivalPoint?.basePrice || undefined}
+                />
+              </div>
 
-        {/*Компонент для дополнительных точек */}
-        <AdditionalPoints
-          selectedAdditionalPoints={formMethods.additionalPointsSelected}
-          handleSetAdditionalPoints={formMethods.handleSetAdditionalPoints}
-          getAvailablePoints={formMethods.getAvailablePoints}
-          additionalPointStates={additionalPoints.additionalPointStates}
-          setAdditionalPointSearch={additionalPoints.setAdditionalPointSearch}
-          setAdditionalPointSearchValue={additionalPoints.setAdditionalPointSearchValue}
-          setAdditionalPointIsOpen={additionalPoints.setAdditionalPointIsOpen}
-          loadAdditionalPoints={additionalPoints.loadAdditionalPoints}
-          additionalPointObservers={additionalPoints.additionalPointObservers}
-          additionalPointRefs={additionalPoints.additionalPointRefs}
-          handleSelectAdditionalPoint={formMethods.handleSetAdditionalPoints}
-        />
+              <AdditionalPoints
+                label="Дополнительные остановки"
+                isOpen={isAdditionalOpen}
+                searchValue={additionalSearchValue}
+                onOpenSelect={onAdditionalOpenSelect}
+                onSearchValueChange={onAdditionalSearchValueChange}
+                search={additionalSearch}
+                filteredPoints={additionalFilteredPoints.map((point) => ({
+                  ...point,
+                  basePrice: new Decimal(point.basePrice),
+                }))}
+                loading={additionalLoading}
+                onSelectPoint={(point: Point, index: number) =>
+                  handleAdditionalSelectPoint(point, index)
+                }
+                selectorRef={additionalSelectorRef}
+                observerRef={additionalObserverRef}
+                selectedPoints={
+                  additionalPoints
+                    ? additionalPoints.map((point) =>
+                        point ? { ...point, basePrice: new Decimal(point.basePrice) } : null,
+                      )
+                    : []
+                }
+                onRemovePoint={onRemovePoint || (() => {})}
+                onChangeOrder={onChangeOrder}
+                handleSearchChange={onAdditionalHandleSearchChange}
+                onMaxLimitReached={() => alert('Достигнут лимит дополнительных остановок')}
+                totalAdditionalPrice={totalAdditionalPrice}
+              />
+            </div>
 
-        <form onSubmit={formMethods.handleCreateOrder}>
-          <OrderDetailsInput
-            flightNumber={formMethods.formMethods.watch('flightNumber')}
-            description={formMethods.formMethods.watch('description')}
-            onFlightNumberChange={(value) =>
-              formMethods.formMethods.setValue('flightNumber', value)
-            }
-            onDescriptionChange={(value) => formMethods.formMethods.setValue('description', value)}
-            {...formMethods.formMethods.register('flightNumber')}
-            {...formMethods.formMethods.register('description')}
-          />
+            <div className="flex border"></div>
 
-          <div className="flex justify-end gap-2">
-            <IButton onClick={formMethods.closeModalHandler}>Отменить</IButton>
-            <IButton
-              type="submit"
-              disabled={
-                !formMethods.selectedTariff ||
-                !formMethods.departurePoint ||
-                !formMethods.arrivalPoint
-              }
-            >
-              Создать заказ
-            </IButton>
-          </div>
-        </form>
-      </AnimatedComponent>
-    </div>
+            <h2 className="text-2xl font-semibold">
+              3. Заполните описание и выберите
+              <br />
+              дополнительные опции
+            </h2>
+
+            <div className="flex flex-row gap-4">
+              <div className="w-full flex flex-col gap-2">
+                <FlightDetails {...formMethods} />
+                <WaitTimeSelector
+                  waitTime={waitTime}
+                  additionalWaitTimeCost={additionalWaitTimeCost}
+                  adjustWaitTime={adjustWaitTime}
+                  minWaitTime={minWaitTime}
+                  maxWaitTime={maxWaitTime}
+                  departurePoint={departurePoint}
+                  freeWaitTime={selectedTariff?.freeWaitTimeAirport ?? 0}
+                />
+              </div>
+              <AdditionalServicesList
+                label="Дополнительные опции"
+                availableServices={availableServices}
+                handleServiceSelection={handleServiceSelection}
+                selectedServices={selectedServices}
+                totalAdditionalServicesPrice={totalAdditionalServicesPrice}
+              />
+            </div>
+
+            <div className="flex border"></div>
+
+            <h2 className="text-2xl font-semibold">4. Общая цена</h2>
+            <div>
+              <h3>
+                Общая сумма заказа: <span className={'font-bold'}>{totalPrice.toNumber()} сом</span>
+              </h3>
+            </div>
+
+            {/*Кнопка для отправки формы */}
+            <div className={'w-full flex justify-end'}>
+              <IButton type="submit" disabled={isSubmitting}>
+                {isSubmitting ? 'Отправка...' : 'Создать заказ'}
+              </IButton>
+            </div>
+            {error && <p className="text-red-600 mt-2">Ошибка: {error}</p>}
+          </form>
+        </AnimatedComponent>
+      </div>
+    </FormProvider>
   );
 };
 

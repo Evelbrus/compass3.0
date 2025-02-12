@@ -4,9 +4,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { OrderStatus } from '@prisma/client';
 import debug from 'debug';
 import { prisma } from '@shared/prisma/prisma-client';
+import { v4 as uuidv4 } from 'uuid';
 import { ACCESS_TOKEN_COOKIE } from '@shared/utils/cookie';
 import { authConfig } from '@shared/utils/cookie/get-cookie/auth';
 import { verifyJWT } from '@shared/utils/parse-jwt/parseJwt';
+import { orderQueue } from '@next-app/src/lib/queues/orderQueue';
+import { CreateClientCorpOrderData } from '@shared/components/modal/create-client-corp-order/hooks/useCreateClientCorpOrder';
+import { Decimal } from 'decimal.js';
 
 const log = debug('app:client-corp/orders');
 
@@ -143,4 +147,140 @@ export async function GET(req: NextRequest) {
       { status: 500 },
     );
   }
+}
+
+export async function POST(req: NextRequest) {
+  let data: CreateClientCorpOrderData;
+  try {
+    data = await req.json();
+    log('Получены данные:', data);
+  } catch (error) {
+    log('Ошибка разбора JSON:', error);
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
+
+  const {
+    tariffUuid,
+    departureTime,
+    departurePoint,
+    arrivalPoint,
+    intermediatePoints,
+    basePrice,
+    selectedServices,
+    description,
+    flightNumber,
+    waitingTimeMinutes,
+  } = data;
+
+  log('Переданные selectedServices:', selectedServices);
+
+  //Получаем токен из cookies
+  const accessToken = req.cookies.get(ACCESS_TOKEN_COOKIE)?.value;
+  if (!accessToken) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  //Проверяем токен и ожидаем наличие поля uuid
+  const token = await verifyJWT(accessToken, authConfig.accessToken.secret);
+  if (!token || !token.uuid) {
+    return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+  }
+  const clientUuid = token.uuid;
+
+  const result = await prisma.$transaction(async (prismaTx) => {
+    log('Начинаем транзакцию');
+
+    //1. Проверка существования тарифа
+    const tariffRecord = await prismaTx.tariff.findUnique({
+      where: { uuid: tariffUuid },
+    });
+    if (!tariffRecord) {
+      log(`Тариф с UUID ${tariffUuid} не найден`);
+      throw new Error('Tariff not found');
+    }
+    log('Тариф найден:', tariffRecord);
+
+    //2. Проверка существования точки отправления
+    const departurePointRecord = await prismaTx.point.findUnique({
+      where: { uuid: departurePoint },
+    });
+    if (!departurePointRecord) {
+      log(`Точка отправления с UUID ${departurePoint} не найдена`);
+      throw new Error('Departure point not found');
+    }
+    log('Точка отправления найдена:', departurePointRecord);
+
+    //3. Проверка существования точки прибытия
+    const arrivalPointRecord = await prismaTx.point.findUnique({
+      where: { uuid: arrivalPoint },
+    });
+    if (!arrivalPointRecord) {
+      log(`Точка прибытия с UUID ${arrivalPoint} не найдена`);
+      throw new Error('Arrival point not found');
+    }
+    log('Точка прибытия найдена:', arrivalPointRecord);
+
+    //4. Создание заказа
+    const order = await prismaTx.order.create({
+      data: {
+        uuid: uuidv4(),
+        createdById: clientUuid,
+        tariffUuid,
+        departureTime: new Date(departureTime!),
+        departurePointId: departurePoint,
+        arrivalPointId: arrivalPoint,
+        basePrice: basePrice !== undefined ? new Decimal(basePrice) : new Decimal(0),
+        status: OrderStatus.PENDING,
+        intermediatePoints: (intermediatePoints || []).filter(Boolean),
+        description: description || null,
+        flightNumber: flightNumber || null,
+        waitingTimeMinutes: waitingTimeMinutes,
+      },
+    });
+    log('Заказ создан:', order);
+
+    //5. Добавление дополнительных услуг
+    if (selectedServices && selectedServices.length > 0) {
+      log('Выбранные услуги (tariffOnServiceUuid):', selectedServices);
+      const tariffOnServices = await prismaTx.tariffOnService.findMany({
+        where: {
+          uuid: { in: selectedServices },
+        },
+      });
+      if (tariffOnServices.length !== selectedServices.length) {
+        log(
+          `Не все услуги найдены для тарифа ${tariffUuid}. Выбранные услуги: ${selectedServices.join(', ')}`,
+        );
+        throw new Error('Not all services found for tariff');
+      }
+
+      await prismaTx.orderOnTariffAdditionalService.createMany({
+        data: tariffOnServices.map((tariffOnService) => ({
+          uuid: uuidv4(),
+          orderUuid: order.uuid,
+          tariffOnServiceUuid: tariffOnService.uuid,
+        })),
+      });
+      log('Дополнительные услуги добавлены');
+    }
+
+    return order;
+  });
+
+  console.log('result', result);
+
+  //Добавляем задачу на проверку OVERDUE в момент наступления departureTime
+  await orderQueue.add(
+    'preOrderNotification',
+    { order: result },
+    {
+      attempts: 3,
+      backoff: { type: 'exponential', delay: 1000 },
+      jobId: `preOrder-${result.uuid}`,
+    },
+  );
+
+  console.log(`📌 Задача preOrderNotification добавлена, jobId: preOrder-${result.uuid}`);
+
+  return NextResponse.json(result, { status: 201 });
 }

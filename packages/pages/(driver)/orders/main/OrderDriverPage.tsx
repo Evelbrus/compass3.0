@@ -18,6 +18,7 @@ import { privateRoutes } from '@shared/utils/routing';
 import { ordersDriverColumns } from '@pages/(driver)/orders/main/ordersDriverColumns';
 import { ordersDriverOverview } from '@pages/(driver)/orders/main/ordersDriverOverview';
 import useDriverOrders from '@pages/(driver)/orders/main/hooks/useDriverOrders';
+import { orderStatusTranslations } from '@shared/lib/effector/orders/options-and-translation/optionsStatusOrder';
 
 const OrderDriverPage = (): JSX.Element => {
   const searchParams = useSearchParams();
@@ -121,7 +122,7 @@ const OrderDriverPage = (): JSX.Element => {
     arrivalPoint: {
       address: order.arrivalPoint.address,
     },
-    status: order.status,
+    status: orderStatusTranslations[order.status],
     createdAt: order.createdAt,
     updatedAt: order.updatedAt,
     basePrice: parseFloat(order.basePrice.toString()),

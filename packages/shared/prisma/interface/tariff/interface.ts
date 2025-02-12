@@ -15,9 +15,13 @@ export interface DetailTariffData extends Tariff {
   vehicleType: VehicleType;
   serviceLevel: ServiceLevels;
   tariffAdditionalServices: {
+    uuid: string;
     service: AdditionalServiceWithDetails;
+    serviceUuid: string;
     price: number;
     isAvailable: boolean;
+    createdAt: Date;
+    updatedAt: Date;
   }[];
 }
 

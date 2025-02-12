@@ -11,7 +11,7 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const parsedParams = {
     page: parseInt(searchParams.get('page') || '1', 10),
-    per_page: parseInt(searchParams.get('per_page') || '10', 10),
+    per_page: parseInt(searchParams.get('per_page') || '20', 10),
     vehicleType: searchParams.get('vehicleType') as VehicleType | null,
     serviceLevel: searchParams.get('serviceLevel') as ServiceLevels | null,
     sort_by: (searchParams.get('sort_by') as 'name' | 'createdAt' | 'updatedAt') || 'createdAt',
