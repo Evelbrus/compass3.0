@@ -7,7 +7,7 @@ services:
     ports:
       - '3008:3008'
     env_file:
-      - ./apps/next-app/.env
+      - ./apps/next-app/.env.production
     command: >
       sh -c "yarn generate:cookie-name && yarn prod"
     networks:
