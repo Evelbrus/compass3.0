@@ -28,6 +28,7 @@ export async function verifyJWT<T>(token: string, secret: string): Promise<T> {
     if (!token) throw new Error('JWT token is empty');
     token = token.trim();
     console.log('Verifying JWT:', token);
+    console.log('SECRET TOKEN:', token);
     const secretKey = new TextEncoder().encode(secret);
     const { payload } = await jwtVerify(token, secretKey, { algorithms: ['HS256'] });
     console.log('Verified payload:', payload);

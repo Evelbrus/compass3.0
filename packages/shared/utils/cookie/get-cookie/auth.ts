@@ -49,12 +49,13 @@ function validateAuthConfig(config: AuthConfig) {
 
 export const authConfig: AuthConfig = {
   accessToken: {
-    secret: process.env.ACCESS_TOKEN_SECRET || 'access_secret',
+    //Добавлено .trim() для гарантии корректного значения
+    secret: (process.env.ACCESS_TOKEN_SECRET || 'access_secret').trim(),
     expiresIn: '2m',
     maxAge: parseDuration('2m'),
   },
   refreshToken: {
-    secret: process.env.REFRESH_TOKEN_SECRET || 'refresh_secret',
+    secret: (process.env.REFRESH_TOKEN_SECRET || 'refresh_secret').trim(),
     expiresIn: '7d',
     maxAge: parseDuration('7d'),
   },

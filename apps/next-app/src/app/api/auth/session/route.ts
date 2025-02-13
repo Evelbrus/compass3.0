@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { jwtVerify } from 'jose';
 import { prisma } from '@shared/prisma/prisma-client';
 import { authConfig } from '@shared/utils/cookie/get-cookie/auth';
 import { ACCESS_TOKEN_COOKIE } from '@shared/utils/cookie';
+import { verifyJWT } from '@shared/utils/parse-jwt/parseJwt';
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 200 });
     }
 
-    const { payload } = await jwtVerify(
+    const { payload } = await verifyJWT(
       accessToken,
       new TextEncoder().encode(authConfig.accessToken.secret),
       { algorithms: ['HS256'] },
