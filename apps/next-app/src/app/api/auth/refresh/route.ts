@@ -86,23 +86,21 @@ export async function POST(request: NextRequest) {
       console.error('[REFRESH] User not found or refresh token missing in DB');
 
       const deleteAllCookies = (response: NextResponse) => {
-        const cookies = Object.keys(response.cookies.getAll() || {});
+        const cookiesToDelete = [ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE];
 
-        console.log('Найденные куки перед удалением:', cookies); //Лог перед удалением
-
-        cookies.forEach((cookie) => {
-          console.log(`Удаляю куку: ${cookie}`); //Лог удаления конкретной куки
-
+        cookiesToDelete.forEach((cookie) => {
           response.cookies.set(cookie, '', {
             expires: new Date(0),
             path: '/',
+            domain: 'operator.garage.kg',
             httpOnly: true,
             secure: true,
             sameSite: 'lax',
           });
+          console.log(`Удалена кука: ${cookie}`);
         });
 
-        console.log('Все куки должны быть удалены!');
+        console.log('Отправлены заголовки Set-Cookie для удаления всех куков.');
       };
 
       const response = NextResponse.json({ message: 'Invalid refresh token' }, { status: 401 });
