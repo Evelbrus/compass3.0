@@ -1,7 +1,16 @@
 declare namespace NodeJS {
   interface ProcessEnv {
     NODE_ENV: 'development' | 'production' | 'test';
-    URL?: string;
+    NEXT_PUBLIC_URL: string;
+    NEXT_PUBLIC_SOCKET_ORIGIN: string;
+    ACCESS_TOKEN_SECRET: string;
+    REFRESH_TOKEN_SECRET: string;
+    ENCRYPTION_KEY: string;
+    RATE_LIMIT_MAX_ATTEMPTS: string;
+    WEBSOCKET_PORT: string;
+    REDIS_HOST: string;
+    REDIS_PORT: string;
+    POSTGRES_URL: string;
   }
 
   interface Process {

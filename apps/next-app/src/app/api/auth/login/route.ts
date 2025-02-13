@@ -213,7 +213,7 @@ export async function POST(request: NextRequest) {
     });
 
     //Заголовки безопасности
-    response.headers.set('Access-Control-Allow-Origin', process.env.NEXT_PUBLIC_URL || '*');
+    response.headers.set('Access-Control-Allow-Origin', process.env.NEXT_PUBLIC_URL);
     response.headers.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
     response.headers.set('Access-Control-Allow-Headers', 'Content-Type');
     response.headers.set('Access-Control-Allow-Credentials', 'true');
