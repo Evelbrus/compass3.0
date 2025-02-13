@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   bullmq:
     image: node:20-alpine3.19
@@ -11,7 +9,7 @@ services:
     environment:
       - NODE_ENV=production
     env_file:
-      - ./apps/next-app/.env.production
+      - ../apps/next-app/.env.production
     command: >
       sh -c "yarn bullmq"
     restart: always

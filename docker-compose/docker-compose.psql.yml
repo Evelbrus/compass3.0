@@ -5,11 +5,11 @@ services:
     environment:
       - NODE_ENV=production
     env_file:
-      - ./apps/next-app/.env.production
+      - ../apps/next-app/.env.production
     volumes:
-      - ./persistentdata/db:/var/lib/postgresql/data
-      - ./persistentdata/backups:/backups
-      - ./init-scripts:/docker-entrypoint-initdb.d
+      - ../persistentdata/db:/var/lib/postgresql/data
+      - ../persistentdata/backups:/backups
+      - ../init-scripts:/docker-entrypoint-initdb.d
     ports:
       - '5434:5432'
     restart: always

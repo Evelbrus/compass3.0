@@ -1,18 +1,18 @@
 services:
-  websocket-server:
+  nextjs:
     image: node:20-alpine3.19
-    container_name: websocket
+    container_name: next.js
     working_dir: /app
     volumes:
-      - .:/app
+      - ../:/app
     ports:
-      - '4000:4000'
+      - '3008:3008'
     environment:
       - NODE_ENV=production
     env_file:
-      - ./apps/next-app/.env.production
+      - ../apps/next-app/.env.production
     command: >
-      sh -c "yarn webS"
+      sh -c "yarn prod"
     networks:
       - app-network
 

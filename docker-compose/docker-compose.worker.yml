@@ -1,20 +1,18 @@
 services:
-  nextjs:
+  worker:
     image: node:20-alpine3.19
-    container_name: next.js-serve
+    container_name: worker
     working_dir: /app
     volumes:
-      - .:/app
-    ports:
-      - '3008:3008'
+      - ../:/app
     environment:
       - NODE_ENV=production
     env_file:
-      - ./apps/next-app/.env.production
-    command: >
-      sh -c "yarn serve"
+      - ../apps/next-app/.env.production
+    command: sh -c "yarn worker"
     networks:
       - app-network
+    restart: always
 
 volumes:
   www-html:

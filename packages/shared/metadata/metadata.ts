@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: 'Compass',
-  description: 'Compass Manas.',
+  description: 'Compass Transfer',
   metadataBase: new URL('https://yourdomain.com'),
   openGraph: {
     title: 'Название для Open Graph',
@@ -19,8 +19,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Compass Manas',
-    description: 'Compass Manas',
+    title: 'Compass Transfer',
+    description: 'Compass Transfer',
     images: ['https://yourdomain.com/twitter-image.jpg'],
   },
 };
