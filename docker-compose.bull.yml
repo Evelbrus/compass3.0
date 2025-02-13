@@ -2,8 +2,6 @@ version: '3.8'
 
 services:
   bullmq:
-    build:
-      context: .
     container_name: bullmq
     networks:
       - app-network
