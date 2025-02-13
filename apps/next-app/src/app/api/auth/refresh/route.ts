@@ -101,6 +101,7 @@ export async function POST(request: NextRequest) {
       response.cookies.delete(ACCESS_TOKEN_COOKIE);
       response.cookies.delete(REFRESH_TOKEN_COOKIE);
       deleteAllCookies(response);
+      console.log("РЕСПОНСНА УДАЛЕНИЕ СРАБОТАЛ??")
       return response;
     }
 
