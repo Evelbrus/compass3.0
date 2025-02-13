@@ -13,6 +13,9 @@ services:
     networks:
       - app-network
 
+volumes:
+  www-html:
+
 networks:
   app-network:
     driver: bridge

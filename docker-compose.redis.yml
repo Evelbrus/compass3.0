@@ -12,6 +12,9 @@ services:
       - app-network
     restart: always
 
+volumes:
+  www-html:
+
 networks:
   app-network:
     driver: bridge

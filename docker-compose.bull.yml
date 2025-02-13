@@ -15,6 +15,9 @@ services:
       sh -c "yarn bullmq"
     restart: always
 
+volumes:
+  www-html:
+
 networks:
   app-network:
     driver: bridge
