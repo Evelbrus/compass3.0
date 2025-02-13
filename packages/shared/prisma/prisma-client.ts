@@ -11,25 +11,17 @@ let envFilePath: string;
 
 envFilePath =
   process.env.NODE_ENV === 'production'
-    ? path.resolve(__dirname, '../../../../.env.production')
+    ? path.resolve(__dirname, '../../../../apps/next-app/.env.production')
     : path.resolve(__dirname, '../../../../.env.development');
 console.log(`Загружаем переменные окружения из файла: ${envFilePath}`);
 dotenv.config({ path: envFilePath });
 
 const prismaClientSingleton = () => {
-  let databaseUrl: string | undefined;
-  let usedVariable: string | undefined;
-
-  if (process.env.NODE_ENV === 'production') {
-    databaseUrl = process.env.POSTGRES_URL;
-    usedVariable = 'POSTGRES_URL';
-  } else {
-    databaseUrl = process.env.DATABASE_URL || process.env.POSTGRES_URL;
-    usedVariable = process.env.DATABASE_URL ? 'DATABASE_URL' : 'POSTGRES_URL';
-  }
+  const databaseUrl: string | undefined = process.env.POSTGRES_URL;
+  const usedVariable = 'POSTGRES_URL';
 
   if (!databaseUrl) {
-    throw new Error('Необходимо установить переменную окружения DATABASE_URL или POSTGRES_URL.');
+    throw new Error('Необходимо установить переменную окружения POSTGRES_URL.');
   }
 
   console.log(
