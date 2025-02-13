@@ -6,6 +6,7 @@ import {
   ACCESS_TOKEN_COOKIE,
   REFRESH_TOKEN_COOKIE,
 } from '@shared/utils/cookie/generate-cookie/cookieName';
+import { deleteAllCookies } from '@next-app/src/utils/delete-cookie/deleteAllCookies';
 
 export async function POST(request: NextRequest) {
   try {
@@ -46,6 +47,10 @@ export async function POST(request: NextRequest) {
   const response = NextResponse.json({ message: 'Logged out successfully' }, { status: 200 });
   response.cookies.delete(ACCESS_TOKEN_COOKIE);
   response.cookies.delete(REFRESH_TOKEN_COOKIE);
+
+  deleteAllCookies(response, request);
+
+  console.log('Все куки успешно удалены');
 
   return response;
 }
