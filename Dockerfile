@@ -11,7 +11,7 @@ WORKDIR /app
 COPY package.json yarn.lock ./
 
 # Устанавливаем зависимости с кешированием
-RUN yarn install --immutable
+RUN yarn install
 
 # Копируем весь код проекта (исключая файлы, указанные в .dockerignore)
 COPY . .
