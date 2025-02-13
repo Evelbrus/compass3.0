@@ -4,14 +4,15 @@ import * as dotenv from 'dotenv';
 dotenv.config();
 
 const prismaClientSingleton = () => {
-  const databaseUrl = process.env.POSTGRES_URL || process.env.DATABASE_URL;
-  let usedVariable = '';
+  let databaseUrl: string | undefined;
+  let usedVariable: string | undefined;
 
-  if (process.env.POSTGRES_URL) {
-    //Изменено: проверяем сначала POSTGRES_URL
+  if (process.env.NODE_ENV === 'production') {
+    databaseUrl = process.env.POSTGRES_URL;
     usedVariable = 'POSTGRES_URL';
-  } else if (process.env.DATABASE_URL) {
-    usedVariable = 'DATABASE_URL';
+  } else {
+    databaseUrl = process.env.DATABASE_URL || process.env.POSTGRES_URL;
+    usedVariable = process.env.DATABASE_URL ? 'DATABASE_URL' : 'POSTGRES_URL';
   }
 
   if (!databaseUrl) {
@@ -24,7 +25,10 @@ const prismaClientSingleton = () => {
   console.log(`ℹ️ URL подключения: ${databaseUrl}`);
 
   return new PrismaClient({
-    log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['warn', 'error'],
+    log:
+      process.env.NODE_ENV === 'development'
+        ? ['query', 'info', 'warn', 'error']
+        : ['warn', 'error'],
     datasources: {
       db: {
         url: databaseUrl,
