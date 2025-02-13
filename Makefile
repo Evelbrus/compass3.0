@@ -30,12 +30,12 @@ worker:
 # Запуск контейнера Next.js (prod)
 next-prod:
 	@echo "Запуск Next.js (prod)..."
-	docker-compose -f $(DCOMPOSE_PATH)/docker-compose.prod.yml up -d
+	docker-compose -f $(DCOMPOSE_PATH)/docker-compose.prod.yml up
 
 # Запуск контейнера Next.js (serve)
 next-serve:
 	@echo "Запуск Next.js (serve)..."
-	docker-compose -f $(DCOMPOSE_PATH)/docker-compose.serve.yml up -d
+	docker-compose -f $(DCOMPOSE_PATH)/docker-compose.serve.yml up
 
 # Запуск WebSocket сервера
 websocket:
