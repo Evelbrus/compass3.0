@@ -14,7 +14,6 @@ export async function getLayoutData() {
   const refreshToken = allCookies.get(REFRESH_TOKEN_COOKIE)?.value;
   const langCode = (allCookies.get(LANG_COOKIE)?.value as LanguageCode) || 'ru';
 
-  let isAuthenticated = false;
   let userSession: UserSession | null = null;
   let role: UserRole | undefined;
   const lang = mapLanguageCode(langCode);
@@ -39,7 +38,6 @@ export async function getLayoutData() {
       });
 
       if (user && !user.isBlocked) {
-        isAuthenticated = true;
         role = user.role;
         userSession = {
           uuid: user.uuid,
@@ -57,7 +55,6 @@ export async function getLayoutData() {
   }
 
   return {
-    isAuthenticated,
     accessToken,
     refreshToken,
     lang,

@@ -78,8 +78,4 @@ export const authConfig: AuthConfig = {
   },
 };
 
-//Добавляем логирование
-console.log('ACCESS_TOKEN_SECRET:', authConfig.accessToken.secret);
-console.log('REFRESH_TOKEN_SECRET:', authConfig.refreshToken.secret);
-
 validateAuthConfig(authConfig);

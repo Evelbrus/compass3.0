@@ -16,7 +16,6 @@ import {
 interface SessionProviderProps {
   children: React.ReactNode;
   userSession: UserSession | null;
-  isAuthenticated: boolean;
   accessToken?: string | null;
   refreshToken?: string | null;
 }
@@ -24,15 +23,9 @@ interface SessionProviderProps {
 export const SessionProvider = ({
   children,
   userSession,
-  isAuthenticated,
   accessToken,
   refreshToken,
 }: SessionProviderProps) => {
-  console.log('userSession', userSession);
-  console.log('isAuthenticated', isAuthenticated);
-  console.log('accessToken', accessToken);
-  console.log('refreshToken', refreshToken);
-
   const isFirstRender = useRef(true);
 
   useEffect(() => {
