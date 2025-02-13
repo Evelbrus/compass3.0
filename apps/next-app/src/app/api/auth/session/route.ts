@@ -12,10 +12,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 200 });
     }
 
-    const { payload } = await verifyJWT(
+    const payload = await verifyJWT<{ uuid: string; sessionVersion: number }>(
       accessToken,
-      new TextEncoder().encode(authConfig.accessToken.secret),
-      { algorithms: ['HS256'] },
+      authConfig.accessToken.secret,
     );
 
     if (!payload.sessionVersion || typeof payload.sessionVersion !== 'number') {
