@@ -14,6 +14,8 @@ RUN yarn install
 # Копируем остальные файлы проекта
 COPY . .
 
+RUN yarn prod
+
 # Открываем порт
 EXPOSE 3001
 EXPOSE 4000
