@@ -1,7 +1,8 @@
+version: '3.8'
+
 services:
   worker:
-    build:
-      context: .
+    image: node:20-alpine3.19
     container_name: worker
     working_dir: /app
     volumes:
@@ -10,11 +11,14 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - NODE_ENV=production
-    command: >
-      sh -c "yarn worker"
+    command: sh -c "yarn worker"
     networks:
       - app-network
     restart: always
+    ports:
+      - "3001:3001"
+      - "4000:4000"
+      - "6379:6379"
 
 volumes:
   www-html:
