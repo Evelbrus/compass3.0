@@ -1,5 +1,7 @@
 services:
   worker:
+    build:
+      context: .
     container_name: worker
     environment:
       - ./apps/next-app/.env.production
