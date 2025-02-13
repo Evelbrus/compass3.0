@@ -5,24 +5,13 @@ import { fileURLToPath } from 'url';
 //Определяем __filename и __dirname для ES модулей
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-//Проверяем, скомпилирован ли код (находится ли в worker-dist)
-const isCompiled = __dirname.includes('worker-dist');
 let envFilePath;
-if (isCompiled) {
-    //Из директории .../apps/next-app/worker-dist/packages/shared/prisma поднимаемся на 4 уровня,
-    //чтобы оказаться в .../apps/next-app, где находятся файлы .env.
-    envFilePath =
-        process.env.NODE_ENV === 'production'
-            ? path.resolve(__dirname, '../../../../.env.production')
-            : path.resolve(__dirname, '../../../../.env.development');
-    console.log(`Загружаем переменные окружения из файла: ${envFilePath}`);
-    dotenv.config({ path: envFilePath });
-}
-else {
-    //Попытаемся загрузить переменные из process.env, если не скомпилировано.
-    console.log(`Загружаем переменные окружения process.env`);
-    dotenv.config();
-}
+envFilePath =
+    process.env.NODE_ENV === 'production'
+        ? path.resolve(__dirname, '../../../../.env.production')
+        : path.resolve(__dirname, '../../../../.env.development');
+console.log(`Загружаем переменные окружения из файла: ${envFilePath}`);
+dotenv.config({ path: envFilePath });
 const prismaClientSingleton = () => {
     let databaseUrl;
     let usedVariable;
