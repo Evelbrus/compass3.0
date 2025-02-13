@@ -13,7 +13,7 @@ interface UsersMap {
 
 const users: UsersMap = {};
 
-const origin = process.env.SOCKET_ORIGIN || 'https://operator.garage.kg';
+const origin = process.env.URL || 'https://operator.garage.kg';
 
 const io = new Server(httpServer, {
   cors: {
