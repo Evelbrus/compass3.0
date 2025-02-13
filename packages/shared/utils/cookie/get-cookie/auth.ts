@@ -49,7 +49,6 @@ function validateAuthConfig(config: AuthConfig) {
 
 export const authConfig: AuthConfig = {
   accessToken: {
-    //Добавлено .trim() для гарантии корректного значения
     secret: (process.env.ACCESS_TOKEN_SECRET || 'access_secret').trim(),
     expiresIn: '2m',
     maxAge: parseDuration('2m'),
@@ -65,5 +64,9 @@ export const authConfig: AuthConfig = {
     blockDurationMinutes: parseInt(process.env.BLOCK_DURATION_MINUTES || '30', 10),
   },
 };
+
+//Добавь логирование
+console.log('ACCESS_TOKEN_SECRET:', authConfig.accessToken.secret);
+console.log('REFRESH_TOKEN_SECRET:', authConfig.refreshToken.secret);
 
 validateAuthConfig(authConfig);
