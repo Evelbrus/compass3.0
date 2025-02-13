@@ -6,8 +6,10 @@ services:
       - .:/app
     ports:
       - '3008:3008'
+    environment:
+      - NODE_ENV=development
     env_file:
-      - ./apps/next-app/.env.production
+      - ./apps/next-app/.env.development
     command: >
       sh -c "yarn devdev"
     networks:

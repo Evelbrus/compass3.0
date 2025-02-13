@@ -9,6 +9,8 @@ services:
     ports:
       - "3001:3001"
     environment:
+      - NODE_ENV=production
+    env_file:
       - ./apps/next-app/.env.production
     command: >
       sh -c "yarn bullmq"

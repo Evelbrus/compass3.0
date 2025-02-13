@@ -6,6 +6,8 @@ services:
       - .:/app
     ports:
       - '3008:3008'
+    environment:
+      - NODE_ENV=production
     env_file:
       - ./apps/next-app/.env.production
     command: >
