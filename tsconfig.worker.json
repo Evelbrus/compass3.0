@@ -1,4 +1,3 @@
-// tsconfig.worker.json
 {
   "compilerOptions": {
     "target": "ESNext",
@@ -11,8 +10,10 @@
     "outDir": "./apps/next-app/worker-dist",
     "baseUrl": ".",
     "paths": {
-      "@shared/prisma/*": ["./packages/shared/prisma/*"],
-    }
+      "@shared/prisma/*": ["./packages/shared/prisma/*"]
+    },
+    "incremental": true,
+    "tsBuildInfoFile": "./apps/next-app/worker-dist/tsconfig.tsbuildinfo"
   },
   "include": [
     "./apps/next-app/worker.ts",

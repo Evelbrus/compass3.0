@@ -1,6 +1,7 @@
 services:
   postgresql-db-compass:
     image: postgres:16.2
+    container_name: postgres
     environment:
       - NODE_ENV=production
     env_file:
