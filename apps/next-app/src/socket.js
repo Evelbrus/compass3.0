@@ -2,7 +2,9 @@
 
 import { io } from 'socket.io-client';
 
-const SOCKET_URL = process.env.URL || 'http://localhost:3008';
+const SOCKET_URL = process.env.URL || 'http://22';
+
+console.log('SOCKET_URL', SOCKET_URL)
 
 export const socket = io(SOCKET_URL, {
   transports: ['websocket'],
