@@ -12,12 +12,11 @@ export interface CheckOverdueJobData {
 }
 
 const redisOptions = {
-  host: process.env.REDIS_HOST || 'redis',
+  host: process.env.REDIS_HOST || '127.0.0.1',
   port: process.env.REDIS_PORT ? parseInt(process.env.REDIS_PORT) : 6379,
 };
 
-//Подключаем сокет к серверу
-const socket = io('https://operator.garage.kg', {
+const socket = io(process.env.SOCKET_ORIGIN || 'http://localhost:3008', {
   transports: ['websocket'],
   path: '/socket.io',
   autoConnect: true,

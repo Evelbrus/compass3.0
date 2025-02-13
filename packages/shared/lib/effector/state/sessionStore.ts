@@ -31,7 +31,7 @@ const clearTokenTimer = (type: TokenType) => {
 
 const scheduleTokenRefresh = (type: TokenType, expiresIn: number) => {
   clearTokenTimer(type);
-  const bufferTime = 60000; //буфер 1 минута
+  const bufferTime = 60000;
   let actualTime = expiresIn - bufferTime;
   if (actualTime < 1000) actualTime = 1000;
 
@@ -53,6 +53,7 @@ export const handleRefreshTokenExpiration = async () => {
   await fetch('/api/auth/logout', { method: 'POST' });
   resetRefreshToken();
   resetAccessToken();
+  window.location.href = '/login';
 };
 
 //====================
@@ -100,8 +101,15 @@ export const refreshAccessTokenFx = createEffect(async () => {
       body: JSON.stringify({ refreshToken: refreshTokenValue, loginAttemptId }),
     });
 
+    if (response.status === 401) {
+      console.warn('[AUTH] Refresh-токен недействителен. Выполняем logout');
+      window.location.href = '/login';
+      return false;
+    }
+
     if (!response.ok) {
       console.error(`[ERROR] HTTP статус: ${response.status}`);
+      window.location.href = '/login';
       throw new Error('Ошибка обновления токена');
     }
 

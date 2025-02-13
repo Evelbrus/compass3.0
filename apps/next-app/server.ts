@@ -1,7 +1,10 @@
 import { createServer } from 'node:http';
 import { Server, Socket } from 'socket.io';
+import * as dotenv from 'dotenv';
 
-const port = 4000;
+dotenv.config();
+
+const port = process.env.WEBSOCKETPORT ? parseInt(process.env.WEBSOCKETPORT, 10) : 4000;
 const httpServer = createServer();
 
 interface UsersMap {
@@ -10,9 +13,11 @@ interface UsersMap {
 
 const users: UsersMap = {};
 
+const origin = process.env.SOCKET_ORIGIN || 'https://operator.garage.kg';
+
 const io = new Server(httpServer, {
   cors: {
-    origin: 'https://operator.garage.kg', //Разрешаем подключения только с этого домена
+    origin: origin,
     methods: ['GET', 'POST'],
     allowedHeaders: ['my-custom-header'],
     credentials: true,
@@ -48,7 +53,6 @@ io.on('connection', (socket: Socket) => {
     }
   });
 
-  //Событие для уведомлений водителя
   socket.on('driverOrderNotification', (data: any) => {
     const { userId, notification } = data;
     const targetSocketId = users[userId];

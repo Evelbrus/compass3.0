@@ -44,7 +44,7 @@ model User {
   lastActive   DateTime? @map("last_active")
   isBlocked    Boolean   @default(false) @map("is_blocked")
 
-  sessionVersion Int      @default(0)
+  sessionVersion Int      @default(1)
   refreshTokens  String[] @default([]) @map("refresh_tokens")
 
   driverOrderNotifications DriverOrderNotification[]

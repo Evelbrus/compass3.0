@@ -46,7 +46,6 @@ export async function POST(request: NextRequest) {
   const response = NextResponse.json({ message: 'Logged out successfully' }, { status: 200 });
   response.cookies.delete(ACCESS_TOKEN_COOKIE);
   response.cookies.delete(REFRESH_TOKEN_COOKIE);
-  response.cookies.delete('loginAttemptId');
 
   return response;
 }

@@ -7,13 +7,21 @@ export interface TokenConfig {
 export interface RateLimitConfig {
   maxAttempts: number;
   windowMs: number;
-  blockDurationMinutes?: number;
+  blockDurationMinutes: number;
 }
 
 export interface AuthConfig {
   accessToken: TokenConfig;
   refreshToken: TokenConfig;
   rateLimit: RateLimitConfig;
+}
+
+function parseDuration(duration: string): number {
+  const match = duration.match(/(\d+)([smhd])/);
+  if (!match) throw new Error(`Invalid duration format: ${duration}`);
+  const [_, value, unit] = match;
+  const multipliers = { s: 1, m: 60, h: 3600, d: 86400 };
+  return parseInt(value) * (multipliers[unit] || 1);
 }
 
 function validateAuthConfig(config: AuthConfig) {
@@ -43,17 +51,17 @@ export const authConfig: AuthConfig = {
   accessToken: {
     secret: process.env.ACCESS_TOKEN_SECRET || 'access_secret',
     expiresIn: '2m',
-    maxAge: 2 * 60,
+    maxAge: parseDuration('2m'),
   },
   refreshToken: {
     secret: process.env.REFRESH_TOKEN_SECRET || 'refresh_secret',
     expiresIn: '7d',
-    maxAge: 7 * 24 * 60 * 60,
+    maxAge: parseDuration('7d'),
   },
   rateLimit: {
     maxAttempts: parseInt(process.env.RATE_LIMIT_MAX_ATTEMPTS || '5', 10),
-    windowMs: 15 * 60 * 1000,
-    blockDurationMinutes: 30,
+    windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || (15 * 60 * 1000).toString(), 10),
+    blockDurationMinutes: parseInt(process.env.BLOCK_DURATION_MINUTES || '30', 10),
   },
 };
 

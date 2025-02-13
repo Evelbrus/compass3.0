@@ -1,11 +1,11 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { SignJWT } from 'jose';
 import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@shared/prisma/prisma-client';
 import { LoginSchema } from 'src/dto/login/login.dto';
 import { authConfig } from '@shared/utils/cookie/get-cookie/auth';
 import { ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE } from '@shared/utils/cookie';
+import { createJWT } from '@shared/utils/parse-jwt/parseJwt';
 
 const maskEmail = (email: string): string => {
   const [name, domain] = email.split('@');
@@ -22,7 +22,6 @@ const encryptData = async (data: string): Promise<string> => {
   if (!process.env.ENCRYPTION_KEY) {
     throw new Error('Encryption key not configured');
   }
-
   const key = await crypto.subtle.importKey(
     'raw',
     Buffer.from(process.env.ENCRYPTION_KEY, 'hex'),
@@ -30,12 +29,9 @@ const encryptData = async (data: string): Promise<string> => {
     false,
     ['encrypt'],
   );
-
   const iv = crypto.getRandomValues(new Uint8Array(16));
   const encodedData = new TextEncoder().encode(data);
-
   const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encodedData);
-
   return Buffer.from(iv).toString('hex') + ':' + Buffer.from(encrypted).toString('hex');
 };
 
@@ -67,12 +63,9 @@ export async function POST(request: NextRequest) {
     const attemptCount = await prisma.loginAttempt.count({
       where: {
         ip,
-        createdAt: {
-          gte: new Date(Date.now() - authConfig.rateLimit.windowMs),
-        },
+        createdAt: { gte: new Date(Date.now() - authConfig.rateLimit.windowMs) },
       },
     });
-
     if (attemptCount >= authConfig.rateLimit.maxAttempts) {
       return NextResponse.json(
         { message: 'Too many login attempts. Please try again later.' },
@@ -91,7 +84,6 @@ export async function POST(request: NextRequest) {
         role: true,
         isBlocked: true,
         refreshTokens: true,
-        sessionVersion: true,
       },
     });
     console.log('Найден пользователь:', user);
@@ -101,11 +93,9 @@ export async function POST(request: NextRequest) {
 
     //Проверяем корректность пароля
     const isPasswordValid = await bcrypt.compare(password, user?.password || '');
-
     if (!user || !isPasswordValid) {
       const maskedEmail = maskEmail(email);
       const encryptedEmail = await encryptData(maskedEmail);
-
       await prisma.loginAttempt.create({
         data: {
           ip,
@@ -113,7 +103,6 @@ export async function POST(request: NextRequest) {
           emailAttempt: encryptedEmail,
         },
       });
-
       return NextResponse.json({ message: 'Invalid email or password' }, { status: 401 });
     }
 
@@ -138,61 +127,52 @@ export async function POST(request: NextRequest) {
         userId: user.uuid,
       },
     });
-
     const loginAttemptId = loginAttemptRecord.id;
 
     //Генерируем новое значение refresh-токена (UUID)
     const newRefreshTokenValue = uuidv4();
 
-    //Обновляем пользователя: добавляем новый refresh-токен в массив и инкрементируем sessionVersion
-    const updatedUser = await prisma.$transaction(async (tx) => {
-      return await tx.user.update({
-        where: { uuid: user.uuid },
-        data: {
-          refreshTokens: {
-            set: [...(user.refreshTokens || []), newRefreshTokenValue],
-          },
-          lastActive: new Date(),
-          sessionVersion: { increment: 1 },
+    //Обновляем пользователя: добавляем новый refresh-токен в массив и обновляем lastActive
+    await prisma.user.update({
+      where: { uuid: user.uuid },
+      data: {
+        refreshTokens: {
+          set: [...(user.refreshTokens || []), newRefreshTokenValue],
         },
-        select: {
-          sessionVersion: true,
-          refreshTokens: true,
-        },
-      });
+        lastActive: new Date(),
+      },
     });
 
-    //Генерируем sessionId для данной сессии
+    //Генерируем sessionId для сессии
     const sessionId = uuidv4();
 
-    const accessTokenSecret = new TextEncoder().encode(authConfig.accessToken.secret);
-    const refreshTokenSecret = new TextEncoder().encode(authConfig.refreshToken.secret);
-
-    //Генерируем access-токен (JWT)
-    const accessToken = await new SignJWT({
+    //Формируем payload для access-токена
+    const accessTokenPayload = {
       uuid: user.uuid,
       email: user.email,
       role: user.role,
       sessionId,
-      sessionVersion: updatedUser.sessionVersion,
-    })
-      .setProtectedHeader({ alg: 'HS256' })
-      .setIssuedAt()
-      .setExpirationTime(authConfig.accessToken.expiresIn)
-      .sign(accessTokenSecret);
+    };
 
-    //Генерируем refresh-токен (JWT) с привязкой к устройству (loginAttemptId)
-    const refreshToken = await new SignJWT({
+    const accessToken = await createJWT(
+      accessTokenPayload,
+      authConfig.accessToken.secret,
+      authConfig.accessToken.expiresIn,
+    );
+
+    //Формируем payload для refresh-токена
+    const refreshTokenPayload = {
       uuid: user.uuid,
       sessionId,
-      sessionVersion: updatedUser.sessionVersion,
       refreshToken: newRefreshTokenValue,
       loginAttemptId,
-    })
-      .setProtectedHeader({ alg: 'HS256' })
-      .setIssuedAt()
-      .setExpirationTime(authConfig.refreshToken.expiresIn)
-      .sign(refreshTokenSecret);
+    };
+
+    const refreshToken = await createJWT(
+      refreshTokenPayload,
+      authConfig.refreshToken.secret,
+      authConfig.refreshToken.expiresIn,
+    );
 
     const response = NextResponse.json(
       {
@@ -206,12 +186,11 @@ export async function POST(request: NextRequest) {
       { status: 200 },
     );
 
-    //Настройка cookie (домен, secure и т.д.)
+    //Функция валидации домена для cookie
     const domainValidation = () => {
       if (process.env.NODE_ENV !== 'production') return undefined;
-      if (!process.env.NEXTAUTH_URL) return undefined;
-
-      const url = new URL(process.env.NEXTAUTH_URL);
+      if (!process.env.URL) return undefined;
+      const url = new URL(process.env.URL);
       return url.hostname.replace('www.', '');
     };
 
@@ -228,14 +207,13 @@ export async function POST(request: NextRequest) {
       ...cookieOptions,
       maxAge: authConfig.accessToken.maxAge,
     });
-
     response.cookies.set(REFRESH_TOKEN_COOKIE, refreshToken, {
       ...cookieOptions,
       maxAge: authConfig.refreshToken.maxAge,
     });
 
     //Заголовки безопасности
-    response.headers.set('Access-Control-Allow-Origin', process.env.CLIENT_URL || '*');
+    response.headers.set('Access-Control-Allow-Origin', process.env.URL || '*');
     response.headers.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
     response.headers.set('Access-Control-Allow-Headers', 'Content-Type');
     response.headers.set('Access-Control-Allow-Credentials', 'true');
@@ -265,7 +243,6 @@ export async function POST(request: NextRequest) {
         ip: request.headers.get('x-forwarded-for'),
       }),
     );
-
     return NextResponse.json(
       {
         message: 'An unexpected error occurred. Please try again later.',
@@ -276,9 +253,7 @@ export async function POST(request: NextRequest) {
       },
       {
         status: 500,
-        headers: {
-          'Content-Security-Policy': "default-src 'self'",
-        },
+        headers: { 'Content-Security-Policy': "default-src 'self'" },
       },
     );
   }

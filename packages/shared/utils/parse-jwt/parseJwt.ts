@@ -1,4 +1,4 @@
-import { jwtVerify, JWTPayload as JoseJWTPayload } from 'jose';
+import { jwtVerify, SignJWT, JWTPayload } from 'jose';
 
 export function parseJwt(token: string) {
   try {
@@ -17,25 +17,44 @@ export function parseJwt(token: string) {
   }
 }
 
-//Определите интерфейс для структуры JWT payload
-export interface JWTPayload {
-  uuid: string;
-  role: string;
-  email: string;
-}
-
-export async function verifyJWT(token: string, secret: string): Promise<JWTPayload> {
+/**
+ * Универсальная функция верификации JWT
+ * @param token - JWT токен
+ * @param secret - секретный ключ
+ * @returns Декодированный payload
+ */
+export async function verifyJWT<T>(token: string, secret: string): Promise<T> {
   try {
+    if (!token) throw new Error('JWT token is empty');
+    token = token.trim();
+    console.log('Verifying JWT:', token);
     const secretKey = new TextEncoder().encode(secret);
-    const { payload } = await jwtVerify(token, secretKey);
+    const { payload } = await jwtVerify(token, secretKey, { algorithms: ['HS256'] });
+    console.log('Verified payload:', payload);
 
-    return {
-      uuid: (payload as JoseJWTPayload).uuid as string,
-      role: (payload as JoseJWTPayload).role as string,
-      email: (payload as JoseJWTPayload).email as string,
-    };
+    return payload as T;
   } catch (error) {
-    console.error('JWT verification error:', error);
+    console.error('[JWT] Verification error:', error);
     throw new Error('Invalid token');
   }
+}
+
+/**
+ * Универсальная функция для создания JWT
+ * @param payload - Данные, которые нужно закодировать в токен
+ * @param secret - Секретный ключ
+ * @param expiresIn - Время жизни токена (например, "1h", "7d")
+ * @returns Подписанный JWT токен
+ */
+export async function createJWT<T extends Record<string, unknown>>(
+  payload: T,
+  secret: string,
+  expiresIn: string,
+): Promise<string> {
+  const secretKey = new TextEncoder().encode(secret);
+  return await new SignJWT(payload as JWTPayload & Record<string, unknown>)
+    .setProtectedHeader({ alg: 'HS256' })
+    .setIssuedAt()
+    .setExpirationTime(expiresIn)
+    .sign(secretKey);
 }

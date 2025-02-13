@@ -10,7 +10,7 @@
   "scripts": {
     "devdev": "yarn workspace next-app dev",
     "dev": "concurrently \"yarn workspace next-app dev\" \"yarn workspace next-app devWS\"",
-    "build:worker": "echo \"Running tsc...\" && tsc -p tsconfig.worker.json && echo \"Running tsc-alias...\" && tsc-alias -p tsconfig.worker.json",
+    "build:dist": "echo \"Running tsc...\" && tsc -p tsconfig.worker.json && echo \"Running tsc-alias...\" && tsc-alias -p tsconfig.worker.json",
     "worker": "yarn workspace next-app worker",
     "bullmq": "yarn workspace next-app bullmq",
     "webS": "yarn workspace next-app devW",

@@ -1,11 +1,7 @@
 declare namespace NodeJS {
   interface ProcessEnv {
     NODE_ENV: 'development' | 'production' | 'test';
-    JWT_SECRET?: string;
-    NEXT_PUBLIC_BACKEND_URL?: string;
-    NEXT_BACKEND_URL?: string;
-    NEXTAUTH_SECRET?: string;
-    NEXTAUTH_URL?: string;
+    URL?: string;
   }
 
   interface Process {

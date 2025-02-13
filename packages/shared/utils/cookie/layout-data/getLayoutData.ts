@@ -1,12 +1,11 @@
 import { cookies } from 'next/headers';
-import { jwtVerify } from 'jose';
-import { LANG_COOKIE, REFRESH_TOKEN_COOKIE } from '@shared/utils/cookie';
+import { LANG_COOKIE, REFRESH_TOKEN_COOKIE, ACCESS_TOKEN_COOKIE } from '@shared/utils/cookie';
 import { LanguageCode, mapLanguageCode } from '@shared/utils/language';
 import { prisma } from '@shared/prisma/prisma-client';
 import { authConfig } from '@shared/utils/cookie/get-cookie/auth';
 import { UserSession } from '@shared/prisma/interface/users/interface';
-import { ACCESS_TOKEN_COOKIE } from '@shared/utils/cookie';
 import { UserRole } from '@prisma/client';
+import { verifyJWT } from '@shared/utils/parse-jwt/parseJwt';
 
 export async function getLayoutData() {
   const allCookies = await cookies();
@@ -22,28 +21,25 @@ export async function getLayoutData() {
 
   if (accessToken) {
     try {
-      const { payload } = await jwtVerify(
-        accessToken,
-        new TextEncoder().encode(authConfig.accessToken.secret),
-      );
+      const payload = await verifyJWT<UserSession>(accessToken, authConfig.accessToken.secret);
 
-      if (typeof payload.uuid !== 'string' || typeof payload.sessionVersion !== 'number') {
+      //Проверяем только наличие uuid
+      if (!payload.uuid) {
         throw new Error('Invalid token payload structure');
       }
 
       const user = await prisma.user.findUnique({
-        where: { uuid: payload.uuid as string },
+        where: { uuid: payload.uuid },
         select: {
           uuid: true,
           email: true,
           role: true,
-          sessionVersion: true,
           isBlocked: true,
           lastActive: true,
         },
       });
 
-      if (user && !user.isBlocked && user.sessionVersion === payload.sessionVersion) {
+      if (user && !user.isBlocked) {
         isAuthenticated = true;
         role = user.role;
         userSession = {

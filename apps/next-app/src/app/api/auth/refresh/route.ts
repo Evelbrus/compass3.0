@@ -1,33 +1,30 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
-import { SignJWT, jwtVerify } from 'jose';
+import { NextResponse, NextRequest } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
 import { prisma } from '@shared/prisma/prisma-client';
 import { authConfig } from '@shared/utils/cookie/get-cookie/auth';
 import { ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE } from '@shared/utils/cookie';
+import { createJWT, verifyJWT } from '@shared/utils/parse-jwt/parseJwt';
+
+interface RefreshTokenPayload {
+  uuid: string;
+  sessionId: string;
+  refreshToken: string;
+  loginAttemptId: string;
+  [key: string]: string;
+}
 
 export async function POST(request: NextRequest) {
   try {
-    //Проверяем, что секре́ты для JWT сконфигурированы
     if (!authConfig.accessToken.secret || !authConfig.refreshToken.secret) {
       throw new Error('JWT secrets not configured');
     }
 
-    //Извлекаем данные из тела запроса
+    //Извлекаем refresh-токен и loginAttemptId из запроса
     const { refreshToken: receivedRefreshToken, loginAttemptId } = await request.json();
 
-    //Если refreshToken отсутствует
-    if (!receivedRefreshToken) {
-      const response = NextResponse.json({ message: 'Refresh token is required' }, { status: 400 });
-      response.cookies.delete(ACCESS_TOKEN_COOKIE);
-      response.cookies.delete(REFRESH_TOKEN_COOKIE);
-      return response;
-    }
-
-    //Если loginAttemptId не передан
-    if (!loginAttemptId) {
+    if (!receivedRefreshToken || !loginAttemptId) {
       const response = NextResponse.json(
-        { message: 'loginAttemptId is required' },
+        { message: 'Refresh token and loginAttemptId are required' },
         { status: 400 },
       );
       response.cookies.delete(ACCESS_TOKEN_COOKIE);
@@ -35,29 +32,28 @@ export async function POST(request: NextRequest) {
       return response;
     }
 
-    //Подготавливаем секрет для проверки refresh‑токена
-    const refreshTokenSecret = new TextEncoder().encode(authConfig.refreshToken.secret);
-    let payload;
+    //Верификация refresh-токена
+    let payload: RefreshTokenPayload;
     try {
-      //Верифицируем refresh‑токен и извлекаем payload
-      const result = await jwtVerify(receivedRefreshToken, refreshTokenSecret);
-      payload = result.payload;
+      payload = await verifyJWT<RefreshTokenPayload>(
+        receivedRefreshToken,
+        authConfig.refreshToken.secret,
+      );
     } catch (error) {
-      console.error('[REFRESH] Error verifying refresh token:', error);
+      console.error('[REFRESH] Invalid refresh token:', error);
       const response = NextResponse.json({ message: 'Invalid refresh token' }, { status: 401 });
       response.cookies.delete(ACCESS_TOKEN_COOKIE);
       response.cookies.delete(REFRESH_TOKEN_COOKIE);
       return response;
     }
 
-    //Извлекаем loginAttemptId из payload
-    const tokenLoginAttemptId = payload.loginAttemptId as string;
-    if (tokenLoginAttemptId !== loginAttemptId) {
+    //Проверяем соответствие loginAttemptId
+    if (payload.loginAttemptId !== loginAttemptId) {
       console.error(
         '[REFRESH] loginAttemptId mismatch. Received:',
         loginAttemptId,
         'Token contains:',
-        tokenLoginAttemptId,
+        payload.loginAttemptId,
       );
       const response = NextResponse.json(
         { message: 'Invalid loginAttemptId in refresh token' },
@@ -68,19 +64,18 @@ export async function POST(request: NextRequest) {
       return response;
     }
 
-    //Проверяем, что пользователь существует и что refresh‑токен зарегистрирован в базе
+    //Ищем пользователя по uuid и проверяем наличие refresh-токена в базе
     const user = await prisma.user.findFirst({
       where: {
-        uuid: payload.uuid as string,
+        uuid: payload.uuid,
         refreshTokens: {
-          has: payload.refreshToken as string,
+          has: payload.refreshToken,
         },
       },
       select: {
         uuid: true,
         email: true,
         role: true,
-        sessionVersion: true,
         refreshTokens: true,
       },
     });
@@ -93,62 +88,44 @@ export async function POST(request: NextRequest) {
       return response;
     }
 
-    //Проверяем, что версия сессии в токене совпадает с версией в базе
-    if (payload.sessionVersion !== user.sessionVersion) {
-      console.error(
-        '[REFRESH] Session version mismatch. Token:',
-        payload.sessionVersion,
-        'DB:',
-        user.sessionVersion,
-      );
-      const response = NextResponse.json({ message: 'Session version mismatch' }, { status: 401 });
-      response.cookies.delete(ACCESS_TOKEN_COOKIE);
-      response.cookies.delete(REFRESH_TOKEN_COOKIE);
-      return response;
-    }
+    //Генерируем новый access-токен (без sessionVersion)
+    const newAccessToken = await createJWT(
+      {
+        uuid: user.uuid,
+        email: user.email,
+        role: user.role,
+        sessionId: payload.sessionId,
+      },
+      authConfig.accessToken.secret,
+      authConfig.accessToken.expiresIn,
+    );
 
-    //Генерируем новый access‑токен
-    const accessTokenSecret = new TextEncoder().encode(authConfig.accessToken.secret);
-    const newAccessToken = await new SignJWT({
-      uuid: user.uuid,
-      email: user.email,
-      role: user.role,
-      sessionVersion: user.sessionVersion,
-    })
-      .setProtectedHeader({ alg: 'HS256' })
-      .setIssuedAt()
-      .setExpirationTime(authConfig.accessToken.expiresIn)
-      .sign(accessTokenSecret);
-
-    //Генерируем новый refresh‑токен с новым значением refreshToken (UUID)
+    //Генерируем новый refresh-токен с новым UUID
     const newRefreshTokenUUID = uuidv4();
-    const newRefreshToken = await new SignJWT({
-      uuid: user.uuid,
-      sessionVersion: user.sessionVersion,
-      refreshToken: newRefreshTokenUUID,
-      loginAttemptId, //Используем то же значение, что передали в запросе
-    })
-      .setProtectedHeader({ alg: 'HS256' })
-      .setIssuedAt()
-      .setExpirationTime(authConfig.refreshToken.expiresIn)
-      .sign(refreshTokenSecret);
+    const newRefreshToken = await createJWT(
+      {
+        uuid: user.uuid,
+        sessionId: payload.sessionId,
+        refreshToken: newRefreshTokenUUID,
+        loginAttemptId,
+      },
+      authConfig.refreshToken.secret,
+      authConfig.refreshToken.expiresIn,
+    );
 
-    //Обновляем refresh‑токены в базе: удаляем старое значение и добавляем новое
+    //Обновляем refresh-токены в базе: удаляем использованный и добавляем новый
     const updatedRefreshTokens = user.refreshTokens
-      .filter((token) => token !== (payload.refreshToken as string))
+      .filter((token) => token !== payload.refreshToken)
       .concat(newRefreshTokenUUID);
 
-    await prisma.$transaction(async (tx) => {
-      await tx.user.update({
-        where: { uuid: user.uuid },
-        data: {
-          refreshTokens: updatedRefreshTokens,
-          lastActive: new Date(),
-        },
-      });
+    await prisma.user.update({
+      where: { uuid: user.uuid },
+      data: {
+        refreshTokens: updatedRefreshTokens,
+        lastActive: new Date(),
+      },
     });
 
-    //Формируем ответ с новыми токенами
     const response = NextResponse.json(
       {
         message: 'Tokens successfully refreshed',
@@ -158,7 +135,6 @@ export async function POST(request: NextRequest) {
       { status: 200 },
     );
 
-    //Обновляем куки с access‑и refresh‑токенами
     response.cookies.set(ACCESS_TOKEN_COOKIE, newAccessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
