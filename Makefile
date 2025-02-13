@@ -24,11 +24,11 @@ worker:
 
 next-prod:
 	@echo "Запуск Next.js (prod)..."
-	docker-compose -f $(DCOMPOSE_PATH)/docker-compose.prod.yml up -d
+	docker-compose -f $(DCOMPOSE_PATH)/docker-compose.prod.yml up
 
 next-serve:
 	@echo "Запуск Next.js (serve)..."
-	docker-compose -f $(DCOMPOSE_PATH)/docker-compose.serve.yml up -d
+	docker-compose -f $(DCOMPOSE_PATH)/docker-compose.serve.yml up
 
 websocket:
 	@echo "Запуск WebSocket сервера..."
