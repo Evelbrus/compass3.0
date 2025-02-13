@@ -34,7 +34,6 @@ export async function verifyJWT<T>(token: string, secret: string): Promise<T> {
     console.log('SECRET TOKEN:', token);
     const secretKey = new TextEncoder().encode(secret);
     const { payload } = await jwtVerify(token, secretKey, { algorithms: ['HS256'] });
-    console.log('Verified payload:', payload);
 
     return payload as T;
   } catch (error) {

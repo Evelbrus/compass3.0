@@ -34,6 +34,7 @@ export async function POST(request: NextRequest) {
 
     //Верификация refresh-токена
     let payload: RefreshTokenPayload;
+    console.log('ВЕРИФИКАЦИЯ В РЕФРЕШЕ!!!!!!')
     try {
       payload = await verifyJWT<RefreshTokenPayload>(
         receivedRefreshToken,

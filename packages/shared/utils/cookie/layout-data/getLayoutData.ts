@@ -22,9 +22,6 @@ export async function getLayoutData() {
   if (accessToken) {
     try {
       const payload = await verifyJWT<UserSession>(accessToken, authConfig.accessToken.secret);
-      console.log('Decoded payload:', payload);
-
-
       //Проверяем только наличие uuid
       if (!payload.uuid) {
         throw new Error('Invalid token payload structure');
