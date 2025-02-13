@@ -189,8 +189,8 @@ export async function POST(request: NextRequest) {
     //Функция валидации домена для cookie
     const domainValidation = () => {
       if (process.env.NODE_ENV !== 'production') return undefined;
-      if (!process.env.URL) return undefined;
-      const url = new URL(process.env.URL);
+      if (!process.env.NEXT_PUBLIC_URL) return undefined;
+      const url = new URL(process.env.NEXT_PUBLIC_URL);
       return url.hostname.replace('www.', '');
     };
 
@@ -213,7 +213,7 @@ export async function POST(request: NextRequest) {
     });
 
     //Заголовки безопасности
-    response.headers.set('Access-Control-Allow-Origin', process.env.URL || '*');
+    response.headers.set('Access-Control-Allow-Origin', process.env.NEXT_PUBLIC_URL || '*');
     response.headers.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
     response.headers.set('Access-Control-Allow-Headers', 'Content-Type');
     response.headers.set('Access-Control-Allow-Credentials', 'true');

@@ -4,7 +4,7 @@ import * as dotenv from 'dotenv';
 
 dotenv.config();
 
-const port = process.env.WEBSOCKETPORT ? parseInt(process.env.WEBSOCKETPORT, 10) : 4000;
+const port = process.env.WEBSOCKET_PORT ? parseInt(process.env.WEBSOCKET_PORT, 10) : 4000;
 const httpServer = createServer();
 
 interface UsersMap {
@@ -13,7 +13,7 @@ interface UsersMap {
 
 const users: UsersMap = {};
 
-const origin = process.env.URL || 'https://operator.garage.kg';
+const origin = process.env.NEXT_PUBLIC_URL || 'https://operator.garage.kg';
 
 const io = new Server(httpServer, {
   cors: {

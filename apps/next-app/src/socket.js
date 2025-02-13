@@ -2,7 +2,7 @@
 
 import { io } from 'socket.io-client';
 
-const SOCKET_URL = process.env.URL || 'http://22';
+const SOCKET_URL = process.env.NEXT_PUBLIC_URL || 'http://22';
 
 console.log('SOCKET_URL', SOCKET_URL)
 

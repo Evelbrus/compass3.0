@@ -16,7 +16,7 @@ const redisOptions = {
   port: process.env.REDIS_PORT ? parseInt(process.env.REDIS_PORT) : 6379,
 };
 
-const socket = io(process.env.SOCKET_ORIGIN || 'http://localhost:3008', {
+const socket = io(process.env.NEXT_PUBLIC_SOCKET_ORIGIN || 'http://localhost:3008', {
   transports: ['websocket'],
   path: '/socket.io',
   autoConnect: true,
