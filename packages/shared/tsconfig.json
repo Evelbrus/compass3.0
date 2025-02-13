@@ -1,6 +1,5 @@
 {
   "extends": "../../tsconfig.base",
-  "include": ["./**/*"],
   "compilerOptions": {
     "noEmit": true,
     "baseUrl": ".",
@@ -12,5 +11,8 @@
       "@prisma/*": ["./shared/prisma/schema/*.prisma"]
     }
   },
+  "include": [
+    "declarations.d.ts",
+  ],
   "sideEffects": ["*.scss"]
 }

@@ -17,11 +17,23 @@ export interface AuthConfig {
 }
 
 function parseDuration(duration: string): number {
-  const match = duration.match(/(\d+)([smhd])/);
-  if (!match) throw new Error(`Invalid duration format: ${duration}`);
-  const [_, value, unit] = match;
-  const multipliers: { [key: string]: number } = { s: 1, m: 60, h: 3600, d: 86400 };
-  return parseInt(value) * (multipliers[unit] || 1);
+  //Проверяем, что строка соответствует формату (например, "2m", "7d")
+  const match = duration.match(/^(\d+)([smhd])$/);
+  if (!match) {
+    throw new Error(`Invalid duration format: ${duration}`);
+  }
+
+  const value = match[1]!;
+  const unit = match[2]! as 's' | 'm' | 'h' | 'd';
+
+  const multipliers: Record<'s' | 'm' | 'h' | 'd', number> = {
+    s: 1,
+    m: 60,
+    h: 3600,
+    d: 86400,
+  };
+
+  return parseInt(value, 10) * multipliers[unit];
 }
 
 function validateAuthConfig(config: AuthConfig) {
@@ -49,12 +61,13 @@ function validateAuthConfig(config: AuthConfig) {
 
 export const authConfig: AuthConfig = {
   accessToken: {
-    secret: (process.env.ACCESS_TOKEN_SECRET || 'access_secret').trim(),
+    //Используем оператор нулевого слияния и приведение типа, чтобы гарантировать строку
+    secret: ((process.env.ACCESS_TOKEN_SECRET ?? 'access_secret') as string).trim(),
     expiresIn: '2m',
     maxAge: parseDuration('2m'),
   },
   refreshToken: {
-    secret: (process.env.REFRESH_TOKEN_SECRET || 'refresh_secret').trim(),
+    secret: ((process.env.REFRESH_TOKEN_SECRET ?? 'refresh_secret') as string).trim(),
     expiresIn: '7d',
     maxAge: parseDuration('7d'),
   },
@@ -65,7 +78,7 @@ export const authConfig: AuthConfig = {
   },
 };
 
-//Добавь логирование
+//Добавляем логирование
 console.log('ACCESS_TOKEN_SECRET:', authConfig.accessToken.secret);
 console.log('REFRESH_TOKEN_SECRET:', authConfig.refreshToken.secret);
 
