@@ -7,14 +7,11 @@ RUN apk add --no-cache bash curl && corepack enable && corepack prepare yarn@sta
 # Устанавливаем рабочую директорию внутри контейнера
 WORKDIR /app
 
-# Копируем файлы package.json и yarn.lock перед установкой зависимостей
-COPY package.json yarn.lock ./
+# Копируем только папку worker-dist
+COPY apps/next-app/worker-dist ./worker-dist
 
-# Устанавливаем зависимости с кешированием
-RUN yarn install
-
-# Копируем весь код проекта (исключая файлы, указанные в .dockerignore)
-COPY . .
+# Переходим в рабочую директорию для установки зависимостей (если нужно)
+# RUN yarn install
 
 # Открываем порты
 EXPOSE 3001 4000 6379
