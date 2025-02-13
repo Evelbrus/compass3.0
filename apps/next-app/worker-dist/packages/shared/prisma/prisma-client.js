@@ -1,6 +1,11 @@
 import { PrismaClient } from '@prisma/client';
 import * as dotenv from 'dotenv';
-dotenv.config();
+if (process.env.NODE_ENV === 'production') {
+    dotenv.config({ path: './apps/next-app/.env.production' });
+}
+else {
+    dotenv.config({ path: './apps/next-app/.env.development' });
+}
 const prismaClientSingleton = () => {
     let databaseUrl;
     let usedVariable;
