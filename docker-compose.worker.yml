@@ -1,18 +1,16 @@
-version: '3.8'
-
 services:
-  bullmq:
+  worker:
     build:
       context: .
-    container_name: bullmq
-    networks:
-      - app-network
-    ports:
-      - "3001:3001"
+    container_name: worker
+    depends_on:
+      - redis
     environment:
       - ./apps/next-app/.env.production
     command: >
-      sh -c "yarn bullmq"
+      sh -c "yarn worker"
+    networks:
+      - app-network
     restart: always
 
 networks:

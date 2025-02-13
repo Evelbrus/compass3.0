@@ -2,10 +2,7 @@ services:
   postgresql-db-compass:
     image: postgres:16.2
     environment:
-      - POSTGRES_URL=postgresql://psql_user_compass:MyS3cureP@ssw0rd!2024@postgresql-db-compass:5432/compass_1
-      - POSTGRES_USER=psql_user_compass
-      - POSTGRES_PASSWORD=MyS3cureP@ssw0rd!2024
-      - POSTGRES_DB=compass_1
+      - ./.env
     volumes:
       - ./persistentdata/db:/var/lib/postgresql/data
       - ./persistentdata/backups:/backups
