@@ -4,9 +4,6 @@ FROM node:20-alpine3.19
 # Устанавливаем bash, corepack и curl для тестов
 RUN apk add --no-cache bash curl && corepack enable && corepack prepare yarn@stable --activate
 
-# Устанавливаем правильные права на рабочую директорию и файлы
-RUN chown -R node:node /app && chmod -R 755 /app
-
 # Устанавливаем рабочую директорию внутри контейнера
 WORKDIR /app
 
