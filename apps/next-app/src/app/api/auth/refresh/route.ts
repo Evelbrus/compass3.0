@@ -87,21 +87,29 @@ export async function POST(request: NextRequest) {
 
       const deleteAllCookies = (response: NextResponse) => {
         const cookies = Object.keys(response.cookies.getAll() || {});
+
+        console.log('Найденные куки перед удалением:', cookies); //Лог перед удалением
+
         cookies.forEach((cookie) => {
+          console.log(`Удаляю куку: ${cookie}`); //Лог удаления конкретной куки
+
           response.cookies.set(cookie, '', {
             expires: new Date(0),
             path: '/',
             httpOnly: true,
             secure: true,
+            sameSite: 'lax',
           });
         });
+
+        console.log('Все куки должны быть удалены!');
       };
 
       const response = NextResponse.json({ message: 'Invalid refresh token' }, { status: 401 });
       response.cookies.delete(ACCESS_TOKEN_COOKIE);
       response.cookies.delete(REFRESH_TOKEN_COOKIE);
       deleteAllCookies(response);
-      console.log("РЕСПОНСНА УДАЛЕНИЕ СРАБОТАЛ??")
+      console.log('РЕСПОНСНА УДАЛЕНИЕ СРАБОТАЛ??');
       return response;
     }
 
