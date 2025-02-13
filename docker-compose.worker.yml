@@ -8,8 +8,9 @@ services:
     volumes:
       - .:/app
     env_file:
+      - NODE_ENV=production
       - ./apps/next-app/.env.production
-    command: sh -c "echo $NODE_ENV && yarn worker"
+    command: sh -c "yarn worker"
     networks:
       - app-network
     restart: always
