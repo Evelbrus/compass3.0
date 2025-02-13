@@ -4,6 +4,7 @@ import { prisma } from '@shared/prisma/prisma-client';
 import { authConfig } from '@shared/utils/cookie/get-cookie/auth';
 import { ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE } from '@shared/utils/cookie';
 import { createJWT, verifyJWT } from '@shared/utils/parse-jwt/parseJwt';
+import { getCookieOptions } from '@next-app/src/utils/get-cookie/getCookieOptions';
 
 interface RefreshTokenPayload {
   uuid: string;
@@ -83,9 +84,23 @@ export async function POST(request: NextRequest) {
 
     if (!user) {
       console.error('[REFRESH] User not found or refresh token missing in DB');
+
+      const deleteAllCookies = (response: NextResponse) => {
+        const cookies = Object.keys(response.cookies.getAll() || {});
+        cookies.forEach((cookie) => {
+          response.cookies.set(cookie, '', {
+            expires: new Date(0),
+            path: '/',
+            httpOnly: true,
+            secure: true,
+          });
+        });
+      };
+
       const response = NextResponse.json({ message: 'Invalid refresh token' }, { status: 401 });
       response.cookies.delete(ACCESS_TOKEN_COOKIE);
       response.cookies.delete(REFRESH_TOKEN_COOKIE);
+      deleteAllCookies(response);
       return response;
     }
 
@@ -136,22 +151,19 @@ export async function POST(request: NextRequest) {
       { status: 200 },
     );
 
+    response.cookies.delete(REFRESH_TOKEN_COOKIE);
+
+    const cookieOptions = getCookieOptions(request);
     response.cookies.set(ACCESS_TOKEN_COOKIE, newAccessToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      ...cookieOptions,
       maxAge: authConfig.accessToken.maxAge,
-      path: '/',
     });
     response.cookies.set(REFRESH_TOKEN_COOKIE, newRefreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      ...cookieOptions,
       maxAge: authConfig.refreshToken.maxAge,
-      path: '/',
     });
 
-    console.log('response', response)
+    console.log('response', response);
     return response;
   } catch (error) {
     console.error('[REFRESH] Unexpected error:', error);
