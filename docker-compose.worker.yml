@@ -7,10 +7,8 @@ services:
     working_dir: /app
     volumes:
       - .:/app
-    environment:
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - NODE_ENV=production
+    env_file:
+      - ./apps/next-app/.env.production
     command: sh -c "yarn worker"
     networks:
       - app-network
