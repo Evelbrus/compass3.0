@@ -16,12 +16,6 @@ RUN yarn install
 # Копируем весь код проекта (исключая файлы, указанные в .dockerignore)
 COPY . .
 
-# Изменяем владельца /app на пользователя node
-RUN chown -R node:node /app
-
-# Запускаем от имени пользователя node (повышает безопасность)
-USER node
-
 # Запускаем сборку проекта
 RUN yarn prod
 
