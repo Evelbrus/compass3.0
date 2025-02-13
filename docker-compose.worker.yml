@@ -9,7 +9,7 @@ services:
       - .:/app
     env_file:
       - ./apps/next-app/.env.production
-    command: sh -c "yarn worker"
+    command: sh -c "echo $NODE_ENV && yarn worker"
     networks:
       - app-network
     restart: always
