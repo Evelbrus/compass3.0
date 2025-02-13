@@ -11,10 +11,13 @@ WORKDIR /app
 COPY package.json yarn.lock ./
 
 # Устанавливаем зависимости с кешированием
-RUN yarn install
+RUN yarn install --immutable
 
 # Копируем весь код проекта (исключая файлы, указанные в .dockerignore)
 COPY . .
+
+# Изменяем владельца /app на пользователя node
+RUN chown -R node:node /app
 
 # Запускаем от имени пользователя node (повышает безопасность)
 USER node
