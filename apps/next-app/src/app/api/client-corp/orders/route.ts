@@ -14,6 +14,12 @@ import { Decimal } from 'decimal.js';
 
 const log = debug('app:client-corp/orders');
 
+//Define a type for the JWT payload
+interface JwtPayload {
+  uuid: string;
+  [key: string]: string;
+}
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const page = parseInt(searchParams.get('page') || '1', 10);
@@ -25,10 +31,15 @@ export async function GET(req: NextRequest) {
 
   const accessToken = req.cookies.get(ACCESS_TOKEN_COOKIE)?.value;
 
-  let token;
+  let token: JwtPayload | null = null;
 
   if (accessToken) {
-    token = await verifyJWT(accessToken, authConfig.accessToken.secret);
+    try {
+      token = await verifyJWT<JwtPayload>(accessToken, authConfig.accessToken.secret);
+    } catch (error) {
+      //Handle verification failure (e.g., expired token)
+      return NextResponse.json({ status: 'error', message: 'Unauthorized' }, { status: 401 });
+    }
     if (!token) {
       return NextResponse.json({ status: 'error', message: 'Unauthorized' }, { status: 401 });
     }
@@ -181,7 +192,14 @@ export async function POST(req: NextRequest) {
   }
 
   //Проверяем токен и ожидаем наличие поля uuid
-  const token = await verifyJWT(accessToken, authConfig.accessToken.secret);
+  let token: JwtPayload | null = null;
+  try {
+    token = await verifyJWT<JwtPayload>(accessToken, authConfig.accessToken.secret);
+  } catch (error) {
+    //Log the error and handle token verification failure
+    console.error('Token verification failed:', error);
+    return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+  }
   if (!token || !token.uuid) {
     return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
   }

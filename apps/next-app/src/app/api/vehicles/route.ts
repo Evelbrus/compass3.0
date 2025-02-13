@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Prisma, ServiceLevels, VehicleType } from '@prisma/client';
+import { Prisma, ServiceLevels, UserRole, VehicleType } from '@prisma/client';
 import debug from 'debug';
 import { CreateVehicleData } from '@shared/prisma/interface/vehicles/interface';
 import { v4 as uuidv4 } from 'uuid';
@@ -10,15 +10,26 @@ import { verifyJWT } from '@shared/utils/parse-jwt/parseJwt';
 
 const log = debug('app:vehicles');
 
+interface JwtPayload {
+  uuid: string;
+  role?: string;
+  [key: string]: string | number | boolean | null | undefined;
+}
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
 
   const accessToken = req.cookies.get(ACCESS_TOKEN_COOKIE)?.value;
 
-  let token;
+  let token: JwtPayload | null = null;
 
   if (accessToken) {
-    token = await verifyJWT(accessToken, authConfig.accessToken.secret);
+    try {
+      token = await verifyJWT<JwtPayload>(accessToken, authConfig.accessToken.secret);
+    } catch (error) {
+      console.error('Token verification failed:', error);
+      return NextResponse.json({ status: 'error', message: 'Unauthorized' }, { status: 401 });
+    }
     if (!token) {
       return NextResponse.json({ status: 'error', message: 'Unauthorized' }, { status: 401 });
     }
@@ -49,7 +60,7 @@ export async function GET(req: NextRequest) {
   try {
     const driverWhere = { vehicleDrivers: { some: { driverId: token.uuid } } };
     const whereFilter =
-      token.role === 'Driver'
+      token.role === UserRole.Driver
         ? {
             AND: [
               driverWhere,
@@ -97,13 +108,13 @@ export async function GET(req: NextRequest) {
         },
       }),
       prisma.vehicle.count({ where: whereFilter }),
-      token.role === 'Driver'
+      token.role === UserRole.Driver
         ? prisma.vehicle.count({ where: driverWhere })
         : prisma.vehicle.count(),
       prisma.vehicle.groupBy({
         by: ['vehicleType'],
         _count: { vehicleType: true },
-        where: token.role === 'Driver' ? driverWhere : {},
+        where: token.role === UserRole.Driver ? driverWhere : {},
       }),
     ]);
 
@@ -144,9 +155,29 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  let token: JwtPayload | null = null;
   try {
     const data: CreateVehicleData = await req.json();
     const updateData: CreateVehicleData = data;
+    const accessToken = req.cookies.get(ACCESS_TOKEN_COOKIE)?.value;
+
+    if (accessToken) {
+      try {
+        token = await verifyJWT<JwtPayload>(accessToken, authConfig.accessToken.secret);
+        if (!token) {
+          throw new Error('Unauthorized');
+        }
+      } catch (error) {
+        console.error('Token verification failed:', error);
+        return NextResponse.json({ status: 'error', message: 'Unauthorized' }, { status: 401 });
+      }
+    } else {
+      return NextResponse.json({ status: 'error', message: 'Unauthorized' }, { status: 401 });
+    }
+
+    if (!token?.uuid) {
+      return NextResponse.json({ status: 'error', message: 'Unauthorized' }, { status: 401 });
+    }
 
     const result = await prisma.$transaction(async (prisma) => {
       const now = new Date();

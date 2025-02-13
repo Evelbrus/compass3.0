@@ -20,7 +20,7 @@ function parseDuration(duration: string): number {
   const match = duration.match(/(\d+)([smhd])/);
   if (!match) throw new Error(`Invalid duration format: ${duration}`);
   const [_, value, unit] = match;
-  const multipliers = { s: 1, m: 60, h: 3600, d: 86400 };
+  const multipliers: { [key: string]: number } = { s: 1, m: 60, h: 3600, d: 86400 };
   return parseInt(value) * (multipliers[unit] || 1);
 }
 

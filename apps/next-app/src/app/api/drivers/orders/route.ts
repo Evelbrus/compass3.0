@@ -8,6 +8,12 @@ import { verifyJWT } from '@shared/utils/parse-jwt/parseJwt';
 
 const log = debug('app:drivers/orders');
 
+//Define a type for the JWT payload
+interface JwtPayload {
+  uuid: string;
+  [key: string]: string;
+}
+
 //GET: Получение заказов для конкретного водителя с пагинацией, фильтрацией и сортировкой
 //Путь: /api/drivers/orders
 export async function GET(req: NextRequest) {
@@ -15,10 +21,15 @@ export async function GET(req: NextRequest) {
 
   const accessToken = req.cookies.get(ACCESS_TOKEN_COOKIE)?.value;
 
-  let token;
+  let token: JwtPayload | null = null;
 
   if (accessToken) {
-    token = await verifyJWT(accessToken, authConfig.accessToken.secret);
+    try {
+      token = await verifyJWT<JwtPayload>(accessToken, authConfig.accessToken.secret);
+    } catch (error) {
+      console.error('Token verification failed:', error);
+      return NextResponse.json({ status: 'error', message: 'Unauthorized' }, { status: 401 });
+    }
     if (!token) {
       return NextResponse.json({ status: 'error', message: 'Unauthorized' }, { status: 401 });
     }
