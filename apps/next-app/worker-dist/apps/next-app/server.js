@@ -59,6 +59,7 @@ io.on('connection', (socket) => {
   });
 });
 httpServer.listen(port, () => {
+  console.log('NEXT_PUBLIC_URL', Server);
   console.log(`WebSocket server running on port ${port}`);
 });
 console.log('WebSocket server started');
