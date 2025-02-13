@@ -3,6 +3,7 @@
 import React, { useEffect, useRef } from 'react';
 import { SessionContext } from '@shared/utils/contexts/SessionContext';
 import { UserSession } from '@shared/prisma/interface/users/interface';
+import { parseJwt } from '@shared/utils/parse-jwt/parseJwt';
 import {
   resetAccessToken,
   resetRefreshToken,
@@ -35,8 +36,7 @@ export const SessionProvider = ({
   const isFirstRender = useRef(true);
 
   useEffect(() => {
-    //Сначала устанавливаем токены в стор, если они переданы в пропсах.
-    //Это необходимо, чтобы внутри refreshAccessTokenFx вызов $refreshToken.getState() вернул нужное значение.
+    //Устанавливаем токены в стор, если они переданы в пропсах
     if (accessToken) {
       setAccessToken(accessToken);
     }
@@ -49,11 +49,25 @@ export const SessionProvider = ({
       resetRefreshToken();
     }
 
-    //На первом рендере пытаемся обновить access-токен,
-    //если присутствует refresh-токен, но access-токен отсутствует.
     if (isFirstRender.current) {
       isFirstRender.current = false;
+
+      //Если есть refreshToken, но нет accessToken – пробуем обновить токены
       if (refreshToken && !accessToken) {
+        //Добавляем проверку валидности refresh‑токена перед обновлением
+        try {
+          const decodedRefresh = parseJwt(refreshToken);
+          if (!decodedRefresh?.exp || decodedRefresh.exp * 1000 - Date.now() <= 0) {
+            console.warn('[REFRESH] Refresh‑токен истёк');
+            handleRefreshTokenExpiration();
+            return;
+          }
+        } catch (error) {
+          console.error('Ошибка парсинга refresh‑токена:', error);
+          handleRefreshTokenExpiration();
+          return;
+        }
+
         console.log('1 ШАГ: "Начинаем обновление токенов..."');
         refreshAccessTokenFx().then((result) => {
           if (result) {
@@ -69,7 +83,7 @@ export const SessionProvider = ({
         });
       } else if (accessToken && !refreshToken) {
         console.warn(
-          '[ПРЕДУПРЕЖДЕНИЕ] Обнаружен access-токен без refresh-токена. Выполняется logout.',
+          '[ПРЕДУПРЕЖДЕНИЕ] Обнаружен access‑токен без refresh‑токена. Выполняется logout.',
         );
         handleRefreshTokenExpiration();
       }
