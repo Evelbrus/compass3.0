@@ -5,7 +5,7 @@ dotenv.config();
 const port = process.env.WEBSOCKETPORT ? parseInt(process.env.WEBSOCKETPORT, 10) : 4000;
 const httpServer = createServer();
 const users = {};
-const origin = process.env.SOCKET_ORIGIN || 'https://operator.garage.kg';
+const origin = process.env.URL || 'https://operator.garage.kg';
 const io = new Server(httpServer, {
     cors: {
         origin: origin,
