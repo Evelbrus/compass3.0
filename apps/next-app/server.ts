@@ -1,11 +1,34 @@
-import { createServer } from 'node:http';
+import { createServer as createHttpServer } from 'http';
+import { createServer as createHttpsServer } from 'https';
 import { Server, Socket } from 'socket.io';
 import * as dotenv from 'dotenv';
+import * as fs from 'fs';
+import * as path from 'path';
 
 dotenv.config();
 
 const port = process.env.WEBSOCKET_PORT ? parseInt(process.env.WEBSOCKET_PORT, 10) : 4000;
-const httpServer = createServer();
+
+let server: ReturnType<typeof createHttpServer> | ReturnType<typeof createHttpsServer>;
+
+//Если заданы пути к SSL-ключу и сертификату, и файлы существуют, запускаем HTTPS-сервер
+if (
+  process.env.SSL_KEY_PATH &&
+  process.env.SSL_CERT_PATH &&
+  fs.existsSync(path.resolve(process.env.SSL_KEY_PATH)) &&
+  fs.existsSync(path.resolve(process.env.SSL_CERT_PATH))
+) {
+  const sslOptions = {
+    key: fs.readFileSync(path.resolve(process.env.SSL_KEY_PATH)),
+    cert: fs.readFileSync(path.resolve(process.env.SSL_CERT_PATH)),
+  };
+  server = createHttpsServer(sslOptions);
+  console.log('Using HTTPS server');
+} else {
+  //Если ключи не заданы или файлы не найдены – запускаем HTTP-сервер
+  server = createHttpServer();
+  console.log('Using HTTP server');
+}
 
 interface UsersMap {
   [userId: string]: string;
@@ -13,9 +36,9 @@ interface UsersMap {
 
 const users: UsersMap = {};
 
-const origin = process.env.NEXT_PUBLIC_URL;
+const origin = process.env.NEXT_PUBLIC_URL || '*';
 
-const io = new Server(httpServer, {
+const io = new Server(server, {
   cors: {
     origin: origin,
     methods: ['GET', 'POST'],
@@ -75,11 +98,8 @@ io.on('connection', (socket: Socket) => {
   });
 });
 
-httpServer.listen(port, () => {
-  console.log('NEXT_PUBLIC_URL', Server )
+server.listen(port, () => {
   console.log(`WebSocket server running on port ${port}`);
 });
-
-console.log('WebSocket server started');
 
 export { io, users };
