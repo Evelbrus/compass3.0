@@ -5,6 +5,7 @@ import { authConfig } from '@shared/utils/cookie/get-cookie/auth';
 import { ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE } from '@shared/utils/cookie';
 import { createJWT, verifyJWT } from '@shared/utils/parse-jwt/parseJwt';
 import { getCookieOptions } from '@next-app/src/utils/get-cookie/getCookieOptions';
+import { deleteAllCookies } from '@next-app/src/utils/delete-cookie/deleteAllCookies';
 
 interface RefreshTokenPayload {
   uuid: string;
@@ -85,29 +86,14 @@ export async function POST(request: NextRequest) {
     if (!user) {
       console.error('[REFRESH] User not found or refresh token missing in DB');
 
-      const deleteAllCookies = (response: NextResponse) => {
-        const cookiesToDelete = [ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE];
-
-        cookiesToDelete.forEach((cookie) => {
-          response.cookies.set(cookie, '', {
-            expires: new Date(0),
-            path: '/',
-            domain: 'operator.garage.kg',
-            httpOnly: true,
-            secure: true,
-            sameSite: 'lax',
-          });
-          console.log(`Удалена кука: ${cookie}`);
-        });
-
-        console.log('Отправлены заголовки Set-Cookie для удаления всех куков.');
-      };
-
       const response = NextResponse.json({ message: 'Invalid refresh token' }, { status: 401 });
+
       response.cookies.delete(ACCESS_TOKEN_COOKIE);
       response.cookies.delete(REFRESH_TOKEN_COOKIE);
-      deleteAllCookies(response);
-      console.log('РЕСПОНСНА УДАЛЕНИЕ СРАБОТАЛ??');
+
+      deleteAllCookies(response, request);
+
+      console.log('Удаление куков отработало?');
       return response;
     }
 
