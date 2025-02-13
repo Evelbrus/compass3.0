@@ -19,16 +19,13 @@ if (isCompiled) {
     process.env.NODE_ENV === 'production'
       ? path.resolve(__dirname, '../../../../.env.production')
       : path.resolve(__dirname, '../../../../.env.development');
+  console.log(`Загружаем переменные окружения из файла: ${envFilePath}`);
+  dotenv.config({ path: envFilePath });
 } else {
-  //Если код запускается из исходников, считаем, что рабочая директория — корень проекта
-  envFilePath =
-    process.env.NODE_ENV === 'production'
-      ? path.resolve(process.cwd(), 'apps/next-app/.env.production')
-      : path.resolve(process.cwd(), 'apps/next-app/.env.development');
+  //Попытаемся загрузить переменные из process.env, если не скомпилировано.
+  console.log(`Загружаем переменные окружения process.env`);
+  dotenv.config();
 }
-
-console.log(`Загружаем переменные окружения из файла: ${envFilePath}`);
-dotenv.config({ path: envFilePath });
 
 const prismaClientSingleton = () => {
   let databaseUrl: string | undefined;
