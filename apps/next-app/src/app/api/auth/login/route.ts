@@ -76,8 +76,9 @@ export async function POST(request: NextRequest) {
 
     //Ищем пользователя по email
     console.log('Поиск пользователя в базе:', email);
+    const emailLower = email.toLowerCase();
     const user = await prisma.user.findUnique({
-      where: { email: email.toLowerCase() },
+      where: { email: emailLower },
       select: {
         uuid: true,
         email: true,

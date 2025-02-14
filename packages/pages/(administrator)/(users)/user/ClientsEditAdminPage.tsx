@@ -21,7 +21,7 @@ const ClientsEditAdminPage = ({ userData }: ClientsEditAdminPageProps): JSX.Elem
   const role = userData.role;
   const router = useRouter();
 
-  const handleSubmit = async (formData: EditUserData) => {
+  const handleSubmit = async (formData: EditUserData): Promise<string | null> => {
     try {
       const { email, password, ...updateData } = formData;
       const response = await fetch(`/api/users/${userData.uuid}`, {
@@ -31,15 +31,19 @@ const ClientsEditAdminPage = ({ userData }: ClientsEditAdminPageProps): JSX.Elem
         },
         body: JSON.stringify(updateData),
       });
+
       if (!response.ok) {
         throw new Error('Network response was not ok');
       }
+
       const data = await response.json();
       showToast.success('User updated successfully.');
       router.push(`/user/detail/${data.uuid}`);
+      return data.uuid;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       showToast.error('Error updating user: ' + errorMessage);
+      return null;
     }
   };
 

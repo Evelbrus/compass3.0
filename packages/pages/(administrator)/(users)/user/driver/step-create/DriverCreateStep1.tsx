@@ -204,7 +204,7 @@ const DriverCreateStep1 = (): JSX.Element => {
       </div>
       <div className="w-1/3 flex items-start justify-center p-6">
         <Controller
-          name="profilePhotoPath"
+          name="profileImage"
           control={control}
           render={({ field, fieldState }) => (
             <ImageUpload

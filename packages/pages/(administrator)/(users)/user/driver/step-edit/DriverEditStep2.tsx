@@ -1,3 +1,4 @@
+//DriverEditStep2.tsx
 import React, { JSX } from 'react';
 import { subYears } from 'date-fns';
 import { useFormContext, Controller } from 'react-hook-form';
@@ -16,7 +17,15 @@ import {
   identityDocumentOptions,
 } from '@shared/lib/effector/drivers/optionsTranslation/optionsTranslationDriver';
 
-const DriverEditStep2 = (): JSX.Element => {
+interface DriverEditStep2Props {
+  defaultPassportImage?: string;
+  defaultLicenseImage?: string;
+}
+
+const DriverEditStep2 = ({
+  defaultPassportImage,
+  defaultLicenseImage,
+}: DriverEditStep2Props): JSX.Element => {
   const { control } = useFormContext();
 
   return (
@@ -59,7 +68,10 @@ const DriverEditStep2 = (): JSX.Element => {
           <Controller
             name="driverProfile.birthPlace"
             control={control}
-            rules={{ required: 'Место рождения обязательно', validate: validateLength(2, 100) }}
+            rules={{
+              required: 'Место рождения обязательно',
+              validate: validateLength(2, 100),
+            }}
             render={({ field, fieldState }) => (
               <TextInput
                 label="Место рождения:"
@@ -95,7 +107,10 @@ const DriverEditStep2 = (): JSX.Element => {
           <Controller
             name="driverProfile.passportId"
             control={control}
-            rules={{ required: 'Номер паспорта обязателен', validate: validateLength(5, 20) }}
+            rules={{
+              required: 'Номер паспорта обязателен',
+              validate: validateLength(5, 20),
+            }}
             render={({ field, fieldState }) => (
               <NumberInput
                 label="Идентификатор паспорта:"
@@ -112,7 +127,10 @@ const DriverEditStep2 = (): JSX.Element => {
           <Controller
             name="driverProfile.passportIssued"
             control={control}
-            rules={{ required: 'Кем выдан паспорт обязателен', validate: validateLength(2, 100) }}
+            rules={{
+              required: 'Кем выдан паспорт обязателен',
+              validate: validateLength(2, 100),
+            }}
             render={({ field, fieldState }) => (
               <TextInput
                 label="Паспорт выдан:"
@@ -150,7 +168,10 @@ const DriverEditStep2 = (): JSX.Element => {
           <Controller
             name="driverProfile.actualAddress"
             control={control}
-            rules={{ required: 'Фактический адрес обязателен', validate: validateLength(5, 200) }}
+            rules={{
+              required: 'Фактический адрес обязателен',
+              validate: validateLength(5, 200),
+            }}
             render={({ field, fieldState }) => (
               <TextInput
                 label="Фактический адрес:"
@@ -168,7 +189,10 @@ const DriverEditStep2 = (): JSX.Element => {
           <Controller
             name="driverProfile.permanentAddress"
             control={control}
-            rules={{ required: 'Постоянный адрес обязателен', validate: validateLength(5, 200) }}
+            rules={{
+              required: 'Постоянный адрес обязателен',
+              validate: validateLength(5, 200),
+            }}
             render={({ field, fieldState }) => (
               <TextInput
                 label="Постоянный адрес:"
@@ -219,17 +243,34 @@ const DriverEditStep2 = (): JSX.Element => {
           />
         </div>
       </div>
-      <div className="w-1/3 mb-4 col-span-1">
+      <div className="w-1/3 mb-4">
         <Controller
-          name="driverProfile.passportPhotoPath"
+          name="driverProfile.passportImage"
           control={control}
           render={({ field, fieldState }) => (
             <ImageUpload
-              name={field.name}
+              {...field}
+              value={field.value ?? undefined}
+              defaultImage={defaultPassportImage}
               label="Загрузите фотографию паспорта"
               error={!!fieldState.error}
               message={fieldState.error?.message || ''}
-              value={field.value}
+              name={field.name}
+            />
+          )}
+        />
+        <Controller
+          name="driverProfile.licenseImage"
+          control={control}
+          render={({ field, fieldState }) => (
+            <ImageUpload
+              {...field}
+              value={field.value ?? undefined}
+              defaultImage={defaultLicenseImage}
+              label="Загрузите фотографию водительского удостоверения"
+              error={!!fieldState.error}
+              message={fieldState.error?.message || ''}
+              name={field.name}
             />
           )}
         />

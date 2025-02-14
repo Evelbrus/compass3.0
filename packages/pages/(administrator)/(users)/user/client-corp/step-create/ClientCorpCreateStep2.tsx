@@ -105,7 +105,7 @@ const ClientCorpCreateStep2 = (): JSX.Element => {
           <Controller
             name="companyProfile.logoImage"
             control={control}
-            render={({ field, fieldState }) => (
+            render={({ fieldState }) => (
               <ImageUpload
                 name="companyProfile.logoImage"
                 label="Логотип компании:"

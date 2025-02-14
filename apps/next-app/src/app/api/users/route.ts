@@ -17,113 +17,97 @@ export async function POST(req: Request) {
     throw new ValidationError('Отсутствуют обязательные поля');
   }
 
-  try {
-    const {
-      email,
-      password,
-      role,
-      fullName,
-      phone,
-      gender,
-      address,
-      profilePhotoPath,
-      companyProfile,
-      driverProfile,
-    } = data;
+  const {
+    email,
+    password,
+    role,
+    fullName,
+    phone,
+    gender,
+    address,
+    profilePhotoPath,
+    companyProfile,
+    driverProfile,
+  } = data;
 
-    log('Received data:', data);
+  log('Received data:', data);
 
-    //Хеширование пароля
-    const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
+  //Хеширование пароля
+  const saltRounds = 10;
+  const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-    const now = new Date();
-    const uuid = uuidv4();
+  const now = new Date();
+  const uuid = uuidv4();
 
-    const user = {
-      uuid,
-      email,
-      password: hashedPassword,
-      role,
-      availability: data.availability !== undefined ? data.availability : true,
-      fullName,
-      phone,
-      gender,
-      address,
-      profilePhotoPath,
-      createdAt: now,
-      updatedAt: now,
-    };
+  const user = {
+    uuid,
+    email,
+    password: hashedPassword,
+    role,
+    availability: data.availability !== undefined ? data.availability : true,
+    fullName,
+    phone,
+    gender,
+    address,
+    profilePhotoPath,
+    createdAt: now,
+    updatedAt: now,
+  };
 
-    let createdUser: User | null = null;
+  let createdUser: User | null = null;
 
-    await prisma.$transaction(async (prisma) => {
-      createdUser = await prisma.user.create({
-        data: user,
-      });
-
-      if (!createdUser) {
-        throw new Error('User creation failed');
-      }
-
-      if (role === 'ClientCorp' || role === 'Operator') {
-        if (!companyProfile) {
-          throw new Error('Company profile is required for ClientCorp and Operator roles');
-        }
-
-        await prisma.companyProfile.create({
-          data: {
-            ...companyProfile,
-            userId: createdUser.uuid,
-          },
-        });
-      } else if (role === 'Driver') {
-        if (!driverProfile) {
-          throw new Error('Driver profile is required for Driver role');
-        }
-
-        await prisma.driverProfile.create({
-          data: {
-            ...driverProfile,
-            userId: createdUser.uuid,
-            driverExperience: {
-              create:
-                driverProfile.driverExperience?.map((experience) => ({
-                  companyName: experience.companyName,
-                  position: experience.position,
-                  from: new Date(experience.from),
-                  to: new Date(experience.to),
-                })) || [],
-            },
-          },
-        });
-      } else if (role !== 'Client' && role !== 'Admin') {
-        throw new Error('Invalid role');
-      }
+  await prisma.$transaction(async (prisma) => {
+    createdUser = await prisma.user.create({
+      data: user,
     });
 
-    log('Created user:', createdUser);
-
-    return NextResponse.json({
-      status: 'success',
-      message: 'User created successfully',
-      uuid: createdUser!.uuid,
-    });
-  } catch (error) {
-    log('Error creating user:', error);
-    if (error instanceof Error) {
-      log('Error message:', error.message);
-      log('Error stack:', error.stack);
+    if (!createdUser) {
+      throw new Error('User creation failed');
     }
-    return NextResponse.json(
-      {
-        status: 'error',
-        message: 'Unable to create user',
-        error: error instanceof Error ? error.message : 'Unknown error',
-      },
-      { status: 500 },
-    );
-  }
+
+    if (role === UserRole.ClientCorp || role === UserRole.Operator) {
+      if (!companyProfile) {
+        throw new Error('Company profile is required for ClientCorp and Operator roles');
+      }
+
+      await prisma.companyProfile.create({
+        data: {
+          ...companyProfile,
+          userId: createdUser.uuid,
+        },
+      });
+    } else if (role === UserRole.Driver) {
+      if (!driverProfile) {
+        throw new Error('Driver profile is required for Driver role');
+      }
+
+      await prisma.driverProfile.create({
+        data: {
+          ...driverProfile,
+          userId: createdUser.uuid,
+          driverExperience: {
+            create:
+              driverProfile.driverExperience?.map((experience) => ({
+                companyName: experience.companyName,
+                position: experience.position,
+                from: new Date(experience.from),
+                to: new Date(experience.to),
+              })) || [],
+          },
+        },
+      });
+    } else if (role !== UserRole.Client && role !== UserRole.Admin) {
+      throw new Error('Invalid role');
+    }
+  });
+
+  log('Created user:', createdUser);
+
+  return NextResponse.json({
+    status: 'success',
+    message: 'User created successfully',
+    uuid: createdUser!.uuid,
+  });
 }
 
 export async function GET(req: Request) {

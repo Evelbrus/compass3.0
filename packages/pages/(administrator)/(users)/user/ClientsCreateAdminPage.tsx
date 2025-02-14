@@ -20,8 +20,6 @@ interface ClientsCreateAdminPageProps {
 const ClientsCreateAdminPage = ({ role }: ClientsCreateAdminPageProps): JSX.Element => {
   const router = useRouter();
 
-  console.log('role:', role);
-
   const handleSubmit = async (
     formData: Omit<CreateUserData, 'profilePhotoPath'>,
   ): Promise<string | null> => {
@@ -46,7 +44,7 @@ const ClientsCreateAdminPage = ({ role }: ClientsCreateAdminPageProps): JSX.Elem
 
       showToast.success('Пользователь успешно создан!');
       console.log('Пользователь создан:', userData);
-      router.push(`/detail/{userUuid}`);
+      router.push(`/user/detail/${userUuid}`);
       return userUuid;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);

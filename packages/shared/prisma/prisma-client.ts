@@ -24,11 +24,6 @@ const prismaClientSingleton = () => {
     throw new Error('Необходимо установить переменную окружения POSTGRES_URL.');
   }
 
-  console.log(
-    `ℹ️ Prisma Client использует переменную окружения ${usedVariable} для подключения к базе данных.`,
-  );
-  console.log(`ℹ️ URL подключения: ${databaseUrl}`);
-
   return new PrismaClient({
     log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['warn', 'error'],
     datasources: {

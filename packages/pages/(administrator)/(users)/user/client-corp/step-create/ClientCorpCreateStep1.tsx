@@ -204,7 +204,7 @@ const ClientCorpCreateStep1 = (): JSX.Element => {
         <Controller
           name="profileImage"
           control={control}
-          render={({ field, fieldState }) => (
+          render={({ fieldState }) => (
             <ImageUpload
               name="profileImage"
               label="Фото Корпоративного Клиента"

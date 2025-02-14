@@ -6,30 +6,43 @@ import path from 'path';
 export async function POST(req: Request) {
   try {
     const formData = await req.formData();
-    const imageFile = formData.get('profileImage') as File | null;
-    const profilePhotoPath = formData.get('profilePhotoPath') as string | null;
 
-    if (!imageFile || !profilePhotoPath) {
+    //Получаем все файлы и пути из FormData
+    const imageFiles = formData.getAll('profileImage');
+    const profilePhotoPaths = formData.getAll('profilePhotoPath');
+
+    if (!imageFiles.length || !profilePhotoPaths.length) {
       return NextResponse.json({ message: 'Файл или путь к файлу не найдены' }, { status: 400 });
     }
 
-    //Читаем данные файла как ArrayBuffer
-    const buffer = await imageFile.arrayBuffer();
+    //Если количество файлов не совпадает с количеством путей, возвращаем ошибку
+    if (imageFiles.length !== profilePhotoPaths.length) {
+      return NextResponse.json(
+        { message: 'Количество файлов не совпадает с количеством путей' },
+        { status: 400 },
+      );
+    }
 
-    //Определяем путь для сохранения файла (ВНЕ public)
-    const uploadDir = path.join(process.cwd(), 'uploads', profilePhotoPath);
+    //Обрабатываем каждый файл
+    for (let i = 0; i < imageFiles.length; i++) {
+      const imageFile = imageFiles[i] as File;
+      const profilePhotoPath = profilePhotoPaths[i] as string;
 
-    //Убедимся, что директория существует
-    const dir = path.dirname(uploadDir);
-    await fs.mkdir(dir, { recursive: true });
+      //Читаем данные файла как ArrayBuffer
+      const buffer = await imageFile.arrayBuffer();
 
-    //Записываем файл на диск
-    await fs.writeFile(uploadDir, Buffer.from(buffer));
+      //Определяем путь для сохранения файла (например, внутри папки "uploads")
+      const uploadFilePath = path.join(process.cwd(), 'uploads', profilePhotoPath);
+      const dir = path.dirname(uploadFilePath);
 
-    //Формируем публичный URL (относительно public)
-    const publicPath = profilePhotoPath;
+      //Убедимся, что директория существует
+      await fs.mkdir(dir, { recursive: true });
 
-    return NextResponse.json({ message: 'Изображение успешно загружено', path: publicPath });
+      //Записываем файл на диск
+      await fs.writeFile(uploadFilePath, Buffer.from(buffer));
+    }
+
+    return NextResponse.json({ message: 'Изображения успешно загружены' });
   } catch (error) {
     console.error('Ошибка при загрузке изображения:', error);
     return NextResponse.json({ message: 'Ошибка при загрузке изображения' }, { status: 500 });

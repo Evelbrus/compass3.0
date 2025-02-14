@@ -34,7 +34,7 @@ const DriverCreateStep3 = (): JSX.Element => {
         </div>
         <div className="mb-4 col-span-1">
           <Controller
-            name="driverProfile.licensePhotoPath"
+            name="driverProfile.licenseImage"
             control={control}
             render={({ field, fieldState }) => (
               <ImageUpload

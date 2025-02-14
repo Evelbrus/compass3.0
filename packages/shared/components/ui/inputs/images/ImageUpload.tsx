@@ -8,6 +8,7 @@ import { LazyImage } from '../../images';
 interface ImageUploadProps {
   name: string;
   label: string;
+  defaultImage?: string;
   maxWidth?: number;
   maxHeight?: number;
   error?: boolean;
@@ -24,6 +25,7 @@ interface ImageUploadProps {
 export const ImageUpload: React.FC<ImageUploadProps> = ({
   name,
   label,
+  defaultImage,
   maxWidth = 1024,
   maxHeight = 1024,
   error = false,
@@ -34,30 +36,24 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   licensePhoto = false,
   value,
   readonly = false,
-  requiredStar = false, //Добавлено свойство requiredStar
+  requiredStar = false,
 }) => {
   const { control, setValue } = useFormContext();
   const inputRef = useRef<HTMLInputElement>(null);
-  const [preview, setPreview] = useState<string | null>(value || null);
+  const [preview, setPreview] = useState<string | null>(value || defaultImage || null);
   const [internalError, setInternalError] = useState<string | null>(null);
 
-  const file = useWatch({
-    name,
-    control,
-  });
+  const file = useWatch({ name, control });
 
   useEffect(() => {
     if (file instanceof File) {
       const url = URL.createObjectURL(file);
       setPreview(url);
-
-      return () => {
-        URL.revokeObjectURL(url);
-      };
+      return () => URL.revokeObjectURL(url);
     } else {
-      setPreview(value || null);
+      setPreview(value || defaultImage || null);
     }
-  }, [file, value]);
+  }, [file, value, defaultImage]);
 
   const handleUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     setInternalError(null);
@@ -65,7 +61,6 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     if (event.target.files && event.target.files.length > 0) {
       const selectedFile = event.target.files[0];
       const url = URL.createObjectURL(selectedFile);
-
       const img = new Image();
       img.src = url;
 
@@ -76,12 +71,11 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
           setValue(name, undefined);
           return;
         }
-
         setValue(name, selectedFile);
       };
 
       img.onerror = () => {
-        setInternalError('Не удалось загрузить изображение. Пожалуйста, попробуйте другой файл.');
+        setInternalError('Ошибка загрузки изображения. Попробуйте другой файл.');
         URL.revokeObjectURL(url);
         setValue(name, undefined);
       };
@@ -91,7 +85,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   const handleRemove = () => {
     if (preview && !readonly) {
       URL.revokeObjectURL(preview);
-      setPreview(null);
+      setPreview(defaultImage || null);
       if (inputRef.current) {
         inputRef.current.value = '';
       }
@@ -104,13 +98,13 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
       <label className="text-5 leading-5 text-gray-500 font-extrabold mb-3 flex justify-center">
         {label} {requiredStar && <span className="text-red-500">*</span>}
       </label>
-      <div className="w-full min-h-fit border-2 border-dashed border-gray-400 rounded-lg flex flex-col gap-[15px] items-center justify-center bg-white overflow-hidden relative">
+      <div className="w-full min-h-fit border-2 border-dashed border-gray-400 rounded-lg flex flex-col gap-4 items-center justify-center bg-white overflow-hidden relative">
         {preview ? (
           <>
             <img
               src={preview}
               alt="Предпросмотр изображения"
-              className="inset-0 w-full object-cover rounded-lg p-1"
+              className="w-full object-cover rounded-lg p-1"
               style={{ height: licensePhoto || passportPhoto ? '150px' : '260px' }}
             />
             {!readonly && (
@@ -124,43 +118,18 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
             )}
           </>
         ) : (
-          <>
-            {passportPhoto ? (
-              <div className="w-full h-fit bg-white flex items-center justify-center pt-[16px]">
-                <div className="flex items-center gap-[18px]">
-                  <LazyImage src="/doc_icon3.png" alt="logotype" className="w-[76px] h-[76px]" />
-                  <LazyImage src="/doc_icon2.png" alt="doc_icons2" className="w-[160px] h-[56px]" />
-                </div>
-              </div>
-            ) : null}
-            {licensePhoto ? (
-              <div className="w-full h-fit bg-white flex items-center justify-center pt-[16px]">
-                <div className="flex items-center gap-[18px]">
-                  <LazyImage src="/doc_icon1.png" alt="doc_icons1" className="w-[50px] h-[40px]" />
-                  <LazyImage src="/doc_icon2.png" alt="doc_icons2" className="w-[170px] h-[66px]" />
-                </div>
-              </div>
-            ) : null}
-            {!passportPhoto && !licensePhoto && placeholder ? (
-              <img
-                src={placeholder}
-                alt="Плейсхолдер изображения"
-                className="relative inset-0 w-[200px] h-[200px] object-cover rounded-lg "
-              />
-            ) : null}
-            {!readonly && (
-              <div className={'relative flex flex-col gap-2 pb-[16px]'}>
-                <IButton
-                  type="button"
-                  onClick={() => inputRef.current?.click()}
-                  className="px-6 py-[5px] bg-[#989898] text-white rounded-lg"
-                  textClassName={'text-base leading-5 justify-center'}
-                >
-                  Загрузить фото
-                </IButton>
-              </div>
-            )}
-          </>
+          <LazyImage src={placeholder} alt="Плейсхолдер" className="w-[200px] h-[200px]" />
+        )}
+        {!readonly && (
+          <div className="relative flex flex-col gap-2 pb-4">
+            <IButton
+              type="button"
+              onClick={() => inputRef.current?.click()}
+              className="px-6 py-2 bg-gray-600 text-white rounded-lg"
+            >
+              Загрузить фото
+            </IButton>
+          </div>
         )}
         {!readonly && (
           <input

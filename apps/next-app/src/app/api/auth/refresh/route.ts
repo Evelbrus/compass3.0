@@ -36,7 +36,6 @@ export async function POST(request: NextRequest) {
 
     //Верификация refresh-токена
     let payload: RefreshTokenPayload;
-    console.log('ВЕРИФИКАЦИЯ В РЕФРЕШЕ!!!!!!');
     try {
       payload = await verifyJWT<RefreshTokenPayload>(
         receivedRefreshToken,
@@ -156,7 +155,6 @@ export async function POST(request: NextRequest) {
       maxAge: authConfig.refreshToken.maxAge,
     });
 
-    console.log('response', response);
     return response;
   } catch (error) {
     console.error('[REFRESH] Unexpected error:', error);

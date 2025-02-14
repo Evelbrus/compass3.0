@@ -104,19 +104,19 @@ const Sidebar: React.FC<SidebarProps> = ({ role }) => {
         </ul>
       </nav>
 
-      {role !== UserRole.Client && role !== UserRole.ClientCorp && (
-        <div className="flex justify-center text-sm my-2">
-          <IButton
-            type="button"
-            className="relative text-sm text-right text-black hover:underline"
-            badge={5}
-            badgeClassName="top-[-15px] right-[-25px] text-white bg-black"
-            aria-label="Notifications"
-          >
-            Водители на линии
-          </IButton>
-        </div>
-      )}
+      {/*{role !== UserRole.Client && role !== UserRole.ClientCorp && (*/}
+      {/*<div className="flex justify-center text-sm my-2">*/}
+      {/*<IButton*/}
+      {/*type="button"*/}
+      {/*className="relative text-sm text-right text-black hover:underline"*/}
+      {/*badge={5}*/}
+      {/*badgeClassName="top-[-15px] right-[-25px] text-white bg-black"*/}
+      {/*aria-label="Notifications"*/}
+      {/*>*/}
+      {/*Водители на линии*/}
+      {/*</IButton>*/}
+      {/*</div>*/}
+      {/*)}*/}
     </aside>
   );
 };

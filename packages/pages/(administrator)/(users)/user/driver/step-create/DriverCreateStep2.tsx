@@ -21,7 +21,7 @@ const DriverCreateStep2 = (): JSX.Element => {
 
   return (
     <div className="flex items-center justify-center">
-      <div className=" w-2/3 grid grid-cols-2 gap-x-8 gap-y-4 p-6">
+      <div className="w-2/3 grid grid-cols-2 gap-x-8 gap-y-4 p-6">
         <div className="mb-4 col-span-1">
           <Controller
             name="driverProfile.birthDate"
@@ -55,7 +55,7 @@ const DriverCreateStep2 = (): JSX.Element => {
             )}
           />
         </div>
-        {/*Остальные поля остаются без изменений */}
+        {/*Остальные поля */}
         <div className="mb-4 col-span-1">
           <Controller
             name="driverProfile.birthPlace"
@@ -220,9 +220,9 @@ const DriverCreateStep2 = (): JSX.Element => {
           />
         </div>
       </div>
-      <div className=" w-1/3 mb-4 col-span-1">
+      <div className="w-1/3 mb-4">
         <Controller
-          name="driverProfile.passportPhotoPath"
+          name="driverProfile.passportImage"
           control={control}
           render={({ field, fieldState }) => (
             <ImageUpload
@@ -236,13 +236,13 @@ const DriverCreateStep2 = (): JSX.Element => {
           )}
         />
         <Controller
-          name="driverProfile.passportPhotoPath"
+          name="driverProfile.profileImage"
           control={control}
           render={({ field, fieldState }) => (
             <ImageUpload
               licensePhoto
               name={field.name}
-              label=""
+              label="Загрузите фотографию водительского удостоверения"
               error={!!fieldState.error}
               message={fieldState.error?.message || ''}
               value={field.value}

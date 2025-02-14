@@ -1,3 +1,4 @@
+//DriverEditStep1.tsx
 import React, { JSX } from 'react';
 import { Gender } from '@prisma/client';
 import { useFormContext, Controller } from 'react-hook-form';
@@ -9,7 +10,11 @@ import {
   validatePhoneNumber,
 } from '@shared/utils/validations';
 
-const DriverEditStep1 = (): JSX.Element => {
+interface DriverEditStep1Props {
+  defaultAvatar?: string;
+}
+
+const DriverEditStep1 = ({ defaultAvatar }: DriverEditStep1Props): JSX.Element => {
   const { control } = useFormContext();
 
   return (
@@ -117,7 +122,7 @@ const DriverEditStep1 = (): JSX.Element => {
                 control={control}
                 rules={{ required: 'Выберите пол.' }}
                 render={({ field, fieldState }) => (
-                  <div className={'flex flex-row gap-4'}>
+                  <div className="flex flex-row gap-4">
                     <RadioInput
                       label="Мужской"
                       checked={field.value === Gender.Male}
@@ -132,7 +137,7 @@ const DriverEditStep1 = (): JSX.Element => {
                       name="gender"
                       requiredStar={true}
                     />
-                    <div className={'absolute bottom-[-25px]'}>
+                    <div className="absolute bottom-[-25px]">
                       {fieldState.error && (
                         <p className="text-red-600 text-sm mt-2">{fieldState.error.message}</p>
                       )}
@@ -163,15 +168,17 @@ const DriverEditStep1 = (): JSX.Element => {
       </div>
       <div className="w-1/3 flex items-start justify-center p-6">
         <Controller
-          name="profilePhotoPath"
+          name="profileImage"
           control={control}
           render={({ field, fieldState }) => (
             <ImageUpload
               {...field}
               value={field.value ?? undefined}
+              defaultImage={defaultAvatar}
               label="Аватар Водителя"
               error={!!fieldState.error}
               message={fieldState.error?.message || ''}
+              name={field.name}
             />
           )}
         />
