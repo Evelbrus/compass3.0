@@ -45,128 +45,128 @@ export async function GET(req: Request) {
 
 //PUT запрос для обновления данных пользователя по UUID
 export async function PUT(req: Request) {
-  try {
-    const data = await req.json();
-    const { uuid } = data as Params;
+  //try {
+  const data = await req.json();
+  const { uuid } = data as Params;
 
-    if (!uuid) {
-      return NextResponse.json({ status: 'error', message: 'UUID is required' }, { status: 400 });
-    }
-
-    const {
-      role,
-      availability,
-      fullName,
-      phone,
-      gender,
-      address,
-      profilePhotoPath,
-      companyProfile,
-      driverProfile,
-    } = data;
-
-    log('Received UUID:', uuid);
-    log('Received data:', data);
-
-    try {
-      const now = new Date();
-
-      const user = {
-        role,
-        availability,
-        fullName,
-        phone,
-        gender,
-        address,
-        profilePhotoPath,
-        updatedAt: now,
-      };
-
-      let updatedUser: User | null = null;
-
-      await prisma.$transaction(async (prisma) => {
-        //Обновление данных пользователя
-        updatedUser = await prisma.user.update({
-          where: { uuid },
-          data: user,
-        });
-
-        //Обновление профиля компании или водителя в зависимости от роли
-        if (role === 'ClientCorp' || role === 'Operator') {
-          if (!companyProfile) {
-            throw new Error('Company profile is required for ClientCorp and Operator roles');
-          }
-
-          await prisma.companyProfile.update({
-            where: { userId: uuid },
-            data: companyProfile,
-          });
-        } else if (role === 'Driver') {
-          if (!driverProfile) {
-            throw new Error('Driver profile is required for Driver role');
-          }
-
-          const { driverExperience, ...restDriverProfile } = driverProfile;
-
-          //Обновление профиля водителя
-          await prisma.driverProfile.update({
-            where: { userId: uuid },
-            data: {
-              ...restDriverProfile,
-              driverExperience: {
-                deleteMany: {},
-                create:
-                  driverExperience?.map(
-                    (experience: {
-                      companyName: string;
-                      position: string;
-                      from: string;
-                      to: string;
-                    }) => ({
-                      companyName: experience.companyName,
-                      position: experience.position,
-                      from: new Date(experience.from),
-                      to: new Date(experience.to),
-                    }),
-                  ) || [],
-              },
-            },
-          });
-        } else if (role !== 'Client' && role !== 'Admin') {
-          throw new Error('Invalid role');
-        }
-      });
-
-      log('Updated user:', updatedUser);
-
-      return NextResponse.json({
-        status: 'success',
-        message: 'User updated successfully',
-        uuid: updatedUser!.uuid,
-      });
-    } catch (error) {
-      log('Error updating user:', error);
-      if (error instanceof Error) {
-        log('Error message:', error.message);
-        log('Error stack:', error.stack);
-      }
-      return NextResponse.json(
-        {
-          status: 'error',
-          message: 'Unable to update user',
-          error: error instanceof Error ? error.message : 'Unknown error',
-        },
-        { status: 500 },
-      );
-    }
-  } catch (error) {
-    log('Error parsing request:', error);
-    if (error instanceof Error) {
-      log('Error message:', error.message);
-      log('Error stack:', error.stack);
-    }
-    return NextResponse.json({ status: 'error', message: 'Invalid request data' }, { status: 400 });
+  if (!uuid) {
+    return NextResponse.json({ status: 'error', message: 'UUID is required' }, { status: 400 });
   }
+
+  const {
+    role,
+    availability,
+    fullName,
+    phone,
+    gender,
+    address,
+    profilePhotoPath,
+    companyProfile,
+    driverProfile,
+  } = data;
+
+  log('Received UUID:', uuid);
+  log('Received data:', data);
+
+  //try {
+  const now = new Date();
+
+  const user = {
+    role,
+    availability,
+    fullName,
+    phone,
+    gender,
+    address,
+    profilePhotoPath,
+    updatedAt: now,
+  };
+
+  let updatedUser: User | null = null;
+
+  await prisma.$transaction(async (prisma) => {
+    //Обновление данных пользователя
+    updatedUser = await prisma.user.update({
+      where: { uuid },
+      data: user,
+    });
+
+    //Обновление профиля компании или водителя в зависимости от роли
+    if (role === 'ClientCorp' || role === 'Operator') {
+      if (!companyProfile) {
+        throw new Error('Company profile is required for ClientCorp and Operator roles');
+      }
+
+      await prisma.companyProfile.update({
+        where: { userId: uuid },
+        data: companyProfile,
+      });
+    } else if (role === 'Driver') {
+      if (!driverProfile) {
+        throw new Error('Driver profile is required for Driver role');
+      }
+
+      const { driverExperience, ...restDriverProfile } = driverProfile;
+
+      //Обновление профиля водителя
+      await prisma.driverProfile.update({
+        where: { userId: uuid },
+        data: {
+          ...restDriverProfile,
+          driverExperience: {
+            deleteMany: {},
+            create:
+              driverExperience?.map(
+                (experience: {
+                  companyName: string;
+                  position: string;
+                  from: string;
+                  to: string;
+                }) => ({
+                  companyName: experience.companyName,
+                  position: experience.position,
+                  from: new Date(experience.from),
+                  to: new Date(experience.to),
+                }),
+              ) || [],
+          },
+        },
+      });
+    } else if (role !== 'Client' && role !== 'Admin') {
+      throw new Error('Invalid role');
+    }
+  });
+
+  log('Updated user:', updatedUser);
+
+  return NextResponse.json({
+    status: 'success',
+    message: 'User updated successfully',
+    uuid: updatedUser!.uuid,
+  });
+  //} catch (error) {
+  //log('Error updating user:', error);
+  //if (error instanceof Error) {
+  //log('Error message:', error.message);
+  //log('Error stack:', error.stack);
+  //}
+  //return NextResponse.json(
+  //{
+  //status: 'error',
+  //message: 'Unable to update user',
+  //error: error instanceof Error ? error.message : 'Unknown error',
+  //},
+  //{ status: 500 },
+  //);
+  //}
+  //} catch (error) {
+  //log('Error parsing request:', error);
+  //if (error instanceof Error) {
+  //log('Error message:', error.message);
+  //log('Error stack:', error.stack);
+  //}
+  //return NextResponse.json({ status: 'error', message: 'Invalid request data' }, { status: 400 });
+  //}
 }
 
 //DELETE запрос для удаления пользователя по UUID

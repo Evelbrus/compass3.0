@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
         gender: gender || Gender.None,
         address: address || null,
         profilePhotoPath: profilePhotoPath || null,
-        role: UserRole.Admin,
+        role: UserRole.ClientCorp,
         availability: availability || false,
       } as UserCreateInput,
     });

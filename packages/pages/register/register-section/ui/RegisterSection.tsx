@@ -1,398 +1,282 @@
 'use client';
 
-import React, { useState, useCallback, ChangeEvent, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Controller, SubmitHandler, useForm } from 'react-hook-form';
+import { useForm, FormProvider, FieldPath, UseFormReturn } from 'react-hook-form';
 import { showToast } from '@shared/components/toast/ToastManager';
 import { IButton } from '@shared/components/ui/buttons';
-import { Checkbox, TextInput, RadioInput } from '@shared/components/ui/inputs';
-import { Gender } from '@prisma/client';
+import { v4 as uuidv4 } from 'uuid';
 
-//Определяем тип для ключей формы
-type FormKey =
-  | 'email'
-  | 'password'
-  | 'fullName'
-  | 'phone'
-  | 'gender'
-  | 'address'
-  | 'companyName'
-  | 'companyPin'
-  | 'confirmPassword'
-  | 'isAgree';
+import RegisterStepOne from '@pages/register/register-section/ui/step/RegisterStepOne';
+import RegisterStepTwo from '@pages/register/register-section/ui/step/RegisterStepTwo';
+import RegisterStepThree from '@pages/register/register-section/ui/step/RegisterStepThree';
+import RegisterStepFour from '@pages/register/register-section/ui/step/RegisterStepFour';
 
-interface FormValues {
-  email: string;
-  password: string;
-  confirmPassword: string;
-  fullName: string;
-  companyName: string;
-  companyPin: string;
-  phone: string;
-  address: string;
-  gender: Gender | undefined;
-  isAgree: boolean;
+import { CompanyProfile, User } from '@prisma/client';
+
+export interface CompanyRegisterCard extends Omit<CompanyProfile, 'createdAt' | 'updatedAt'> {
+  logoImagePath: string | null;
+}
+
+export interface UserRegisterCard
+  extends Omit<User, 'password' | 'refreshTokens' | 'createdAt' | 'updatedAt'> {
+  //Пользователь вводит отдельные поля, но мы сформируем fullName
+  firstName?: string;
+  lastName?: string;
+  middleName?: string;
+  password?: string;
+  confirmPassword?: string;
+  profileImage?: File | null;
+  companyProfile?: CompanyRegisterCard & { logoImage?: File | null };
 }
 
 const RegisterSection: React.FC = () => {
   const router = useRouter();
-  const {
-    control,
-    handleSubmit,
-    clearErrors,
-    formState: { errors },
-    getValues,
-    setError,
-  } = useForm<FormValues>({
-    defaultValues: {
-      email: '',
-      password: '',
-      confirmPassword: '',
-      fullName: '',
-      companyName: '',
-      companyPin: '',
-      phone: '',
-      address: '',
-      gender: undefined,
-      isAgree: false,
-    },
+  const finalStep = 4;
+  const formMethods: UseFormReturn<UserRegisterCard> = useForm<UserRegisterCard>({
+    mode: 'onSubmit',
   });
-
-  const [loading, setLoading] = useState<boolean>(false);
+  const { handleSubmit, trigger, watch, getValues } = formMethods;
   const [currentStep, setCurrentStep] = useState<number>(1);
-  const formRef = useRef<HTMLFormElement>(null);
   const firstInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    if (firstInputRef.current) {
-      firstInputRef.current.focus();
+  //Состояние предпросмотра логотипа
+  const [previewLogo, setPreviewLogo] = useState<string | undefined>(() => {
+    const companyProfile = getValues('companyProfile');
+    if (companyProfile && companyProfile.logoImagePath) {
+      return `/api/images/${encodeURIComponent(
+        companyProfile.logoImagePath.split('/').pop()!,
+      )}?type=logo`;
     }
+    return undefined;
+  });
+
+  //Отслеживаем поле logoImage
+  const logoFile = watch('companyProfile.logoImage');
+  useEffect(() => {
+    if (logoFile && logoFile instanceof File) {
+      const url = URL.createObjectURL(logoFile);
+      setPreviewLogo(url);
+      return () => {
+        URL.revokeObjectURL(url);
+      };
+    }
+    //Если файл не выбран, оставляем previewLogo как есть (например, при возврате на шаг)
+  }, [logoFile]);
+
+  useEffect(() => {
+    firstInputRef.current?.focus();
   }, []);
 
-  const validateStepOne = () => {
-    const { email, password, confirmPassword, fullName, phone, gender } = getValues();
-    let valid = true;
-
-    if (!email) {
-      setError('email', { type: 'required', message: 'Введите email.' });
-      valid = false;
+  /**
+   * Валидация полей для текущего шага.
+   */
+  const validateStep = async (fields: FieldPath<UserRegisterCard>[]) => {
+    const isValid = await trigger(fields);
+    if (!isValid) {
+      showToast.error('Пожалуйста, заполните все обязательные поля перед переходом.');
     }
-
-    if (!password) {
-      setError('password', { type: 'required', message: 'Введите пароль.' });
-      valid = false;
-    } else if (password.length < 6) {
-      setError('password', {
-        type: 'minLength',
-        message: 'Пароль должен содержать минимум 6 символов.',
-      });
-      valid = false;
-    }
-
-    if (!confirmPassword) {
-      setError('confirmPassword', {
-        type: 'required',
-        message: 'Подтвердите пароль.',
-      });
-      valid = false;
-    } else if (confirmPassword !== password) {
-      setError('confirmPassword', {
-        type: 'validate',
-        message: 'Пароли не совпадают.',
-      });
-      valid = false;
-    }
-
-    if (!fullName) {
-      setError('fullName', {
-        type: 'required',
-        message: 'Введите ваше полное имя.',
-      });
-      valid = false;
-    }
-
-    if (!phone) {
-      setError('phone', {
-        type: 'required',
-        message: 'Введите номер телефона.',
-      });
-      valid = false;
-    }
-
-    if (!gender) {
-      setError('gender', {
-        type: 'required',
-        message: 'Выберите пол.',
-      });
-      valid = false;
-    }
-
-    return valid;
+    return isValid;
   };
 
-  const onSubmit: SubmitHandler<FormValues> = async (data) => {
-    setLoading(true);
-    clearErrors();
-
-    const { email, password, fullName, companyName, companyPin, phone, address, gender } = data;
-
-    const requestData = {
-      email,
-      password,
-      fullName,
-      companyName,
-      companyPin,
-      phone,
-      address,
-      gender,
-    };
-
-    try {
-      const response = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestData),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        const errorMessage = result.message || 'Ошибка регистрации.';
-        showToast.error(errorMessage);
-        if (currentStep === 1) {
-          setError('email', { type: 'server', message: errorMessage });
-        } else {
-          setError('companyName', { type: 'server', message: errorMessage });
-        }
-        throw new Error(errorMessage);
+  const handleNextStep = async () => {
+    if (currentStep === 1) {
+      const fields: FieldPath<UserRegisterCard>[] = ['email', 'password', 'confirmPassword'];
+      if (await validateStep(fields)) {
+        setCurrentStep(2);
       }
-
-      showToast.success('Регистрация прошла успешно!');
-      const signInResponse = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email,
-          password,
-        }),
-      });
-      const signInResult = await signInResponse.json();
-
-      if (!signInResponse.ok) {
-        const errorMessage = signInResult.message || 'Ошибка авторизации.';
-        showToast.error(errorMessage);
-        throw new Error(errorMessage);
+    } else if (currentStep === 2) {
+      const fields: FieldPath<UserRegisterCard>[] = [
+        'firstName',
+        'lastName',
+        'address',
+        'phone',
+        'gender',
+      ];
+      if (await validateStep(fields)) {
+        setCurrentStep(3);
       }
-      showToast.success('Вход выполнен успешно!');
-      setTimeout(() => {
-        const redirectPath = localStorage.getItem('redirectPath') || '/';
-        router.push(redirectPath);
-        localStorage.removeItem('redirectPath');
-      }, 2000);
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        console.error('Ошибка:', error.message);
-        showToast.error(error.message);
-      } else {
-        console.error('Неизвестная ошибка:', error);
-        showToast.error('Произошла неизвестная ошибка. Попробуйте позже.');
+    } else if (currentStep === 3) {
+      const fields: FieldPath<UserRegisterCard>[] = [
+        'companyProfile.companyName',
+        'companyProfile.companyPin',
+        'companyProfile.email',
+        'companyProfile.phone',
+        'companyProfile.website',
+        'companyProfile.address',
+      ];
+      if (await validateStep(fields)) {
+        setCurrentStep(4);
       }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const navigateToLogin = useCallback(() => {
-    router.push('/login');
-  }, [router]);
-
-  const handleNextStep = () => {
-    if (validateStepOne()) {
-      setCurrentStep(2);
-      clearErrors();
     }
   };
 
   const handlePrevStep = () => {
-    setCurrentStep(1);
-    clearErrors();
+    if (currentStep > 1) {
+      setCurrentStep((prev) => prev - 1);
+    }
   };
 
-  const handleChange = () => {
-    clearErrors();
-  };
+  const onSubmit = handleSubmit(async (data: UserRegisterCard) => {
+    console.log('Данные регистрации:', data);
 
-  const renderInput = (name: FormKey, placeholder: string, type: string | undefined = 'text') => (
-    <Controller
-      name={name}
-      control={control}
-      rules={{ required: `Введите ${placeholder}.` }}
-      render={({ field }) => {
-        let value: string | boolean = field.value ?? '';
+    //Собираем fullName из полей
+    const fullName = `${data.lastName || ''} ${data.firstName || ''}${
+      data.middleName ? ' ' + data.middleName : ''
+    }`.trim();
 
-        //If value is boolean (for checkbox or other boolean fields), make it a string
-        if (typeof value === 'boolean') {
-          value = value ? 'true' : 'false';
+    //Приводим email к нижнему регистру
+    const emailLower = data.email?.toLowerCase() || '';
+
+    //Формируем объект для регистрации
+    const registrationData = { ...data, fullName, email: emailLower };
+    if (registrationData.companyProfile) {
+      //Удаляем файловое поле, чтобы не отправлять его в JSON
+      const { logoImage, ...rest } = registrationData.companyProfile;
+      registrationData.companyProfile = { ...rest, logoImagePath: rest.logoImagePath || null };
+    }
+
+    try {
+      //Сначала отправляем запрос на регистрацию (без файлов)
+      const registerResponse = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(registrationData),
+      });
+
+      if (!registerResponse.ok) {
+        const errorData = await registerResponse.json();
+        throw new Error(errorData.message || 'Ошибка регистрации');
+      }
+
+      const registerResult = await registerResponse.json();
+      //Извлекаем идентификатор пользователя из поля user
+      const userId = registerResult.user?.id || registerResult.user?.uuid;
+      if (!userId) {
+        throw new Error('Ошибка регистрации: не получен идентификатор пользователя');
+      }
+      console.log('Зарегистрированный пользователь:', userId);
+
+      //Если файлы есть, отправляем их отдельно
+      const formData = new FormData();
+      let hasFiles = false;
+      if (data.companyProfile && data.companyProfile.logoImage) {
+        const logoFilename = `${uuidv4()}-${data.companyProfile.logoImage.name}`;
+        formData.append('logoImage', data.companyProfile.logoImage);
+        //Передаём путь, по которому сервер сохранит файл
+        formData.append('logoImagePath', `/logo/${logoFilename}`);
+        formData.append('userId', userId);
+        hasFiles = true;
+      }
+      if (data.profileImage) {
+        const profileFilename = `${uuidv4()}-${data.profileImage.name}`;
+        formData.append('profileImage', data.profileImage);
+        formData.append('profileImagePath', `/avatar/${profileFilename}`);
+        formData.append('userId', userId);
+        hasFiles = true;
+      }
+      //Добавьте другие файлы, если необходимо
+
+      if (hasFiles) {
+        const uploadResponse = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        });
+        if (!uploadResponse.ok) {
+          const uploadError = await uploadResponse.json();
+          throw new Error(uploadError.message || 'Ошибка загрузки изображений');
         }
+        const uploadResult = await uploadResponse.json();
+        console.log('Upload result:', uploadResult);
+      }
 
-        return (
-          <div className="flex flex-col">
-            <TextInput
-              {...field}
-              value={value}
-              placeholder={placeholder}
-              type={type}
-              error={!!errors[name as keyof FormValues]}
-              disabled={loading}
-              aria-invalid={!!errors[name as keyof FormValues]}
-              onChange={(value: string | number) => {
-                field.onChange(value);
-                handleChange();
-              }}
-              className="rounded-lg"
-            />
-          </div>
-        );
-      }}
-    />
-  );
+      //После регистрации и загрузки файлов выполняем автоматический вход
+      const loginResponse = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        //Используем email (нижнего регистра) и password, введённые пользователем
+        body: JSON.stringify({ email: emailLower, password: data.password }),
+      });
+
+      if (!loginResponse.ok) {
+        const loginError = await loginResponse.json();
+        throw new Error(loginError.message || 'Ошибка входа');
+      }
+
+      showToast.success('Регистрация и вход выполнены успешно!');
+      router.push('/');
+    } catch (error: any) {
+      console.error('Ошибка регистрации:', error);
+      showToast.error(`Ошибка регистрации: ${error.message}`);
+    }
+  });
 
   return (
-    <div className="relative inset-0 w-full flex items-center justify-center transition-all bg-[color(--background)] z-50 px-4">
-      <div
-        role="dialog"
-        aria-modal="true"
-        className="bg-white p-12 rounded-lg w-full max-w-[500px] relative"
-      >
-        <form
-          ref={formRef}
-          onSubmit={handleSubmit(onSubmit)}
-          className="w-full flex flex-col"
-          aria-live="polite"
-        >
-          <h2 className="mb-4 text-center text-2xl font-semibold text-gray-800">
-            Регистрация - Шаг {currentStep}
+    <FormProvider {...formMethods}>
+      <div className="relative inset-0 w-full flex items-center justify-center transition-all bg-[color(--background)] z-50 px-4">
+        <div className="w-full max-w-md">
+          <h2 className="text-2xl font-bold mb-6 text-center">
+            Регистрация для Партнера
+            <br />
+            Шаг-{currentStep}
           </h2>
+          <form onSubmit={onSubmit}>
+            {currentStep === 1 && <RegisterStepOne />}
+            {currentStep === 2 && <RegisterStepTwo />}
+            {currentStep === 3 && <RegisterStepThree />}
+            {currentStep === 4 && (
+              //Передаём previewLogo и setPreviewLogo в шаг 4 для работы компонента загрузки логотипа
+              <RegisterStepFour previewLogo={previewLogo} setPreviewLogo={setPreviewLogo} />
+            )}
 
-          {currentStep === 1 && (
-            <div className={'flex flex-col gap-8'}>
-              {renderInput('email', 'Введите email')}
-              {renderInput('password', 'Введите пароль', 'password')}
-              {renderInput('confirmPassword', 'Повторите пароль', 'password')}
-              {renderInput('fullName', 'Введите ваше полное имя')}
-              {renderInput('phone', 'Введите номер телефона')}
-              <div className="flex flex-col">
-                <p className="text-sm font-semibold">Пол:</p>
-                <div className={'flex flex-row gap-4'}>
-                  <Controller
-                    name="gender"
-                    control={control}
-                    rules={{ required: 'Выберите пол.' }}
-                    render={({ field }) => (
-                      <>
-                        <RadioInput
-                          label="Мужской"
-                          checked={field.value === 'Male'}
-                          onChange={() => {
-                            field.onChange('Male');
-                            handleChange();
-                          }}
-                          name="gender"
-                          required
-                        />
-                        <RadioInput
-                          label="Женский"
-                          checked={field.value === 'Female'}
-                          onChange={() => {
-                            field.onChange('Female');
-                            handleChange();
-                          }}
-                          name="gender"
-                          required
-                        />
-                      </>
-                    )}
-                  />
-                </div>
-              </div>
-              <IButton
-                type="button"
-                aria-busy={loading}
-                disabled={loading}
-                onClick={handleNextStep}
-                className="w-full h-16 px-6 py-3 bg-[color:var(--button-secondary)] text-[color:var(--text-white)] rounded-lg hover:bg-[color:var(--button-secondary-hover)] transition"
-                textClassName="w-full text-center justify-center"
-              >
-                Далее
-              </IButton>
-            </div>
-          )}
-          {currentStep === 2 && (
-            <>
-              {renderInput('companyName', 'Введите название компании')}
-              {renderInput('companyPin', 'Введите ИНН/ПИН компании')}
-              {renderInput('address', 'Введите адрес')}
-              <Controller
-                name="isAgree"
-                control={control}
-                rules={{ required: 'Вы должны согласиться с условиями.' }}
-                render={({ field }) => (
-                  <div className="flex flex-col">
-                    <Checkbox
-                      {...field}
-                      id="isAgree"
-                      label="Я соглашаюсь с условиями"
-                      checked={field.value}
-                      onChange={(e: ChangeEvent<HTMLInputElement>) => {
-                        field.onChange(e.target.checked);
-                        handleChange();
-                      }}
-                      error={errors.isAgree}
-                      disabled={loading}
-                    />
-                  </div>
-                )}
-              />
-              <div className="flex justify-between mt-4">
+            <div className="flex flex-row-reverse justify-between mt-6 gap-4">
+              {currentStep < finalStep && (
                 <IButton
                   type="button"
-                  aria-busy={loading}
-                  disabled={loading}
-                  onClick={handlePrevStep}
-                  className="w-[48%] h-16 px-6 py-3 bg-gray-100 text-black rounded-lg hover:bg-gray-200 transition"
-                  textClassName="w-full text-center justify-center"
+                  onClick={handleNextStep}
+                  className="w-[205px] p-5 bg-[color:var(--button-secondary)] text-[color:var(--text-white)] rounded-lg hover:bg-[color:var(--button-secondary-hover)] transition"
                 >
-                  Назад
+                  Далее
                 </IButton>
+              )}
+              {currentStep === finalStep && (
                 <IButton
                   type="submit"
-                  aria-busy={loading}
-                  disabled={loading}
-                  className="w-[48%] h-16 px-6 py-3 bg-[color:var(--button-secondary)] text-[color:var(--text-white)] rounded-lg hover:bg-[color:var(--button-secondary-hover)] transition"
-                  textClassName="w-full text-center justify-center"
+                  className="w-[205px] p-5 bg-[color:var(--button-secondary)] text-[color:var(--text-white)] rounded-lg hover:bg-[color:var(--button-secondary-hover)] transition"
                 >
                   Зарегистрироваться
                 </IButton>
-              </div>
-            </>
-          )}
-          <div className="flex justify-center text-sm my-2">
-            <p>У меня есть учетная запись! </p>
-            <IButton
-              type="button"
-              onClick={navigateToLogin}
-              className="text-sm text-right text-black hover:underline"
-            >
-              Войти
-            </IButton>
-          </div>
-        </form>
+              )}
+              {currentStep > 1 && (
+                <IButton
+                  type="button"
+                  onClick={handlePrevStep}
+                  className="w-[205px] p-5 bg-gray-500 opacity-50 text-[color:var(--text-white)] rounded-lg hover:bg-[color:var(--button-secondary-hover)] transition"
+                >
+                  Назад
+                </IButton>
+              )}
+            </div>
+
+            {/*Ссылка "У вас уже есть аккаунт? Войти" */}
+            <div className="flex justify-center text-sm my-4">
+              <p>У вас уже есть аккаунт?&nbsp;</p>
+              <IButton
+                type="button"
+                onClick={() => router.push('/login')}
+                className="text-sm text-black hover:underline"
+              >
+                Войти
+              </IButton>
+            </div>
+          </form>
+        </div>
       </div>
-    </div>
+    </FormProvider>
   );
 };
 

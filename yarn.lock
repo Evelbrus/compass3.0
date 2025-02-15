@@ -4413,6 +4413,7 @@ __metadata:
     clsx: "npm:^2.1.1"
     concurrently: "npm:^9.1.2"
     critters: "npm:^0.0.25"
+    cross-env: "npm:^7.0.3"
     debug: "npm:^4.4.0"
     effector: "npm:^23.2.3"
     effector-react: "npm:^23.2.1"
@@ -4444,6 +4445,7 @@ __metadata:
     react: "npm:19.0.0-rc-0bc30748-20241028"
     react-datepicker: "npm:^7.5.0"
     react-dom: "npm:19.0.0-rc-0bc30748-20241028"
+    react-easy-crop: "npm:^5.2.0"
     react-hook-form: "npm:^7.53.1"
     react-select: "npm:^5.8.2"
     react-toastify: "npm:^10.0.6"
@@ -4648,7 +4650,19 @@ __metadata:
   languageName: node
   linkType: hard
 
-"cross-spawn@npm:^7.0.0, cross-spawn@npm:^7.0.2, cross-spawn@npm:^7.0.6":
+"cross-env@npm:^7.0.3":
+  version: 7.0.3
+  resolution: "cross-env@npm:7.0.3"
+  dependencies:
+    cross-spawn: "npm:^7.0.1"
+  bin:
+    cross-env: src/bin/cross-env.js
+    cross-env-shell: src/bin/cross-env-shell.js
+  checksum: 10/e99911f0d31c20e990fd92d6fd001f4b01668a303221227cc5cb42ed155f086351b1b3bd2699b200e527ab13011b032801f8ce638e6f09f854bdf744095e604c
+  languageName: node
+  linkType: hard
+
+"cross-spawn@npm:^7.0.0, cross-spawn@npm:^7.0.1, cross-spawn@npm:^7.0.2, cross-spawn@npm:^7.0.6":
   version: 7.0.6
   resolution: "cross-spawn@npm:7.0.6"
   dependencies:
@@ -8540,6 +8554,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"normalize-wheel@npm:^1.0.1":
+  version: 1.0.1
+  resolution: "normalize-wheel@npm:1.0.1"
+  checksum: 10/7a10d4026e64549654c7ec4c08b99e73f857c6f39b9d864e1c5c1fb2c9708e48d6eb388350dbec08407d82828a602ab5366d6cf4d766d70c2aadfadec9d31f78
+  languageName: node
+  linkType: hard
+
 "npmlog@npm:^5.0.1":
   version: 5.0.1
   resolution: "npmlog@npm:5.0.1"
@@ -9527,6 +9548,19 @@ __metadata:
   peerDependencies:
     react: 19.0.0-rc-0bc30748-20241028
   checksum: 10/bd4f931ce7ddceb54238ab05280bbc1717fc781e5e50fea76cfbcbad942a56d50308911aef60d911fd24c6f8578fc23ee2f0325c33dcc5d9a0e0f0b042b8da87
+  languageName: node
+  linkType: hard
+
+"react-easy-crop@npm:^5.2.0":
+  version: 5.2.0
+  resolution: "react-easy-crop@npm:5.2.0"
+  dependencies:
+    normalize-wheel: "npm:^1.0.1"
+    tslib: "npm:^2.0.1"
+  peerDependencies:
+    react: ">=16.4.0"
+    react-dom: ">=16.4.0"
+  checksum: 10/4222ae1868c0a8a74ae378a0b72d6b59c9f9a585d8dc093ef89b113fe49c2a43e2bbb141aee53437cb15d725609223ced65f5ee45b7fc2cf6432589c60d856f6
   languageName: node
   linkType: hard
 

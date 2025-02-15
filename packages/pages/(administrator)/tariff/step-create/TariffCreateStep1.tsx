@@ -37,9 +37,6 @@ const TariffCreateStep1: React.FC<TariffCreateStep1Props> = ({
       <div>
         <SelectSingle
           label="Vehicle Type:"
-          classNameLabel="block text-4 font-medium text-gray-500 mb-2"
-          className="w-full bg-white rounded-md border border-gray-300 focus:bg-gray-100 text-4 text-[#2A3037] font-extrabold"
-          classNamePadding="py-[7px] px-[12px]"
           value={
             formData.vehicleType
               ? { value: formData.vehicleType, label: formData.vehicleType }

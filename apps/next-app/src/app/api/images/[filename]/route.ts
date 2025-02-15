@@ -7,27 +7,20 @@ interface Params {
 }
 
 interface SearchParamsInterface {
-  type: 'client' | 'client-corp' | 'logos' | 'drivers';
+  type: 'client' | 'client-corp' | 'logos' | 'drivers' | 'avatar' | 'logo';
 }
 
-export async function GET(
-  request: Request,
-  context: { params: Promise<Params> },
-) {
+export async function GET(request: Request, context: { params: Promise<Params> }) {
   try {
-    //Дожидаемся получения params, чтобы избежать ошибки синхронного доступа
     const params = await context.params;
-    //Если filename приходит как массив (например, при catch-all маршрутах), берём последний элемент
     const { filename } = params;
     const fileName = Array.isArray(filename) ? filename[filename.length - 1] : filename;
 
     const outerUrl = new URL(request.url);
     const outerSearchParams = outerUrl.searchParams;
 
-    //Пытаемся получить параметр type из внешних query-параметров
     let typeParam = outerSearchParams.get('type');
 
-    //Если type не указан, пробуем извлечь его из параметра "url"
     if (!typeParam) {
       const innerUrlStr = outerSearchParams.get('url');
       if (innerUrlStr) {
@@ -35,7 +28,6 @@ export async function GET(
           const innerUrl = new URL(innerUrlStr, outerUrl.origin);
           typeParam = innerUrl.searchParams.get('type');
         } catch (err) {
-          //Если не удалось создать URL (например, из-за кириллицы), пробуем декодировать
           const decodedUrlStr = decodeURIComponent(innerUrlStr);
           const innerUrl = new URL(decodedUrlStr, outerUrl.origin);
           typeParam = innerUrl.searchParams.get('type');
@@ -47,14 +39,14 @@ export async function GET(
       return new NextResponse('Не указан тип изображения', { status: 400 });
     }
 
-    //Если typeParam может содержать вложенные пути (например, "drivers/passport"),
-    //извлекаем основной тип
     const [mainType] = typeParam.split('/');
     const validTypes: SearchParamsInterface['type'][] = [
       'client',
       'client-corp',
       'logos',
       'drivers',
+      'avatar',
+      'logo',
     ];
 
     if (!validTypes.includes(mainType as SearchParamsInterface['type'])) {
@@ -64,7 +56,6 @@ export async function GET(
       );
     }
 
-    //Формируем путь к файлу. Используем весь typeParam для поддержки вложенных папок
     const imagePath = path.join(process.cwd(), 'uploads', typeParam, fileName);
     console.log('imagePath', imagePath);
 

@@ -124,7 +124,6 @@ export async function PUT(req: Request, { params }: { params: Promise<Params> })
     basePrice,
     selectedServices,
     assignedDriverId,
-    status,
   } = data;
 
   console.log('selectedServices отправленные на сервер:', selectedServices);
@@ -204,7 +203,6 @@ export async function PUT(req: Request, { params }: { params: Promise<Params> })
           departurePointId: departurePoint,
           arrivalPointId: arrivalPoint,
           basePrice: new Decimal(basePrice ?? 0),
-          status: status,
           assignedDriverId: assignedDriverId || null,
           intermediatePoints: (intermediatePoints || []).filter(Boolean),
         },

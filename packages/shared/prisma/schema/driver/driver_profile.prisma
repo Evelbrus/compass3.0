@@ -27,10 +27,9 @@ enum Status {
 // Model
 model DriverProfile {
   uuid              String             @id @default(uuid()) @map("uuid")
-  status            Status             @map("status")
   citizenship       Citizenship        @map("citizenship")
   identityDocument  IdentityDocument   @map("identity_document")
-  passportId        String             @map("passport_id")
+  passportId        BigInt             @map("passport_id")
   passportIssueDate DateTime?          @map("passport_issue_date")
   passportIssued    String             @map("passport_issued")
   birthDate         DateTime?          @map("birthdate")
@@ -46,8 +45,8 @@ model DriverProfile {
   licensePhotoPath  String?            @map("license_photo_path")
   bankName          String?            @map("bank_name")
   bankBic           String?            @map("bic")
-  bankAccountNumber String?            @map("account_number")
-  cardNumber        String?            @map("card_number")
+  bankAccountNumber BigInt?            @map("account_number")
+  cardNumber        BigInt?            @map("card_number")
   driverHistory     DriverHistory[]    @relation("driver_to_driver_history")
   createdAt         DateTime           @default(now()) @map("created_at")
   updatedAt         DateTime           @updatedAt @map("updated_at")

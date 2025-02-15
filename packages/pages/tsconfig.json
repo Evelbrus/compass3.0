@@ -8,6 +8,7 @@
     "../shared/**/*"
   ],
   "compilerOptions": {
+    "lib": ["dom", "dom.iterable", "esnext"],
     "noEmit": true,
     "baseUrl": ".",
     "paths": {

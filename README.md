@@ -1,5 +1,13 @@
 # Название проекта
 
+## Запуск и миграция Prisma
+
+1. yarn add cross-env
+2. windows: cross-env DATABASE_URL="postgresql://psql_user_compass:1@localhost:5432/compass_1" yarn prisma generate
+3. windows: cross-env DATABASE_URL="postgresql://psql_user_compass:1@localhost:5432/compass_1" yarn prisma migrate dev
+4. windows: cross-env DATABASE_URL="postgresql://psql_user_compass:1@localhost:5432/compass_1" yarn prisma db push
+5. windows: cross-env DATABASE_URL="postgresql://psql_user_compass:1@localhost:5432/compass_1" yarn prisma db seed
+
 ## Запуск и управление сервисами
 
 Этот проект использует `make` для управления различными сервисами, каждый из которых запускается в отдельном Docker-контейнере.  Для оркестровки используется `docker-compose`.

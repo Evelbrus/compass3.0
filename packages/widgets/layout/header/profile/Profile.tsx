@@ -2,10 +2,10 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { cn } from '@shared/lib';
-import { profileMenuRoutes } from '@shared/utils/routing';
 import Icon from '@shared/components/ui/icon/Icon';
 import { roleTranslations } from '@shared/lib/effector/(users)/options-and-translation/optionsTranslationUser';
 import { UserSession } from '@shared/prisma/interface/users/interface';
+import { openModal, setUserFullName, setUserUuid } from '@shared/lib/effector';
 
 interface ProfileIslandProps {
   userSession?: UserSession | null;
@@ -40,7 +40,7 @@ const Profile = ({
     document.addEventListener('scroll', handleScroll);
     return () => {
       document.removeEventListener('mousedown', handleClick);
-      document.addEventListener('scroll', handleScroll);
+      document.removeEventListener('scroll', handleScroll);
     };
   }, []);
 
@@ -84,31 +84,26 @@ const Profile = ({
           <div className="border-t border-gray-100 my-1" />
 
           <ul className="flex flex-col gap-1">
-            {/*<li*/}
-            {/*className="hover:bg-gray-100 px-4 py-2 cursor-pointer text-sm"*/}
-            {/*onClick={() => handleMenuAction(profileMenuRoutes.PROFILE)}*/}
-            {/*>*/}
-            {/*Мой профиль*/}
-            {/*</li>*/}
-            {/*<li*/}
-            {/*className="hover:bg-gray-100 px-4 py-2 cursor-pointer text-sm"*/}
-            {/*onClick={() => handleMenuAction(profileMenuRoutes.SETTINGS)}*/}
-            {/*>*/}
-            {/*Настройки*/}
-            {/*</li>*/}
-            {/*<li*/}
-            {/*className="hover:bg-gray-100 px-4 py-2 cursor-pointer text-sm"*/}
-            {/*onClick={() => handleMenuAction(profileMenuRoutes.NOTIFICATIONS)}*/}
-            {/*>*/}
-            {/*Уведомления*/}
-            {/*</li>*/}
+            {/*Кнопка "Сменить пароль" */}
+            {userSessionFromProps?.uuid && (
+              <li
+                className="hover:bg-gray-100 px-4 py-2 cursor-pointer text-sm"
+                onClick={() => {
+                  setUserUuid(userSessionFromProps.uuid);
+                  setUserFullName('собственного профиля');
+                  openModal('changePasswordModal');
+                  setIsMenuOpen(false);
+                }}
+              >
+                Сменить пароль
+              </li>
+            )}
+            {/*Другие элементы меню */}
             <li
               className="hover:bg-gray-100 px-4 py-2 cursor-pointer text-sm text-red-600"
               onClick={() => {
                 setIsMenuOpen(false);
-                if (onLogout) {
-                  onLogout();
-                }
+                onLogout && onLogout();
               }}
             >
               Выйти

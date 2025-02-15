@@ -74,11 +74,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    //Ищем пользователя по email
+    //Ищем пользователя по email без учета регистра
     console.log('Поиск пользователя в базе:', email);
-    const emailLower = email.toLowerCase();
-    const user = await prisma.user.findUnique({
-      where: { email: emailLower },
+    const user = await prisma.user.findFirst({
+      where: { email: { equals: email, mode: 'insensitive' } },
       select: {
         uuid: true,
         email: true,

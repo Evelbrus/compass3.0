@@ -1,0 +1,6 @@
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+import { Controller } from 'react-hook-form';
+const FlightDetails = ({ control }) => {
+    return (_jsxs("div", { className: "w-full flex flex-col gap-4 p-4 border rounded-md", children: [_jsxs("div", { children: [_jsx("label", { htmlFor: "flightNumber", className: "block mb-1 font-bold", children: "\u041D\u043E\u043C\u0435\u0440 \u0430\u0432\u0438\u0430\u0440\u0435\u0439\u0441" }), _jsx(Controller, { name: "flightNumber", control: control, render: ({ field }) => (_jsx("input", { ...field, id: "flightNumber", type: "text", placeholder: "\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u043D\u043E\u043C\u0435\u0440 \u0440\u0435\u0439\u0441\u0430", className: "w-full border rounded px-3 py-2" })) })] }), _jsxs("div", { children: [_jsx("label", { htmlFor: "description", className: "block mb-1 font-bold", children: "\u041E\u043F\u0438\u0441\u0430\u043D\u0438\u0435 \u043A \u0437\u0430\u043A\u0430\u0437\u0443" }), _jsx(Controller, { name: "description", control: control, render: ({ field }) => (_jsx("textarea", { ...field, id: "description", placeholder: "\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u043E\u043F\u0438\u0441\u0430\u043D\u0438\u0435", className: "w-full h-[200px] border rounded px-3 py-2 resize-none", style: { resize: 'none' } })) })] })] }));
+};
+export default FlightDetails;

@@ -109,7 +109,7 @@ const DriversAdminPage = (): JSX.Element => {
       phone: user.phone,
       fullName: user.fullName,
     },
-    passportId: user.driverProfile?.passportId || null,
+    passportId: user.driverProfile?.passportId ? user.driverProfile.passportId.toString() : null,
     passportPhotoPath: user.driverProfile?.passportPhotoPath || null,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,

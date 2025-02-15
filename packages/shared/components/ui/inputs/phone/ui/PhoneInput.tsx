@@ -1,14 +1,20 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { SelectSingle, TextInput } from '@shared/components/ui/inputs';
+import React, { useMemo, useState, useEffect } from 'react';
+import { TextInput } from '@shared/components/ui/inputs';
+import { SelectSingle } from '@shared/components/ui/inputs';
+import { cn } from '@shared/lib';
+
 import { countryData } from '@shared/components/ui/inputs/phone/data/PhoneData';
-import { countryOptions, formatByCountry } from '@shared/components/ui/inputs/phone';
+import { countryOptions } from '@shared/components/ui/inputs/phone';
+import { formatByCountry } from '@shared/components/ui/inputs/phone';
 import { PhoneInputProps } from '@shared/components/ui/inputs/phone';
+
+//Единый тип: SelectOption
+import { CountryOption, SelectOption } from '@shared/lib/effector/types/types';
+
 import { LazyImage } from '@shared/components/ui/images';
 import { Skeleton } from '@shared/components/ui/skeleton/Skeleton';
-import { SelectOption } from '@shared/lib/effector';
-import { cn } from '@shared/lib';
 
 interface Country {
   code: string;
@@ -31,8 +37,9 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({
   requiredStar = false,
   message = 'Ошибка: Выберите корректное значение.',
 }) => {
-  const initialCountry = useMemo(() => {
-    return countryData.find((country) => value?.startsWith(country.dialCode)) || countryData[0];
+  //Исходная страна — по входному value (если +7 => Россия, +996 => Киргизия)
+  const initialCountry: Country = useMemo(() => {
+    return countryData.find((country) => value?.startsWith(country.dialCode)) || countryData[0]!;
   }, [value]);
 
   const [selectedCountry, setSelectedCountry] = useState<Country>(initialCountry);
@@ -42,54 +49,47 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({
 
   useEffect(() => {
     if (value && value.trim() !== '') {
-      const country = countryData.find((c) => value.startsWith(c.dialCode)) || initialCountry;
-      const local = value.startsWith(country.dialCode) ? value.replace(country.dialCode, '') : '';
-      setSelectedCountry(country);
+      const c = countryData.find((x) => value.startsWith(x.dialCode)) || initialCountry;
+      const local = value.startsWith(c.dialCode) ? value.replace(c.dialCode, '') : '';
+      setSelectedCountry(c);
       setLocalNumber(local);
     }
   }, [value, initialCountry]);
 
   const handleCountryChange = (option: SelectOption<string> | null) => {
     if (!option) return;
-
     const newCountry = countryData.find((c) => c.code === option.value) || initialCountry;
     setSelectedCountry(newCountry);
     setLocalNumber('');
     onChange(newCountry.dialCode);
   };
 
-  const handleNumberChange = (val: string | number) => {
-    //Accept string | number
-    if (typeof val === 'string') {
-      const inputNumber = val.replace(/\D/g, '');
-      const limitedNumber = inputNumber.slice(0, selectedCountry.maxLength);
-      setLocalNumber(limitedNumber);
-      if (limitedNumber) {
-        onChange(selectedCountry.dialCode + limitedNumber);
-      } else {
-        onChange('');
-      }
+  //Изменили сигнатуру, добавив | bigint | null, и обработали случай, когда значение null
+  const handleNumberChange = (val: string | number | bigint | null) => {
+    if (val === null) {
+      setLocalNumber('');
+      onChange('');
+      return;
+    }
+
+    const inputNumber = String(val).replace(/\D/g, '');
+    const limitedNumber = inputNumber.slice(0, selectedCountry.maxLength);
+    setLocalNumber(limitedNumber);
+    if (limitedNumber) {
+      onChange(selectedCountry.dialCode + limitedNumber);
     } else {
-      //Handle Number
-      const inputNumber = String(val).replace(/\D/g, '');
-      const limitedNumber = inputNumber.slice(0, selectedCountry.maxLength);
-      setLocalNumber(limitedNumber);
-      if (limitedNumber) {
-        onChange(selectedCountry.dialCode + limitedNumber);
-      } else {
-        onChange('');
-      }
+      onChange('');
     }
   };
 
   const formattedValue = useMemo(() => {
-    return formatByCountry(selectedCountry.code, selectedCountry.dialCode, localNumber);
+    return formatByCountry(selectedCountry.code, localNumber);
   }, [selectedCountry, localNumber]);
 
-  const filteredCountryOptions = useMemo(() => {
-    return countryOptions.map((option) => ({
-      ...option,
-      label: option.compactLabel,
+  const filteredCountryOptions = useMemo<CountryOption[]>(() => {
+    return countryOptions.map((opt) => ({
+      ...opt,
+      label: opt.compactLabel,
     }));
   }, []);
 
@@ -99,16 +99,16 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({
     <div className="relative flex flex-col">
       {label && (
         <label className={cn(classNameLabel)} htmlFor={inputId}>
-          {label} {requiredStar && <span className="text-red-500">*</span>}
+          {label}
+          {requiredStar && <span className="text-red-500">*</span>}
         </label>
       )}
-      <div className="flex items-center space-x-2">
-        <div className={`w-1/6 min-w-[120px] max-w-[120px] ${classNameWidthPhone}`}>
+      <div className="flex items-start space-x-2">
+        <div className={cn('w-1/6 min-w-[120px] max-w-[120px]', classNameWidthPhone)}>
           <SelectSingle
             options={filteredCountryOptions}
             label=""
             value={{
-              //Всегда передается объект, даже если выбрана начальная страна
               value: selectedCountry.code,
               label: (
                 <div className="flex items-center flex-shrink-0">
@@ -122,13 +122,12 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({
                 </div>
               ),
             }}
-            classNameTagUl="min-w-[250px] max-w-[250px] top-14 text-start border-2 border-gray-500"
             onChange={handleCountryChange}
             disabled={disabled}
             readOnly={readOnly}
+            widthOpen={'w-[300px]'}
           />
         </div>
-
         <div className="w-full">
           <TextInput
             type="text"
@@ -141,6 +140,7 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({
             errorBorder={error}
             message={message}
             error={error}
+            className="w-full"
           />
         </div>
       </div>

@@ -3,7 +3,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { useFormContext, useWatch } from 'react-hook-form';
 import { IButton } from '@shared/components/ui/buttons';
-import { LazyImage } from '../../images';
+import { LazyImage } from '@shared/components/ui/images';
 
 interface ImageUploadProps {
   name: string;
@@ -46,7 +46,8 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   const file = useWatch({ name, control });
 
   useEffect(() => {
-    if (file instanceof File) {
+    if (file && file instanceof File) {
+      //Добавлена проверка file && ...
       const url = URL.createObjectURL(file);
       setPreview(url);
       return () => URL.revokeObjectURL(url);

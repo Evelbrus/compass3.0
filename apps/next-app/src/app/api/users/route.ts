@@ -1,113 +1,138 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@shared/prisma/prisma-client';
-import { User, UserRole } from '@prisma/client';
+import { Prisma, User, UserRole } from '@prisma/client';
 import debug from 'debug';
 import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcrypt';
 import { CreateUserData } from '@shared/prisma/interface/users/interface';
-import { ValidationError } from '@next-app/src/dto/error/ValidationError';
 
 const log = debug('app:users');
 
 export async function POST(req: Request) {
-  const data: CreateUserData = await req.json();
+  try {
+    const data: CreateUserData = await req.json();
 
-  //Валидация данных
-  if (!data.email || !data.password || !data.role || !data.fullName) {
-    throw new ValidationError('Отсутствуют обязательные поля');
-  }
+    //Валидация данных
+    if (!data.email || !data.password || !data.role || !data.fullName) {
+      return NextResponse.json(
+        { status: 'error', message: 'Отсутствуют обязательные поля' },
+        { status: 400 },
+      );
+    }
 
-  const {
-    email,
-    password,
-    role,
-    fullName,
-    phone,
-    gender,
-    address,
-    profilePhotoPath,
-    companyProfile,
-    driverProfile,
-  } = data;
+    const {
+      email,
+      password,
+      role,
+      fullName,
+      phone,
+      gender,
+      address,
+      profilePhotoPath,
+      companyProfile,
+      driverProfile,
+    } = data;
 
-  log('Received data:', data);
+    log('Received data:', data);
 
-  //Хеширование пароля
-  const saltRounds = 10;
-  const hashedPassword = await bcrypt.hash(password, saltRounds);
+    //Проверка на существование пользователя
+    const existingUser = await prisma.user.findUnique({ where: { email } });
+    if (existingUser) {
+      return NextResponse.json(
+        { message: 'Пользователь с таким email уже существует' },
+        { status: 409 },
+      );
+    }
 
-  const now = new Date();
-  const uuid = uuidv4();
+    //Хеширование пароля
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-  const user = {
-    uuid,
-    email,
-    password: hashedPassword,
-    role,
-    availability: data.availability !== undefined ? data.availability : true,
-    fullName,
-    phone,
-    gender,
-    address,
-    profilePhotoPath,
-    createdAt: now,
-    updatedAt: now,
-  };
+    const now = new Date();
+    const uuid = uuidv4();
 
-  let createdUser: User | null = null;
+    const user = {
+      uuid,
+      email,
+      password: hashedPassword,
+      role,
+      availability: data.availability !== undefined ? data.availability : true,
+      fullName,
+      phone,
+      gender,
+      address,
+      profilePhotoPath,
+      createdAt: now,
+      updatedAt: now,
+    };
 
-  await prisma.$transaction(async (prisma) => {
-    createdUser = await prisma.user.create({
-      data: user,
+    let createdUser: User | null = null;
+
+    await prisma.$transaction(async (prisma) => {
+      createdUser = await prisma.user.create({ data: user });
+
+      if (!createdUser) {
+        throw new Error('User creation failed');
+      }
+
+      if (role === UserRole.ClientCorp || role === UserRole.Operator) {
+        if (!companyProfile) {
+          throw new Error('Company profile is required for ClientCorp and Operator roles');
+        }
+
+        await prisma.companyProfile.create({
+          data: {
+            ...companyProfile,
+            userId: createdUser.uuid,
+          },
+        });
+      } else if (role === UserRole.Driver) {
+        if (!driverProfile) {
+          throw new Error('Driver profile is required for Driver role');
+        }
+
+        await prisma.driverProfile.create({
+          data: {
+            ...driverProfile,
+            userId: createdUser.uuid,
+            driverExperience: {
+              create:
+                driverProfile.driverExperience?.map((experience) => ({
+                  companyName: experience.companyName,
+                  position: experience.position,
+                  from: new Date(experience.from),
+                  to: new Date(experience.to),
+                })) || [],
+            },
+          },
+        });
+      } else if (role !== UserRole.Client && role !== UserRole.Admin) {
+        throw new Error('Invalid role');
+      }
     });
 
-    if (!createdUser) {
-      throw new Error('User creation failed');
+    log('Created user:', createdUser);
+
+    return NextResponse.json({
+      status: 'success',
+      message: 'User created successfully',
+      uuid: createdUser!.uuid,
+    });
+  } catch (error) {
+    log('Error creating user:', error);
+
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      return NextResponse.json(
+        { status: 'error', message: 'Пользователь с таким email уже существует' },
+        { status: 409 },
+      );
     }
 
-    if (role === UserRole.ClientCorp || role === UserRole.Operator) {
-      if (!companyProfile) {
-        throw new Error('Company profile is required for ClientCorp and Operator roles');
-      }
-
-      await prisma.companyProfile.create({
-        data: {
-          ...companyProfile,
-          userId: createdUser.uuid,
-        },
-      });
-    } else if (role === UserRole.Driver) {
-      if (!driverProfile) {
-        throw new Error('Driver profile is required for Driver role');
-      }
-
-      await prisma.driverProfile.create({
-        data: {
-          ...driverProfile,
-          userId: createdUser.uuid,
-          driverExperience: {
-            create:
-              driverProfile.driverExperience?.map((experience) => ({
-                companyName: experience.companyName,
-                position: experience.position,
-                from: new Date(experience.from),
-                to: new Date(experience.to),
-              })) || [],
-          },
-        },
-      });
-    } else if (role !== UserRole.Client && role !== UserRole.Admin) {
-      throw new Error('Invalid role');
-    }
-  });
-
-  log('Created user:', createdUser);
-
-  return NextResponse.json({
-    status: 'success',
-    message: 'User created successfully',
-    uuid: createdUser!.uuid,
-  });
+    return NextResponse.json(
+      { status: 'error', message: 'Ошибка создания пользователя' },
+      { status: 500 },
+    );
+  }
 }
 
 export async function GET(req: Request) {

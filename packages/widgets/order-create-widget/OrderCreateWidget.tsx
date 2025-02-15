@@ -88,7 +88,14 @@ const OrderCreateWidget: React.FC<OrderCreateWidgetProps> = ({
     handleUpdatePrice();
   };
 
-  const handlePriceChange = (value: string | number) => {
+  //Исправленная функция: тип параметра теперь включает bigint и null
+  const handlePriceChange = (value: string | number | bigint | null) => {
+    if (value === null) {
+      //Если значение null, устанавливаем цену в 0 (или можно оставить предыдущую цену)
+      setEditedPrice(null);
+      setValue('basePrice', 0);
+      return;
+    }
     const newPrice = Number(value);
     setEditedPrice(newPrice);
     setValue('basePrice', newPrice);
@@ -142,7 +149,7 @@ const OrderCreateWidget: React.FC<OrderCreateWidgetProps> = ({
         }}
         className="flex flex-col items-end gap-4 p-4 border rounded-md bg-white"
       >
-        {/*Select for order status - перемещен сюда */}
+        {/*Select for order status */}
         {isEditingProp && (
           <div className="flex flex-col items-end gap-2 w-full">
             <label className="text-sm">Статус заказа</label>
@@ -160,9 +167,9 @@ const OrderCreateWidget: React.FC<OrderCreateWidgetProps> = ({
           </div>
         )}
 
-        <div className={'flex flex-col items-end gap-2'}>
+        <div className="flex flex-col items-end gap-2">
           <span>Итоговая сумма заказа:</span>
-          <div className={'flex flex-row gap-2'}>
+          <div className="flex flex-row gap-2">
             <TextInput
               type="number"
               value={String(
@@ -174,9 +181,6 @@ const OrderCreateWidget: React.FC<OrderCreateWidgetProps> = ({
               )}
               readOnly={!isEditingLocal}
               onChange={handlePriceChange}
-              classNamePlaceholder={'text-4'}
-              className={'w-[300px]'}
-              classNamePadding={'p-2'}
               ref={inputRef}
             />
             {!isEditingLocal && (
@@ -195,19 +199,16 @@ const OrderCreateWidget: React.FC<OrderCreateWidgetProps> = ({
               </IButton>
             )}
           </div>
-          <div className={'w-full flex flex-row justify-end gap-2'}>
+          <div className="w-full flex flex-row justify-end gap-2">
             {!isEditingLocal && (
-              <IButton
-                onClick={handleEditClick}
-                className={'bg-[#001659] rounded-md p-2 text-white'}
-              >
+              <IButton onClick={handleEditClick} className="bg-[#001659] rounded-md p-2 text-white">
                 Редактировать
               </IButton>
             )}
             {isEditingLocal && (
               <IButton
                 onClick={handleReturnToCalculatedPrice}
-                className={'bg-green-600 rounded-md p-2 text-white'}
+                className="bg-green-600 rounded-md p-2 text-white"
               >
                 Вернуться к рассчитанной цене
               </IButton>
@@ -220,7 +221,7 @@ const OrderCreateWidget: React.FC<OrderCreateWidgetProps> = ({
         <IButton
           type="submit"
           onClick={handleUpdatePriceClick}
-          className={'w-[371px] ' + 'bg-[#2A3037] text-white rounded-md p-4'}
+          className={'w-[371px] bg-[#2A3037] text-white rounded-md p-4'}
         >
           Продолжить
         </IButton>
@@ -228,7 +229,6 @@ const OrderCreateWidget: React.FC<OrderCreateWidgetProps> = ({
       {isModalOpen && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
           <div className="bg-white rounded-md w-[800px] flex flex-col p-12 max-h-[90vh] overflow-y-auto relative">
-            {' '}
             {/*Added relative positioning */}
             <IButton
               variant="close"
@@ -260,17 +260,13 @@ const OrderCreateWidget: React.FC<OrderCreateWidgetProps> = ({
             <div className="flex justify-end gap-4 mt-4">
               <IButton
                 onClick={handleCloseModal}
-                className={
-                  'p-3 bg-gray-500 opacity-50 text-[color:var(--text-white)] rounded-lg hover:bg-[color:var(--button-secondary-hover)] transition'
-                }
+                className="p-3 bg-gray-500 opacity-50 text-[color:var(--text-white)] rounded-lg hover:bg-[color:var(--button-secondary-hover)] transition"
               >
                 Вернуться
               </IButton>
               <IButton
                 onClick={handleCreateOrder}
-                className={
-                  'p-3 bg-[color:var(--button-secondary)] text-[color:var(--text-white)] rounded-lg hover:bg-[color:var(--button-secondary-hover)] transition'
-                }
+                className="p-3 bg-[color:var(--button-secondary)] text-[color:var(--text-white)] rounded-lg hover:bg-[color:var(--button-secondary-hover)] transition"
               >
                 Создать заказ
               </IButton>

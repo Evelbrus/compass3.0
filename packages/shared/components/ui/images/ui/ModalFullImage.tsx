@@ -1,0 +1,26 @@
+'use client';
+
+import React from 'react';
+
+interface ModalFullImageProps {
+  imageSrc: string;
+  onClose: () => void;
+}
+
+const ModalFullImage: React.FC<ModalFullImageProps> = ({ imageSrc, onClose }) => {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75">
+      <div className="relative">
+        <img src={imageSrc} alt="Полное изображение" className="max-w-full max-h-screen" />
+        <button
+          onClick={onClose}
+          className="absolute top-2 left-2 bg-white px-2 py-1 rounded shadow"
+        >
+          Закрыть
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export default ModalFullImage;

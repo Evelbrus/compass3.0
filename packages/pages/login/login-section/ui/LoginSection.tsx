@@ -18,8 +18,8 @@ const LoginSection: React.FC = () => {
     formState: { errors },
   } = useForm<FormValues>({
     defaultValues: {
-      username: 'admin@gmail.com',
-      password: 'Qwerty56',
+      username: '',
+      password: '',
     },
   });
   const [loading, setLoading] = useState<boolean>(false);

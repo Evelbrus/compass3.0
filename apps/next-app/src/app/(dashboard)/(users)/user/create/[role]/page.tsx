@@ -1,7 +1,7 @@
 import React from 'react';
 import { redirect } from 'next/navigation';
 import { getLayoutData } from '@shared/utils/cookie/layout-data/getLayoutData';
-import ClientsCreateAdminPage from '@pages/(administrator)/(users)/user/ClientsCreateAdminPage';
+import ClientsAdminPage from '@pages/(administrator)/(users)/user/ClientsAdminPage';
 import { UserRole } from '@prisma/client';
 import Loading from '@entities/loading/loading';
 import { publicRoutes } from '@shared/utils/routing';
@@ -34,7 +34,6 @@ const Page: React.FC<PageProps> = async ({ params }) => {
   const resolvedParams = await params;
   const { role } = resolvedParams;
 
-  //Преобразование строки из URL в значение перечисления UserRole
   const userRole = toUserRole(role);
 
   if (refreshToken) {
@@ -42,7 +41,7 @@ const Page: React.FC<PageProps> = async ({ params }) => {
       return redirect('/');
     }
     if (currentUserRole === UserRole.Admin || currentUserRole === UserRole.Operator) {
-      return <ClientsCreateAdminPage role={userRole} />;
+      return <ClientsAdminPage role={userRole} mode={'create'} />;
     } else {
       return <Loading />;
     }

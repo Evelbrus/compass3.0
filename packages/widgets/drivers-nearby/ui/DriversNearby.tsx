@@ -66,11 +66,16 @@ const DriversNearby: React.FC<DriversNearbyProps> = ({
           classNamePadding="text-5 font-light leading-5 p-5 rounded-3xl shadow-3xl"
           placeholder="Поиск по ФИО"
           value={searchDriver}
-          onChange={(value: string | number) => {
-            if (typeof value === 'string') {
+          onChange={(value: string | number | bigint | null) => {
+            if (value === null) {
+              //Обрабатываем случай null, если это необходимо
+              handleSearchDriverChange('');
+            } else if (typeof value === 'string') {
               handleSearchDriverChange(value);
             } else {
-              console.warn('TextInput returned a number value. Unexpected for search by name.');
+              console.warn(
+                'TextInput вернул число или bigint. Ожидалась строка для поиска по ФИО.',
+              );
             }
           }}
         />

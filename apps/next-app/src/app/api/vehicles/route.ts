@@ -100,7 +100,8 @@ export async function GET(req: NextRequest) {
                   uuid: true,
                   fullName: true,
                   phone: true,
-                  driverProfile: { select: { status: true } },
+                  //Убрано обращение к несуществующему полю 'status'
+                  //driverProfile: { select: { status: true } },
                 },
               },
             },
@@ -118,13 +119,13 @@ export async function GET(req: NextRequest) {
       }),
     ]);
 
+    //Формирование ответа без поля status
     const response = vehicles.map((vehicle) => ({
       ...vehicle,
       drivers: vehicle.vehicleDrivers.map((vd) => ({
         userUuid: vd.driver.uuid,
         fullName: vd.driver.fullName,
         phone: vd.driver.phone,
-        status: vd.driver.driverProfile?.status,
       })),
     }));
 

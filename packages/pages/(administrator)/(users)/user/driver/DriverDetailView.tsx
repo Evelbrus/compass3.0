@@ -5,10 +5,7 @@ import { DriverProfile, User } from '@prisma/client';
 import { LazyImage } from '@shared/components/ui/images';
 import { DetailItem } from '@pages/(administrator)/vehicles/VehiclesDetail';
 import { SelectSingle } from '@shared/components/ui/inputs';
-import {
-  changingDriverOptions,
-  statusOptions,
-} from '@shared/lib/effector/drivers/optionsTranslation/optionsTranslationDriver';
+import { changingDriverOptions } from '@shared/lib/effector/drivers/optionsTranslation/optionsTranslationDriver';
 import { useRouter } from 'next/navigation';
 
 interface UserWithDriverProfile extends User {
@@ -47,7 +44,7 @@ const DriverDetailView = ({ userData }: DriverDetailViewProps): JSX.Element => {
 
   const companyFields = userData.driverProfile
     ? [
-        { label: 'Status', value: userData.driverProfile.status },
+        //Убрано поле "Status", так как оно отсутствует в типе DriverProfile
         { label: 'Citizenship', value: userData.driverProfile.citizenship },
         { label: 'Identity Document', value: userData.driverProfile.identityDocument },
         { label: 'Passport ID', value: userData.driverProfile.passportId },
@@ -131,25 +128,7 @@ const DriverDetailView = ({ userData }: DriverDetailViewProps): JSX.Element => {
                     {renderField(field.label, field.value)}
                   </React.Fragment>
                 ))}
-                <div className="w-full flex justify-between items-center rounded-t-lg gap-4">
-                  <p className="text-[14px] leading-[13.93px] font-[700]">Status:</p>
-                  <SelectSingle
-                    options={statusOptions}
-                    classNameBg="bg-black"
-                    classNamePlaceholder="text-white"
-                    classNameBorderRadius="rounded-lg"
-                    value={
-                      userData.driverProfile?.status
-                        ? {
-                            label: userData.driverProfile.status,
-                            value: userData.driverProfile.status,
-                          }
-                        : null
-                    }
-                    onChange={(select) => console.log('Выбран статус:', select?.value)}
-                    className="w-full"
-                  />
-                </div>
+                {/*Если необходимо оставить выбор смены водителя */}
                 <div className="w-full flex justify-between items-center mt-4">
                   <SelectSingle
                     label="Смена"

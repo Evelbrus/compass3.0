@@ -3,8 +3,8 @@ import React from 'react';
 export interface TextInputProps {
   label?: string;
   placeholder?: string;
-  value: string | number;
-  onChange: (value: string | number) => void;
+  value: string | number | bigint | null;
+  onChange: (value: string | number | bigint | null) => void;
   required?: boolean;
   requiredStar?: boolean;
   disabled?: boolean;
@@ -27,5 +27,5 @@ export interface TextInputProps {
   icon?: React.ReactNode;
   minDate?: Date;
   message?: string;
-  ref?:  React.Ref<HTMLInputElement | HTMLTextAreaElement | HTMLDivElement>
+  ref?: React.Ref<HTMLInputElement | HTMLTextAreaElement | HTMLDivElement>;
 }

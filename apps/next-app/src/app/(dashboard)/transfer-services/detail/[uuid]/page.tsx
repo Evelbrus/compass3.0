@@ -4,7 +4,7 @@ import { getLayoutData } from '@shared/utils/cookie/layout-data/getLayoutData';
 import { prisma } from '@shared/prisma/prisma-client';
 import VehiclesDetail from '@pages/(administrator)/vehicles/VehiclesDetail';
 import Loading from '@entities/loading/loading';
-import { UserRole } from '@prisma/client';
+import { DriverProfile, UserRole } from '@prisma/client';
 import { publicRoutes } from '@shared/utils/routing';
 
 interface PageProps {
@@ -17,7 +17,7 @@ const Page: React.FC<PageProps> = async ({ params }) => {
   try {
     const { role, userSession, refreshToken } = await getLayoutData();
     const resolvedParams = await params;
-    const { uuid } = await resolvedParams;
+    const { uuid } = resolvedParams;
 
     if (refreshToken) {
       //Проверка авторизации и роли
@@ -55,7 +55,8 @@ const Page: React.FC<PageProps> = async ({ params }) => {
                   uuid: true,
                   fullName: true,
                   phone: true,
-                  driverProfile: { select: { status: true } },
+                  //Исправлено: вместо выбора несуществующего поля status выбираем весь профиль
+                  driverProfile: true,
                 },
               },
             },
@@ -69,7 +70,6 @@ const Page: React.FC<PageProps> = async ({ params }) => {
       //Проверка прав доступа для водителя
       if (role === UserRole.Driver) {
         const isDriverAssociated = vehicle.vehicleDrivers.some((vd) => vd.driver.uuid === userUuid);
-
         if (!isDriverAssociated) {
           return <Loading />;
         }
@@ -86,7 +86,11 @@ const Page: React.FC<PageProps> = async ({ params }) => {
           userUuid: vd.driver.uuid,
           fullName: vd.driver.fullName,
           phone: vd.driver.phone,
-          status: vd.driver.driverProfile?.status,
+          //Если поле status необходимо, можно попробовать привести тип или оставить null.
+          //Например, если вы ожидаете, что поле появится в будущем:
+          status: vd.driver.driverProfile
+            ? (vd.driver.driverProfile as DriverProfile) || null
+            : null,
         })),
       };
 

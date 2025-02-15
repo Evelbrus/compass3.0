@@ -6,8 +6,8 @@ import { Controller, useFormContext } from 'react-hook-form';
 const TariffEditStep2: React.FC = () => {
   const { control } = useFormContext();
 
-  const handleFreeWaitTimeChange = (value: string | number) => {
-    const numberValue = Number(value);
+  const handleFreeWaitTimeChange = (value: string | number | bigint | null): number => {
+    const numberValue = Number(value ?? 0);
     return numberValue <= 60 ? numberValue : 60;
   };
 
