@@ -5,6 +5,7 @@ import Loading from '@entities/loading/loading';
 import { UserRole } from '@prisma/client';
 import { redirect } from 'next/navigation';
 import { publicRoutes } from '@shared/utils/routing';
+import VehiclesForm from '@features/vehicles/ui/VehiclesForm';
 
 export const revalidate = 60;
 
@@ -13,7 +14,7 @@ const Page = async (): Promise<JSX.Element> => {
 
   if (refreshToken) {
     if (role === UserRole.Admin || role === UserRole.Operator) {
-      return <VehiclesCreate />;
+      return <VehiclesForm mode={'create'} />;
     } else {
       return <Loading />;
     }

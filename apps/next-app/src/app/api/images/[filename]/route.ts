@@ -7,7 +7,7 @@ interface Params {
 }
 
 interface SearchParamsInterface {
-  type: 'client' | 'client-corp' | 'logos' | 'drivers' | 'avatar' | 'logo';
+  type: 'client' | 'client-corp' | 'logos' | 'drivers' | 'avatar' | 'logo' | 'vehicle';
 }
 
 export async function GET(request: Request, context: { params: Promise<Params> }) {
@@ -47,6 +47,7 @@ export async function GET(request: Request, context: { params: Promise<Params> }
       'drivers',
       'avatar',
       'logo',
+      'vehicle',
     ];
 
     if (!validTypes.includes(mainType as SearchParamsInterface['type'])) {

@@ -1,4 +1,4 @@
-import { Color, VehicleType, ServiceLevels } from '@prisma/client';
+import { Color, VehicleType, ServiceLevels, Ownership } from '@prisma/client';
 
 export const colorOptions = [
   { label: 'Другое', value: 'Other' as Color },
@@ -29,6 +29,12 @@ export const serviceLevelOptions = [
   { label: 'Премиум', value: 'Premium' as ServiceLevels },
   { label: 'VIP', value: 'Vip' as ServiceLevels },
   { label: 'Нет', value: 'None' as ServiceLevels },
+];
+
+//Новые опции владения (Ownership)
+export const ownershipOptions = [
+  { label: 'Личный транспорт', value: 'Personal' as Ownership },
+  { label: 'Транспорт компании', value: 'Fleet' as Ownership },
 ];
 
 export const vehicleSeats: Record<VehicleType, string> = {

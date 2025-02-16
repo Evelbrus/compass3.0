@@ -1,70 +1,63 @@
 import React, { JSX } from 'react';
 import { getLayoutData } from '@shared/utils/cookie/layout-data/getLayoutData';
-import { DetailVehicleData } from '@shared/prisma/interface/vehicles/interface';
-import VehiclesEdit from '@pages/(administrator)/vehicles/VehiclesEdit';
+import VehiclesForm from '@features/vehicles/ui/VehiclesForm';
 import Loading from '@entities/loading/loading';
 import { UserRole } from '@prisma/client';
 import { prisma } from '@shared/prisma/prisma-client';
 import { redirect } from 'next/navigation';
 import { publicRoutes } from '@shared/utils/routing';
+import convertPrismaData from '@shared/prisma/utils/converterBigIntToString';
+import { VehicleData } from '@features/vehicles/hooks/useVehiclesCreateForm';
 
 interface PageProps {
-  params: Promise<{ uuid: string }>;
+  params: { uuid: string };
 }
 
 export const revalidate = 60;
 
 const Page = async ({ params }: PageProps): Promise<JSX.Element> => {
+  //В Next.js 13 динамические маршруты должны ожидать params
+  const { uuid } = params;
   const { role, refreshToken } = await getLayoutData();
 
-  //Ждем разрешения промиса params
-  const resolvedParams = await params;
-  //Деструктуризация без лишнего await
-  const { uuid } = resolvedParams;
-
-  if (refreshToken) {
-    if (role === UserRole.Admin || role === UserRole.Operator) {
-      const vehicle = await prisma.vehicle.findUnique({
-        where: { uuid },
-        include: {
-          vehicleDrivers: {
-            include: {
-              driver: true,
-            },
-          },
-        },
-      });
-
-      if (!vehicle) {
-        return <Loading />;
-      }
-
-      const detailVehicleData: DetailVehicleData = {
-        ...vehicle,
-        vehicleDrivers: vehicle.vehicleDrivers.map((driverRelation) => ({
-          uuid: driverRelation.uuid,
-          assignmentDate: driverRelation.assignmentDate,
-          driver: driverRelation.driver
-            ? {
-                uuid: driverRelation.driver.uuid,
-                fullName: driverRelation.driver.fullName,
-                phone: driverRelation.driver.phone,
-              }
-            : {
-                uuid: 'default-uuid',
-                fullName: 'Не назначен',
-                phone: 'Не назначен',
-              },
-        })),
-      };
-
-      return <VehiclesEdit data={detailVehicleData} />;
-    } else {
-      return <Loading />;
-    }
-  } else {
+  if (!refreshToken) {
     redirect(publicRoutes.LOGIN);
   }
+
+  if (role !== UserRole.Admin && role !== UserRole.Operator) {
+    return <Loading />;
+  }
+
+  let vehicleData = null;
+  try {
+    vehicleData = await prisma.vehicle.findUnique({
+      where: { uuid },
+      include: {
+        vehicleDrivers: {
+          include: {
+            //Подключаем данные водителя из модели User
+            driver: true,
+          },
+        },
+      },
+    });
+  } catch (error) {
+    console.error('Ошибка при загрузке данных автомобиля:', error);
+    return <Loading />;
+  }
+
+  if (!vehicleData) {
+    return <Loading />;
+  }
+
+  //Формируем данные для формы без добавления поля photoImage.
+  //Таким образом, vehicleDrivers будет передан как есть:
+  //(VehicleDriver & { driver: User })[]
+  const safeVehicleData: VehicleData = convertPrismaData(vehicleData);
+
+  console.log('vehicleDataEdit', safeVehicleData);
+
+  return <VehiclesForm mode="edit" vehicleData={safeVehicleData} />;
 };
 
 export default Page;

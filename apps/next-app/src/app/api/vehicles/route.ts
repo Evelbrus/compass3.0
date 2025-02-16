@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Prisma, ServiceLevels, UserRole, VehicleType } from '@prisma/client';
 import debug from 'debug';
-import { CreateVehicleData } from '@shared/prisma/interface/vehicles/interface';
 import { v4 as uuidv4 } from 'uuid';
 import { prisma } from '@shared/prisma/prisma-client';
 import { ACCESS_TOKEN_COOKIE } from '@shared/utils/cookie';
@@ -16,11 +15,14 @@ interface JwtPayload {
   [key: string]: string | number | boolean | null | undefined;
 }
 
+/**
+ * GET эндпоинт:
+ * Выбирает автомобили согласно параметрам запроса,
+ * включая связь vehicleDrivers с вложенным driver.
+ */
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-
   const accessToken = req.cookies.get(ACCESS_TOKEN_COOKIE)?.value;
-
   let token: JwtPayload | null = null;
 
   if (accessToken) {
@@ -100,8 +102,6 @@ export async function GET(req: NextRequest) {
                   uuid: true,
                   fullName: true,
                   phone: true,
-                  //Убрано обращение к несуществующему полю 'status'
-                  //driverProfile: { select: { status: true } },
                 },
               },
             },
@@ -119,7 +119,7 @@ export async function GET(req: NextRequest) {
       }),
     ]);
 
-    //Формирование ответа без поля status
+    //Формируем дополнительное поле drivers для удобства
     const response = vehicles.map((vehicle) => ({
       ...vehicle,
       drivers: vehicle.vehicleDrivers.map((vd) => ({
@@ -155,11 +155,17 @@ export async function GET(req: NextRequest) {
   }
 }
 
+/**
+ * POST эндпоинт:
+ * Создаёт новый автомобиль и устанавливает связи с водителями.
+ * Из тела запроса извлекается либо массив driverIds (строк), либо vehicleDrivers,
+ * из которого берутся идентификаторы водителей (assignment.driver.uuid).
+ */
 export async function POST(req: NextRequest) {
   let token: JwtPayload | null = null;
   try {
-    const data: CreateVehicleData = await req.json();
-    const updateData: CreateVehicleData = data;
+    const data = await req.json();
+    const updateData = data; //При необходимости можно добавить явную типизацию
     const accessToken = req.cookies.get(ACCESS_TOKEN_COOKIE)?.value;
 
     if (accessToken) {
@@ -182,7 +188,7 @@ export async function POST(req: NextRequest) {
 
     const result = await prisma.$transaction(async (prisma) => {
       const now = new Date();
-      const uuid = uuidv4();
+      const newVehicleUuid = uuidv4();
       const yearDate = updateData.year ? new Date(updateData.year.toString()) : undefined;
 
       //Проверка на существование номера автомобиля
@@ -194,9 +200,10 @@ export async function POST(req: NextRequest) {
         throw new Error(`Автомобиль с номером ${updateData.plateNumber} уже существует`);
       }
 
+      //Создаём автомобиль
       const createdVehicle = await prisma.vehicle.create({
         data: {
-          uuid,
+          uuid: newVehicleUuid,
           vehicleType: updateData.vehicleType,
           brand: updateData.brand,
           model: updateData.model,
@@ -208,45 +215,48 @@ export async function POST(req: NextRequest) {
           serviceLevels: updateData.serviceLevels,
           createdAt: now,
           updatedAt: now,
+          ownership: updateData.ownership,
         },
       });
 
       log('Created vehicle:', createdVehicle);
 
-      if (updateData.driverIds) {
-        if (updateData.driverIds.length > 0) {
-          for (const driverId of updateData.driverIds) {
-            const existingAssignment = await prisma.vehicleDriver.findFirst({
-              where: {
-                driverId: driverId,
-              },
-              include: {
-                driver: true,
-              },
-            });
+      //Извлекаем идентификаторы водителей.
+      //Если переданы vehicleDrivers, извлекаем driver.uuid; если driverIds – используем их напрямую.
+      let driverIds: string[] = [];
+      if (updateData.vehicleDrivers && updateData.vehicleDrivers.length > 0) {
+        driverIds = updateData.vehicleDrivers.map(
+          (assignment: { driver: { uuid: string } }) => assignment.driver.uuid,
+        );
+      } else if (updateData.driverIds && updateData.driverIds.length > 0) {
+        driverIds = updateData.driverIds;
+      }
 
-            if (existingAssignment) {
-              const driver = await prisma.user.findUnique({
-                where: {
-                  uuid: driverId,
-                },
+      if (driverIds.length > 0) {
+        //Проверяем, чтобы водитель не был привязан к другому автомобилю
+        for (const driverId of driverIds) {
+          const existingAssignment = await prisma.vehicleDriver.findFirst({
+            where: { driverId },
+            include: { driver: true },
+          });
+          if (existingAssignment) {
+            const driver = await prisma.user.findUnique({ where: { uuid: driverId } });
+            if (driver) {
+              throw new Error(`Водитель уже привязан к другому автомобилю.`, {
+                cause: { fullName: driver.fullName },
               });
-              if (driver) {
-                throw new Error(`Водитель уже привязан к другому автомобилю.`, {
-                  cause: { fullName: driver.fullName },
-                });
-              }
             }
           }
-
-          await prisma.vehicleDriver.createMany({
-            data: updateData.driverIds.map((driverId) => ({
-              vehicleId: uuid,
-              driverId: driverId,
-              assignmentDate: now,
-            })),
-          });
         }
+
+        const createResult = await prisma.vehicleDriver.createMany({
+          data: driverIds.map((driverId) => ({
+            vehicleId: newVehicleUuid,
+            driverId,
+            assignmentDate: now,
+          })),
+        });
+        log('Created vehicleDriver records:', createResult);
       }
 
       return { uuid: createdVehicle.uuid };
@@ -254,7 +264,7 @@ export async function POST(req: NextRequest) {
 
     log('Created vehicle with details:', result);
     return NextResponse.json({ status: 'success', uuid: result.uuid }, { status: 200 });
-  } catch (error) {
+  } catch (error: unknown) {
     log('Error creating vehicle:', error);
     if (error instanceof Error) {
       log('Error message:', error.message);
@@ -262,23 +272,11 @@ export async function POST(req: NextRequest) {
       if (error.message.startsWith('Водитель уже привязан')) {
         const cause = error.cause as { fullName?: string } | undefined;
         return NextResponse.json(
-          {
-            error: {
-              message: error.message,
-              fullName: cause?.fullName,
-            },
-          },
+          { error: { message: error.message, fullName: cause?.fullName } },
           { status: 400 },
         );
       }
-      return NextResponse.json(
-        {
-          error: {
-            message: error.message,
-          },
-        },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: { message: error.message } }, { status: 400 });
     }
     return NextResponse.json({ error: 'Unable to create vehicle' }, { status: 500 });
   }

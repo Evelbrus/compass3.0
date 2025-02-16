@@ -14,6 +14,7 @@ export async function POST(req: Request) {
       { fileKey: 'passportImage', pathKey: 'passportPhotoPath' },
       { fileKey: 'driverProfileImage', pathKey: 'driverProfilePhotoPath' },
       { fileKey: 'licenseImage', pathKey: 'licensePhotoPath' },
+      { fileKey: 'photoImage', pathKey: 'photoPath' },
     ];
 
     let processed = false;

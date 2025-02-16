@@ -1,107 +1,112 @@
 import { NextRequest, NextResponse } from 'next/server';
 import debug from 'debug';
-import { EditVehicleData } from '@shared/prisma/interface/vehicles/interface';
+import { v4 as uuidv4 } from 'uuid';
 import { prisma } from '@shared/prisma/prisma-client';
+import { VehicleData } from '@features/vehicles/hooks/useVehiclesCreateForm';
 
 const log = debug('app:vehicles:uuid');
 
-//Интерфейс для параметров запроса
 interface Params {
   uuid: string;
 }
 
+/**
+ * PUT эндпоинт: обновление данных автомобиля.
+ * Из тела запроса извлекается либо поле driverIds (массив строк), либо vehicleDrivers (массив объектов с вложенным driver),
+ * из которых извлекаются идентификаторы водителей. Затем обновляются данные автомобиля и связи в таблице VehicleDriver.
+ */
 export async function PUT(req: NextRequest, { params }: { params: Promise<Params> }) {
   try {
-    //Await params to resolve the Promise
+    //Дожидаемся параметров и JSON‑payload
     const { uuid } = await params;
-    const data = await req.json();
-    const updateData: EditVehicleData = data;
+    const data: Partial<VehicleData> & { driverIds?: string[] } = await req.json();
 
     if (!uuid) {
       return NextResponse.json({ error: 'Missing required parameter: uuid' }, { status: 400 });
     }
 
+    //Определяем массив идентификаторов водителей:
+    //если пришёл driverIds, используем его, иначе, если пришёл vehicleDrivers – извлекаем driver.uuid
+    const driverIds: string[] =
+      data.driverIds && data.driverIds.length > 0
+        ? data.driverIds
+        : data.vehicleDrivers && data.vehicleDrivers.length > 0
+          ? data.vehicleDrivers.map((assignment) => assignment.driver.uuid)
+          : [];
+
+    //Выполняем транзакцию для обновления автомобиля
     const result = await prisma.$transaction(async (prisma) => {
+      //Проверка: нет ли другого автомобиля с таким же номером
       const existingVehicle = await prisma.vehicle.findFirst({
         where: {
-          plateNumber: updateData.plateNumber,
-          NOT: {
-            uuid: uuid,
-          },
+          plateNumber: data.plateNumber,
+          NOT: { uuid },
         },
       });
-
       if (existingVehicle) {
-        throw new Error(`Автомобиль с номером ${updateData.plateNumber} уже существует`);
+        throw new Error(`Автомобиль с номером ${data.plateNumber} уже существует`);
       }
 
-      //Обновляем данные автомобиля
+      //Обновляем основные данные автомобиля
       const updatedVehicle = await prisma.vehicle.update({
         where: { uuid },
         data: {
-          vehicleType: updateData.vehicleType,
-          brand: updateData.brand,
-          model: updateData.model,
-          year: updateData.year ? new Date(updateData.year) : undefined,
-          color: updateData.color,
-          plateNumber: updateData.plateNumber,
-          isAvailable: updateData.isAvailable,
-          photoPath: updateData.photoPath,
-          serviceLevels: updateData.serviceLevels,
+          vehicleType: data.vehicleType,
+          brand: data.brand,
+          model: data.model,
+          year: data.year ? new Date(data.year) : undefined,
+          color: data.color,
+          plateNumber: data.plateNumber,
+          isAvailable: data.isAvailable,
+          photoPath: data.photoPath,
+          serviceLevels: data.serviceLevels,
+          ownership: data.ownership,
         },
       });
-
       log('Updated vehicle:', updatedVehicle);
 
-      if (updateData.driverIds) {
-        await prisma.vehicleDriver.deleteMany({ where: { vehicleId: uuid } });
+      //Обновляем связи с водителями:
+      //Сначала удаляем все существующие связи для данного автомобиля
+      await prisma.vehicleDriver.deleteMany({ where: { vehicleId: uuid } });
 
-        if (updateData.driverIds.length > 0) {
-          for (const driverId of updateData.driverIds) {
-            const existingAssignment = await prisma.vehicleDriver.findFirst({
-              where: {
-                driverId: driverId,
-                NOT: {
-                  vehicleId: uuid,
-                },
-              },
-              include: {
-                driver: true,
-              },
-            });
-
-            if (existingAssignment) {
-              const driver = await prisma.user.findUnique({
-                where: {
-                  uuid: driverId,
-                },
+      if (driverIds.length > 0) {
+        //Для каждого переданного идентификатора проверяем, не привязан ли водитель к другому автомобилю
+        for (const driverId of driverIds) {
+          const existingAssignment = await prisma.vehicleDriver.findFirst({
+            where: {
+              driverId,
+              NOT: { vehicleId: uuid },
+            },
+            include: { driver: true },
+          });
+          if (existingAssignment) {
+            const driver = await prisma.user.findUnique({ where: { uuid: driverId } });
+            if (driver) {
+              throw new Error(`Водитель уже привязан к другому автомобилю.`, {
+                cause: { fullName: driver.fullName },
               });
-              if (driver) {
-                throw new Error(`Водитель уже привязан к другому автомобилю.`, {
-                  cause: { fullName: driver.fullName },
-                });
-              }
             }
           }
-
-          await prisma.vehicleDriver.createMany({
-            data: updateData.driverIds.map((driverId) => ({
-              vehicleId: uuid,
-              driverId: driverId,
-              assignmentDate: new Date(),
-            })),
-          });
         }
-      } else {
-        await prisma.vehicleDriver.deleteMany({ where: { vehicleId: uuid } });
+
+        //Создаём новые связи для каждого водителя
+        const createResult = await prisma.vehicleDriver.createMany({
+          data: driverIds.map((driverId) => ({
+            vehicleId: uuid,
+            driverId,
+            assignmentDate: new Date(),
+          })),
+        });
+        log('Created vehicleDriver records:', createResult);
       }
+      //Если driverIds пустой – связи уже удалены
 
       return { uuid: updatedVehicle.uuid };
     });
 
     log('Updated vehicle with details:', result);
     return NextResponse.json({ status: 'success', uuid: result.uuid }, { status: 200 });
-  } catch (error) {
+  } catch (error: unknown) {
     log('Error updating vehicle:', error);
     if (error instanceof Error) {
       log('Error message:', error.message);
@@ -109,24 +114,39 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<Params
       if (error.message.startsWith('Водитель уже привязан')) {
         const cause = error.cause as { fullName?: string } | undefined;
         return NextResponse.json(
-          {
-            error: {
-              message: error.message,
-              fullName: cause?.fullName,
-            },
-          },
+          { error: { message: error.message, fullName: cause?.fullName } },
           { status: 400 },
         );
       }
-      return NextResponse.json(
-        {
-          error: {
-            message: error.message,
-          },
-        },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: { message: error.message } }, { status: 400 });
     }
     return NextResponse.json({ error: 'Unable to update vehicle' }, { status: 500 });
+  }
+}
+
+/**
+ * DELETE эндпоинт: удаление автомобиля.
+ * Если в схеме для связи vehicleDrivers указан onDelete: Cascade,
+ * то связанные записи будут удалены автоматически.
+ */
+export async function DELETE(req: NextRequest, { params }: { params: Promise<Params> }) {
+  try {
+    const { uuid } = await params;
+    if (!uuid) {
+      return NextResponse.json({ error: 'Missing required parameter: uuid' }, { status: 400 });
+    }
+
+    const deletedVehicle = await prisma.vehicle.delete({
+      where: { uuid },
+    });
+
+    log('Deleted vehicle:', deletedVehicle);
+    return NextResponse.json({ status: 'success', data: deletedVehicle }, { status: 200 });
+  } catch (error: unknown) {
+    log('Error deleting vehicle:', error);
+    if (error instanceof Error) {
+      return NextResponse.json({ error: { message: error.message } }, { status: 400 });
+    }
+    return NextResponse.json({ error: 'Unable to delete vehicle' }, { status: 500 });
   }
 }
