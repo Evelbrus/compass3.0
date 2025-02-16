@@ -5,6 +5,7 @@ import debug from 'debug';
 import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcrypt';
 import { CreateUserData } from '@shared/prisma/interface/users/interface';
+import convertPrismaData from '@shared/prisma/utils/converterBigIntToString';
 
 const log = debug('app:users');
 
@@ -225,18 +226,20 @@ export async function GET(req: Request) {
         })
       : users;
 
-    return NextResponse.json({
-      status: 'success',
-      message: 'Fetched users successfully',
-      data: {
-        page: parsedParams.page,
-        per_page: parsedParams.per_page,
-        total,
-        totalAllRoles,
-        roleCounts,
-        users: filteredUsers,
-      },
-    });
+    return NextResponse.json(
+      convertPrismaData({
+        status: 'success',
+        message: 'Fetched users successfully',
+        data: {
+          page: parsedParams.page,
+          per_page: parsedParams.per_page,
+          total,
+          totalAllRoles,
+          roleCounts,
+          users: filteredUsers,
+        },
+      }),
+    );
   } catch (error) {
     log('Error fetching users:', error);
     if (error instanceof Error) {

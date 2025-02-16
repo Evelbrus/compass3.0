@@ -15,8 +15,7 @@ export const revalidate = 60;
 
 const Page = async ({ params }: PageProps): Promise<JSX.Element> => {
   const { role, refreshToken } = await getLayoutData();
-  const resolvedParams = await params;
-  const { uuid } = await resolvedParams;
+  const { uuid } = await params;
 
   if (refreshToken) {
     if (role === UserRole.Admin || role === UserRole.Operator) {
@@ -33,7 +32,14 @@ const Page = async ({ params }: PageProps): Promise<JSX.Element> => {
         return <Loading />;
       }
 
-      return <ClientsDetailAdminPage userData={userData} />;
+      console.log('Исходный userData', userData);
+
+      //Убираем поля password и refreshTokens
+      const { password, refreshTokens, ...safeUserData } = userData;
+
+      console.log('Очищенный userData', safeUserData);
+
+      return <ClientsDetailAdminPage userData={safeUserData} />;
     } else {
       return <Loading />;
     }

@@ -1,16 +1,16 @@
 'use client';
 
-import { ServiceLevels, VehicleType } from '@prisma/client';
+import { AdditionalService, ServiceLevels, VehicleType } from '@prisma/client';
 import { showToast } from '@shared/components/toast/ToastManager';
 import { DetailTariffData, EditTariffData } from '@shared/prisma/interface/tariff/interface';
 import { useRouter } from 'next/navigation';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { IButton } from '@shared/components/ui/buttons';
-import { steps } from './constants/_tariff';
-import TariffEditStep1 from './step-edit/TariffEditStep1';
-import TariffEditStep2 from './step-edit/TariffEditStep2';
-import TariffEditStep3 from './step-edit/TariffEditStep3';
+import TariffEditStep1 from '@pages/(administrator)/tariff/step-edit/TariffEditStep1';
+import TariffEditStep3 from '@pages/(administrator)/tariff/step-edit/TariffEditStep3';
+import TariffEditStep2 from '@pages/(administrator)/tariff/step-edit/TariffEditStep2';
+import { steps } from '@pages/(administrator)/tariff/constants/_tariff';
 
 interface TariffsEditProps {
   data: DetailTariffData;
@@ -39,9 +39,22 @@ const TariffEdit: React.FC<TariffsEditProps> = ({ data }) => {
     },
   });
 
+  const [additionalServices, setAdditionalServices] = useState<AdditionalService[]>([]);
   const [step, setStep] = useState(1);
   const { handleSubmit } = methods;
   const router = useRouter();
+
+  useEffect(() => {
+    //Fetch additional services
+    fetch('/api/additional-services?page=1&per_page=100&sort_by=name&sort_order=asc')
+      .then((response) => response.json())
+      .then((data) => {
+        const services = data.data.additionalServices;
+        setAdditionalServices(services);
+        console.log('services:', services);
+      })
+      .catch((error) => console.error('Error fetching additional services:', error));
+  }, []);
 
   const onSubmit = async (formData: EditTariffData) => {
     try {
@@ -107,7 +120,7 @@ const TariffEdit: React.FC<TariffsEditProps> = ({ data }) => {
             ))}
           </div>
           {step === 1 && <TariffEditStep1 />}
-          {step === 2 && <TariffEditStep3 data={data} />}
+          {step === 2 && <TariffEditStep3 data={data} additionalServices={additionalServices} />}
           {step === 3 && <TariffEditStep2 />}
         </form>
         <div className={'w-full flex justify-end gap-4 p-6'}>

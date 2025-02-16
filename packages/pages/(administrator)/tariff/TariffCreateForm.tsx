@@ -5,11 +5,11 @@ import { AdditionalService, ServiceLevels, VehicleType } from '@prisma/client';
 import { CreateTariffData } from '@shared/prisma/interface/tariff/interface';
 import { IButton } from '@shared/components/ui/buttons';
 import { useRouter } from 'next/navigation';
-import TariffCreateStep1 from './step-create/TariffCreateStep1';
-import TariffCreateStep2 from './step-create/TariffCreateStep2';
-import TariffCreateStep3 from './step-create/TariffCreateStep3';
-import { steps } from './constants/_tariff';
 import { showToast } from '@shared/components/toast/ToastManager';
+import { steps } from '@pages/(administrator)/tariff/constants/_tariff';
+import TariffCreateStep1 from '@pages/(administrator)/tariff/step-create/TariffCreateStep1';
+import TariffCreateStep3 from '@pages/(administrator)/tariff/step-create/TariffCreateStep3';
+import TariffCreateStep2 from '@pages/(administrator)/tariff/step-create/TariffCreateStep2';
 
 interface FormData extends Omit<CreateTariffData, 'clientTypes' | 'vehicleType' | 'serviceLevel'> {
   vehicleType: VehicleType | undefined;
@@ -44,12 +44,13 @@ const TariffCreateForm: React.FC = () => {
   const router = useRouter();
 
   useEffect(() => {
-    // Fetch additional services
+    //Fetch additional services
     fetch('/api/additional-services?page=1&per_page=100&sort_by=name&sort_order=asc')
       .then((response) => response.json())
       .then((data) => {
         const services = data.data.additionalServices;
         setAdditionalServices(services);
+        console.log('services:', services);
       })
       .catch((error) => console.error('Error fetching additional services:', error));
   }, []);
@@ -81,13 +82,39 @@ const TariffCreateForm: React.FC = () => {
   const handleNext = () => {
     setStep(step + 1);
   };
-
-  const handleAddAdditionalService = (newService: {
+  const handleAddAdditionalService = (updatedService: {
     serviceUuid: string;
     price: number;
     isAvailable: boolean;
   }) => {
-    setSelectedAdditionalServices((prev) => [...prev, newService]);
+    setFormData((prev) => {
+      const existingServiceIndex = prev.tariffAdditionalServices.findIndex(
+        (service) => service.serviceUuid === updatedService.serviceUuid,
+      );
+
+      if (existingServiceIndex !== -1) {
+        const updatedServices = [...prev.tariffAdditionalServices];
+        updatedServices[existingServiceIndex] = updatedService;
+        return {
+          ...prev,
+          tariffAdditionalServices: updatedServices,
+        };
+      } else {
+        return {
+          ...prev,
+          tariffAdditionalServices: [...prev.tariffAdditionalServices, updatedService],
+        };
+      }
+    });
+  };
+
+  const handleRemoveAdditionalService = (serviceUuid: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      tariffAdditionalServices: prev.tariffAdditionalServices.filter(
+        (service) => service.serviceUuid !== serviceUuid,
+      ),
+    }));
   };
 
   const handleSubmit = async (event: FormEvent) => {
@@ -95,7 +122,7 @@ const TariffCreateForm: React.FC = () => {
 
     const submissionData = {
       ...formData,
-      tariffAdditionalServices: selectedAdditionalServices,
+      tariffAdditionalServices: formData.tariffAdditionalServices,
     };
 
     console.log('Form data:', submissionData);
@@ -123,14 +150,6 @@ const TariffCreateForm: React.FC = () => {
     } catch (error) {
       showToast.error(`Error creating tariff: ${(error as Error).message}`);
     }
-  };
-  const handleRemoveAdditionalService = (serviceUuid: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      tariffAdditionalServices: prev.tariffAdditionalServices.filter(
-        (service) => service.serviceUuid !== serviceUuid,
-      ),
-    }));
   };
 
   return (

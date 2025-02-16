@@ -29,6 +29,11 @@ enum ServiceLevels {
   None    @map("none")
 }
 
+enum Ownership {
+  Personal @map("personal") // Личный транспорт водителя
+  Fleet    @map("fleet") // Транспорт автопарка
+}
+
 model Vehicle {
   uuid                         String          @id @default(uuid()) @map("uuid")
   vehicleType                  VehicleType     @map("vehicle_type")
@@ -44,6 +49,9 @@ model Vehicle {
   vehicleDrivers               VehicleDriver[] @relation("vehicle_to_vehicle_driver")
   createdAt                    DateTime        @default(now()) @map("created_at")
   updatedAt                    DateTime        @updatedAt @map("updated_at")
+
+  /// Новое поле:
+  ownership Ownership @default(Personal) @map("ownership")
 
   @@map("vehicles")
 }

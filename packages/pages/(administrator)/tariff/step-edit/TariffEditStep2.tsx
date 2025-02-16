@@ -6,13 +6,13 @@ import { Controller, useFormContext } from 'react-hook-form';
 const TariffEditStep2: React.FC = () => {
   const { control } = useFormContext();
 
-  const handleFreeWaitTimeChange = (value: string | number | bigint | null): number => {
-    const numberValue = Number(value ?? 0);
+  const handleFreeWaitTimeChange = (value: string | number) => {
+    const numberValue = Number(value);
     return numberValue <= 60 ? numberValue : 60;
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 sm:grid-cols-2 lg:grid-cols-2 gap-4">
+    <div className="grid grid-cols-1 gap-4 w-1/2">
       <div className="form-group">
         <Controller
           name="additionalPointPrice"
@@ -22,67 +22,7 @@ const TariffEditStep2: React.FC = () => {
               type="number"
               {...field}
               placeholder="additionalPointPrice"
-              label="additionalPointPrice"
-            />
-          )}
-        />
-      </div>
-      <div className="form-group">
-        <Controller
-          name="freeWaitTimeBishkek"
-          control={control}
-          render={({ field }) => (
-            <TextInput
-              type="number"
-              {...field}
-              placeholder="freeWaitTimeBishkek"
-              label="freeWaitTimeBishkek"
-              value={handleFreeWaitTimeChange(field.value)}
-              onChange={(value) => field.onChange(handleFreeWaitTimeChange(value))}
-            />
-          )}
-        />
-      </div>
-      <div className="form-group">
-        <Controller
-          name="pricePerMinuteAfterBishkek"
-          control={control}
-          render={({ field }) => (
-            <TextInput
-              type="number"
-              {...field}
-              placeholder="pricePerMinuteAfterBishkek"
-              label="pricePerMinuteAfterBishkek"
-            />
-          )}
-        />
-      </div>
-      <div className="form-group">
-        <Controller
-          name="freeWaitTimeAirport"
-          control={control}
-          render={({ field }) => (
-            <TextInput
-              type="number"
-              {...field}
-              placeholder="freeWaitTimeAirport"
-              label="freeWaitTimeAirport"
-              value={handleFreeWaitTimeChange(field.value)}
-              onChange={(value) => field.onChange(handleFreeWaitTimeChange(value))}
-            />
-          )}
-        />
-      </div>
-      <div className="form-group">
-        <Controller
-          name="pricePerMinuteAfterAirport"
-          control={control}
-          render={({ field }) => (
-            <TextInput
-              type="number"
-              {...field}
-              placeholder="pricePerMinuteAfterAirport"
-              label="pricePerMinuteAfterAirport"
+              label="Фиксированая Цена за Каждую Дополнительную точку в поездку"
             />
           )}
         />
@@ -94,7 +34,7 @@ const TariffEditStep2: React.FC = () => {
           rules={{ required: 'Service level is required' }}
           render={({ field }) => (
             <SelectSingle
-              label="Service Level:"
+              label="Уровень обслуживания"
               classNameLabel="block text-4 font-medium text-gray-500 mb-2"
               {...field}
               options={serviceLevelOptions}
@@ -102,6 +42,59 @@ const TariffEditStep2: React.FC = () => {
               onChange={(selectedOption) => field.onChange(selectedOption?.value)}
               placeholder="Select service level"
             />
+          )}
+        />
+      </div>
+      <div className="form-group flex items-center justify-between">
+        <p className="text-4 font-medium text-gray-500">
+          Бесплатное время ожидания вне Аэропорта (Минуты)
+        </p>
+        <Controller
+          name="freeWaitTimeBishkek"
+          control={control}
+          render={({ field }) => (
+            <TextInput
+              type="number"
+              {...field}
+              placeholder="freeWaitTimeBishkek"
+              value={field.value !== null ? handleFreeWaitTimeChange(field.value) : ''}
+            />
+          )}
+        />
+      </div>
+      <div className="form-group">
+        <p className="text-4 font-medium text-gray-500">
+          Стоимость за каждую минуты после бесплатного времени ожидания (сумма)
+        </p>
+        <Controller
+          name="pricePerMinuteAfterBishkek"
+          control={control}
+          render={({ field }) => (
+            <TextInput type="number" {...field} placeholder="цена за минуту после Бишкека" />
+          )}
+        />
+      </div>
+      <div className="form-group flex justify-between items-center">
+        <p className="text-4 font-medium text-gray-500">бесплатное время ожидания в аэропорту</p>
+        <Controller
+          name="freeWaitTimeAirport"
+          control={control}
+          render={({ field }) => (
+            <TextInput
+              type="number"
+              {...field}
+              placeholder="freeWaitTimeAirport"
+              value={field.value !== null ? handleFreeWaitTimeChange(field.value) : ''}
+            />
+          )}
+        />
+      </div>
+      <div className="form-group">
+        <Controller
+          name="pricePerMinuteAfterAirport"
+          control={control}
+          render={({ field }) => (
+            <TextInput type="number" {...field} placeholder="цена за минуту после аэропорта" />
           )}
         />
       </div>

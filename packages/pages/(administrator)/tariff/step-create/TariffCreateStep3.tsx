@@ -1,4 +1,4 @@
-import React, { ChangeEvent, useState } from 'react';
+import React, { ChangeEvent } from 'react';
 import { AdditionalService } from '@prisma/client';
 import { SelectSingle, TextInput } from '@shared/components/ui/inputs';
 import { SelectOption } from '@shared/lib/effector';
@@ -17,26 +17,29 @@ interface TariffCreateStep3Props {
   handleAddAdditionalService: (service: AdditionalServiceEntry) => void;
   handleRemoveAdditionalService: (serviceUuid: string) => void;
 }
-
 const TariffCreateStep3: React.FC<TariffCreateStep3Props> = ({
   formData,
   additionalServices,
   handleAddAdditionalService,
   handleRemoveAdditionalService,
 }) => {
-  const [selectedAdditionalServices, setSelectedAdditionalServices] = useState<
-    AdditionalServiceEntry[]
-  >([]);
-
-  const selectOptions: SelectOption<string>[] = additionalServices.map((service) => ({
-    label: service.name,
-    value: service.uuid,
-  }));
+  const selectOptions: SelectOption<string>[] = additionalServices
+    .filter(
+      (service) =>
+        !formData.tariffAdditionalServices.some(
+          (selected) => selected.serviceUuid === service.uuid,
+        ),
+    )
+    .map((service) => ({
+      label: service.name,
+      value: service.uuid,
+    }));
+  console.log('create:', selectOptions);
 
   const handleSelectChange = (option: SelectOption<string> | null) => {
     if (!option) return;
 
-    if (selectedAdditionalServices.some((service) => service.serviceUuid === option.value)) {
+    if (formData.tariffAdditionalServices.some((service) => service.serviceUuid === option.value)) {
       return;
     }
 
@@ -46,26 +49,24 @@ const TariffCreateStep3: React.FC<TariffCreateStep3Props> = ({
       isAvailable: true,
     };
 
-    setSelectedAdditionalServices((prev) => [...prev, newService]);
     handleAddAdditionalService(newService);
   };
 
   const handleLocalChange = (index: number, event: ChangeEvent<HTMLInputElement>) => {
     const { name, value, checked } = event.target;
 
-    setSelectedAdditionalServices((prev) => {
-      const newServices = [...prev];
-      if (name === 'price') {
-        newServices[index].price = Number(value);
-      } else if (name === 'isAvailable') {
-        newServices[index].isAvailable = checked;
-      }
-      return newServices;
-    });
+    const updatedServices = [...formData.tariffAdditionalServices];
+
+    if (name === 'price') {
+      updatedServices[index].price = Number(value);
+    } else if (name === 'isAvailable') {
+      updatedServices[index].isAvailable = checked;
+    }
+
+    handleAddAdditionalService(updatedServices[index]);
   };
 
   const handleDelete = (serviceUuid: string) => {
-    setSelectedAdditionalServices((prev) => prev.filter((s) => s.serviceUuid !== serviceUuid));
     handleRemoveAdditionalService(serviceUuid);
   };
 
@@ -136,5 +137,4 @@ const TariffCreateStep3: React.FC<TariffCreateStep3Props> = ({
     </div>
   );
 };
-
 export default TariffCreateStep3;

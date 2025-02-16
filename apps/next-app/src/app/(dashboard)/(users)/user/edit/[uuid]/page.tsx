@@ -61,31 +61,33 @@ const Page = async ({ params }: PageProps): Promise<JSX.Element> => {
     return <Loading />;
   }
 
-  console.log('🚀 userData до обработки:', JSON.stringify(userData, null, 2));
+  //Исключаем поля password и refreshTokens
+  const { password, refreshTokens, ...userDataWithoutSensitive } = userData;
 
+  //Приводим userData к нужной форме и преобразуем данные (например, BigInt -> string)
   const safeUserData: UserCard = convertPrismaData({
-    ...userData,
-    companyProfile: userData.companyProfile
+    ...userDataWithoutSensitive,
+    companyProfile: userDataWithoutSensitive.companyProfile
       ? {
-          ...userData.companyProfile,
+          ...userDataWithoutSensitive.companyProfile,
           logoImage: null,
         }
       : undefined,
-    driverProfile: userData.driverProfile
+    driverProfile: userDataWithoutSensitive.driverProfile
       ? {
-          ...userData.driverProfile,
+          ...userDataWithoutSensitive.driverProfile,
           passportImage: null,
           driverProfileImage: null,
           licenseImage: null,
-          driverExperience: Array.isArray(userData.driverProfile.driverExperience)
-            ? userData.driverProfile.driverExperience
+          driverExperience: Array.isArray(userDataWithoutSensitive.driverProfile.driverExperience)
+            ? userDataWithoutSensitive.driverProfile.driverExperience
             : [],
         }
       : undefined,
     //Разбиваем fullName на части
-    ...(userData.fullName
+    ...(userDataWithoutSensitive.fullName
       ? (() => {
-          const parts = userData.fullName.split(' ');
+          const parts = userDataWithoutSensitive.fullName.split(' ');
           return {
             lastName: parts[0] || '',
             firstName: parts[1] || '',
@@ -95,7 +97,7 @@ const Page = async ({ params }: PageProps): Promise<JSX.Element> => {
       : { firstName: '', lastName: '', middleName: '' }),
   });
 
-  console.log('✅ userData после обработки:', JSON.stringify(safeUserData, null, 2));
+  console.log('userDataEdit', safeUserData);
 
   return <ClientsAdminPage role={role} mode={'edit'} userData={safeUserData} />;
 };

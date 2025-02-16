@@ -251,22 +251,25 @@ export default function useClientsAdminForm({
         const { passportImage, driverProfileImage, licenseImage, ...driverData } = driverProfile;
         const updatedDriverProfile: PayloadDriverProfile = {
           ...driverData,
-          passportPhotoPath: null,
-          profilePhotoPath: null,
-          licensePhotoPath: null,
+          passportPhotoPath: passportImage
+            ? `${uuidv4()}-${passportImage.name}`
+            : driverData.passportPhotoPath || null,
+          profilePhotoPath: driverProfileImage
+            ? `${uuidv4()}-${driverProfileImage.name}`
+            : driverData.profilePhotoPath || null,
+          licensePhotoPath: licenseImage
+            ? `${uuidv4()}-${licenseImage.name}`
+            : driverData.licensePhotoPath || null,
         };
 
         if (passportImage) {
-          passportFilename = `${uuidv4()}-${passportImage.name}`;
-          updatedDriverProfile.passportPhotoPath = `/drivers/passport/${passportFilename}`;
+          passportFilename = updatedDriverProfile.passportPhotoPath;
         }
         if (driverProfileImage) {
-          driverProfileFilename = `${uuidv4()}-${driverProfileImage.name}`;
-          updatedDriverProfile.profilePhotoPath = `/drivers/profile/${driverProfileFilename}`;
+          driverProfileFilename = updatedDriverProfile.profilePhotoPath;
         }
         if (licenseImage) {
-          licenseFilename = `${uuidv4()}-${licenseImage.name}`;
-          updatedDriverProfile.licensePhotoPath = `/drivers/license/${licenseFilename}`;
+          licenseFilename = updatedDriverProfile.licensePhotoPath;
         }
         payload.driverProfile = updatedDriverProfile;
       }

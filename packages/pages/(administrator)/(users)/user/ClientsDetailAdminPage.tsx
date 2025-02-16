@@ -8,8 +8,11 @@ import DriverDetailView from '@pages/(administrator)/(users)/user/driver/DriverD
 import OperatorDetailView from '@pages/(administrator)/(users)/user/operator/OperatorDetailView';
 import ClientDetailView from '@pages/(administrator)/(users)/user/client/ClientDetailView';
 
+//Объявляем новый тип, исключающий password и refreshTokens
+export type SafeUser = Omit<User, 'password' | 'refreshTokens'>;
+
 interface ClientsDetailAdminPageProps {
-  userData: User;
+  userData: SafeUser;
 }
 
 const ClientsDetailAdminPage = ({ userData }: ClientsDetailAdminPageProps): JSX.Element => {

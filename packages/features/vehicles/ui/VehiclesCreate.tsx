@@ -1,9 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { User, DriverProfile, VehicleType, Color, ServiceLevels } from '@prisma/client';
-import { CreateVehicleData } from '@shared/prisma/interface/vehicles/interface';
-import { useForm, Controller, FormProvider } from 'react-hook-form';
+import React, { useState } from 'react';
+import { FormProvider, Controller } from 'react-hook-form';
 import {
   ImageUpload,
   TextInput,
@@ -18,103 +16,14 @@ import {
   vehicleTypeOptions,
   serviceLevelOptions,
 } from '@shared/lib/effector/vehicles/optionsTranslation/optionsTranslationVehicle';
-import { showToast } from '@shared/components/toast/ToastManager';
-import { useRouter } from 'next/navigation';
 import { IButton } from '@shared/components/ui/buttons';
-
-interface FormData extends Omit<CreateVehicleData, 'serviceLevels' | 'driverIds' | 'year'> {
-  serviceLevels: ServiceLevels | undefined;
-  driverIds: string[];
-  year: Date | null;
-  photoRegistrationCertificate: string | null;
-}
+import { useVehiclesCreateForm } from '../hooks/useVehiclesCreateForm';
 
 const VehiclesCreate: React.FC = () => {
-  const methods = useForm<FormData>({
-    defaultValues: {
-      vehicleType: undefined,
-      brand: '',
-      model: '',
-      year: null,
-      color: undefined,
-      plateNumber: '',
-      isAvailable: false,
-      driverIds: [],
-      serviceLevels: undefined,
-      photoPath: '',
-      photoRegistrationCertificate: '',
-    },
-  });
-  const { control, handleSubmit } = methods;
-  const router = useRouter();
+  const { methods, control, handleSubmit, drivers, onSubmit, message } = useVehiclesCreateForm();
 
-  const [drivers, setDrivers] = useState<(User & { driverProfile: DriverProfile | null })[]>([]);
-  const [message] = useState('');
-
-  useEffect(() => {
-    fetch('/api/users?role=Driver&include=driverProfile')
-      .then((response) => {
-        if (!response.ok) throw new Error('Failed to fetch drivers');
-        return response.json();
-      })
-      .then((data) => setDrivers(data.data.users))
-      .catch((error) => {
-        console.error('Error fetching drivers:', error);
-        showToast.error('Failed to fetch drivers.');
-      });
-  }, []);
-
-  const onSubmit = async (formData: FormData) => {
-    const transformedData: CreateVehicleData = {
-      vehicleType: formData.vehicleType as VehicleType,
-      brand: formData.brand,
-      model: formData.model,
-      year: formData.year ? new Date(`${formData.year}-01-01`) : null,
-      color: formData.color as Color,
-      plateNumber: formData.plateNumber,
-      isAvailable: formData.isAvailable,
-      photoPath: formData.photoPath,
-      serviceLevels: formData.serviceLevels as ServiceLevels,
-      driverIds: formData.driverIds,
-      photoRegistrationCertificate: formData.photoRegistrationCertificate,
-      ownership: formData.ownership,
-    };
-
-    try {
-      const response = await fetch('/api/vehicles', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(transformedData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        if (errorData.error?.message && errorData.error?.fullName) {
-          showToast.error(`${errorData.error.message} ${errorData.error.fullName}`);
-        } else if (errorData.error?.message) {
-          showToast.error(errorData.error.message);
-        } else if (errorData.message) {
-          showToast.error(errorData.message);
-        } else {
-          showToast.error(`Error creating vehicle: ${response.statusText}`);
-        }
-        return;
-      }
-
-      const result = await response.json();
-      if (result && result.uuid) {
-        showToast.success('Vehicle created successfully');
-        router.push(`/transfer-services/detail/${result.uuid}`);
-      } else {
-        showToast.error('Failed to redirect to vehicle details page');
-      }
-    } catch (error) {
-      showToast.error(`Error creating vehicle: ${(error as Error).message}`);
-      console.error('Submission error:', error);
-    }
-  };
+  //Дополнительное локальное сообщение, если требуется
+  const [localMessage] = useState('');
 
   return (
     <FormProvider {...methods}>
@@ -123,10 +32,8 @@ const VehiclesCreate: React.FC = () => {
           <h1 className="text-2xl font-bold mb-6">Create New Vehicle</h1>
           <form
             onSubmit={handleSubmit(onSubmit)}
-            className="bg-white p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 md:grid-cols-2 gap-4 rounded-lg shadow-md border border-gray-200"
+            className="bg-white p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-2 gap-4 rounded-lg shadow-md border border-gray-200"
           >
-            {/*... other form fields ... */}
-
             {/*Vehicle Type */}
             <div className="form-group">
               <Controller
@@ -322,7 +229,7 @@ const VehiclesCreate: React.FC = () => {
             </div>
 
             {/*Photo Upload */}
-            <div className=" flex items-start justify-center">
+            <div className="flex items-start justify-center">
               <Controller
                 name="photoPath"
                 control={control}
@@ -363,9 +270,9 @@ const VehiclesCreate: React.FC = () => {
             </IButton>
           </form>
         </div>
-        {message && (
+        {(message || localMessage) && (
           <div className="mt-4 p-4 rounded-md bg-blue-50 border border-blue-200 text-blue-800">
-            {message}
+            {message || localMessage}
           </div>
         )}
       </div>
