@@ -7,7 +7,7 @@ interface Params {
 }
 
 interface SearchParamsInterface {
-  type: 'client' | 'client-corp' | 'logos' | 'drivers' | 'avatar' | 'logo' | 'vehicle';
+  type: 'client' | 'client-corp' | 'drivers' | 'avatar' | 'logo' | 'vehicle';
 }
 
 export async function GET(request: Request, context: { params: Promise<Params> }) {
@@ -43,7 +43,6 @@ export async function GET(request: Request, context: { params: Promise<Params> }
     const validTypes: SearchParamsInterface['type'][] = [
       'client',
       'client-corp',
-      'logos',
       'drivers',
       'avatar',
       'logo',

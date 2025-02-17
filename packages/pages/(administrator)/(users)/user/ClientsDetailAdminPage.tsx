@@ -1,5 +1,5 @@
 'use client';
-git
+
 import React, { JSX } from 'react';
 import { User, UserRole } from '@prisma/client';
 import AdminDetailView from '@pages/(administrator)/(users)/user/admin/AdminDetailView';

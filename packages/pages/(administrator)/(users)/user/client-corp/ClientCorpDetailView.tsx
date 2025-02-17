@@ -50,7 +50,7 @@ const ClientCorpDetailView = ({ userData }: ClientCorpDetailViewProps): JSX.Elem
 
   //Формируем URL для логотипа компании
   const companyLogoSrc = userData.companyProfile?.logoImagePath
-    ? `/api/images/${userData.companyProfile.logoImagePath.split('/').pop()}?type=logos`
+    ? `/api/images/${userData.companyProfile.logoImagePath.split('/').pop()}?type=logo`
     : null;
 
   return (
