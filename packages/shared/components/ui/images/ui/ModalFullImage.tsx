@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { X } from 'lucide-react';
 
 interface ModalFullImageProps {
   imageSrc: string;
@@ -15,8 +16,14 @@ const ModalFullImage: React.FC<ModalFullImageProps> = ({ imageSrc, onClose }) =>
         <button
           onClick={onClose}
           className="absolute top-2 left-2 bg-white px-2 py-1 rounded shadow"
+          style={{
+            background:
+              'linear-gradient(135deg, rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0.3) 100%)',
+            backdropFilter: 'blur(5px)',
+            border: 'none',
+          }}
         >
-          Закрыть
+          <X size={24} />
         </button>
       </div>
     </div>

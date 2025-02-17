@@ -1,28 +1,24 @@
 'use client';
 
 import React, { JSX } from 'react';
-import { SafeUser } from '@pages/(administrator)/(users)/user/ClientsDetailAdminPage'; //Import SafeUser
 import { DriverProfile } from '@prisma/client';
 import { LazyImage } from '@shared/components/ui/images';
 import { DetailItem } from '@pages/(administrator)/vehicles/VehiclesDetail';
-import { SelectSingle } from '@shared/components/ui/inputs';
-import { changingDriverOptions } from '@shared/lib/effector/drivers/optionsTranslation/optionsTranslationDriver';
 import { useRouter } from 'next/navigation';
+import { ImageUploadWithCrop } from '@shared/components/ui/images/ui/ImageUploadWithCrop';
+import { SafeUser } from '@pages/(administrator)/(users)/user/ClientsDetailAdminPage';
 
-//Создаем тип, расширяющий SafeUser и добавляющий driverProfile
-interface SafeUserWithDriverProfile extends SafeUser {
+interface UserWithDriverProfile extends SafeUser {
   driverProfile?: DriverProfile | null;
 }
 
 interface DriverDetailViewProps {
-  userData: SafeUserWithDriverProfile;
+  userData: UserWithDriverProfile;
 }
 
 const renderField = (label: string, value?: string | number | null) => (
-  <div className="grid grid-cols-2 gap-[59px]">
-    <label className="font-normal text-[14px] leading-[13.93px] text-[#989898] mb-[14px]">
-      {label}:
-    </label>
+  <div className="grid grid-cols-2 gap-2 w-full">
+    <label className="font-normal text-[14px] leading-[13.93px] text-[#989898]">{label}:</label>
     <p className="font-normal text-[14px] leading-[13.93px] text-[#2A3037]">
       {value !== null && value !== undefined ? String(value) : 'N/A'}
     </p>
@@ -36,12 +32,12 @@ const DriverDetailView = ({ userData }: DriverDetailViewProps): JSX.Element => {
 
   const userFields = [
     { label: 'Email', value: userData.email },
-    { label: 'Availability', value: userData.availability ? 'Available' : 'Unavailable' },
-    { label: 'Full Name', value: userData.fullName },
-    { label: 'Phone', value: userData.phone },
-    { label: 'Gender', value: userData.gender },
-    { label: 'Address', value: userData.address },
-    { label: 'Profile Photo Path', value: userData.profilePhotoPath },
+    { label: 'ФИО', value: userData.fullName },
+    { label: 'Телефон', value: userData.phone },
+    { label: 'Пол', value: userData.gender },
+    { label: 'Адрес', value: userData.address },
+    { label: 'Доступность', value: userData.availability ? 'Available' : 'Unavailable' },
+    { label: 'Смена', value: userData.driverProfile?.changingDriver },
   ];
 
   const companyFields = userData.driverProfile
@@ -69,19 +65,19 @@ const DriverDetailView = ({ userData }: DriverDetailViewProps): JSX.Element => {
         { label: 'Changing Driver', value: userData.driverProfile.changingDriver },
         { label: 'Type of Driver', value: userData.driverProfile.typeDriver },
         { label: 'Years of Driving', value: userData.driverProfile.yearsOfDriving },
-        { label: 'Passport Photo Path', value: userData.driverProfile.passportPhotoPath },
-        { label: 'License Photo Path', value: userData.driverProfile.licensePhotoPath },
+        //{ label: 'Passport Photo Path', value: userData.driverProfile.passportPhotoPath },
+        //{ label: 'License Photo Path', value: userData.driverProfile.licensePhotoPath },
         { label: 'Bank Name', value: userData.driverProfile.bankName },
         { label: 'Bank BIC', value: userData.driverProfile.bankBic },
         { label: 'Bank Account Number', value: userData.driverProfile.bankAccountNumber },
         { label: 'Card Number', value: userData.driverProfile.cardNumber },
-        { label: 'Profile Photo Path', value: userData.driverProfile.profilePhotoPath },
+        //{ label: 'Profile Photo Path', value: userData.driverProfile.profilePhotoPath },
       ]
     : [];
 
   //URL для фото пользователя (основное фото)
   const profilePhotoUrl = userData.profilePhotoPath
-    ? `/api/images/${userData.profilePhotoPath.split('/').pop()}?type=drivers`
+    ? `/api/images/${userData.profilePhotoPath.split('/').pop()}?type=avatar`
     : null;
 
   console.log('profilePhotoUrl', profilePhotoUrl);
@@ -117,21 +113,21 @@ const DriverDetailView = ({ userData }: DriverDetailViewProps): JSX.Element => {
                 <LazyImage
                   src={profilePhotoUrl}
                   alt="Profile Photo"
-                  className="w-[180px] h-[180px] rounded-full object-cover"
+                  className="w-[180px] h-[180px] rounded-lg object-cover"
                 />
               ) : (
                 <div className="max-w-[280px] h-[200px] flex items-center justify-center bg-gray-50 p-[30px] rounded-[8px]">
                   <LazyImage src="/new-user.svg" alt="logotype" className="w-[330px] h-[140px]" />
                 </div>
               )}
-              <div className="flex flex-col">
+              <div className="grid gap-2">
                 {userFields.map((field, index) => (
                   <React.Fragment key={index}>
                     {renderField(field.label, field.value)}
                   </React.Fragment>
                 ))}
                 {/*Если необходимо оставить выбор смены водителя */}
-                <div className="w-full flex justify-between items-center mt-4">
+                {/*<div className="w-full flex justify-between items-center mt-4">
                   <SelectSingle
                     label="Смена"
                     options={changingDriverOptions}
@@ -143,39 +139,60 @@ const DriverDetailView = ({ userData }: DriverDetailViewProps): JSX.Element => {
                           }
                         : null
                     }
+                    className="w-full"
                     onChange={(selected) => console.log('Выбрана смена:', selected?.value)}
                   />
-                </div>
+                </div> */}
               </div>
             </div>
           </div>
 
           {/*Правая колонка: фото паспорта и лицензии */}
           <div className="grid grid-cols-2 gap-1 w-full">
-            <div className="w-full h-[145px] bg-gray-50 p-[30px] flex items-center justify-center">
+            <div className="w-full h-[145px] bg-gray-50 flex items-center justify-center rounded-lg">
               {passportPhotoUrl ? (
-                <LazyImage
-                  src={passportPhotoUrl}
-                  alt="Passport Photo"
-                  className="w-[180px] h-[180px] rounded-lg object-cover"
+                <ImageUploadWithCrop
+                  initialSrc={passportPhotoUrl}
+                  label="Фото паспорта"
+                  containerWidth="w-full"
+                  containerHeight={145}
+                  mode="gallery"
                 />
               ) : (
-                <div className="flex items-center gap-[18px]">
+                <div className="flex items-center gap-[18px] p-[30px]">
                   <LazyImage src="/doc_icon3.png" alt="doc icon" className="w-[76px] h-[76px]" />
                   <LazyImage src="/doc_icon2.png" alt="doc icon" className="w-[160px] h-[56px]" />
                 </div>
               )}
             </div>
 
-            <div className="w-full h-[145px] bg-gray-50 p-[30px] flex items-center justify-center">
+            <div className="w-full h-[145px] bg-gray-50 flex items-center justify-center">
               {licensePhotoUrl ? (
-                <LazyImage
-                  src={licensePhotoUrl}
-                  alt="License Photo"
-                  className="w-[180px] h-[180px] rounded-lg object-cover"
+                <ImageUploadWithCrop
+                  initialSrc={licensePhotoUrl}
+                  label="License Photo"
+                  containerWidth="w-full"
+                  containerHeight={145}
+                  mode="gallery"
                 />
               ) : (
-                <div className="flex items-center gap-[18px]">
+                <div className="flex items-center gap-[18px] p-[30px]">
+                  <LazyImage src="/doc_icon1.png" alt="doc icon" className="w-[50px] h-[40px]" />
+                  <LazyImage src="/doc_icon2.png" alt="doc icon" className="w-[170px] h-[66px]" />
+                </div>
+              )}
+            </div>
+            <div className="w-full h-[145px] bg-gray-50 flex items-center justify-center">
+              {driverProfilePhotoUrl ? (
+                <ImageUploadWithCrop
+                  initialSrc={driverProfilePhotoUrl}
+                  label="Driver Profile Additional Photo"
+                  containerWidth="w-full"
+                  containerHeight={145}
+                  mode="gallery"
+                />
+              ) : (
+                <div className="flex items-center gap-[18px] p-[30px]">
                   <LazyImage src="/doc_icon1.png" alt="doc icon" className="w-[50px] h-[40px]" />
                   <LazyImage src="/doc_icon2.png" alt="doc icon" className="w-[170px] h-[66px]" />
                 </div>
@@ -187,20 +204,6 @@ const DriverDetailView = ({ userData }: DriverDetailViewProps): JSX.Element => {
           <LazyImage src="/edit.png" alt="driver-profile-edit_icon" className="w-[24px] h-[24px]" />
         </div>
       </section>
-
-      {/*Дополнительное фото из профиля водителя */}
-      {driverProfilePhotoUrl && (
-        <div className="mt-6">
-          <h3 className="text-lg font-bold text-gray-800 mb-4">Additional Profile Photo</h3>
-          <div className="w-full h-[145px] bg-gray-50 p-[30px] flex items-center justify-center">
-            <LazyImage
-              src={driverProfilePhotoUrl}
-              alt="Driver Profile Additional Photo"
-              className="w-[180px] h-[180px] rounded-lg object-cover"
-            />
-          </div>
-        </div>
-      )}
 
       <h2 className="text-2xl font-bold text-gray-800 my-6">Driver Profile</h2>
       <div className="rounded-lg p-6 bg-white shadow-md border border-gray-200 grid grid-cols-1 lg:grid-cols-2 gap-4">

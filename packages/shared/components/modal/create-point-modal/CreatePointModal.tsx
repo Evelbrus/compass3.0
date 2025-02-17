@@ -15,10 +15,6 @@ interface CreatePointModalProps {
 const CreatePointModal: React.FC<CreatePointModalProps> = ({ onClose }) => {
   const uuid = useUnit($pointUuid);
 
-  console.log('uuid points', uuid);
-
-  console.log('UUID точки:', uuid);
-
   const [address, setAddress] = useState('');
   const [basePrice, setBasePrice] = useState<number | ''>('');
   const [loading, setLoading] = useState(false);

@@ -1,32 +1,29 @@
 'use client';
 
-import React, { JSX, useState } from 'react';
-import { SafeUser } from '@pages/(administrator)/(users)/user/ClientsDetailAdminPage'; //Import SafeUser
+import React, { JSX } from 'react';
 import { CompanyProfile } from '@prisma/client';
 import Image from 'next/image';
 import { LazyImage } from '@shared/components/ui/images';
+import { DetailItem } from '@pages/(administrator)/vehicles/VehiclesDetail';
+import { SafeUser } from '@pages/(administrator)/(users)/user/ClientsDetailAdminPage';
 
-//Определяем новый тип, расширяющий SafeUser и добавляющий companyProfile
-interface SafeUserWithCompanyProfile extends SafeUser {
+//Определяем новый тип, расширяющий User и добавляющий companyProfile
+interface UserWithCompanyProfile extends SafeUser {
   companyProfile?: CompanyProfile | null;
 }
 
 interface ClientCorpDetailViewProps {
-  userData: SafeUserWithCompanyProfile;
+  userData: UserWithCompanyProfile;
 }
 
 const renderField = (label: string, value?: string | null) => (
-  <div className="grid grid-cols-2 gap-4 w-full">
-    <label className="font-normal text-[14px] leading-[13.93px] text-[#989898] mb-[14px]">
-      {label}:
-    </label>
+  <div className="grid grid-cols-2 gap-2 w-full">
+    <label className="font-normal text-[14px] leading-[13.93px] text-[#989898]">{label}:</label>
     <p className="font-normal text-[14px] leading-[13.93px] text-[#2A3037]">{value || 'N/A'}</p>
   </div>
 );
 
 const ClientCorpDetailView = ({ userData }: ClientCorpDetailViewProps): JSX.Element => {
-  const [isOpen, setIsOpen] = useState(false);
-
   const userFields = [
     { label: 'Email', value: userData.email },
     { label: 'Availability', value: userData.availability ? 'Available' : 'Unavailable' },
@@ -48,7 +45,7 @@ const ClientCorpDetailView = ({ userData }: ClientCorpDetailViewProps): JSX.Elem
     : [];
 
   const userImageSrc = userData.profilePhotoPath
-    ? `/api/images/${userData.profilePhotoPath.split('/').pop()}?type=client-corp`
+    ? `/api/images/${userData.profilePhotoPath.split('/').pop()}?type=avatar`
     : null;
 
   //Формируем URL для логотипа компании
@@ -60,64 +57,51 @@ const ClientCorpDetailView = ({ userData }: ClientCorpDetailViewProps): JSX.Elem
     <>
       <h2 className="text-3xl font-bold text-gray-800 mb-6">Client Corporate Details</h2>
       <section className="mx-auto flex gap-[12px] p-6 bg-white shadow-md rounded-lg border border-gray-200">
-        {userImageSrc ? (
-          <Image
-            src={userImageSrc}
-            alt="Profile Photo"
-            width={180}
-            height={180}
-            className="rounded-full object-cover"
-          />
-        ) : (
-          <div className="max-w-[280px] h-[200px] flex items-center justify-center bg-gray-50 p-[30px] rounded-[8px]">
-            <LazyImage src="/new-user.svg" alt="logotype" className="w-[330px] h-[140px]" />
-          </div>
-        )}
-        <div className="mt-[20px] w-full">
-          {userFields.map((field, index) => (
-            <React.Fragment key={index}>{renderField(field.label, field.value)}</React.Fragment>
-          ))}
-          <div className="rounded-lg mb-4">
-            <button
-              type="button"
-              onClick={() => setIsOpen(!isOpen)}
-              className="w-full flex justify-between items-center p-4 rounded-t-lg"
-            >
-              <h2 className="text-2xl font-bold text-gray-700">Company Profile</h2>
-              <span
-                className={`transform transition-transform ${isOpen ? 'rotate-180' : 'rotate-0'}`}
-              >
-                ▼
-              </span>
-            </button>
-            <div
-              className={`overflow-hidden transition-all duration-700 ease-in-out ${
-                isOpen ? 'max-h-screen' : 'max-h-0'
-              }`}
-            >
-              <div className="p-4 bg-white border-t border-gray-300">
-                {companyFields.map((field, index) => (
-                  <div key={index}>{renderField(field.label, field.value)}</div>
-                ))}
+        <div className="nx-auto grid grid-cols-1 lg:grid-cols-2 gap-4 w-full">
+          <div className="w-full flex gap-[12px]">
+            {userImageSrc ? (
+              <Image
+                src={userImageSrc}
+                alt="Profile Photo"
+                width={180}
+                height={180}
+                className="rounded-lg object-cover"
+              />
+            ) : (
+              <div className="max-w-[280px] h-[200px] flex items-center justify-center bg-gray-50 p-[30px] rounded-[8px]">
+                <LazyImage src="/new-user.svg" alt="logotype" className="w-[330px] h-[140px]" />
               </div>
+            )}
+            <div className="grid gap-1 mt-5">
+              {userFields.map((field, index) => (
+                <React.Fragment key={index}>{renderField(field.label, field.value)}</React.Fragment>
+              ))}
             </div>
           </div>
-        </div>
-        {/*Отображение логотипа компании*/}
-        <div className="w-full h-[240px] bg-gray-50 p-[30px] flex items-center justify-center">
-          {companyLogoSrc ? (
-            <Image
-              src={companyLogoSrc}
-              alt="Company Logo"
-              width={180}
-              height={180}
-              className="object-contain"
-            />
-          ) : (
-            <h1>Logo</h1>
-          )}
+          {/*Отображение логотипа компании*/}
+          <div className="w-full h-[240px] bg-gray-50 p-[30px] flex items-center justify-center">
+            {companyLogoSrc ? (
+              <Image
+                src={companyLogoSrc}
+                alt="Company Logo"
+                width={180}
+                height={180}
+                className="object-contain"
+              />
+            ) : (
+              <h1>Logo</h1>
+            )}
+          </div>
         </div>
       </section>
+      <div className="rounded-lg mt-6">
+        <h2 className="text-2xl font-bold text-gray-700 mb-4">Company Profile</h2>
+        <div className="p-4 bg-white grid grid-cols-1 lg:grid-cols-2 gap-2">
+          {companyFields.map((field, index) => (
+            <DetailItem key={index} label={field.label} value={field.value} />
+          ))}
+        </div>
+      </div>
     </>
   );
 };

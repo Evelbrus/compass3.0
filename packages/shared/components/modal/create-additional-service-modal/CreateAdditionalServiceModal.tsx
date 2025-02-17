@@ -15,8 +15,6 @@ interface CreateAdditionalServiceModalProps {
 const CreateAdditionalServiceModal: React.FC<CreateAdditionalServiceModalProps> = ({ onClose }) => {
   const uuid = useUnit($additionalServiceUuid);
 
-  console.log('uuid', uuid);
-
   const [serviceName, setServiceName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

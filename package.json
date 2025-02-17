@@ -57,6 +57,7 @@
     "framer-motion": "^11.11.11",
     "jose": "^5.9.6",
     "jscodeshift": "^17.1.1",
+    "lucide-react": "^0.475.0",
     "module-alias": "^2.2.3",
     "next": "^15.0.2",
     "next-intl": "^3.23.5",

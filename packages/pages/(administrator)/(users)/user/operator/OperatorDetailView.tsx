@@ -1,18 +1,19 @@
 'use client';
 
-import React, { JSX, useState } from 'react';
-import { SafeUser } from '@pages/(administrator)/(users)/user/ClientsDetailAdminPage'; //Import SafeUser
+import React, { JSX } from 'react';
 import { CompanyProfile } from '@prisma/client';
 import Image from 'next/image';
 import { LazyImage } from '@shared/components/ui/images';
+import { DetailItem } from '@pages/(administrator)/vehicles/VehiclesDetail';
+import { SafeUser } from '@pages/(administrator)/(users)/user/ClientsDetailAdminPage';
 
-//Создаем тип, расширяющий SafeUser и добавляющий companyProfile
-interface SafeUserWithCompanyProfile extends SafeUser {
+//Определяем новый тип, расширяющий User и добавляющий companyProfile
+interface UserWithCompanyProfile extends SafeUser {
   companyProfile?: CompanyProfile | null;
 }
 
 interface OperatorDetailViewProps {
-  userData: SafeUserWithCompanyProfile;
+  userData: UserWithCompanyProfile;
 }
 
 const renderField = (label: string, value?: string | null) => (
@@ -25,8 +26,6 @@ const renderField = (label: string, value?: string | null) => (
 );
 
 const OperatorDetailView = ({ userData }: OperatorDetailViewProps): JSX.Element => {
-  const [isOpen, setIsOpen] = useState(false);
-
   const userFields = [
     { label: 'Email', value: userData.email },
     { label: 'Availability', value: userData.availability ? 'Available' : 'Unavailable' },
@@ -34,7 +33,7 @@ const OperatorDetailView = ({ userData }: OperatorDetailViewProps): JSX.Element 
     { label: 'Phone', value: userData.phone },
     { label: 'Gender', value: userData.gender },
     { label: 'Address', value: userData.address },
-    { label: 'Profile Photo Path', value: userData.profilePhotoPath },
+    //{ label: 'Profile Photo Path', value: userData.profilePhotoPath },
   ];
 
   const companyFields = userData.companyProfile
@@ -69,36 +68,19 @@ const OperatorDetailView = ({ userData }: OperatorDetailViewProps): JSX.Element 
           {userFields.map((field, index) => (
             <React.Fragment key={index}>{renderField(field.label, field.value)}</React.Fragment>
           ))}
-          <div className="rounded-lg mb-4">
-            <button
-              type="button"
-              onClick={() => setIsOpen(!isOpen)}
-              className="w-full flex justify-between items-center p-4 rounded-t-lg"
-            >
-              <h2 className="text-2xl font-bold text-gray-700">Company Profile</h2>
-              <span
-                className={`transform transition-transform ${isOpen ? 'rotate-180' : 'rotate-0'}`}
-              >
-                ▼
-              </span>
-            </button>
-            <div
-              className={`overflow-hidden transition-all duration-700 ease-in-out ${
-                isOpen ? 'max-h-screen' : 'max-h-0'
-              }`}
-            >
-              <div className="p-4 bg-white border-t border-gray-300">
-                {companyFields.map((field, index) => (
-                  <div key={index}>{renderField(field.label, field.value)}</div>
-                ))}
-              </div>
-            </div>
-          </div>
         </div>
         <div className="w-full h-[240px]  bg-gray-50 p-[30px] flex items-center justify-center">
           <h1>Logo</h1>
         </div>
       </section>
+      <div className="rounded-lg mt-4">
+        <h2 className="text-2xl font-bold text-gray-700 mb-6">Operator Profile</h2>
+        <div className="p-4 bg-white grid grid-cols-1 lg:grid-cols-2 md:grid-cols-2 sm:grid-cols-2 gap-2">
+          {companyFields.map((field, index) => (
+            <DetailItem key={index} label={field.label} value={field.value} />
+          ))}
+        </div>
+      </div>
     </>
   );
 };

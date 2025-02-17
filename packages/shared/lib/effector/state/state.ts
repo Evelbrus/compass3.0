@@ -75,7 +75,6 @@ export const setAdditionalServiceUuid = createEvent<string | null>();
 export const $additionalServiceUuid = createStore<string | null>(null).on(
   setAdditionalServiceUuid,
   (_, uuid) => {
-    console.log('Effector: установлен UUID доп. услуги:', uuid);
     return uuid;
   },
 );
@@ -83,6 +82,5 @@ export const $additionalServiceUuid = createStore<string | null>(null).on(
 //Состояние для хранения UUID точки прибытия
 export const setPointUuid = createEvent<string | null>();
 export const $pointUuid = createStore<string | null>(null).on(setPointUuid, (_, uuid) => {
-  console.log('Effector: установлен UUID точки прибытия:', uuid);
   return uuid;
 });

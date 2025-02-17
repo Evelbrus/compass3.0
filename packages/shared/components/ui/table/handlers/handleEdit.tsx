@@ -13,14 +13,12 @@ export const handleEdit = (
 ) => {
   if (!uuid) return;
 
-  console.log('handleEdit вызван для', entity, 'UUID:', uuid, 'Модалка:', modalType);
-
   if (entity === 'additional-services') {
     setAdditionalServiceUuid(uuid);
-    openModal(modalType);
+    if (modalType) openModal(modalType);
   } else if (entity === 'points') {
     setPointUuid(uuid);
-    openModal(modalType);
+    if (modalType) openModal(modalType);
   } else if (navigate) {
     let path = '';
 
