@@ -11,7 +11,7 @@ export const handleEdit = (
   modalType?: ModalType,
   navigate?: (path: string) => void,
 ) => {
-  if (!uuid || !modalType) return;
+  if (!uuid) return;
 
   console.log('handleEdit вызван для', entity, 'UUID:', uuid, 'Модалка:', modalType);
 
