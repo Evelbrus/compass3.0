@@ -1,17 +1,18 @@
 'use client';
 
 import React, { JSX, useState } from 'react';
-import { User, CompanyProfile } from '@prisma/client';
+import { SafeUser } from '@pages/(administrator)/(users)/user/ClientsDetailAdminPage'; //Import SafeUser
+import { CompanyProfile } from '@prisma/client';
 import Image from 'next/image';
 import { LazyImage } from '@shared/components/ui/images';
 
-//Определяем новый тип, расширяющий User и добавляющий companyProfile
-interface UserWithCompanyProfile extends User {
+//Определяем новый тип, расширяющий SafeUser и добавляющий companyProfile
+interface SafeUserWithCompanyProfile extends SafeUser {
   companyProfile?: CompanyProfile | null;
 }
 
 interface ClientCorpDetailViewProps {
-  userData: UserWithCompanyProfile;
+  userData: SafeUserWithCompanyProfile;
 }
 
 const renderField = (label: string, value?: string | null) => (

@@ -18,7 +18,7 @@ export async function GET(req: Request) {
     status: searchParams.get('status') as OrderStatus | null,
     sort_by:
       (searchParams.get('sort_by') as 'createdAt' | 'updatedAt' | 'finalPrice') || 'createdAt',
-    sort_order: (searchParams.get('sort_order') as 'asc' | 'desc') || 'asc',
+    sort_order: (searchParams.get('sort_order') as 'asc' | 'desc') || 'desc',
   };
 
   log('Parsed parameters:', parsedParams);

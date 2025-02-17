@@ -1,5 +1,5 @@
 export const handleDetail = (
-  entity?: 'users' | 'orders' | 'vehicles',
+  entity?: 'users' | 'orders' | 'vehicles' | 'additional-services' | 'points',
   uuid?: string,
   navigate?: (path: string) => void,
 ) => {

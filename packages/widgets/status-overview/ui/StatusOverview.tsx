@@ -40,7 +40,7 @@ const StatusOverview = <T = string,>({
 
   return React.createElement(
     'div',
-    { className: 'w-full grid grid-cols-[repeat(auto-fit,minmax(250px,1fr))] gap-2' },
+    { className: 'w-full flex flex-row overflow-y-hidden gap-4 justify-start pb-2' },
     statusOverview.map((status: StatusItem) => {
       const isSelected = selectedStatus === status.key;
       return React.createElement(
@@ -49,7 +49,7 @@ const StatusOverview = <T = string,>({
           key: status.key,
           onClick: () => handleStatusChange(status.key),
           className:
-            'relative h-16 px-4 py-2 flex justify-between items-center gap-4 rounded-xl ' +
+            'relative w-full max-w-[300px] h-16 px-4 py-2 flex justify-between items-center gap-4 rounded-xl ' +
             'bg-white transition-all duration-300 ' +
             (isSelected
               ? 'opacity-100 cursor-default'

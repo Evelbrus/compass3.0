@@ -61,16 +61,12 @@ export const SessionProvider = ({
           return;
         }
 
-        console.log('1 ШАГ: "Начинаем обновление токенов..."');
         refreshAccessTokenFx().then((result) => {
           if (result) {
-            console.log('2 ШАГ: "Токены успешно обновлены!"');
-            console.log('3 ШАГ: "Перезагружаем текущую страницу через 2.5 секунды"');
             setTimeout(() => {
               window.location.reload();
             }, 2500);
           } else {
-            console.log('2 ШАГ: "Ошибка при обновлении токенов!"');
             handleRefreshTokenExpiration();
           }
         });

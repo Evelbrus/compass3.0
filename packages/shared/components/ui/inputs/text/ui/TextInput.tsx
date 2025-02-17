@@ -32,16 +32,14 @@ export const TextInput: React.FC<TextInputProps> = ({
   maxLength,
   onKeyDown,
   classNameLabel = 'block text-4 font-medium text-gray-500 mb-2',
+  inputClass = cn(
+    'w-full rounded p-2 focus:outline-none focus:ring',
+    error ? 'border-2 border-red-400' : 'border border-gray-300 focus:border-blue-300',
+  ),
 }) => {
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
   //Состояние для переключения видимости пароля
   const [showPassword, setShowPassword] = useState(false);
-
-  //Если тип "password", добавляем отступ справа для иконки
-  const inputClass = cn(
-    'w-full rounded p-2 focus:outline-none focus:ring',
-    error ? 'border-2 border-red-400' : 'border border-gray-300 focus:border-blue-300',
-  );
 
   /**Приведение значения к строке */
   const getFormattedValue = (): string => {

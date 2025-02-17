@@ -10,14 +10,13 @@ import convertPrismaData from '@shared/prisma/utils/converterBigIntToString';
 import { VehicleData } from '@features/vehicles/hooks/useVehiclesCreateForm';
 
 interface PageProps {
-  params: { uuid: string };
+  params: Promise<{ uuid: string }>;
 }
 
 export const revalidate = 60;
 
 const Page = async ({ params }: PageProps): Promise<JSX.Element> => {
-  //В Next.js 13 динамические маршруты должны ожидать params
-  const { uuid } = params;
+  const { uuid } = await params;
   const { role, refreshToken } = await getLayoutData();
 
   if (!refreshToken) {
@@ -35,7 +34,6 @@ const Page = async ({ params }: PageProps): Promise<JSX.Element> => {
       include: {
         vehicleDrivers: {
           include: {
-            //Подключаем данные водителя из модели User
             driver: true,
           },
         },
@@ -50,9 +48,6 @@ const Page = async ({ params }: PageProps): Promise<JSX.Element> => {
     return <Loading />;
   }
 
-  //Формируем данные для формы без добавления поля photoImage.
-  //Таким образом, vehicleDrivers будет передан как есть:
-  //(VehicleDriver & { driver: User })[]
   const safeVehicleData: VehicleData = convertPrismaData(vehicleData);
 
   console.log('vehicleDataEdit', safeVehicleData);

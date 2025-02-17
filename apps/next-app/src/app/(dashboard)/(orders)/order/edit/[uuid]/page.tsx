@@ -1,4 +1,3 @@
-//Page.tsx
 import React, { JSX } from 'react';
 import { getLayoutData } from '@shared/utils/cookie/layout-data/getLayoutData';
 import OrderCreateView from '@pages/(administrator)/orders/create/OrderCreate.view';
@@ -14,8 +13,8 @@ interface PageProps {
 export const revalidate = 60;
 
 const Page = async ({ params }: PageProps): Promise<JSX.Element> => {
-  const { role, refreshToken } = await getLayoutData();
   const { uuid } = await params;
+  const { role, refreshToken } = await getLayoutData();
 
   if (refreshToken) {
     if (role === UserRole.Admin || role === UserRole.Operator) {

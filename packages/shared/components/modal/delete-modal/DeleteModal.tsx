@@ -38,6 +38,16 @@ const DeleteModal: React.FC<DeleteModalProps> = ({ onClose }) => {
         successMessage = 'Пользователь успешно удалён!';
         errorMessage = 'Ошибка при удалении пользователя.';
         break;
+      case 'additional-services':
+        apiPath = `/api/additional-services/${entityToDelete.uuid}`;
+        successMessage = 'Пользователь успешно удалён!';
+        errorMessage = 'Ошибка при удалении пользователя.';
+        break;
+      case 'points':
+        apiPath = `/api/points/${entityToDelete.uuid}`;
+        successMessage = 'Пользователь успешно удалён!';
+        errorMessage = 'Ошибка при удалении пользователя.';
+        break;
       default:
         console.error(`Неизвестный тип сущности: ${entityToDelete.entity}`);
         return;
@@ -54,7 +64,7 @@ const DeleteModal: React.FC<DeleteModalProps> = ({ onClose }) => {
 
       if (response.ok) {
         showToast.success(successMessage);
-        triggerUpdate(); //Триггерим обновление данных
+        triggerUpdate();
       } else {
         const errorData = await response.json();
         const errorMessageFromServer = errorData?.error || response.statusText;

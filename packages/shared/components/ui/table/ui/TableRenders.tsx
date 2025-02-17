@@ -6,47 +6,49 @@ import { handleDownload } from '@shared/components/ui/table/handlers/handleDownl
 import { handleDelete } from '@shared/components/ui/table/handlers/handleDelete';
 import { handleDetail } from '@shared/components/ui/table/handlers/handleDetail';
 import { handleOrderDriverDetail } from '@shared/components/ui/table/handlers/drivers/handleOrderDriverDetail';
+import { ModalType } from '@shared/lib/effector';
 
-export const renderActions = (
-  entity?: 'users' | 'orders' | 'vehicles',
-  uuid?: string,
-  navigate?: (path: string) => void,
-) => (
-  <div className="flex">
-    <div
-      className="p-2 hover:bg-blue-100 rounded-full flex justify-center items-center cursor-pointer transition-colors duration-300"
-      onClick={() => handleDetail(entity, uuid, navigate)}
-    >
-      <Icon name="view" alt="Редактировать" className="w-6 h-6 text-blue-500 hover:text-blue-700" />
+interface RenderActionsProps {
+  entity?: 'users' | 'orders' | 'vehicles' | 'additional-services' | 'points';
+  uuid?: string;
+  modalType?: ModalType;
+  navigate?: (path: string) => void;
+}
+
+export const renderActions = ({ entity, uuid, modalType, navigate }: RenderActionsProps) => {
+  return (
+    <div className="flex">
+      <div
+        className="p-2 hover:bg-blue-100 rounded-full flex justify-center items-center cursor-pointer transition-colors duration-300"
+        onClick={() => handleDetail(entity, uuid, navigate)}
+      >
+        <Icon name="view" alt="Просмотр" className="w-6 h-6 text-blue-500 hover:text-blue-700" />
+      </div>
+      <div
+        className="p-2 hover:bg-blue-100 rounded-full flex justify-center items-center cursor-pointer transition-colors duration-300"
+        onClick={() => handleEdit(entity, uuid, modalType, navigate)}
+      >
+        <Icon
+          name="edit"
+          alt="Редактировать"
+          className="w-6 h-6 text-blue-500 hover:text-blue-700"
+        />
+      </div>
+      <div
+        className="p-2 hover:bg-green-100 rounded-full flex justify-center items-center cursor-pointer transition-colors duration-300"
+        onClick={() => handleDownload(uuid)}
+      >
+        <Icon name="download" alt="Скачать" className="text-green-500 hover:text-green-700" />
+      </div>
+      <div
+        className="p-2 hover:bg-red-100 rounded-full flex justify-center items-center cursor-pointer transition-colors duration-300"
+        onClick={() => handleDelete(entity, uuid)}
+      >
+        <Icon name="delete" alt="Удалить" className="w-6 h-6 text-red-500 hover:text-red-700" />
+      </div>
     </div>
-    <div
-      className="p-2 hover:bg-blue-100 rounded-full flex justify-center items-center cursor-pointer transition-colors duration-300"
-      onClick={() => handleEdit(entity, uuid, navigate)}
-    >
-      <Icon name="edit" alt="Редактировать" className="w-6 h-6 text-blue-500 hover:text-blue-700" />
-    </div>
-    <div
-      className="p-2 hover:bg-green-100 rounded-full flex justify-center items-center cursor-pointer transition-colors duration-300"
-      //onClick={() => handleDownload(uuid, navigate)}
-    >
-      <Icon
-        name="download"
-        alt="Скачать"
-        className="relative left-[1.5px] text-green-500 hover:text-green-700"
-      />
-    </div>
-    <div
-      className="p-2 hover:bg-red-100 rounded-full flex justify-center items-center cursor-pointer transition-colors duration-300"
-      onClick={() => handleDelete(entity, uuid)}
-    >
-      <Icon
-        name="delete"
-        alt="Удалить"
-        className="relative left-[1.5px] w-6 h-6 text-red-500 hover:text-red-700"
-      />
-    </div>
-  </div>
-);
+  );
+};
 
 export const renderDriverActions = (
   entity: 'vehicles',
@@ -129,50 +131,48 @@ export const renderOrderDriverActions = ({ entity, uuid }: RenderOrderDriverActi
   </div>
 );
 
-export const renderOrdersActions = (
-  entity?: 'users' | 'orders' | 'vehicles',
-  uuid?: string,
-  navigate?: (path: string) => void,
-) => (
-  <div className="flex">
-    {/*Only show the driver detail button if entity is 'orders' */}
-    {entity === 'orders' && (
+export const renderOrdersActions = ({ entity, uuid, modalType, navigate }: RenderActionsProps) => {
+  return (
+    <div className="flex">
+      {/*Only show the driver detail button if entity is 'orders' */}
+      {entity === 'orders' && (
+        <div
+          className="p-2 hover:bg-blue-100 rounded-full flex justify-center items-center cursor-pointer transition-colors duration-300"
+          onClick={() => handleOrderDriverDetail(entity, uuid)}
+        >
+          <Icon name="view" alt="Просмотр" className="w-6 h-6 text-blue-500 hover:text-blue-700" />
+        </div>
+      )}
       <div
         className="p-2 hover:bg-blue-100 rounded-full flex justify-center items-center cursor-pointer transition-colors duration-300"
-        onClick={() => handleOrderDriverDetail(entity, uuid)}
+        onClick={() => handleEdit(entity, uuid, modalType, navigate)}
       >
         <Icon
-          name="view"
+          name="edit"
           alt="Редактировать"
           className="w-6 h-6 text-blue-500 hover:text-blue-700"
         />
       </div>
-    )}
-    <div
-      className="p-2 hover:bg-blue-100 rounded-full flex justify-center items-center cursor-pointer transition-colors duration-300"
-      onClick={() => handleEdit(entity, uuid, navigate)}
-    >
-      <Icon name="edit" alt="Редактировать" className="w-6 h-6 text-blue-500 hover:text-blue-700" />
+      <div
+        className="p-2 hover:bg-green-100 rounded-full flex justify-center items-center cursor-pointer transition-colors duration-300"
+        onClick={() => handleDownload(uuid)}
+      >
+        <Icon
+          name="download"
+          alt="Скачать"
+          className="relative left-[1.5px] text-green-500 hover:text-green-700"
+        />
+      </div>
+      <div
+        className="p-2 hover:bg-red-100 rounded-full flex justify-center items-center cursor-pointer transition-colors duration-300"
+        onClick={() => handleDelete(entity, uuid)}
+      >
+        <Icon
+          name="delete"
+          alt="Удалить"
+          className="relative left-[1.5px] w-6 h-6 text-red-500 hover:text-red-700"
+        />
+      </div>
     </div>
-    <div
-      className="p-2 hover:bg-green-100 rounded-full flex justify-center items-center cursor-pointer transition-colors duration-300"
-      //onClick={() => handleDownload(uuid, navigate)}
-    >
-      <Icon
-        name="download"
-        alt="Скачать"
-        className="relative left-[1.5px] text-green-500 hover:text-green-700"
-      />
-    </div>
-    <div
-      className="p-2 hover:bg-red-100 rounded-full flex justify-center items-center cursor-pointer transition-colors duration-300"
-      onClick={() => handleDelete(entity, uuid)}
-    >
-      <Icon
-        name="delete"
-        alt="Удалить"
-        className="relative left-[1.5px] w-6 h-6 text-red-500 hover:text-red-700"
-      />
-    </div>
-  </div>
-);
+  );
+};

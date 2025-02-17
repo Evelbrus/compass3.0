@@ -1,10 +1,12 @@
 'use client';
 
 import React from 'react';
-import { DetailVehicleData } from '@shared/prisma/interface/vehicles/interface';
+import { User, Vehicle, VehicleDriver } from '@prisma/client';
 
-interface VehiclesDetailProps {
-  data: DetailVehicleData;
+export interface VehiclesDetailProps {
+  data: Vehicle & {
+    vehicleDrivers: (VehicleDriver & { driver: Omit<User, 'password' | 'refreshTokens'> })[];
+  };
 }
 
 const VehiclesDetail: React.FC<VehiclesDetailProps> = ({ data }) => {
@@ -17,7 +19,9 @@ const VehiclesDetail: React.FC<VehiclesDetailProps> = ({ data }) => {
     { label: 'Color', value: data.color },
     { label: 'Plate Number', value: data.plateNumber },
     { label: 'Availability', value: data.isAvailable ? 'Available' : 'Not Available' },
+    { label: 'ownership', value: data.ownership },
   ];
+
   return (
     <div className="vehicle-detail-container">
       <h1 className="text-2xl font-bold mb-4">Vehicle Details</h1>
@@ -37,30 +41,15 @@ const VehiclesDetail: React.FC<VehiclesDetailProps> = ({ data }) => {
       )}
 
       <DriverSection drivers={data.vehicleDrivers} />
-
-      <div className="mt-4">
-        <h2 className="text-xl font-semibold mb-2">Service Level</h2>
-        <p className="text-gray-700 p-6 bg-white shadow-md rounded-lg border border-gray-200">
-          <span className="bg-white px-3 py-2 p-3 rounded-md border border-gray-300 text-xl font-semibold text-gray-700">
-            {data.serviceLevels}
-          </span>
-        </p>
-      </div>
     </div>
   );
 };
 
-export const DetailItem: React.FC<{ label: string; value: React.ReactNode }> = ({
-  label,
-  value,
-}) => (
-  <div className="bg-white px-3 py-2 p-3 rounded-md border border-gray-300">
-    <span className="text-4 text-[#2A3037] font-extrabold mr-2">{label}:</span>
-    <span className="text-4 font-medium text-gray-500 mb-2">{value}</span>
-  </div>
-);
+interface DriverSectionProps {
+  drivers: (VehicleDriver & { driver: Omit<User, 'password' | 'refreshTokens'> })[];
+}
 
-const DriverSection: React.FC<{ drivers: DetailVehicleData['vehicleDrivers'] }> = ({ drivers }) => {
+const DriverSection: React.FC<DriverSectionProps> = ({ drivers }) => {
   return (
     <div className="mt-6">
       <h2 className="text-xl font-semibold mb-4">Assigned Drivers</h2>
@@ -87,5 +76,15 @@ const DriverSection: React.FC<{ drivers: DetailVehicleData['vehicleDrivers'] }> 
     </div>
   );
 };
+
+export const DetailItem: React.FC<{ label: string; value: React.ReactNode }> = ({
+  label,
+  value,
+}) => (
+  <div className="bg-white px-3 py-2 p-3 rounded-md border border-gray-300">
+    <span className="text-4 text-[#2A3037] font-extrabold mr-2">{label}:</span>
+    <span className="text-4 font-medium text-gray-500 mb-2">{value}</span>
+  </div>
+);
 
 export default VehiclesDetail;

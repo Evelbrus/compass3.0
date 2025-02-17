@@ -63,7 +63,7 @@ const DriversNearby: React.FC<DriversNearbyProps> = ({
       <div className="w-full h-full flex flex-col gap-4">
         <h1 className="text-2xl font-extrabold leading-9">Водители поблизости</h1>
         <TextInput
-          classNamePadding="text-5 font-light leading-5 p-5 rounded-3xl shadow-3xl"
+          inputClass="bg-white text-5 font-light leading-5 p-5 rounded-3xl shadow-3xl"
           placeholder="Поиск по ФИО"
           value={searchDriver}
           onChange={(value: string | number | bigint | null) => {

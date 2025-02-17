@@ -1,19 +1,21 @@
 'use client';
 
 import React, { JSX } from 'react';
-import { DriverProfile, User } from '@prisma/client';
+import { SafeUser } from '@pages/(administrator)/(users)/user/ClientsDetailAdminPage'; //Import SafeUser
+import { DriverProfile } from '@prisma/client';
 import { LazyImage } from '@shared/components/ui/images';
 import { DetailItem } from '@pages/(administrator)/vehicles/VehiclesDetail';
 import { SelectSingle } from '@shared/components/ui/inputs';
 import { changingDriverOptions } from '@shared/lib/effector/drivers/optionsTranslation/optionsTranslationDriver';
 import { useRouter } from 'next/navigation';
 
-interface UserWithDriverProfile extends User {
+//Создаем тип, расширяющий SafeUser и добавляющий driverProfile
+interface SafeUserWithDriverProfile extends SafeUser {
   driverProfile?: DriverProfile | null;
 }
 
 interface DriverDetailViewProps {
-  userData: UserWithDriverProfile;
+  userData: SafeUserWithDriverProfile;
 }
 
 const renderField = (label: string, value?: string | number | null) => (

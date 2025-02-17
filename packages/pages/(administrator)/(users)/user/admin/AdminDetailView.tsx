@@ -1,10 +1,10 @@
 'use client';
 
 import React, { JSX } from 'react';
-import { User } from '@prisma/client';
+import { SafeUser } from '@pages/(administrator)/(users)/user/ClientsDetailAdminPage';
 
 interface AdminDetailViewProps {
-  userData: User;
+  userData: SafeUser;
 }
 
 const AdminDetailView = ({ userData }: AdminDetailViewProps): JSX.Element => {

@@ -104,7 +104,6 @@ export const useDriverNotifications = (userId?: string) => {
 
     if (socket && userSessionDep) {
       const registerUser = () => {
-        console.log('registerUser вызвана с userId:', userSessionDep);
         socket.emit('register', userSessionDep);
       };
 

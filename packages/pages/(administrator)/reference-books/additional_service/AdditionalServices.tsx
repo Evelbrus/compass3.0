@@ -1,62 +1,84 @@
 'use client';
 
-import React, { useEffect, useState, JSX } from 'react';
-import { AdditionalService } from '@prisma/client';
+import React, { useEffect, useRef } from 'react';
+import { IButton } from '@shared/components/ui/buttons';
+import AnimatedComponent from '@shared/components/animated/CommonAnimated/AnimatedComponent';
+import { openModal } from '@shared/lib/effector/state/state';
+import useURLParams from '@shared/utils/hooks/useURLParams';
+import PaginationComponent from '@shared/components/ui/pagination/PaginationComponent';
+import useAdditionalServices from '@features/additional-service/hooks/useAdditionalServices';
+import AdditionalServicesTable from '@features/additional-service/table/AdditionalServicesTable';
 
-const AdditionalServices = (): JSX.Element => {
-  const [additionalServices, setAdditionalServices] = useState<AdditionalService[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [page, setPage] = useState<number>(1);
-  const [perPage, setPerPage] = useState<number>(10);
-  const [total, setTotal] = useState<number>(0);
+const AdditionalServices = ({
+  activeTab,
+  reset,
+  setReset,
+}: {
+  activeTab: string;
+  reset: boolean;
+  setReset: (reset: boolean) => void;
+}) => {
+  const topRef = useRef<HTMLDivElement>(null);
+
+  //Получаем данные из хука
+  const {
+    additionalServices,
+    loading,
+    error,
+    total,
+    optimisticPage,
+    perPage,
+    sortBy,
+    sortOrder,
+    handlePageChange,
+    handleSort,
+  } = useAdditionalServices();
+
+  //Теперь используем хук useURLParams для обновления URL
+  useURLParams({ optimisticPage, sortBy, sortOrder, reset, activeTab });
 
   useEffect(() => {
-    const fetchAdditionalServices = async () => {
-      try {
-        const response = await fetch(`/api/additional-services?page=${page}&per_page=${perPage}`);
-        if (!response.ok) {
-          throw new Error('Network response was not ok');
-        }
-        const data = await response.json();
-        setAdditionalServices(data.additionalServices);
-        setTotal(data.total);
-      } catch (error) {
-        console.error('Error fetching additional services:', error);
-        setError('Error fetching additional services');
-      } finally {
-        setLoading(false);
-      }
-    };
+    if (reset) {
+      //Когда reset равен true, сбрасываем страницу на 1 и очищаем reset
+      handlePageChange(1);
+      setReset(false);
+    }
+  }, [reset, setReset, handlePageChange]);
 
-    fetchAdditionalServices();
-  }, [page, perPage]);
+  //Обработчик изменения страницы с прокруткой вверх
+  const handlePageChangeWithScroll = (newPage: number) => {
+    handlePageChange(newPage);
+    if (topRef.current) {
+      topRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
 
   return (
-    <div>
-      <h1>Additional Services</h1>
-      <p>
-        Welcome to the Additional Services Reference Book. Here you can view all additional
-        services.
-      </p>
-      <h2>Additional Services:</h2>
-      {loading && <p>Loading additional services...</p>}
-      {error && <p>{error}</p>}
-      <ul>
-        {additionalServices.map((service) => (
-          <li key={service.uuid}>{service.name}</li>
-        ))}
-      </ul>
-      <div>
-        <p>Total Additional Services: {total}</p>
-        <button onClick={() => setPage(page > 1 ? page - 1 : 1)} disabled={page <= 1}>
-          Previous
-        </button>
-        <button onClick={() => setPage(page + 1)} disabled={additionalServices.length < perPage}>
-          Next
-        </button>
+    <AnimatedComponent
+      className="relative max-w-full min-h-[calc(100vh-80px)] p-5 flex flex-col gap-4"
+      duration={1000}
+    >
+      <div ref={topRef} className="w-full flex flex-row justify-between items-center">
+        <h1 className="text-2xl font-extrabold leading-4">Дополнительные услуги</h1>
+        <IButton onClick={() => openModal('createAdditionalServiceModal')}>Добавить услугу</IButton>
       </div>
-    </div>
+
+      <AdditionalServicesTable
+        additionalServices={additionalServices}
+        loading={loading}
+        error={error}
+        sortBy={sortBy}
+        sortOrder={sortOrder}
+        handleSort={handleSort}
+      />
+
+      <PaginationComponent
+        pageNumber={optimisticPage}
+        pageSize={perPage}
+        totalCount={total}
+        setPageNumber={handlePageChangeWithScroll}
+      />
+    </AnimatedComponent>
   );
 };
 

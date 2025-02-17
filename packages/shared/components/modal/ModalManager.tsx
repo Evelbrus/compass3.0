@@ -9,6 +9,8 @@ import CreateUserModal from '@shared/components/modal/create-user-modal/ui/Creat
 import OrderDetailDriverModal from '@shared/components/modal/order-detail-driver-modal/OrderDetailDriverModal';
 import CreateClientCorpOrder from '@shared/components/modal/create-client-corp-order/CreateClientCorpOrder';
 import ChangePasswordModal from '@shared/components/modal/change-password-modal/ChangePasswordModal';
+import CreateAdditionalServiceModal from '@shared/components/modal/create-additional-service-modal/CreateAdditionalServiceModal';
+import CreatePointModal from '@shared/components/modal/create-point-modal/CreatePointModal';
 
 interface ModalManagerComponentProps {
   role: UserRole;
@@ -27,6 +29,10 @@ const ModalManagerComponent: React.FC<ModalManagerComponentProps> = ({ role }) =
       {modalType === 'deleteModal' && <DeleteModal onClose={closeModal} />}
       {modalType === 'createClientCorpOrder' && <CreateClientCorpOrder onClose={closeModal} />}
       {modalType === 'changePasswordModal' && <ChangePasswordModal onClose={closeModal} />}
+      {modalType === 'createAdditionalServiceModal' && (
+        <CreateAdditionalServiceModal onClose={closeModal} />
+      )}
+      {modalType === 'createPointModal' && <CreatePointModal onClose={closeModal} />}
     </>
   );
 };

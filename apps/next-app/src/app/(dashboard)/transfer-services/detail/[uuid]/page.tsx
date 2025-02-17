@@ -4,8 +4,9 @@ import { getLayoutData } from '@shared/utils/cookie/layout-data/getLayoutData';
 import { prisma } from '@shared/prisma/prisma-client';
 import VehiclesDetail from '@pages/(administrator)/vehicles/VehiclesDetail';
 import Loading from '@entities/loading/loading';
-import { DriverProfile, UserRole } from '@prisma/client';
+import { UserRole } from '@prisma/client';
 import { publicRoutes } from '@shared/utils/routing';
+import { omit } from 'next/dist/shared/lib/router/utils/omit';
 
 interface PageProps {
   params: Promise<{ uuid: string }>;
@@ -29,36 +30,12 @@ const Page: React.FC<PageProps> = async ({ params }) => {
       const userUuid = userSession?.uuid;
       if (!userUuid) return <Loading />;
 
-      //Получение данных транспортного средства
       const vehicle = await prisma.vehicle.findUnique({
         where: { uuid },
-        select: {
-          uuid: true,
-          vehicleType: true,
-          brand: true,
-          model: true,
-          year: true,
-          color: true,
-          plateNumber: true,
-          isAvailable: true,
-          photoPath: true,
-          photoRegistrationCertificate: true,
-          serviceLevels: true,
-          createdAt: true,
-          updatedAt: true,
+        include: {
           vehicleDrivers: {
-            select: {
-              uuid: true,
-              assignmentDate: true,
-              driver: {
-                select: {
-                  uuid: true,
-                  fullName: true,
-                  phone: true,
-                  //Исправлено: вместо выбора несуществующего поля status выбираем весь профиль
-                  driverProfile: true,
-                },
-              },
+            include: {
+              driver: true,
             },
           },
         },
@@ -78,19 +55,10 @@ const Page: React.FC<PageProps> = async ({ params }) => {
       //Форматирование данных для компонента
       const detailVehicleData = {
         ...vehicle,
-        //Если поле отсутствует, установим значение null
         photoRegistrationCertificate: vehicle.photoRegistrationCertificate || null,
-        drivers: vehicle.vehicleDrivers.map((vd) => ({
-          assignmentUuid: vd.uuid,
-          assignmentDate: vd.assignmentDate,
-          userUuid: vd.driver.uuid,
-          fullName: vd.driver.fullName,
-          phone: vd.driver.phone,
-          //Если поле status необходимо, можно попробовать привести тип или оставить null.
-          //Например, если вы ожидаете, что поле появится в будущем:
-          status: vd.driver.driverProfile
-            ? (vd.driver.driverProfile as DriverProfile) || null
-            : null,
+        vehicleDrivers: vehicle.vehicleDrivers.map((vd) => ({
+          ...vd,
+          driver: omit(vd.driver, ['password', 'refreshTokens']),
         })),
       };
 

@@ -113,7 +113,7 @@ const VehiclesForm: React.FC<VehiclesFormProps> = ({ mode, vehicleData }) => {
                     label="Марка:"
                     placeholder="Введите марку автомобиля"
                     value={field.value || ''}
-                    onChange={(value: string) => field.onChange(value)}
+                    onChange={(value) => field.onChange(value)}
                     error={!!fieldState.error}
                     message={fieldState.error?.message || ''}
                   />
@@ -130,7 +130,7 @@ const VehiclesForm: React.FC<VehiclesFormProps> = ({ mode, vehicleData }) => {
                     label="Модель:"
                     placeholder="Введите модель автомобиля"
                     value={field.value || ''}
-                    onChange={(value: string) => field.onChange(value)}
+                    onChange={(value) => field.onChange(value)}
                     error={!!fieldState.error}
                     message={fieldState.error?.message || ''}
                   />
@@ -148,7 +148,7 @@ const VehiclesForm: React.FC<VehiclesFormProps> = ({ mode, vehicleData }) => {
                     type="date"
                     placeholder="Выберите год выпуска"
                     value={field.value ? formatDate(field.value) : ''}
-                    onChange={(value: string) => field.onChange(value)}
+                    onChange={(value) => field.onChange(value)}
                     error={!!fieldState.error}
                     message={fieldState.error?.message || ''}
                   />
@@ -183,7 +183,7 @@ const VehiclesForm: React.FC<VehiclesFormProps> = ({ mode, vehicleData }) => {
                     label="Номерной знак:"
                     placeholder="Введите номерной знак"
                     value={field.value || ''}
-                    onChange={(value: string) => field.onChange(value)}
+                    onChange={(value) => field.onChange(value)}
                     error={!!fieldState.error}
                     message={fieldState.error?.message || ''}
                   />
@@ -308,7 +308,7 @@ const VehiclesForm: React.FC<VehiclesFormProps> = ({ mode, vehicleData }) => {
                 <ImageUploadWithCrop
                   label="Фото автомобиля:"
                   initialSrc={previewImage || undefined}
-                  onChange={(file: File | null) => field.onChange(file)}
+                  onChange={(value) => field.onChange(value)}
                   error={!!fieldState.error}
                   errorMessage={fieldState.error?.message || ''}
                 />

@@ -17,7 +17,7 @@ export const IButton = React.forwardRef<HTMLButtonElement | HTMLAnchorElement, B
   (
     {
       variant = 'solid',
-      className = 'w-[200px] h-[56px] rounded-lg border-none bg-[color:var(--button-secondary)]\n' +
+      className = 'p-1 w-[200px] h-[56px] rounded-lg border-none bg-[color:var(--button-secondary)]\n' +
         'text-white font-semibold transition duration-300 ease-in-out\n' +
         'hover:bg-[color:var(--button-secondary-hover)]',
       href,

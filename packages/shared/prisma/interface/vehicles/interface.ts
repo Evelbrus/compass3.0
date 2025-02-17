@@ -19,11 +19,3 @@ export type DetailVehicleData = Omit<Vehicle, 'createdAt' | 'updatedAt'> & {
     };
   }>;
 };
-
-export type CreateVehicleData = Omit<Vehicle, 'uuid' | 'createdAt' | 'updatedAt'> & {
-  driverIds?: string[];
-};
-
-export type EditVehicleData = Omit<Vehicle, 'uuid' | 'createdAt' | 'updatedAt'> & {
-  driverIds?: string[];
-};

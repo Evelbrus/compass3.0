@@ -35,8 +35,6 @@ const scheduleTokenRefresh = (type: TokenType, expiresIn: number) => {
   let actualTime = expiresIn - bufferTime;
   if (actualTime < 1000) actualTime = 1000;
 
-  console.log(`[SCHEDULE] Обновление ${type}-токена через ${actualTime} мс`);
-
   const timer = setTimeout(() => {
     refreshToken();
   }, actualTime);
@@ -89,12 +87,7 @@ export const refreshAccessTokenFx = createEffect(async () => {
       return false;
     }
 
-    //Логируем перед запросом для отладки
-    console.log('refreshAccessTokenFx: refreshTokenValue =', refreshTokenValue);
-
     const loginAttemptId = getLoginAttemptId();
-    console.log('refreshAccessTokenFx: loginAttemptId =', loginAttemptId);
-
     const response = await fetch('/api/auth/refresh', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

@@ -152,7 +152,7 @@ export async function GET(req: Request) {
         | 'updatedAt'
         | 'role'
         | 'availability') || 'createdAt',
-    sort_order: (searchParams.get('sort_order') as 'asc' | 'desc') || 'asc',
+    sort_order: (searchParams.get('sort_order') as 'asc' | 'desc') || 'desc',
     search: searchParams.get('search') || null,
   };
 

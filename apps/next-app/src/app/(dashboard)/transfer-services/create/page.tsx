@@ -1,6 +1,5 @@
 import React, { JSX } from 'react';
 import { getLayoutData } from '@shared/utils/cookie/layout-data/getLayoutData';
-import VehiclesCreate from '@pages/(administrator)/vehicles/VehiclesCreate';
 import Loading from '@entities/loading/loading';
 import { UserRole } from '@prisma/client';
 import { redirect } from 'next/navigation';

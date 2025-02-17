@@ -20,10 +20,12 @@ export type ModalType =
   | 'orderDetailDriver'
   | 'createClientCorpOrder'
   | 'changePasswordModal'
+  | 'createAdditionalServiceModal'
+  | 'createPointModal'
   | null;
 
 export type EntityToDelete = {
-  entity?: 'users' | 'orders' | 'vehicles';
+  entity?: 'users' | 'orders' | 'vehicles' | 'additional-services' | 'points';
   uuid?: string;
   role?: UserRole;
 } | null;
@@ -37,8 +39,10 @@ export const $entityToDelete = createStore<EntityToDelete>(null)
   .on(setEntityToDelete, (_, entity) => entity)
   .reset(closeModal);
 
-export const $modalType = createStore<ModalType>(null)
+export const setModalType = createEvent<ModalType | null>();
+export const $modalType = createStore<ModalType | null>(null)
   .on(openModal, (_, modalType) => modalType)
+  .on(setModalType, (_, modalType) => modalType)
   .reset(closeModal);
 
 export const $currentPage = createStore<PrivatePageType | null>(null).on(
@@ -66,3 +70,19 @@ export const setUserFullName = createEvent<string | null>();
 export const $userFullName = createStore<string | null>(null)
   .on(setUserFullName, (_, fullName) => fullName)
   .reset(closeModal);
+
+export const setAdditionalServiceUuid = createEvent<string | null>();
+export const $additionalServiceUuid = createStore<string | null>(null).on(
+  setAdditionalServiceUuid,
+  (_, uuid) => {
+    console.log('Effector: установлен UUID доп. услуги:', uuid);
+    return uuid;
+  },
+);
+
+//Состояние для хранения UUID точки прибытия
+export const setPointUuid = createEvent<string | null>();
+export const $pointUuid = createStore<string | null>(null).on(setPointUuid, (_, uuid) => {
+  console.log('Effector: установлен UUID точки прибытия:', uuid);
+  return uuid;
+});

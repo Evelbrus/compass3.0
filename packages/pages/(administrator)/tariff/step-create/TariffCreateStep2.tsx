@@ -20,7 +20,7 @@ const TariffCreateStep2: React.FC<TariffCreateStep2Props> = ({
   setFormData,
   handleInputChange,
 }) => {
-  const handleFreeWaitTimeChange = (value: string | number) => {
+  const handleFreeWaitTimeChange = (value: string | number | bigint | null) => {
     const numberValue = Number(value);
     return numberValue <= 60 ? numberValue : 60;
   };

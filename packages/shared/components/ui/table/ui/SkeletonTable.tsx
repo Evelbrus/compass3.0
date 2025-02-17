@@ -36,7 +36,7 @@ const SkeletonTable = <T,>({ columns, rows = 5 }: SkeletonTableProps<T>) => {
               {columns.map((col, colIndex) => (
                 <div
                   key={String(col.accessor)}
-                  className={`p-4 border-b border-gray-300 text-gray-800 font-medium text-[14px] leading-[13.83px] flex items-center ${
+                  className={`p-7 border-b border-gray-300 text-gray-800 font-medium text-[14px] leading-[13.83px] flex items-center ${
                     colIndex === 0 ? 'text-center justify-center' : ''
                   }`}
                 >

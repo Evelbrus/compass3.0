@@ -30,7 +30,7 @@ const ClientsDetailAdminPage = ({ userData }: ClientsDetailAdminPageProps): JSX.
     case UserRole.Admin:
       return <AdminDetailView userData={userData} />;
     default:
-      return <AdminDetailView userData={userData} />;
+      return <ClientDetailView userData={userData} />;
   }
 };
 

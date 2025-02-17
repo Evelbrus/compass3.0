@@ -1,0 +1,5 @@
+'use client';
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+import styles from './RadioInput.module.css';
+export const RadioInput = ({ label, checked, onChange, required, requiredStar = false, error = false, message = 'Ошибка: Выберите корректное значение.', position = 'left', className, name, disabled = false, }) => (_jsxs("div", { className: `${styles.radioInput} ${className} ${position === 'left' ? styles.left : styles.right} ${disabled ? styles.disabled : ''}`, children: [_jsx("input", { type: "radio", checked: checked, onChange: onChange, required: required, className: styles.radioHidden, name: name, disabled: disabled }), _jsx("div", { className: styles.customCheckbox, children: checked && _jsx("span", { className: styles.checkboxTick }) }), _jsx("div", { className: styles.radioContent, children: _jsxs("p", { className: `${className} ${disabled ? styles.disabledText : ''}`, children: [label, " ", requiredStar && _jsx("span", { className: "text-red-500", children: "*" })] }) }), error && _jsx("div", { className: "text-red-500 text-sm", children: message }), ' '] }));
+RadioInput.displayName = 'RadioInput';

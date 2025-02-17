@@ -1,12 +1,12 @@
 'use client';
 
 import React, { JSX } from 'react';
-import { User } from '@prisma/client';
+import { SafeUser } from '@pages/(administrator)/(users)/user/ClientsDetailAdminPage';
 import Image from 'next/image';
 import { LazyImage } from '@shared/components/ui/images';
 
 interface ClientDetailViewProps {
-  userData: User;
+  userData: SafeUser;
 }
 
 const renderField = (label: string, value?: string | null) => (

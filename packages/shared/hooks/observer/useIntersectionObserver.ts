@@ -18,7 +18,7 @@ export function useIntersectionObserver(
     const observer = new IntersectionObserver(
       (entries) => {
         const entry = entries[0];
-        if (entry.isIntersecting) {
+        if (entry && entry.isIntersecting) {
           setIsVisible(true);
           observer.disconnect();
         }

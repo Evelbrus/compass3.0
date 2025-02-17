@@ -101,9 +101,9 @@ const VehiclesAdminPage = (): JSX.Element => {
   }, []);
 
   const handleSort = useCallback(
-    (sortByKey: keyof TableVehicleRow, sortDirection: 'asc' | 'desc') => {
+    (sortByKey: keyof TableVehicleRow | null, sortDirection: 'asc' | 'desc') => {
       startTransition(() => {
-        setSortBy(sortByKey);
+        setSortBy(sortByKey ?? 'createdAt');
         setSortOrder(sortDirection);
       });
     },
@@ -135,7 +135,11 @@ const VehiclesAdminPage = (): JSX.Element => {
         : null,
     createdAt: formatDate(vehicle.createdAt),
     updatedAt: formatDate(vehicle.updatedAt),
-    actions: renderActions('vehicles', vehicle.uuid, router.push),
+    actions: renderActions({
+      entity: 'vehicles',
+      uuid: vehicle.uuid,
+      navigate: router.push,
+    }),
   }));
 
   return (

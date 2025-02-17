@@ -93,11 +93,11 @@ const OrderDriverPage = (): JSX.Element => {
   );
 
   const handleSort = useCallback(
-    (sortByKey: keyof TableOrdersRow, sortDirection: 'asc' | 'desc') => {
+    (sortByKey: keyof TableOrdersRow | null, sortDirection: 'asc' | 'desc') => {
       startTransition(() => {
-        setSortBy(sortByKey);
+        setSortBy(sortByKey ?? 'createdAt');
         setSortOrder(sortDirection);
-        updateURL({ sortBy: sortByKey, sortOrder });
+        updateURL({ sortBy: sortByKey ?? 'createdAt', sortOrder });
       });
     },
     [updateURL],

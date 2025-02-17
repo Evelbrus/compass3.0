@@ -3,8 +3,13 @@
 import React from 'react';
 import { IButton } from '@shared/components/ui/buttons';
 import Icon from '@shared/components/ui/icon/Icon';
+import { showToast } from '@shared/components/toast/ToastManager';
 
 const Filters: React.FC = () => {
+  const handleClick = () => {
+    showToast.info('Функционал в разработке');
+  };
+
   return (
     <>
       <IButton
@@ -12,10 +17,11 @@ const Filters: React.FC = () => {
         buttonPrefix={
           <Icon
             name="filters"
-            alt="Корзина"
+            alt="Фильтры"
             className="w-6 h-6 text-current transition-colors duration-300"
           />
         }
+        onClick={handleClick}
       >
         Фильтры
       </IButton>

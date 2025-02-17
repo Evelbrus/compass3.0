@@ -1,0 +1,91 @@
+'use client';
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+import { useState, useEffect } from 'react';
+import { IButton } from '@shared/components/ui/buttons';
+import { TextInput } from '@shared/components/ui/inputs';
+import AnimatedComponent from '@shared/components/animated/CommonAnimated/AnimatedComponent';
+import { CloseIcon } from 'next/dist/client/components/react-dev-overlay/internal/icons/CloseIcon';
+import { useUnit } from 'effector-react';
+import { $pointUuid, setPointUuid } from '@shared/lib/effector/state/state';
+const CreatePointModal = ({ onClose }) => {
+    const uuid = useUnit($pointUuid);
+    console.log('uuid points', uuid);
+    console.log('UUID точки:', uuid);
+    const [address, setAddress] = useState('');
+    const [basePrice, setBasePrice] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
+    const [success, setSuccess] = useState(null);
+    //Если это редактирование, загружаем данные точки
+    useEffect(() => {
+        if (uuid) {
+            const fetchPoint = async () => {
+                setLoading(true);
+                try {
+                    const response = await fetch(`/api/points/${uuid}`);
+                    if (!response.ok)
+                        throw new Error(`Ошибка загрузки точки: ${response.status}`);
+                    const data = await response.json();
+                    console.log('Полученные данные точки:', data); //✅ Проверяем ответ сервера
+                    if (!data.data)
+                        throw new Error('Данные точки отсутствуют в ответе');
+                    setAddress(data.data.address);
+                    setBasePrice(Number(data.data.basePrice));
+                }
+                catch (err) {
+                    console.error('Ошибка запроса:', err);
+                    setError('Ошибка загрузки данных');
+                }
+                finally {
+                    setLoading(false);
+                }
+            };
+            fetchPoint();
+        }
+    }, [uuid]);
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setError(null);
+        setSuccess(null);
+        if (!address || basePrice === '') {
+            setError('Адрес и базовая цена обязательны');
+            return;
+        }
+        setLoading(true);
+        try {
+            const method = uuid ? 'PUT' : 'POST';
+            const url = uuid ? `/api/points/${uuid}` : '/api/points';
+            const response = await fetch(url, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    address,
+                    basePrice: Number(basePrice),
+                    airport: false,
+                }),
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                setError(data.message || `Ошибка ${uuid ? 'обновления' : 'создания'} точки`);
+            }
+            else {
+                setSuccess(`Точка успешно ${uuid ? 'обновлена' : 'добавлена'}`);
+                setTimeout(() => {
+                    setPointUuid(null);
+                    onClose();
+                }, 1500);
+            }
+        }
+        catch (err) {
+            setError('Ошибка сервера');
+        }
+        finally {
+            setLoading(false);
+        }
+    };
+    return (_jsx("div", { className: "fixed inset-0 flex items-center justify-center bg-black/50 z-50 p-4", children: _jsx(AnimatedComponent, { duration: 500, className: "w-[580px] max-h-[600px] flex justify-center", children: _jsxs("div", { className: "bg-white rounded-3xl p-8 relative w-full", children: [_jsx(IButton, { variant: "close", onClick: () => {
+                            setPointUuid(null);
+                            onClose();
+                        }, "aria-label": "\u0417\u0430\u043A\u0440\u044B\u0442\u044C \u043C\u043E\u0434\u0430\u043B\u044C\u043D\u043E\u0435 \u043E\u043A\u043D\u043E", className: "absolute top-4 right-4 border border-gray-200 hover:shadow-[0px_0px_5px_rgba(0,0,0,0.15)] hover:bg-blue-100 rounded-full p-2", children: _jsx(CloseIcon, {}) }), _jsx("h2", { className: "text-2xl font-semibold mb-4", children: uuid ? 'Редактировать точку прибытия' : 'Добавить точку прибытия' }), _jsxs("form", { onSubmit: handleSubmit, className: "flex flex-col gap-4", children: [_jsx(TextInput, { label: "\u0410\u0434\u0440\u0435\u0441:", value: address, onChange: (value) => setAddress(value), required: true }), _jsx(TextInput, { label: "\u0411\u0430\u0437\u043E\u0432\u0430\u044F \u0446\u0435\u043D\u0430:", type: "number", value: basePrice, onChange: (value) => setBasePrice(Number(value)), required: true }), error && _jsx("p", { className: "text-red-600", children: error }), success && _jsx("p", { className: "text-green-600", children: success }), _jsx("div", { className: 'w-full flex flex-row justify-end', children: _jsx(IButton, { type: "submit", disabled: loading, className: "w-[205px] p-4 bg-[color:var(--button-secondary)]\n                text-[color:var(--text-white)] rounded-lg hover:bg-[color:var(--button-secondary-hover)]\n                transition", children: loading ? 'Сохранение...' : uuid ? 'Обновить' : 'Создать' }) })] })] }) }) }));
+};
+export default CreatePointModal;

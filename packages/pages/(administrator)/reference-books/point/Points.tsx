@@ -1,62 +1,84 @@
 'use client';
 
-import React, { useEffect, useState, JSX } from 'react';
-import { Point } from '@prisma/client';
-import Decimal from 'decimal.js';
+import React, { useEffect, useRef } from 'react';
+import { IButton } from '@shared/components/ui/buttons';
+import AnimatedComponent from '@shared/components/animated/CommonAnimated/AnimatedComponent';
+import { openModal } from '@shared/lib/effector/state/state';
+import useURLParams from '@shared/utils/hooks/useURLParams';
+import PaginationComponent from '@shared/components/ui/pagination/PaginationComponent';
+import PointsTable from '@features/points/table/PointsTable';
+import usePoints from '@features/points/hooks/usePoints';
 
-const Points = (): JSX.Element => {
-  const [points, setPoints] = useState<Point[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [page, setPage] = useState<number>(1);
-  const [perPage, setPerPage] = useState<number>(10);
-  const [total, setTotal] = useState<number>(0);
+const Points = ({
+  activeTab,
+  reset,
+  setReset,
+}: {
+  activeTab: string;
+  reset: boolean;
+  setReset: (reset: boolean) => void;
+}) => {
+  const topRef = useRef<HTMLDivElement>(null);
+
+  //Получаем данные из хука
+  const {
+    points,
+    loading,
+    error,
+    total,
+    optimisticPage,
+    perPage,
+    sortBy,
+    sortOrder,
+    handlePageChange,
+    handleSort,
+  } = usePoints();
+
+  //Синхронизируем параметры с URL
+  useURLParams({ optimisticPage, sortBy, sortOrder, reset, activeTab });
 
   useEffect(() => {
-    const fetchPoints = async () => {
-      try {
-        const response = await fetch(`/api/points?page=${page}&per_page=${perPage}`);
-        if (!response.ok) {
-          throw new Error('Network response was not ok');
-        }
-        const data = await response.json();
-        setPoints(data.points);
-        setTotal(data.total);
-      } catch (error) {
-        console.error('Error fetching points:', error);
-        setError('Error fetching points');
-      } finally {
-        setLoading(false);
-      }
-    };
+    if (reset) {
+      //Когда reset равен true, сбрасываем страницу на 1 и очищаем reset
+      handlePageChange(1);
+      setReset(false);
+    }
+  }, [reset, setReset, handlePageChange]);
 
-    fetchPoints();
-  }, [page, perPage]);
+  //Обработчик смены страницы с плавным скроллом вверх
+  const handlePageChangeWithScroll = (newPage: number) => {
+    handlePageChange(newPage);
+    setTimeout(() => {
+      topRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 200);
+  };
 
   return (
-    <div>
-      <h1>Points</h1>
-      <p>Welcome to the Points Reference Book. Here you can view all points.</p>
-      <h2>Points:</h2>
-      {loading && <p>Loading points...</p>}
-      {error && <p>{error}</p>}
-      <ul>
-        {points.map((point) => (
-          <li key={point.uuid}>
-            {point.address} - ${new Decimal(point.basePrice).toFixed(2)}
-          </li>
-        ))}
-      </ul>
-      <div>
-        <p>Total Points: {total}</p>
-        <button onClick={() => setPage(page > 1 ? page - 1 : 1)} disabled={page <= 1}>
-          Previous
-        </button>
-        <button onClick={() => setPage(page + 1)} disabled={points.length < perPage}>
-          Next
-        </button>
+    <AnimatedComponent
+      className="relative max-w-full min-h-[calc(100vh-80px)] p-5 flex flex-col gap-4"
+      duration={1000}
+    >
+      <div ref={topRef} className="w-full flex flex-row justify-between items-center">
+        <h1 className="text-2xl font-extrabold leading-4">Точки</h1>
+        <IButton onClick={() => openModal('createPointModal')}>Добавить точку</IButton>
       </div>
-    </div>
+
+      <PointsTable
+        points={points}
+        loading={loading}
+        error={error}
+        sortBy={sortBy}
+        sortOrder={sortOrder}
+        handleSort={handleSort}
+      />
+
+      <PaginationComponent
+        pageNumber={optimisticPage}
+        pageSize={perPage}
+        totalCount={total}
+        setPageNumber={handlePageChangeWithScroll}
+      />
+    </AnimatedComponent>
   );
 };
 

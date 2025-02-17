@@ -1,4 +1,3 @@
-//(No changes needed in this file)
 'use client';
 
 import React, { JSX, useEffect, useTransition, useCallback, useState } from 'react';
@@ -76,9 +75,9 @@ const VehiclesDriverPage = (): JSX.Element => {
   };
 
   const handleSort = useCallback(
-    (sortByKey: keyof TableVehicleRow, sortDirection: 'asc' | 'desc') => {
+    (sortByKey: keyof TableVehicleRow | null, sortDirection: 'asc' | 'desc') => {
       startTransition(() => {
-        setSortBy(sortByKey);
+        setSortBy(sortByKey ?? 'createdAt');
         setSortOrder(sortDirection);
       });
     },
