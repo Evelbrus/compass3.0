@@ -99,7 +99,7 @@ const NotificationList: React.FC<NotificationListProps> = ({
             data-uuid={notification.uuid}
             onClick={() => toggleOpen(notification.uuid)}
           >
-            <p className="block text-4 py-1 font-medium text-gray-500 flex items-center justify-between">
+            <p className="text-4 py-1 font-medium text-gray-500 flex items-center justify-between">
               {notification.title}{' '}
               <span>
                 {new Date(notification.createdAt).toLocaleTimeString([], {

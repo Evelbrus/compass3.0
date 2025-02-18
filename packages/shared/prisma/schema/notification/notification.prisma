@@ -1,8 +1,18 @@
-model Notification {
+enum Action {
+  info // просто уведомление
+  noted // уведомление получено и зафиксировано (более абстрактное, чем acknowledged)
+  inProgress // заказ в процессе выполнения
+  success // заказ успешно выполнен
+  warning // заказ в просрочено
+}
+
+model notification {
   uuid      String   @id @default(uuid())
   userId    String
+  orderId   String
   title     String
   message   String
+  action    Action
   createdAt DateTime @default(now())
   read      Boolean  @default(false)
 }

@@ -9,7 +9,6 @@ import { useUnit } from 'effector-react';
 import { $additionalServiceUuid, setAdditionalServiceUuid } from '@shared/lib/effector/state/state';
 const CreateAdditionalServiceModal = ({ onClose }) => {
     const uuid = useUnit($additionalServiceUuid);
-    console.log('uuid', uuid);
     const [serviceName, setServiceName] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);

@@ -9,8 +9,6 @@ import { useUnit } from 'effector-react';
 import { $pointUuid, setPointUuid } from '@shared/lib/effector/state/state';
 const CreatePointModal = ({ onClose }) => {
     const uuid = useUnit($pointUuid);
-    console.log('uuid points', uuid);
-    console.log('UUID точки:', uuid);
     const [address, setAddress] = useState('');
     const [basePrice, setBasePrice] = useState('');
     const [loading, setLoading] = useState(false);

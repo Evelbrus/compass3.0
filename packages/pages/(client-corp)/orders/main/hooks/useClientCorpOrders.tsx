@@ -5,7 +5,6 @@ import { OrderStatus } from '@prisma/client';
 import { DetailOrderData } from '@shared/prisma/interface/orders/interface';
 
 interface UseClientCorpOrdersProps {
-  //Убрали corpId
   page: number;
   perPage: number;
   statusFilter: OrderStatus | null;

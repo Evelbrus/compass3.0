@@ -39,6 +39,7 @@ interface CreateClientCorpOrderProps {
 const CreateClientCorpOrder: React.FC<CreateClientCorpOrderProps> = ({ onClose }) => {
   const router = useRouter();
 
+  const [orderId, setOrderId] = useState<string>('');
   const [ServiceLevel, setServiceLevel] = useState<ServiceLevels>();
   const [VehicleType, setVehicleType] = useState<VehicleType>();
 
@@ -153,6 +154,7 @@ const CreateClientCorpOrder: React.FC<CreateClientCorpOrderProps> = ({ onClose }
   const { handleOrderSuccess, handleOrderError } = useClientNotifications({
     departurePoint,
     arrivalPoint,
+    orderId,
   });
 
   const { submitOrder, isSubmitting, error } = useSubmitOrder();
@@ -160,7 +162,7 @@ const CreateClientCorpOrder: React.FC<CreateClientCorpOrderProps> = ({ onClose }
   const onSubmit = async (formData: CreateClientCorpOrderData) => {
     try {
       //Передаём все необходимые данные в submitOrder
-      await submitOrder({
+      const result = await submitOrder({
         selectedTariff,
         departurePoint: departurePoint?.uuid ?? '',
         arrivalPoint: arrivalPoint?.uuid ?? '',
@@ -174,6 +176,13 @@ const CreateClientCorpOrder: React.FC<CreateClientCorpOrderProps> = ({ onClose }
         description: formData.description || '',
         waitingTimeMinutes: waitTime,
       });
+
+      if (result && result.uuid) {
+        setOrderId(result.uuid);
+      } else {
+        throw new Error('Не удалось получить uuid заказа из ответа сервера');
+      }
+
       showToast.success('Заказ создан успешно!');
       handleOrderSuccess();
       router.push('/orders');

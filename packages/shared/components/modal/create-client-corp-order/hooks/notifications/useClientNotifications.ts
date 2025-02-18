@@ -1,21 +1,23 @@
+//useClientNotifications.ts
 import { useCallback } from 'react';
 import { useSocket } from '@shared/utils/hooks/useSocket';
 import { useSession } from '@shared/utils/hooks/useSession';
-import { Point, UserRole } from '@prisma/client';
+import { Point, UserRole, Action } from '@prisma/client';
 
 interface UseClientNotificationsProps {
   departurePoint?: Point | null;
   arrivalPoint?: Point | null;
+  orderId: string;
 }
 
 export const useClientNotifications = ({
   departurePoint,
   arrivalPoint,
+  orderId,
 }: UseClientNotificationsProps) => {
   const socket = useSocket();
   const { userSession } = useSession();
 
-  //Форматирование номера заказа на основе текущей даты
   const formatOrderNumber = (date: Date | null | undefined): string => {
     if (!date) {
       console.warn('Некорректная дата для формирования номера заказа:', date);
@@ -36,17 +38,25 @@ export const useClientNotifications = ({
     }
   };
 
-  //Универсальная функция отправки уведомления конкретному пользователю
+  //Функция отправки индивидуального уведомления с передачей orderId и action
   const sendNotification = useCallback(
-    async (userId: string, title: string, message: string) => {
+    async (
+      userId: string,
+      title: string,
+      message: string,
+      orderId: string,
+      action: Action = Action.info,
+    ) => {
       try {
         const response = await fetch('/api/client-corp/notifications', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            roles: [UserRole.Operator, UserRole.Admin], //Передаем массив ролей
-            title, //Используем динамически переданный title
-            message, //Используем динамически переданный message
+            userId,
+            title,
+            message,
+            orderId,
+            action,
           }),
         });
 
@@ -56,15 +66,18 @@ export const useClientNotifications = ({
         }
 
         const data = await response.json();
-
+        console.log('Отправляем индивидуальное уведомление:', {
+          userId,
+          title,
+          message,
+          orderId,
+          action,
+          data,
+        });
         if (socket && userId && data.uuid) {
           socket.emit('notification', {
             userId,
-            notification: {
-              uuid: data.uuid,
-              title,
-              message,
-            },
+            notification: { uuid: data.uuid, title, message, orderId, action },
           });
         }
       } catch (error: any) {
@@ -74,38 +87,42 @@ export const useClientNotifications = ({
     [socket],
   );
 
-  //Отправка уведомления для создателя заказа (текущего клиента)
+  //Отправка уведомления для создателя заказа
   const sendCreatorNotification = useCallback(async () => {
-    if (socket && userSession?.uuid && departurePoint && arrivalPoint) {
+    if (socket && userSession?.uuid && departurePoint && arrivalPoint && orderId) {
       const orderNumber = formatOrderNumber(new Date());
       const title = 'Заказ создан';
       const message = `Ваш заказ N ${orderNumber} создан от ${departurePoint.address} до ${arrivalPoint.address}`;
-      await sendNotification(userSession.uuid, title, message);
+      await sendNotification(userSession.uuid, title, message, orderId, Action.info);
     }
-  }, [socket, userSession, departurePoint, arrivalPoint, sendNotification]);
+  }, [socket, userSession, departurePoint, arrivalPoint, sendNotification, orderId]);
 
-  //Отправка уведомления всем операторам и администраторам через broadcast
+  //Отправка broadcast-уведомления для операторов и администраторов
   const sendOperatorAdminNotification = useCallback(async () => {
-    if (socket && departurePoint && arrivalPoint) {
+    if (socket && departurePoint && arrivalPoint && orderId) {
       const orderNumber = formatOrderNumber(new Date());
       const title = 'Новый заказ';
       const message = `Новый заказ N ${orderNumber} создан от ${departurePoint.address} до ${arrivalPoint.address}`;
-      //Сервер должен обработать это событие и разослать уведомление пользователям с ролями operator и admin
-      socket.emit('broadcastNotification', {
-        roles: ['operator', 'admin'], //Если сервер ожидает строки, оставляем так
-        notification: { title, message },
+      console.log('Отправляем broadcast уведомление:', {
+        roles: [UserRole.Operator, UserRole.Admin],
+        title,
+        message,
+      });
+      socket.emit('notification', {
+        roles: [UserRole.Operator, UserRole.Admin],
+        notification: { title, message, orderId, action: Action.info },
       });
     }
-  }, [socket, departurePoint, arrivalPoint]);
+  }, [socket, departurePoint, arrivalPoint, orderId]);
 
-  //Обработчик успешного создания заказа, который инициирует отправку уведомлений
+  //Функция-обёртка для успешного создания заказа, которая отправляет уведомления
   const handleOrderSuccess = useCallback(() => {
     sendCreatorNotification();
     sendOperatorAdminNotification();
     console.log('Заказ успешно создан и уведомления отправлены');
   }, [sendCreatorNotification, sendOperatorAdminNotification]);
 
-  //Обработчик ошибки создания заказа (при необходимости можно расширить)
+  //Обработка ошибки при создании заказа (можно расширить логику по необходимости)
   const handleOrderError = useCallback((error: any) => {
     console.error('Ошибка при создании заказа:', error?.message || error);
   }, []);

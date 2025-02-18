@@ -9,7 +9,7 @@ import { orderQueue } from '@next-app/src/lib/queues/orderQueue';
 
 const log = debug('app:orders');
 
-//GET: Получение заказов с пагинацией, фильтрацией и сортировкой
+//GET: Получение заказов (оставляем без изменений)
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const parsedParams = {
@@ -150,17 +150,15 @@ export async function POST(req: Request) {
     phone,
   } = data;
 
-  console.log('Переданные selectedServices:', selectedServices);
-
+  //Если водитель назначен, статус заказа PLANNED, иначе PENDING
   const orderStatus = assignedDriverId ? OrderStatus.PLANNED : OrderStatus.PENDING;
-  const driverAcceptanceStatus = assignedDriverId ? DriverAcceptanceStatus.PENDING : undefined;
 
   try {
     const result = await prisma.$transaction(async (prismaTx) => {
       log('Начинаем транзакцию');
 
       let clientUuid = createdBy;
-      //1. Проверка существования клиента или создание нового
+      //1. Проверка существования клиента или создание нового временного
       if (fullName && phone) {
         log('Создаем нового временного пользователя');
         const newUser = await prismaTx.user.create({
@@ -216,7 +214,7 @@ export async function POST(req: Request) {
       }
       log('Точка прибытия найдена:', arrivalPointRecord);
 
-      //5. Проверка существования водителя
+      //5. Проверка существования водителя (если назначен)
       if (assignedDriverId) {
         const driver = await prismaTx.user.findUnique({
           where: { uuid: assignedDriverId },
@@ -228,7 +226,7 @@ export async function POST(req: Request) {
         log('Водитель найден:', driver);
       }
 
-      //6. Создание заказа
+      //6. Создание заказа (убираем передачу driverAcceptanceStatus, т.к. оно теперь в таблице User)
       const order = await prismaTx.order.create({
         data: {
           uuid: uuidv4(),
@@ -244,12 +242,20 @@ export async function POST(req: Request) {
           description: description || null,
           flightNumber: flightNumber || null,
           waitingTimeMinutes: waitingTimeMinutes,
-          driverAcceptanceStatus: driverAcceptanceStatus,
         },
       });
       log('Заказ создан:', order);
 
-      //7. Добавление дополнительных услуг (аналогичная логика, как и ранее)
+      //7. Если водитель назначен, обновляем его поле driverAcceptanceStatus в таблице User через транзакцию
+      if (assignedDriverId) {
+        await prismaTx.user.update({
+          where: { uuid: assignedDriverId },
+          data: { driverAcceptanceStatus: DriverAcceptanceStatus.PENDING },
+        });
+        log(`driverAcceptanceStatus обновлён для водителя с UUID ${assignedDriverId}`);
+      }
+
+      //8. Добавление дополнительных услуг (если выбраны)
       if (selectedServices && selectedServices.length > 0) {
         log('Выбранные услуги (tariffOnServiceUuid):', selectedServices);
         const tariffOnServices = await prismaTx.tariffOnService.findMany({
@@ -274,25 +280,27 @@ export async function POST(req: Request) {
         log('Дополнительные услуги добавлены');
       }
 
-      //8. Завершаем транзакцию и возвращаем заказ
+      //9. Завершаем транзакцию и возвращаем созданный заказ
       return order;
     });
 
-    console.log('result', result);
-
-    //Добавляем задачу на проверку OVERDUE в момент наступления departureTime
+    //Пример добавления задачи в очередь уведомлений с задержкой
+    const departureTimestamp = new Date(result.departureTime).getTime();
+    const now = Date.now();
+    const delay = departureTimestamp - now - 60000;
 
     await orderQueue.add(
-      'preOrderNotification',
+      'notification',
       { order: result },
       {
+        delay: delay > 0 ? delay : 0,
         attempts: 3,
         backoff: { type: 'exponential', delay: 1000 },
-        jobId: `preOrder-${result.uuid}`,
+        jobId: `notification-${result.uuid}`,
       },
     );
 
-    console.log(`📌 Задача preOrderNotification добавлена, jobId: preOrder-${result.uuid}`);
+    console.log(`📌 Задача notification добавлена, jobId: notification-${result.uuid}`);
 
     return NextResponse.json(result, { status: 201 });
   } catch (error) {

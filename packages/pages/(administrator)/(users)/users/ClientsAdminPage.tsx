@@ -36,7 +36,6 @@ const ClientsAdminPage: React.FC = () => {
 
   //Обработчик изменения страницы
   const handlePageChangeWithScroll = (newPage: number) => {
-    console.log('Changing page to:', newPage);
     handlePageChange(newPage);
 
     //Прокрутка к элементу после изменения страницы

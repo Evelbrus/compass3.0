@@ -59,6 +59,7 @@ const useSubmitOrder = () => {
 
       const result = await response.json();
       console.log('Заказ создан:', result);
+      return result;
     } catch (err: unknown) {
       //Проверка типа ошибки
       if (err instanceof Error) {

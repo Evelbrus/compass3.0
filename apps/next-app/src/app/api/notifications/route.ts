@@ -2,6 +2,7 @@ import { NextResponse, NextRequest } from 'next/server';
 import debug from 'debug';
 import { prisma } from '@shared/prisma/prisma-client';
 import { v4 as uuidv4 } from 'uuid';
+import { Action } from '@prisma/client';
 
 const log = debug('app:api:notifications');
 
@@ -9,11 +10,13 @@ const log = debug('app:api:notifications');
 export async function POST(request: NextRequest) {
   log('Received POST request to /api/notifications');
   try {
-    const { userId, title, message } = await request.json();
-    log('Request body:', { userId, title, message });
+    //Обновлённый набор полей – теперь ожидаем также orderId и action.
+    //Если action не передан, можно задать значение по умолчанию (например, Action.info).
+    const { userId, title, message, orderId, action } = await request.json();
+    log('Request body:', { userId, title, message, orderId, action });
 
-    if (!userId || !title || !message) {
-      log('Missing required fields (userId, title, message)');
+    if (!userId || !title || !message || !orderId) {
+      log('Missing required fields (userId, title, message, orderId)');
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
@@ -21,10 +24,12 @@ export async function POST(request: NextRequest) {
 
     const notification = await prisma.notification.create({
       data: {
-        uuid: uuid,
+        uuid,
         userId,
+        orderId,
         title,
         message,
+        action: action ?? Action.info,
       },
     });
 
@@ -51,12 +56,8 @@ export async function GET(request: NextRequest) {
 
     log(`Fetching notifications for userId: ${userId}`);
     const notifications = await prisma.notification.findMany({
-      where: {
-        userId: userId,
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
     });
 
     log(`Successfully fetched ${notifications.length} notifications for userId: ${userId}`);

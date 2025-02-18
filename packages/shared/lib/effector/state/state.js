@@ -31,12 +31,15 @@ export const $userFullName = createStore(null)
     .reset(closeModal);
 export const setAdditionalServiceUuid = createEvent();
 export const $additionalServiceUuid = createStore(null).on(setAdditionalServiceUuid, (_, uuid) => {
-    console.log('Effector: установлен UUID доп. услуги:', uuid);
     return uuid;
 });
 //Состояние для хранения UUID точки прибытия
 export const setPointUuid = createEvent();
 export const $pointUuid = createStore(null).on(setPointUuid, (_, uuid) => {
-    console.log('Effector: установлен UUID точки прибытия:', uuid);
     return uuid;
 });
+//Создаём отдельное хранилище для uuid заказа, относящегося к модальному окну водителя
+export const setDriverOrderUuid = createEvent();
+export const $driverOrderUuid = createStore(null)
+    .on(setDriverOrderUuid, (_, uuid) => uuid)
+    .reset(closeModal);

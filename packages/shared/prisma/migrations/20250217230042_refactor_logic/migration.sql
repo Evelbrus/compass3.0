@@ -14,16 +14,19 @@ CREATE TYPE "ChangingDriver" AS ENUM ('day', 'night', 'both', 'none');
 CREATE TYPE "Status" AS ENUM ('free', 'busy', 'none');
 
 -- CreateEnum
-CREATE TYPE "OrderStatus" AS ENUM ('PENDING', 'PLANNED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'OVERDUE');
+CREATE TYPE "Action" AS ENUM ('info', 'noted', 'inProgress', 'success', 'warning');
 
 -- CreateEnum
-CREATE TYPE "DriverAcceptanceStatus" AS ENUM ('PENDING', 'ACCEPTED', 'REJECTED', 'TIMEOUT');
+CREATE TYPE "OrderStatus" AS ENUM ('PENDING', 'PLANNED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'OVERDUE');
 
 -- CreateEnum
 CREATE TYPE "UserRole" AS ENUM ('client', 'client_corp', 'driver', 'operator', 'admin', 'none');
 
 -- CreateEnum
 CREATE TYPE "Gender" AS ENUM ('male', 'female', 'none');
+
+-- CreateEnum
+CREATE TYPE "DriverAcceptanceStatus" AS ENUM ('PENDING', 'TAKEN', 'REJECTED', 'TIMEOUT', 'ON_THE_WAY', 'ARRIVED', 'PICKED_UP', 'COMPLETED', 'CANCELED');
 
 -- CreateEnum
 CREATE TYPE "Color" AS ENUM ('other', 'white', 'silver', 'gold', 'black', 'grey', 'blue', 'pink', 'red', 'orange', 'brown', 'green', 'none');
@@ -34,18 +37,8 @@ CREATE TYPE "VehicleType" AS ENUM ('sedan', 'minivan', 'sprinter', 'bus', 'none'
 -- CreateEnum
 CREATE TYPE "ServiceLevels" AS ENUM ('basic', 'premium', 'vip', 'none');
 
--- CreateTable
-CREATE TABLE "driver_order_notifications" (
-    "uuid" TEXT NOT NULL,
-    "order_id" TEXT NOT NULL,
-    "driver_id" TEXT NOT NULL,
-    "title" TEXT NOT NULL,
-    "message" TEXT NOT NULL,
-    "is_read" BOOLEAN NOT NULL DEFAULT false,
-    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "driver_order_notifications_pkey" PRIMARY KEY ("uuid")
-);
+-- CreateEnum
+CREATE TYPE "Ownership" AS ENUM ('personal', 'fleet');
 
 -- CreateTable
 CREATE TABLE "driver_experience" (
@@ -80,10 +73,9 @@ CREATE TABLE "driver_history" (
 -- CreateTable
 CREATE TABLE "driver_profile" (
     "uuid" TEXT NOT NULL,
-    "status" "Status" NOT NULL,
     "citizenship" "Citizenship" NOT NULL,
     "identity_document" "IdentityDocument" NOT NULL,
-    "passport_id" TEXT NOT NULL,
+    "passport_id" BIGINT NOT NULL,
     "passport_issue_date" TIMESTAMP(3),
     "passport_issued" TEXT NOT NULL,
     "birthdate" TIMESTAMP(3),
@@ -98,8 +90,8 @@ CREATE TABLE "driver_profile" (
     "license_photo_path" TEXT,
     "bank_name" TEXT,
     "bic" TEXT,
-    "account_number" TEXT,
-    "card_number" TEXT,
+    "account_number" BIGINT,
+    "card_number" BIGINT,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
     "user_id" TEXT,
@@ -111,8 +103,10 @@ CREATE TABLE "driver_profile" (
 CREATE TABLE "Notification" (
     "uuid" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
+    "orderId" TEXT NOT NULL,
     "title" TEXT NOT NULL,
     "message" TEXT NOT NULL,
+    "action" "Action" NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "read" BOOLEAN NOT NULL DEFAULT false,
 
@@ -137,7 +131,6 @@ CREATE TABLE "orders" (
     "description" TEXT,
     "flight_number" TEXT,
     "waiting_time_minutes" INTEGER NOT NULL DEFAULT 0,
-    "driver_acceptance_status" "DriverAcceptanceStatus" NOT NULL DEFAULT 'PENDING',
 
     CONSTRAINT "orders_pkey" PRIMARY KEY ("uuid")
 );
@@ -242,6 +235,7 @@ CREATE TABLE "users" (
     "email" TEXT NOT NULL,
     "password" TEXT NOT NULL,
     "role" "UserRole" NOT NULL,
+    "driver_acceptance_status" "DriverAcceptanceStatus" NOT NULL DEFAULT 'PENDING',
     "driver_profile_id" TEXT,
     "company_profile_id" TEXT,
     "LoginAttemptId" TEXT,
@@ -254,8 +248,8 @@ CREATE TABLE "users" (
     "availability" BOOLEAN NOT NULL DEFAULT false,
     "last_active" TIMESTAMP(3),
     "is_blocked" BOOLEAN NOT NULL DEFAULT false,
-    "sessionVersion" INTEGER NOT NULL DEFAULT 0,
-    "refresh_tokens" TEXT[],
+    "sessionVersion" INTEGER NOT NULL DEFAULT 1,
+    "refresh_tokens" TEXT[] DEFAULT ARRAY[]::TEXT[],
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
@@ -277,6 +271,7 @@ CREATE TABLE "vehicles" (
     "service_levels" "ServiceLevels" NOT NULL,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
+    "ownership" "Ownership" NOT NULL DEFAULT 'personal',
 
     CONSTRAINT "vehicles_pkey" PRIMARY KEY ("uuid")
 );
@@ -328,12 +323,6 @@ CREATE UNIQUE INDEX "vehicle_drivers_driver_id_key" ON "vehicle_drivers"("driver
 
 -- CreateIndex
 CREATE UNIQUE INDEX "vehicle_drivers_vehicle_id_driver_id_key" ON "vehicle_drivers"("vehicle_id", "driver_id");
-
--- AddForeignKey
-ALTER TABLE "driver_order_notifications" ADD CONSTRAINT "driver_order_notifications_order_id_fkey" FOREIGN KEY ("order_id") REFERENCES "orders"("uuid") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "driver_order_notifications" ADD CONSTRAINT "driver_order_notifications_driver_id_fkey" FOREIGN KEY ("driver_id") REFERENCES "users"("uuid") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "driver_experience" ADD CONSTRAINT "driver_experience_driverProfileId_fkey" FOREIGN KEY ("driverProfileId") REFERENCES "driver_profile"("uuid") ON DELETE SET NULL ON UPDATE CASCADE;

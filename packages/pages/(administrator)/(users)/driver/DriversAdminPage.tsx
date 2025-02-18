@@ -33,7 +33,6 @@ const DriversAdminPage: React.FC = () => {
 
   //Обработчик изменения страницы
   const handlePageChangeWithScroll = (newPage: number) => {
-    console.log('Changing page to:', newPage);
     handlePageChange(newPage);
 
     //Прокрутка к элементу после изменения страницы
@@ -77,7 +76,7 @@ const DriversAdminPage: React.FC = () => {
         pageNumber={optimisticPage}
         pageSize={perPage}
         totalCount={total}
-        setPageNumber={handlePageChange}
+        setPageNumber={handlePageChangeWithScroll}
       />
     </AnimatedComponent>
   );

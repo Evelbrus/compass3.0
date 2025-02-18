@@ -13,11 +13,25 @@ enum Gender {
   None   @map("none")
 }
 
+enum DriverAcceptanceStatus {
+  PENDING // 0: Ожидание решения водителя
+  TAKEN // 1: Водитель принял к сведению (готов к выполнению)
+  REJECTED // 3: Водитель отклонил заказ
+  TIMEOUT // 4: Водитель не принял заказ в течение отведенного времени
+  ON_THE_WAY // 5: Водитель в пути к клиенту
+  ARRIVED // 6: Водитель прибыл к клиенту
+  PICKED_UP // 7: Водитель забрал клиента
+  COMPLETED // 8: Заказ завершен
+  CANCELED // 9: Заказ отменен
+}
+
 model User {
   uuid     String   @id @default(uuid()) @map("uuid")
   email    String   @unique @map("email")
   password String   @map("password")
   role     UserRole @map("role")
+
+  driverAcceptanceStatus DriverAcceptanceStatus @default(PENDING) @map("driver_acceptance_status")
 
   driverProfileId String?        @unique @map("driver_profile_id")
   driverProfile   DriverProfile? @relation("user_to_driver_profile")
@@ -46,8 +60,6 @@ model User {
 
   sessionVersion Int      @default(1)
   refreshTokens  String[] @default([]) @map("refresh_tokens")
-
-  driverOrderNotifications DriverOrderNotification[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")

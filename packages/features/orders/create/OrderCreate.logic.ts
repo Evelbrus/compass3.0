@@ -13,7 +13,7 @@ import {
 } from '@features/orders/create/hooks';
 import { cleanIntermediatePoints } from '@features/orders/create/helpers';
 import { showToast } from '@shared/components/toast/ToastManager';
-import { useEffect, useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Point, Status, Tariff } from '@prisma/client';
 import { useRouter } from 'next/navigation';
 
@@ -46,7 +46,7 @@ export const useOrderCreateLogic = (uuid?: string) => {
   });
   const { setValue, watch, reset } = formMethods;
   const [orderData, setOrderData] = useState<OrderData | null>(null);
-  const [isEditingProp, setIsEditingProp] = useState(!!uuid);
+  const isEditingProp = !!uuid;
 
   useEffect(() => {
     const fetchOrderData = async () => {
@@ -82,7 +82,7 @@ export const useOrderCreateLogic = (uuid?: string) => {
   const { ...handlers } = useOrderConfiguration({
     setValue: formMethods.setValue as unknown as UseFormSetValue<OrderData>,
     selectedVehicleType: orderData?.tariff?.vehicleType,
-    selectedServiceLevel: orderData?.tariff.serviceLevel,
+    selectedServiceLevel: orderData?.tariff?.serviceLevel,
     setErrorMessage: message.setErrorMessage,
   });
 
@@ -127,24 +127,27 @@ export const useOrderCreateLogic = (uuid?: string) => {
     extraWaitingTimeCost: time.extraWaitingTimeCost,
   });
 
-  const { ...notification } = useNotifications({
-    formData: watch(),
-    message: message.message,
-    selectedClientInfo: clients.selectedClientInfo,
-    selectedDriverInfo: drivers.selectedDriverInfo,
-    selectedTariff: handlers.selectedTariff,
-    departurePoint: points?.selectedDeparturePoint,
-    arrivalPoint: points?.selectedArrivalPoint,
-    setErrorMessage: message.setErrorMessage,
-    setInitialFormData: () => {},
+  //Используем новый вариант useNotifications, который не зависит от состояния результата,
+  //а его функция handleOrderSuccess принимает результат напрямую.
+  const notifications = useNotifications({
+    departurePoint: points.selectedDeparturePoint,
+    arrivalPoint: points.selectedArrivalPoint,
     isEditing: isEditingProp,
   });
+
+  //Функция, которая будет вызываться после получения ответа от API
+  const handleSuccessCallback = useCallback(
+    (res: any) => {
+      notifications.handleOrderSuccess(res);
+      router.push('/orders');
+    },
+    [notifications, router],
+  );
 
   const onSubmit = async (data: CreateOrderData) => {
     try {
       const cleanedIntermediatePoints = cleanIntermediatePoints(data.intermediatePoints || []);
-
-      const orderData: CreateOrderData = {
+      const orderDataToSend: CreateOrderData = {
         ...data,
         intermediatePoints: cleanedIntermediatePoints,
         selectedServices: additionalServices.selectedAdditionalServices.map(
@@ -156,20 +159,44 @@ export const useOrderCreateLogic = (uuid?: string) => {
       const url = uuid ? `/api/orders/${uuid}` : '/api/orders';
 
       const response = await fetch(url, {
-        method: method,
+        method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(orderData),
+        body: JSON.stringify(orderDataToSend),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
         showToast.error(errorData.error || `Network response was not ok: ${response.statusText}`);
+        return;
+      } else {
+        showToast.success(uuid ? 'Order updated successfully!' : 'Order created successfully!');
       }
-      showToast.success(uuid ? 'Order updated successfully!' : 'Order created successfully!');
-      notification.handleOrderSuccess();
-      router.push('/orders');
-    } catch (error) {
-      notification.handleOrderError(error);
+
+      if (!uuid) {
+        //Если создаётся новый заказ, получаем результат и сразу вызываем уведомление
+        const res = await response.json();
+        console.log('result', res);
+        if (res && res.uuid) {
+          handleSuccessCallback(res);
+        } else {
+          throw new Error('Не удалось получить uuid заказа из ответа сервера');
+        }
+      } else {
+        if (!orderData) {
+          //Можно вывести сообщение об ошибке или вернуть, чтобы не продолжать выполнение.
+          showToast.error('Нет данных заказа');
+          return;
+        }
+
+        notifications.handleOrderSuccess({
+          uuid,
+          assignedDriverId: orderData.assignedDriverId || '',
+          createdById: orderData.createdBy || '',
+        });
+        router.push('/orders');
+      }
+    } catch (err) {
+      notifications.handleOrderError(err);
     }
   };
 
@@ -178,7 +205,7 @@ export const useOrderCreateLogic = (uuid?: string) => {
     ...handlers,
     ...drivers,
     ...clients,
-    ...notification,
+    ...notifications,
     ...points,
     ...additionalServices,
     ...time,
@@ -191,7 +218,7 @@ export const useOrderCreateLogic = (uuid?: string) => {
     ...handlers,
     ...drivers,
     ...clients,
-    ...notification,
+    ...notifications,
     ...points,
     ...additionalServices,
     ...time,
@@ -202,3 +229,5 @@ export const useOrderCreateLogic = (uuid?: string) => {
     modalData,
   };
 };
+
+export default useOrderCreateLogic;

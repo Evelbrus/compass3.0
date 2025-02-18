@@ -12,7 +12,6 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({ userSession }) => {
   return (
     <div className="flex flex-col relative">
-      <ModalDriver userSession={userSession} />
       <StaticHeader
         additionalContent={
           <Suspense fallback={<HeaderIslandsSkeleton />}>

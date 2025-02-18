@@ -4,6 +4,7 @@ import { prisma } from '@shared/prisma/prisma-client';
 import { CreateOrderData } from '@shared/prisma/interface/orders/interface';
 import { Decimal } from 'decimal.js';
 import { v4 as uuidv4 } from 'uuid';
+import { orderQueue } from '@next-app/src/lib/queues/orderQueue';
 
 const log = debug('app:orders');
 
@@ -11,7 +12,7 @@ interface Params {
   uuid: string;
 }
 
-//GET-запрос
+//GET-запрос: Получение заказа с пагинацией, фильтрацией и сортировкой
 export async function GET(req: Request, { params }: { params: Promise<Params> }) {
   const { uuid } = await params;
   log(`Fetching order with UUID: ${uuid}`);
@@ -29,9 +30,7 @@ export async function GET(req: Request, { params }: { params: Promise<Params> })
         tariff: {
           include: {
             tariffAdditionalServices: {
-              include: {
-                service: true,
-              },
+              include: { service: true },
             },
           },
         },
@@ -39,13 +38,7 @@ export async function GET(req: Request, { params }: { params: Promise<Params> })
         arrivalPoint: true,
         assignedDriver: true,
         orderTariffAdditionalServices: {
-          include: {
-            tariffOnService: {
-              include: {
-                service: true,
-              },
-            },
-          },
+          include: { tariffOnService: { include: { service: true } } },
         },
       },
     });
@@ -57,7 +50,6 @@ export async function GET(req: Request, { params }: { params: Promise<Params> })
 
     log('Fetched order:', order);
 
-    //Преобразуем orderTariffAdditionalServices в нужный формат
     const formattedOrderTariffAdditionalServices = order.orderTariffAdditionalServices.map(
       (orderService) => ({
         serviceUuid: orderService.tariffOnService.uuid,
@@ -86,7 +78,14 @@ export async function GET(req: Request, { params }: { params: Promise<Params> })
       orderTariffAdditionalServices: formattedOrderTariffAdditionalServices,
     };
 
-    return NextResponse.json(formattedOrder);
+    return NextResponse.json({
+      page: 1,
+      per_page: 10,
+      total: 1,
+      totalAllOrders: 1,
+      statusesCount: [],
+      orders: [formattedOrder],
+    });
   } catch (error) {
     log('Error fetching order:', error);
     if (error instanceof Error) {
@@ -97,7 +96,7 @@ export async function GET(req: Request, { params }: { params: Promise<Params> })
   }
 }
 
-//PUT-запрос
+//PUT-запрос: Обновление заказа и обновление задачи в очереди
 export async function PUT(req: Request, { params }: { params: Promise<Params> }) {
   const { uuid } = await params;
   if (!uuid) {
@@ -151,13 +150,6 @@ export async function PUT(req: Request, { params }: { params: Promise<Params> })
       //3. Проверка существования тарифа
       const tariffRecord = await prismaTx.tariff.findUnique({
         where: { uuid: tariffUuid },
-        include: {
-          tariffAdditionalServices: {
-            include: {
-              service: true,
-            },
-          },
-        },
       });
       if (!tariffRecord) {
         log(`Tariff with UUID ${tariffUuid} not found`);
@@ -176,7 +168,9 @@ export async function PUT(req: Request, { params }: { params: Promise<Params> })
       log('Departure point found:', departurePointRecord);
 
       //5. Проверка существования точки прибытия
-      const arrivalPointRecord = await prismaTx.point.findUnique({ where: { uuid: arrivalPoint } });
+      const arrivalPointRecord = await prismaTx.point.findUnique({
+        where: { uuid: arrivalPoint },
+      });
       if (!arrivalPointRecord) {
         log(`Arrival point with UUID ${arrivalPoint} not found`);
         throw new Error('Arrival point not found');
@@ -220,13 +214,6 @@ export async function PUT(req: Request, { params }: { params: Promise<Params> })
           where: { uuid: { in: selectedServices } },
           include: { service: true },
         });
-        log(
-          'Найденные tariffOnServices:',
-          tariffOnServices.map((tos) => ({ uuid: tos.uuid, name: tos.service.name })),
-        );
-        const foundUuids = tariffOnServices.map((tos) => tos.uuid);
-        const missingUuids = selectedServices.filter((uuid) => !foundUuids.includes(uuid));
-        log('Отсутствующие UUID tariffOnService:', missingUuids);
         if (tariffOnServices.length !== selectedServices.length) {
           log(
             `Not all services found for tariff ${tariffUuid}. Selected services: ${selectedServices.join(', ')}`,
@@ -243,7 +230,7 @@ export async function PUT(req: Request, { params }: { params: Promise<Params> })
         log('New additional services added');
       }
 
-      //10. Возвращение обновленного заказа с дополнительными услугами
+      //10. Возвращаем обновленный заказ
       const finalOrder = await prismaTx.order.findUnique({
         where: { uuid: updatedOrder.uuid },
         include: {
@@ -263,6 +250,36 @@ export async function PUT(req: Request, { params }: { params: Promise<Params> })
       return finalOrder;
     });
 
+    //Если result равен null, возвращаем ошибку
+    if (!result) {
+      return NextResponse.json({ error: 'Order update failed' }, { status: 500 });
+    }
+
+    //Обновляем задачу в очереди, если departureTime или другие ключевые поля изменились.
+    //Вычисляем новую задержку на основе обновленного departureTime
+    const departureTimestamp = new Date(result.departureTime).getTime();
+    const now = Date.now();
+    const delay = departureTimestamp - now - 60000; //например, за 1 минуту до departureTime
+
+    //Удаляем предыдущую задачу, если она существует
+    const existingJob = await orderQueue.getJob(`notification-${result.uuid}`);
+    if (existingJob) {
+      await existingJob.remove();
+    }
+
+    //Создаем новую задачу с актуальными параметрами
+    await orderQueue.add(
+      'notification',
+      { order: result },
+      {
+        delay: delay > 0 ? delay : 0,
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 1000 },
+        jobId: `notification-${result.uuid}`,
+      },
+    );
+    log(`📌 Задача notification обновлена, jobId: notification-${result.uuid}`);
+
     return NextResponse.json(result, { status: 200 });
   } catch (error) {
     log('Error updating order:', error);
@@ -270,7 +287,7 @@ export async function PUT(req: Request, { params }: { params: Promise<Params> })
   }
 }
 
-//DELETE-запрос
+//DELETE-запрос: удаление заказа и связанных задач
 export async function DELETE(req: Request, { params }: { params: Promise<Params> }) {
   const { uuid } = await params;
   log(`Attempting to delete order with UUID: ${uuid}`);
@@ -288,13 +305,18 @@ export async function DELETE(req: Request, { params }: { params: Promise<Params>
     }
     await prisma.order.delete({ where: { uuid } });
     log(`Order with UUID ${uuid} deleted successfully`);
+
+    //Удаляем связанные задачи из очереди
+    const job1 = await orderQueue.getJob(`notification-${uuid}`);
+    if (job1) await job1.remove();
+    const job2 = await orderQueue.getJob(`checkOverdue-${uuid}`);
+    if (job2) await job2.remove();
+
+    log(`Tasks with jobIds notification-${uuid} and checkOverdue-${uuid} removed from queue`);
+
     return NextResponse.json({ message: 'Order deleted successfully' }, { status: 200 });
   } catch (error) {
     log('Error deleting order:', error);
-    if (error instanceof Error) {
-      log('Error message:', error.message);
-      log('Error stack:', error.stack);
-    }
     return NextResponse.json({ error: 'Unable to delete order' }, { status: 500 });
   }
 }

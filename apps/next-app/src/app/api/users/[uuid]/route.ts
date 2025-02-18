@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { User } from '@prisma/client';
+import { DriverAcceptanceStatus, User } from '@prisma/client';
 import debug from 'debug';
 import { prisma } from '@shared/prisma/prisma-client';
 import { Prisma } from '@prisma/client';
@@ -167,6 +167,47 @@ export async function PUT(req: Request) {
   //}
   //return NextResponse.json({ status: 'error', message: 'Invalid request data' }, { status: 400 });
   //}
+}
+
+export async function PATCH(req: Request) {
+  try {
+    const data = await req.json();
+    const { uuid, role, ...fields } = data;
+
+    if (!uuid) {
+      return NextResponse.json({ error: 'UUID is required' }, { status: 400 });
+    }
+
+    log('Received data:', data);
+
+    const now = new Date();
+
+    //Формируем объект обновления. Если роль "Driver", обновляем driverAcceptanceStatus на TAKEN
+    const updateData: Record<string, any> = {
+      ...fields,
+      updatedAt: now,
+    };
+
+    if (role === 'Driver') {
+      updateData.driverAcceptanceStatus = DriverAcceptanceStatus.TAKEN;
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { uuid },
+      data: updateData,
+    });
+
+    log('Updated user:', updatedUser);
+    return NextResponse.json({
+      status: 'success',
+      message: 'User updated successfully',
+      uuid: updatedUser.uuid,
+      updatedData: updatedUser,
+    });
+  } catch (error) {
+    log('Error updating user:', error);
+    return NextResponse.json({ error: 'Unable to update user' }, { status: 500 });
+  }
 }
 
 //DELETE запрос для удаления пользователя по UUID

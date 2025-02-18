@@ -26,6 +26,7 @@ import { showToast } from '@shared/components/toast/ToastManager';
 import { useRouter } from 'next/navigation';
 const CreateClientCorpOrder = ({ onClose }) => {
     const router = useRouter();
+    const [orderId, setOrderId] = useState('');
     const [ServiceLevel, setServiceLevel] = useState();
     const [VehicleType, setVehicleType] = useState();
     const tariffAndServices = useTariffs({
@@ -69,12 +70,13 @@ const CreateClientCorpOrder = ({ onClose }) => {
     const { handleOrderSuccess, handleOrderError } = useClientNotifications({
         departurePoint,
         arrivalPoint,
+        orderId,
     });
     const { submitOrder, isSubmitting, error } = useSubmitOrder();
     const onSubmit = async (formData) => {
         try {
             //Передаём все необходимые данные в submitOrder
-            await submitOrder({
+            const result = await submitOrder({
                 selectedTariff,
                 departurePoint: departurePoint?.uuid ?? '',
                 arrivalPoint: arrivalPoint?.uuid ?? '',
@@ -88,6 +90,12 @@ const CreateClientCorpOrder = ({ onClose }) => {
                 description: formData.description || '',
                 waitingTimeMinutes: waitTime,
             });
+            if (result && result.uuid) {
+                setOrderId(result.uuid);
+            }
+            else {
+                throw new Error('Не удалось получить uuid заказа из ответа сервера');
+            }
             showToast.success('Заказ создан успешно!');
             handleOrderSuccess();
             router.push('/orders');

@@ -4,28 +4,31 @@ import debug from 'debug';
 
 const log = debug('app:api:points:uuid');
 
-//📌 GET: Получение точки прибытия по UUID
 export async function GET(req: Request, { params }: { params: Promise<{ uuid: string }> }) {
   try {
+    //Await the params to resolve it before using it
     const { uuid } = await params;
 
-    log('🔍 Получаем точку прибытия с UUID:', uuid);
+    log('Fetching point with UUID:', uuid);
 
     const point = await prisma.point.findUnique({
-      where: { uuid },
+      where: {
+        uuid: uuid,
+      },
     });
 
     if (!point) {
-      log('❌ Точка прибытия не найдена:', uuid);
-      return NextResponse.json({ error: 'Точка прибытия не найдена' }, { status: 404 });
+      log('Point not found with UUID:', uuid);
+      return NextResponse.json({ error: 'Point not found' }, { status: 404 });
     }
 
-    log('✅ Найдена точка прибытия:', point);
+    log('Fetched point:', point);
 
-    return NextResponse.json({ data: point });
+    return NextResponse.json({ data: { point } });
   } catch (error) {
-    log('❌ Ошибка при получении точки прибытия:', error);
-    return NextResponse.json({ message: 'Ошибка при получении точки прибытия' }, { status: 500 });
+    console.error(error);
+    log('Error fetching point:', error);
+    return NextResponse.json({ message: 'Ошибка при получении точки' }, { status: 500 });
   }
 }
 

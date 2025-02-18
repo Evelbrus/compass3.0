@@ -10,9 +10,11 @@ import CreateClientCorpOrder from '@shared/components/modal/create-client-corp-o
 import ChangePasswordModal from '@shared/components/modal/change-password-modal/ChangePasswordModal';
 import CreateAdditionalServiceModal from '@shared/components/modal/create-additional-service-modal/CreateAdditionalServiceModal';
 import CreatePointModal from '@shared/components/modal/create-point-modal/CreatePointModal';
+import OrderInfoModal from '@shared/components/modal/order-info-modal/OrderInfoModal';
+import OrderProgressModal from '@shared/components/modal/order-progress-modal/OrderProgressModal';
 const ModalManagerComponent = ({ role }) => {
     const modalType = useUnit($modalType);
     return (_jsxs(_Fragment, { children: [modalType === 'createUserModal' &&
-                (role === UserRole.Admin || role === UserRole.Operator) && (_jsx(CreateUserModal, { role: role, onClose: closeModal })), modalType === 'orderDetailDriver' && _jsx(OrderDetailDriverModal, {}), modalType === 'deleteModal' && _jsx(DeleteModal, { onClose: closeModal }), modalType === 'createClientCorpOrder' && _jsx(CreateClientCorpOrder, { onClose: closeModal }), modalType === 'changePasswordModal' && _jsx(ChangePasswordModal, { onClose: closeModal }), modalType === 'createAdditionalServiceModal' && (_jsx(CreateAdditionalServiceModal, { onClose: closeModal })), modalType === 'createPointModal' && _jsx(CreatePointModal, { onClose: closeModal })] }));
+                (role === UserRole.Admin || role === UserRole.Operator) && (_jsx(CreateUserModal, { role: role, onClose: closeModal })), modalType === 'orderDetailDriver' && _jsx(OrderDetailDriverModal, {}), modalType === 'deleteModal' && _jsx(DeleteModal, { onClose: closeModal }), modalType === 'createClientCorpOrder' && _jsx(CreateClientCorpOrder, { onClose: closeModal }), modalType === 'changePasswordModal' && _jsx(ChangePasswordModal, { onClose: closeModal }), modalType === 'createAdditionalServiceModal' && (_jsx(CreateAdditionalServiceModal, { onClose: closeModal })), modalType === 'createPointModal' && _jsx(CreatePointModal, { onClose: closeModal }), modalType === 'orderInfoModal' && _jsx(OrderInfoModal, { onClose: closeModal }), modalType === 'orderProgressModal' && _jsx(OrderProgressModal, { onClose: closeModal })] }));
 };
 export default ModalManagerComponent;

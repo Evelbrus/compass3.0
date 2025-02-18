@@ -7,19 +7,6 @@ enum OrderStatus {
   OVERDUE
 }
 
-enum DriverAcceptanceStatus {
-  PENDING // 0: Ожидание решения водителя
-  TAKEN // 1: Водитель принял к сведению (готов к выполнению)
-  ACCEPTED // 2: Водитель принял заказ (в работу) - Устаревший?
-  REJECTED // 3: Водитель отклонил заказ
-  TIMEOUT // 4: Водитель не принял заказ в течение отведенного времени
-  ON_THE_WAY // 5: Водитель в пути к клиенту
-  ARRIVED // 6: Водитель прибыл к клиенту
-  PICKED_UP // 7: Водитель забрал клиента
-  COMPLETED // 8: Заказ завершен
-  CANCELED // 9: Заказ отменен
-}
-
 model Order {
   uuid                          String                           @id @default(uuid()) @map("uuid")
   createdById                   String                           @map("created_by_id")
@@ -43,8 +30,6 @@ model Order {
   description                   String?                          @map("description")
   flightNumber                  String?                          @map("flight_number")
   waitingTimeMinutes            Int                              @default(0) @map("waiting_time_minutes")
-  driverAcceptanceStatus        DriverAcceptanceStatus           @default(PENDING) @map("driver_acceptance_status")
-  driverOrderNotifications      DriverOrderNotification[]
 
   @@map("orders")
 }

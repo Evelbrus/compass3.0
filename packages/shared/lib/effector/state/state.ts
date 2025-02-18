@@ -1,6 +1,6 @@
 import { createEvent, createStore } from 'effector';
 import { PrivatePageType } from '@shared/utils/routing';
-import { OrderStatus, UserRole } from '@prisma/client';
+import { Action, OrderStatus, UserRole } from '@prisma/client';
 
 //Остальные типы и события
 export type View =
@@ -22,6 +22,8 @@ export type ModalType =
   | 'changePasswordModal'
   | 'createAdditionalServiceModal'
   | 'createPointModal'
+  | 'orderInfoModal'
+  | 'orderProgressModal'
   | null;
 
 export type EntityToDelete = {
@@ -84,3 +86,31 @@ export const setPointUuid = createEvent<string | null>();
 export const $pointUuid = createStore<string | null>(null).on(setPointUuid, (_, uuid) => {
   return uuid;
 });
+
+//Создаём отдельное хранилище для uuid заказа, относящегося к модальному окну водителя
+export const setDriverOrderUuid = createEvent<string | null>();
+export const $driverOrderUuid = createStore<string | null>(null)
+  .on(setDriverOrderUuid, (_, uuid) => uuid)
+  .reset(closeModal);
+
+//Интерфейс для уведомлений (можно переиспользовать Notification из вашего кода)
+export interface WarningNotification {
+  uuid: string;
+  orderId: string;
+  title: string;
+  message: string;
+  read: boolean;
+  createdAt: string;
+  action: Action; //здесь значение должно быть Action.warning
+}
+
+//Событие для добавления нового warning-уведомления
+export const addWarningNotification = createEvent<WarningNotification>();
+
+//Событие для очистки всех warning-уведомлений (если потребуется)
+export const clearWarningNotifications = createEvent();
+
+//Хранилище для массива warning-уведомлений
+export const $warningNotifications = createStore<WarningNotification[]>([])
+  .on(addWarningNotification, (state, warning) => [warning, ...state])
+  .reset(clearWarningNotifications);
