@@ -9,7 +9,6 @@ export const privateRoutes = {
   TRANSFERSERVICES: '/transfer-services',
   TRANSFERSERVICESCREATE: '/transfer-services/create',
 
-  //пользователи
   USERS: '/users',
   DRIVERS: '/drivers',
 
@@ -38,6 +37,7 @@ export const privateRoutes = {
   ADMIN: '/admin',
   SETTINGS: '/settings',
   MAP: '/map',
+  REFERENCEBOOK: '/reference-book',
 } as const;
 
 export type PrivatePageType = keyof typeof privateRoutes;

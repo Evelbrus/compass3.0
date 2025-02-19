@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React, { useRef } from 'react';
 import { IButton } from '@shared/components/ui/buttons';
 import AnimatedComponent from '@shared/components/animated/CommonAnimated/AnimatedComponent';
 import { openModal } from '@shared/lib/effector/state/state';
@@ -9,15 +9,7 @@ import PaginationComponent from '@shared/components/ui/pagination/PaginationComp
 import PointsTable from '@features/points/table/PointsTable';
 import usePoints from '@features/points/hooks/usePoints';
 
-const Points = ({
-  activeTab,
-  reset,
-  setReset,
-}: {
-  activeTab: string;
-  reset: boolean;
-  setReset: (reset: boolean) => void;
-}) => {
+const Points = () => {
   const topRef = useRef<HTMLDivElement>(null);
 
   //Получаем данные из хука
@@ -35,15 +27,7 @@ const Points = ({
   } = usePoints();
 
   //Синхронизируем параметры с URL
-  useURLParams({ optimisticPage, sortBy, sortOrder, reset, activeTab });
-
-  useEffect(() => {
-    if (reset) {
-      //Когда reset равен true, сбрасываем страницу на 1 и очищаем reset
-      handlePageChange(1);
-      setReset(false);
-    }
-  }, [reset, setReset, handlePageChange]);
+  useURLParams({ optimisticPage, sortBy, sortOrder });
 
   //Обработчик смены страницы с плавным скроллом вверх
   const handlePageChangeWithScroll = (newPage: number) => {
@@ -59,7 +43,7 @@ const Points = ({
       duration={1000}
     >
       <div ref={topRef} className="w-full flex flex-row justify-between items-center">
-        <h1 className="text-2xl font-extrabold leading-4">Точки</h1>
+        <h1 className="text-2xl font-extrabold leading-4">Пункты прибытия</h1>
         <IButton onClick={() => openModal('createPointModal')}>Добавить точку</IButton>
       </div>
 

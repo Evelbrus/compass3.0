@@ -1,6 +1,6 @@
 import React, { JSX } from 'react';
 import { getLayoutData } from '@shared/utils/cookie/layout-data/getLayoutData';
-import Map from '@pages/(administrator)/map/Map';
+import ReferenceBooks from '@pages/(administrator)/reference-books/ReferenceBooks';
 import Loading from '@entities/loading/loading';
 import { UserRole } from '@prisma/client';
 import { redirect } from 'next/navigation';
@@ -13,7 +13,7 @@ const Page = async (): Promise<JSX.Element> => {
 
   if (refreshToken) {
     if (role === UserRole.Admin || role === UserRole.Operator) {
-      return <Map />;
+      return <ReferenceBooks initialTab={'points'} />;
     } else {
       return <Loading />;
     }

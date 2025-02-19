@@ -29,17 +29,11 @@ const TariffTypes: React.FC<TariffTypesProps> = ({
 }) => {
   const router = useRouter();
 
-  const { uuid, name, vehicleType, additionalPointPrice, tariffAdditionalServices = [] } = tariff;
+  const { uuid, name, vehicleType, price, tariffAdditionalServices = [] } = tariff;
 
-  //Используем метод find для поиска перевода типа транспортного средства
   const vehicleTypeOption = vehicleTypeOptions.find((option) => option.value === vehicleType);
   const translatedVehicleType = vehicleTypeOption ? vehicleTypeOption.label : vehicleType;
   const seats = vehicleSeats[vehicleType] || '';
-
-  const totalPrice = tariffAdditionalServices.reduce(
-    (sum, service) => sum + service.price,
-    additionalPointPrice,
-  );
 
   const handleEdit = () => {
     router.push(`/tariff-management/edit/${uuid}`);
@@ -56,7 +50,7 @@ const TariffTypes: React.FC<TariffTypesProps> = ({
       className={cn(
         'min-w-[284px] flex flex-col relative rounded-xl p-4 gap-4 cursor-pointer bg-white transition-all duration-75',
         {
-          'shadow-lg outline': isActive,
+          'shadow-lg border border-gray-300': isActive,
         },
       )}
       onClick={() => onSelectTariff(tariff)}
@@ -94,7 +88,7 @@ const TariffTypes: React.FC<TariffTypesProps> = ({
           </IButton>
 
           <p className="font-helvetica-neue text-sm leading-5 text-end text-black/50 pl-3 pt-3">
-            Цена: <strong className="text-black text-5xl">{totalPrice}₽</strong>
+            Цена: <strong className="text-black text-5xl">{price}₽</strong>
           </p>
         </div>
       </div>

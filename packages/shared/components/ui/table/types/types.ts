@@ -46,7 +46,7 @@ export interface TableUsersRow {
   number: number;
   email: string;
   role: UserRole;
-  additionalInfo: { phone: string | null; fullName: string | null } | null;
+  fullName: { phone: string | null; fullName: string | null } | null;
   createdAt: Date;
   updatedAt: Date;
   availability: boolean;
@@ -55,7 +55,7 @@ export interface TableUsersRow {
 
 export interface TableDriversRow {
   number: number;
-  additionalInfo: { phone: string | null; fullName: string | null } | null;
+  fullName: { phone: string | null; fullName: string | null } | null;
   passportId: string | null;
   passportPhotoPath: string | null;
   createdAt: Date;

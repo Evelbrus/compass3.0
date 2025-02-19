@@ -95,7 +95,7 @@ const useUsers = () => {
     number: (optimisticPage - 1) * perPage + index + 1,
     email: user.email,
     role: user.role,
-    additionalInfo: {
+    fullName: {
       phone: user.phone || null,
       fullName: user.fullName || null,
     },

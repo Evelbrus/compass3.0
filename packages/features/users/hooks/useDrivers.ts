@@ -72,7 +72,7 @@ const useDrivers = () => {
 
   const tableData: TableDriversRow[] = users.map((user, index) => ({
     number: (optimisticPage - 1) * perPage + index + 1,
-    additionalInfo: {
+    fullName: {
       phone: user.phone,
       fullName: user.fullName,
     },

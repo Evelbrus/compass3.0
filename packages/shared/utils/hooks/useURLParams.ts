@@ -7,16 +7,12 @@ const useURLParams = ({
   sortBy,
   sortOrder,
   statusFilter,
-  reset,
-  activeTab,
 }: {
   optimisticPage?: number;
   roleFilter?: string;
   sortBy?: string | null;
   sortOrder?: 'asc' | 'desc';
   statusFilter?: string | null;
-  reset?: boolean;
-  activeTab?: string;
 }) => {
   const router = useRouter();
 
@@ -24,13 +20,8 @@ const useURLParams = ({
     const updateURL = () => {
       const currentParams = new URLSearchParams(window.location.search);
 
-      if (reset) {
-        currentParams.set('page', '1');
-      } else {
-        currentParams.set('page', optimisticPage?.toString() ?? '');
-      }
+      currentParams.set('page', optimisticPage?.toString() ?? '1');
 
-      currentParams.set('tab', activeTab ?? '');
       currentParams.set('role', roleFilter ?? '');
       currentParams.set('sort_by', sortBy ?? '');
       currentParams.set('sort_order', sortOrder ?? '');
@@ -43,7 +34,7 @@ const useURLParams = ({
     };
 
     updateURL();
-  }, [optimisticPage, roleFilter, sortBy, sortOrder, statusFilter, reset, activeTab]);
+  }, [optimisticPage, roleFilter, sortBy, sortOrder, statusFilter]);
 };
 
 export default useURLParams;

@@ -5,6 +5,8 @@ import Cropper from 'react-easy-crop';
 import ModalFullImage from '@shared/components/ui/images/ui/ModalFullImage';
 import { useImageEditor } from '@shared/components/ui/images/hooks/useImageEditor';
 import { EyeIcon, CropIcon, TrashIcon, UndoIcon, UploadIcon } from 'lucide-react';
+import { useSession } from '@shared/utils/hooks/useSession';
+import { UserRole } from '@prisma/client';
 
 interface ImageUploadWithCropProps {
   initialSrc?: string | null;
@@ -53,6 +55,12 @@ export const ImageUploadWithCrop: React.FC<ImageUploadWithCropProps> = ({
     setShowFullImage,
   } = useImageEditor(initialSrc);
 
+  const session = useSession();
+  const canEdit =
+    session &&
+    (session.userSession?.role === UserRole.Operator ||
+      session.userSession?.role === UserRole.Admin);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     handleImageChange(e);
     if (onChange) {
@@ -69,7 +77,8 @@ export const ImageUploadWithCrop: React.FC<ImageUploadWithCropProps> = ({
   };
 
   return (
-    <div className={`w-full flex flex-col items-center justify-start  ${className}`}>
+    <div className={`w-full flex flex-col items-center justify-start ${className}`}>
+      {/*Заголовок отображается только в режиме upload */}
       {mode === 'upload' && (
         <label className="block text-4 font-medium text-gray-500 mb-2">
           {label}
@@ -84,6 +93,7 @@ export const ImageUploadWithCrop: React.FC<ImageUploadWithCropProps> = ({
         {localPreview ? (
           <>
             <div className="absolute top-2 right-2 grid gap-1">
+              {/*Кнопка просмотра доступна всем */}
               <button
                 type="button"
                 onClick={() => setShowFullImage(true)}
@@ -97,45 +107,50 @@ export const ImageUploadWithCrop: React.FC<ImageUploadWithCropProps> = ({
               >
                 <EyeIcon size={20} />
               </button>
-              <button
-                type="button"
-                onClick={() => setShowCropper(true)}
-                className="text-gray-600 hover:text-green-600 p-1 rounded-sm"
-                style={{
-                  background:
-                    'linear-gradient(135deg, rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0.3) 100%)',
-                  backdropFilter: 'blur(5px)',
-                  border: 'none',
-                }}
-              >
-                <CropIcon size={20} />
-              </button>
-              <button
-                type="button"
-                onClick={handleResetCrop}
-                className="text-gray-600 hover:text-yellow-600 p-1 rounded-sm"
-                style={{
-                  background:
-                    'linear-gradient(135deg, rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0.3) 100%)',
-                  backdropFilter: 'blur(5px)',
-                  border: 'none',
-                }}
-              >
-                <UndoIcon size={20} />
-              </button>
-              <button
-                type="button"
-                onClick={handleRemoveClick}
-                className="text-gray-600 hover:text-red-600 p-1 rounded-sm"
-                style={{
-                  background:
-                    'linear-gradient(135deg, rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0.3) 100%)',
-                  backdropFilter: 'blur(5px)',
-                  border: 'none',
-                }}
-              >
-                <TrashIcon size={20} />
-              </button>
+              {/*Кнопки редактирования, сброса и удаления показываем только в режиме upload и если есть права */}
+              {mode === 'upload' && canEdit && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setShowCropper(true)}
+                    className="text-gray-600 hover:text-green-600 p-1 rounded-sm"
+                    style={{
+                      background:
+                        'linear-gradient(135deg, rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0.3) 100%)',
+                      backdropFilter: 'blur(5px)',
+                      border: 'none',
+                    }}
+                  >
+                    <CropIcon size={20} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleResetCrop}
+                    className="text-gray-600 hover:text-yellow-600 p-1 rounded-sm"
+                    style={{
+                      background:
+                        'linear-gradient(135deg, rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0.3) 100%)',
+                      backdropFilter: 'blur(5px)',
+                      border: 'none',
+                    }}
+                  >
+                    <UndoIcon size={20} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleRemoveClick}
+                    className="text-gray-600 hover:text-red-600 p-1 rounded-sm"
+                    style={{
+                      background:
+                        'linear-gradient(135deg, rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0.3) 100%)',
+                      backdropFilter: 'blur(5px)',
+                      border: 'none',
+                    }}
+                  >
+                    <TrashIcon size={20} />
+                  </button>
+                </>
+              )}
             </div>
             {showCropper && (
               <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75">
@@ -185,6 +200,7 @@ export const ImageUploadWithCrop: React.FC<ImageUploadWithCropProps> = ({
         )}
       </div>
 
+      {/*Кнопка загрузки фото показывается только в режиме upload */}
       {mode === 'upload' && (
         <div className="mt-2">
           <button

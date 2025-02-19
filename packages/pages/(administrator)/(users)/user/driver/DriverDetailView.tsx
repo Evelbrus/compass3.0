@@ -63,7 +63,6 @@ const DriverDetailView = ({ userData }: DriverDetailViewProps): JSX.Element => {
         { label: 'Actual Address', value: userData.driverProfile.actualAddress },
         { label: 'Permanent Address', value: userData.driverProfile.permanentAddress },
         { label: 'Changing Driver', value: userData.driverProfile.changingDriver },
-        { label: 'Type of Driver', value: userData.driverProfile.typeDriver },
         { label: 'Years of Driving', value: userData.driverProfile.yearsOfDriving },
         //{ label: 'Passport Photo Path', value: userData.driverProfile.passportPhotoPath },
         //{ label: 'License Photo Path', value: userData.driverProfile.licensePhotoPath },

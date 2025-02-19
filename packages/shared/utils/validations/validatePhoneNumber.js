@@ -7,7 +7,7 @@ const validatePhoneNumber = (value) => {
         return 'Неизвестный код страны';
     }
     const localNumber = value.slice(matchedCountry.dialCode.length);
-    if (localNumber.length < 6) {
+    if (localNumber.length < matchedCountry.minLength) {
         return `Номер телефона слишком короткий для ${matchedCountry.name}`;
     }
     if (localNumber.length > matchedCountry.maxLength) {

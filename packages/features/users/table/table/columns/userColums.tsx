@@ -25,22 +25,22 @@ export const usersColumns: Column<TableUsersRow, keyof TableUsersRow>[] = [
     className: 'w-[150px] text-center',
   },
   {
-    accessor: 'additionalInfo',
+    accessor: 'fullName',
     header: 'Телефон и ФИО',
     render: (row: TableUsersRow) => {
-      if (row.additionalInfo === null) {
+      if (row.fullName === null) {
         return 'Не указано';
       }
       return (
         <>
           {renderCustomerPhone(
-            row.additionalInfo.phone || 'Не указано',
-            row.additionalInfo.fullName || 'Не указано',
+            row.fullName.phone || 'Не указано',
+            row.fullName.fullName || 'Не указано',
           )}
         </>
       );
     },
-    sortable: false,
+    sortable: true,
     className: 'w-[350px]',
   },
   {

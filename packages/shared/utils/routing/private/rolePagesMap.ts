@@ -61,6 +61,7 @@ export const rolePagesMap: Record<UserRole, RouteLiteral[]> = {
     'USERADMINCREATE',
     'USERADMINEDIT',
     'MAP',
+    'REFERENCEBOOK',
   ],
   None: ['LOGIN', 'REGISTER'],
 };

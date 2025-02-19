@@ -102,4 +102,15 @@ export const navItems: NavItem[] = [
       />
     ),
   },
+  {
+    label: 'Справочники',
+    href: privateRoutes.REFERENCEBOOK,
+    icon: (
+      <Icon
+        name="settings"
+        alt="Справочники"
+        className="w-6 h-6 text-current transition-colors duration-300"
+      />
+    ),
+  },
 ];

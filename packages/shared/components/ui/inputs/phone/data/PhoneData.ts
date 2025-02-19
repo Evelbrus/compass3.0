@@ -1,11 +1,4 @@
-export interface Country {
-  code: string;
-  name: string;
-  dialCode: string;
-  flag: string;
-  maxLength: number;
-  formatPattern: number[];
-}
+import { Country } from '@shared/components/ui/inputs';
 
 export const countryData: Country[] = [
   {
@@ -14,6 +7,7 @@ export const countryData: Country[] = [
     dialCode: '+996',
     flag: '/images/phone/free-icon-kyrgyzstan-206700.png',
     maxLength: 9,
+    minLength: 9,
     formatPattern: [3, 3, 3],
   },
   {
@@ -22,6 +16,7 @@ export const countryData: Country[] = [
     dialCode: '+7',
     flag: '/images/phone/free-icon-russia-555451.png',
     maxLength: 10,
+    minLength: 10,
     formatPattern: [3, 3, 2, 2],
   },
 ];

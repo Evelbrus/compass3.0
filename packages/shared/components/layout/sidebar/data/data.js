@@ -47,4 +47,9 @@ export const navItems = [
         href: privateRoutes.MAP,
         icon: (_jsx(Icon, { name: "map", alt: "\u041A\u0430\u0440\u0442\u0430", className: "w-6 h-6 text-current transition-colors duration-300" })),
     },
+    {
+        label: 'Справочники',
+        href: privateRoutes.REFERENCEBOOK,
+        icon: (_jsx(Icon, { name: "settings", alt: "\u0421\u043F\u0440\u0430\u0432\u043E\u0447\u043D\u0438\u043A\u0438", className: "w-6 h-6 text-current transition-colors duration-300" })),
+    },
 ];

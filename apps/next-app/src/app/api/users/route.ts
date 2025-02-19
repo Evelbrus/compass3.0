@@ -199,6 +199,7 @@ export async function POST(req: Request) {
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
 
+  //Допустимые варианты сортировки: email, fullName, createdAt, updatedAt, role, availability, passportId
   const parsedParams = {
     page: parseInt(searchParams.get('page') || '1', 10),
     per_page: parseInt(searchParams.get('per_page') || '10', 10),
@@ -208,15 +209,18 @@ export async function GET(req: Request) {
     sort_by:
       (searchParams.get('sort_by') as
         | 'email'
+        | 'fullName'
         | 'createdAt'
         | 'updatedAt'
         | 'role'
-        | 'availability') || 'createdAt',
+        | 'availability'
+        | 'passportId'
+        | null) || 'createdAt',
     sort_order: (searchParams.get('sort_order') as 'asc' | 'desc') || 'desc',
     search: searchParams.get('search') || null,
   };
 
-  log('Parsed parameters:', parsedParams);
+  console.log('Parsed parameters:', parsedParams);
 
   try {
     const where: {
@@ -242,13 +246,25 @@ export async function GET(req: Request) {
       where.OR = [{ fullName: { contains: parsedParams.search, mode: 'insensitive' } }];
     }
 
+    //Формирование orderBy. Если сортировка по passportId, то сортировка по полю внутри driverProfile.
+    let orderBy: Prisma.UserOrderByWithRelationInput = {};
+    if (parsedParams.sort_by === 'passportId') {
+      orderBy = {
+        driverProfile: {
+          passportId: parsedParams.sort_order,
+        },
+      };
+    } else {
+      orderBy = {
+        [parsedParams.sort_by]: parsedParams.sort_order,
+      };
+    }
+
     const users = await prisma.user.findMany({
       skip: (parsedParams.page - 1) * parsedParams.per_page,
       take: parsedParams.per_page,
       where,
-      orderBy: {
-        [parsedParams.sort_by]: parsedParams.sort_order,
-      },
+      orderBy,
       select: {
         uuid: true,
         email: true,
@@ -276,8 +292,9 @@ export async function GET(req: Request) {
       _count: { role: true },
     });
 
-    log('Fetched users:', users);
+    console.log('Fetched users:', users);
 
+    //Фильтрация пользователей по поисковому запросу (если он задан)
     const searchTerm = parsedParams.search ? parsedParams.search.toLowerCase() : '';
     const filteredUsers = parsedParams.search
       ? users.filter((user) => {
@@ -299,12 +316,13 @@ export async function GET(req: Request) {
           users: filteredUsers,
         },
       }),
+      { status: 200 },
     );
   } catch (error) {
-    log('Error fetching users:', error);
+    console.error('Error fetching users:', error);
     if (error instanceof Error) {
-      log('Error message:', error.message);
-      log('Error stack:', error.stack);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
     }
     return NextResponse.json({ error: 'Unable to fetch users' }, { status: 500 });
   }

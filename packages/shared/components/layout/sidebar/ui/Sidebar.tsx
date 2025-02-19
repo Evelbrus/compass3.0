@@ -15,7 +15,6 @@ import {
   publicRoutes,
 } from '@shared/utils/routing';
 import { rolePagesMap } from '@shared/utils/routing/private/rolePagesMap';
-import { UserRole } from '@prisma/client';
 
 const Sidebar: React.FC<SidebarProps> = ({ role }) => {
   const pathname = usePathname();

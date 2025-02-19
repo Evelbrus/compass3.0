@@ -1,27 +1,29 @@
 'use client';
 
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, JSX } from 'react';
 import { TextInput } from '@shared/components/ui/inputs';
 import { SelectSingle } from '@shared/components/ui/inputs';
 import { cn } from '@shared/lib';
-
 import { countryData } from '@shared/components/ui/inputs/phone/data/PhoneData';
 import { countryOptions } from '@shared/components/ui/inputs/phone';
 import { formatByCountry } from '@shared/components/ui/inputs/phone';
 import { PhoneInputProps } from '@shared/components/ui/inputs/phone';
-
-//Единый тип: SelectOption
-import { CountryOption, SelectOption } from '@shared/lib/effector/types/types';
-
+import { OptionBase, SelectOption } from '@shared/lib/effector/types/types';
 import { LazyImage } from '@shared/components/ui/images';
 import { Skeleton } from '@shared/components/ui/skeleton/Skeleton';
 
-interface Country {
+export interface CountryOption extends OptionBase<string> {
+  compactLabel: JSX.Element;
+}
+
+export interface Country {
   code: string;
+  name: string;
   dialCode: string;
   flag: string;
-  name: string;
   maxLength: number;
+  minLength: number;
+  formatPattern: number[];
 }
 
 export const PhoneInput: React.FC<PhoneInputProps> = ({

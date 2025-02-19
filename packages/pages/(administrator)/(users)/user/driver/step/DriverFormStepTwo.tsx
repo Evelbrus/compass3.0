@@ -13,7 +13,6 @@ import { ChangingDriver, Citizenship, IdentityDocument, PartnerCompany } from '@
 import { SelectOption } from '@shared/lib/effector';
 
 //Определяем константы для имен полей.
-//В UserCard предполагается, что driverProfile.* — строки, а не объекты { value, label }
 const FIELD_CITIZENSHIP = 'driverProfile.citizenship';
 const FIELD_IDENTITY_DOCUMENT = 'driverProfile.identityDocument';
 const FIELD_PASSPORT_ID = 'driverProfile.passportId';
@@ -24,7 +23,6 @@ const FIELD_BIRTH_PLACE = 'driverProfile.birthPlace';
 const FIELD_ACTUAL_ADDRESS = 'driverProfile.actualAddress';
 const FIELD_PERMANENT_ADDRESS = 'driverProfile.permanentAddress';
 const FIELD_CHANGING_DRIVER = 'driverProfile.changingDriver';
-const FIELD_TYPE_DRIVER = 'driverProfile.typeDriver';
 const FIELD_PASSPORT_IMAGE = 'driverProfile.passportImage';
 const FIELD_DRIVER_PROFILE_IMAGE = 'driverProfile.driverProfileImage';
 const FIELD_PARTNER_COMPANY = 'partnerCompany';
@@ -341,30 +339,6 @@ const DriverFormStepTwo: React.FC<DriverFormStepTwoProps> = ({
                   message={fieldState.error?.message || ''}
                   requiredStar
                   placeholder="Выберите режим"
-                />
-              );
-            }}
-          />
-
-          {/*Тип водителя (TextInput) */}
-          <Controller
-            name={FIELD_TYPE_DRIVER}
-            control={control}
-            rules={{ required: 'Тип водителя обязателен' }}
-            render={({ field, fieldState }) => {
-              const handleChange = (newValue: string | number | bigint | null) => {
-                clearErrors(FIELD_TYPE_DRIVER);
-                field.onChange(newValue === null ? '' : newValue);
-              };
-              return (
-                <TextInput
-                  label="Тип водителя:"
-                  type="text"
-                  value={field.value ?? ''}
-                  onChange={handleChange}
-                  required
-                  error={!!fieldState.error}
-                  message={fieldState.error?.message || ''}
                 />
               );
             }}

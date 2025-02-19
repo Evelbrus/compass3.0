@@ -25,6 +25,7 @@
     "prisma:drop": "cd packages/shared/prisma/schema/ && npx prisma migrate reset --force --skip-seed",
     "generate:profile-routes": "node packages/shared/utils/protected-path-logic-nodeJS/generateProfileRoutes.js",
     "generate:cookie-name": "node packages/shared/utils/cookie/generate-cookie/generateCookieFiles.js",
+    "prisma:generate": "dotenv -e apps/next-app/.env.development -- prisma generate",
     "prisma:migrate:dev": "dotenv -e apps/next-app/.env.development -- prisma migrate dev",
     "prisma:push:dev": "dotenv -e apps/next-app/.env.development -- prisma db push",
     "prisma:seed:dev": "dotenv -e apps/next-app/.env.development -- prisma db seed",

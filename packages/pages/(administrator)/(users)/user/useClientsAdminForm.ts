@@ -186,7 +186,6 @@ export default function useClientsAdminForm({
           'driverProfile.passportIssued',
           'driverProfile.birthDate',
           'driverProfile.permanentAddress',
-          'driverProfile.typeDriver',
           'driverProfile.birthPlace',
           'driverProfile.changingDriver',
           'partnerCompany',

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React, { useRef } from 'react';
 import { IButton } from '@shared/components/ui/buttons';
 import AnimatedComponent from '@shared/components/animated/CommonAnimated/AnimatedComponent';
 import { openModal } from '@shared/lib/effector/state/state';
@@ -9,15 +9,7 @@ import PaginationComponent from '@shared/components/ui/pagination/PaginationComp
 import useAdditionalServices from '@features/additional-service/hooks/useAdditionalServices';
 import AdditionalServicesTable from '@features/additional-service/table/AdditionalServicesTable';
 
-const AdditionalServices = ({
-  activeTab,
-  reset,
-  setReset,
-}: {
-  activeTab: string;
-  reset: boolean;
-  setReset: (reset: boolean) => void;
-}) => {
+const AdditionalServices = () => {
   const topRef = useRef<HTMLDivElement>(null);
 
   //Получаем данные из хука
@@ -35,15 +27,7 @@ const AdditionalServices = ({
   } = useAdditionalServices();
 
   //Теперь используем хук useURLParams для обновления URL
-  useURLParams({ optimisticPage, sortBy, sortOrder, reset, activeTab });
-
-  useEffect(() => {
-    if (reset) {
-      //Когда reset равен true, сбрасываем страницу на 1 и очищаем reset
-      handlePageChange(1);
-      setReset(false);
-    }
-  }, [reset, setReset, handlePageChange]);
+  useURLParams({ optimisticPage, sortBy, sortOrder });
 
   //Обработчик изменения страницы с прокруткой вверх
   const handlePageChangeWithScroll = (newPage: number) => {
