@@ -50,7 +50,10 @@ const usePoints = () => {
           number: (optimisticPage - 1) * perPage + index + 1,
           uuid: point.uuid,
           address: point.address,
-          basePrice: Number(point.basePrice),
+          pricePerKm: Number(point.pricePerKm) + '\u00A0сом',
+          terrainDifficulty: Number(point.terrainDifficulty),
+          latitude: Number(point.latitude),
+          longitude: Number(point.longitude),
           airport: point.airport,
           createdAt: new Date(point.createdAt),
           updatedAt: new Date(point.updatedAt),
@@ -70,7 +73,7 @@ const usePoints = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, perPage, sortBy, sortOrder]);
+  }, [page, perPage, sortBy, sortOrder, router]);
 
   useEffect(() => {
     fetchPoints();

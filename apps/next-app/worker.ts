@@ -22,7 +22,6 @@ const socket = io(process.env.NEXT_PUBLIC_SOCKET_ORIGIN || 'http://localhost:300
 socket.on('connect', () => console.log('✅ Подключено к серверу сокетов'));
 socket.on('disconnect', () => console.log('❌ Отключено от сервера сокетов'));
 
-//Интерфейс данных задачи – теперь передаётся только orderUuid
 export interface CheckOverdueJobData {
   orderUuid: string;
 }
@@ -32,10 +31,16 @@ export const worker = new Worker(
   async (job: Job<CheckOverdueJobData>) => {
     try {
       console.log(`🚀 Начало обработки задачи "${job.name}" с ID ${job.id}`);
+      console.log('Данные задачи:', JSON.stringify(job.data));
 
-      //Получаем заказ по UUID из данных задачи
+      if (!job.data.orderUuid) {
+        console.error('Данные задачи не содержат orderUuid:', JSON.stringify(job.data));
+        throw new Error('UUID заказа отсутствует в данных задачи');
+      }
+
       const order = await prisma.order.findUnique({ where: { uuid: job.data.orderUuid } });
       if (!order) {
+        console.error(`Заказ с UUID ${job.data.orderUuid} не найден`);
         throw new Error(`Заказ ${job.data.orderUuid} не найден`);
       }
 
@@ -61,21 +66,18 @@ worker.on('completed', (job) => console.log(`✅ Задача ${job.id} ("${job.
 worker.on('failed', (job: Job<CheckOverdueJobData> | undefined, err: Error, prev?: string) => {
   if (job) {
     console.error(`❌ Ошибка в задаче ${job.id} ("${job.name}"): ${err.message}`);
+    console.error('Данные задачи:', JSON.stringify(job.data));
   } else {
     console.error(`❌ Ошибка: ${err.message}`);
   }
 });
 
-//Функция для обработки задачи "notification"
 async function processNotificationJob(order: Order) {
   console.log(`Отправка уведомления inProgress для заказа ${order.uuid}`);
 
-  //Если водитель назначен, выполняем логику отправки уведомления
   if (order.assignedDriverId) {
-    //Сохраняем значение в константу, чтобы гарантировать тип string
     const driverId: string = order.assignedDriverId;
     await prisma.$transaction(async (prismaTx) => {
-      //Получаем адрес точки отправления (если есть)
       const departurePoint = await prismaTx.point.findUnique({
         where: { uuid: order.departurePointId },
       });
@@ -101,7 +103,7 @@ async function processNotificationJob(order: Order) {
             orderId: order.uuid,
             title: 'Новый заказ!',
             message: newMessage,
-            action: desiredAction,
+            action: desiredAction, //Исправили на desiredAction
             read: false,
           },
         });
@@ -130,7 +132,6 @@ async function processNotificationJob(order: Order) {
     );
   }
 
-  //Планируем задачу "checkoverdue" в момент departureTime (независимо от наличия водителя)
   const departureTimeMs = new Date(order.departureTime).getTime();
   const now = Date.now();
   const delay = Math.max(departureTimeMs - now, 0);
@@ -148,7 +149,6 @@ async function processNotificationJob(order: Order) {
   console.log(`⏱ Задача "checkoverdue" для заказа ${order.uuid} запланирована через ${delay} мс.`);
 }
 
-//Функция для обработки задачи "checkoverdue"
 async function processCheckoverdueJob(order: Order) {
   console.log(`Проверка просроченности заказа ${order.uuid} в момент departureTime`);
 
@@ -158,7 +158,6 @@ async function processCheckoverdueJob(order: Order) {
     return;
   }
 
-  //Если время departureTime прошло и заказ всё ещё PENDING или PLANNED – обновляем статус
   if (freshOrder.status === OrderStatus.PENDING || freshOrder.status === OrderStatus.PLANNED) {
     await prisma.order.update({
       where: { uuid: order.uuid },
@@ -166,7 +165,6 @@ async function processCheckoverdueJob(order: Order) {
     });
     console.log(`✅ Статус заказа ${order.uuid} обновлен на OVERDUE`);
 
-    //Если водитель назначен, обновляем его статус и отправляем уведомление warning
     if (order.assignedDriverId) {
       const driverId: string = order.assignedDriverId;
       await prisma.user.update({
@@ -175,7 +173,6 @@ async function processCheckoverdueJob(order: Order) {
       });
       console.log(`✅ Статус водителя для заказа ${order.uuid} обновлен на TIMEOUT`);
 
-      //Получаем адрес точки отправления (если есть)
       const departurePoint = await prisma.point.findUnique({
         where: { uuid: order.departurePointId },
       });

@@ -37,6 +37,7 @@ export const TextInput: React.FC<TextInputProps> = ({
     'w-full rounded p-2 focus:outline-none focus:ring',
     error ? 'border-2 border-red-400' : 'border border-gray-300 focus:border-blue-300',
   ),
+  step,
 }) => {
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
   //Состояние для переключения видимости пароля
@@ -67,10 +68,8 @@ export const TextInput: React.FC<TextInputProps> = ({
           onChange={(e) => {
             let newValue: string | number | null = e.target.value ?? '';
 
-            if (type === 'number' && e.target.value !== '') {
-              newValue = /^\d+$/.test(e.target.value)
-                ? parseInt(e.target.value, 10)
-                : Number(e.target.value);
+            if (type === 'number') {
+              newValue = e.target.value;
             } else if (type === 'date') {
               newValue = formatDateForBackend(e.target.value);
             }
@@ -85,6 +84,7 @@ export const TextInput: React.FC<TextInputProps> = ({
           maxLength={maxLength}
           onKeyDown={onKeyDown}
           aria-invalid={error}
+          step={type === 'number' ? (step ? step.toString() : 'any') : undefined}
           className={'w-full'}
         />
 

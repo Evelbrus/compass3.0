@@ -8,7 +8,6 @@ interface Params {
   uuid: string;
 }
 
-//GET: Получение заказа по UUID
 export async function GET(req: Request, { params }: { params: Promise<Params> }) {
   const { uuid } = await params;
   log(`Fetching order with UUID: ${uuid}`);
@@ -54,12 +53,18 @@ export async function GET(req: Request, { params }: { params: Promise<Params> })
       departurePoint: {
         uuid: order.departurePoint.uuid,
         address: order.departurePoint.address,
-        basePrice: order.departurePoint.basePrice,
+        pricePerKm: order.departurePoint.pricePerKm,
+        terrainDifficulty: order.departurePoint.terrainDifficulty,
+        latitude: order.departurePoint.latitude,
+        longitude: order.departurePoint.longitude,
       },
       arrivalPoint: {
         uuid: order.arrivalPoint.uuid,
         address: order.arrivalPoint.address,
-        basePrice: order.arrivalPoint.basePrice,
+        pricePerKm: order.arrivalPoint.pricePerKm,
+        terrainDifficulty: order.arrivalPoint.terrainDifficulty,
+        latitude: order.arrivalPoint.latitude,
+        longitude: order.arrivalPoint.longitude,
       },
       orderTariffAdditionalServices: order.orderTariffAdditionalServices.map((ots) => ({
         uuid: ots.uuid,

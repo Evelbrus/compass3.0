@@ -2,7 +2,6 @@ import React, { Suspense } from 'react';
 import { StaticHeader } from '@entities/layout/header/static-header';
 import HeaderContainer from '@widgets/layout/header/HeaderContainer';
 import { UserSession } from '@shared/prisma/interface/users/interface';
-import ModalDriver from '@widgets/modal-driver/ModalDriver';
 
 interface HeaderProps {
   userSession?: UserSession | null;

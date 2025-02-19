@@ -39,9 +39,9 @@ const DriverFormStepThree: React.FC<DriverFormStepThreeProps> = ({
             }}
             render={({ field, fieldState }) => {
               //Изменён тип параметра handleChange
-              const handleChange = (newValue: string | number | bigint | null) => {
+              const handleChange = (newValue: string | number | null) => {
                 clearErrors(FIELD_YEARS_OF_DRIVING);
-                field.onChange(newValue);
+                field.onChange(newValue === null ? '' : Number(newValue) || null);
               };
 
               return (

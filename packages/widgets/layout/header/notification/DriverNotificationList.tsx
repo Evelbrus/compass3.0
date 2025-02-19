@@ -1,8 +1,7 @@
 import React, { useCallback } from 'react';
-import { Notification } from '@features/notifications/lib/useNotifications';
 import { IButton } from '@shared/components/ui/buttons';
 import { CloseIcon } from 'next/dist/client/components/react-dev-overlay/internal/icons/CloseIcon';
-import { Action } from '@prisma/client';
+import { Action, Notification } from '@prisma/client';
 
 interface DriverNotificationListProps {
   notifications: Notification[];

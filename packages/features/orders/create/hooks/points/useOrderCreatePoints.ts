@@ -43,21 +43,18 @@ export const useOrderCreatePoints = ({
 
   const formMethods = useForm<CreateOrderData>({
     defaultValues: {
-      //Устанавливаем значения по умолчанию для полей формы
       departurePoint: '',
       arrivalPoint: '',
       intermediatePoints: ['', '', '', '', ''],
     },
   });
 
-  //Получаем актуальные данные формы
   const {
     departurePoint: currentDeparturePoint,
     arrivalPoint: currentArrivalPoint,
     intermediatePoints: currentIntermediatePoints,
   } = formMethods.watch();
 
-  //Считаем общее количество точек, включая промежуточные
   const totalPointsCount = useMemo(() => {
     let count = 0;
     if (currentDeparturePoint) count++;
@@ -68,14 +65,12 @@ export const useOrderCreatePoints = ({
     return count;
   }, [currentDeparturePoint, currentArrivalPoint, currentIntermediatePoints]);
 
-  //Вычисляем общую стоимость дополнительных точек
   const totalAdditionalPointsPrice = useMemo(() => {
     const additionalPointsCount = totalPointsCount > 2 ? totalPointsCount - 2 : 0;
     const totalPrice = additionalPointsCount * (additionalPointPrice || 0);
     return `(${additionalPointsCount} доп. точек ${totalPrice}с)`;
   }, [totalPointsCount, additionalPointPrice]);
 
-  //Мемоизируем стоимость дополнительных промежуточных точек
   const totalIntermediatePointsPrice = useMemo(() => {
     if (!currentIntermediatePoints) return 0;
     const intermediatePointsCount = currentIntermediatePoints.filter(Boolean).length;
@@ -83,11 +78,8 @@ export const useOrderCreatePoints = ({
     return `(${intermediatePointsCount} доп. точек ${totalPrice}с)`;
   }, [currentIntermediatePoints, additionalPointPrice]);
 
-  //Мемоизируем стоимость точки прибытия
   const arrivalPointPrice = useMemo(() => {
-    return selectedArrivalPoint
-      ? parseFloat(selectedArrivalPoint.basePrice as unknown as string) || 0
-      : 0;
+    return selectedArrivalPoint ? parseFloat(selectedArrivalPoint.pricePerKm.toString()) || 0 : 0;
   }, [selectedArrivalPoint]);
 
   useEffect(() => {
@@ -208,23 +200,18 @@ export const useOrderCreatePoints = ({
         return;
       }
 
-      //Проверяем, не выбрана ли эта точка уже в другом инпуте
       if (selectedIntermediatePoints.some((p) => p && p.uuid === point?.uuid)) {
         showToast.error('Эта точка уже выбрана как промежуточная');
         return;
       }
 
-      //Копируем текущий массив выбранных точек
       const updatedSelectedIntermediatePoints: (Point | null)[] = [...selectedIntermediatePoints];
-      //Обновляем элемент по индексу
       updatedSelectedIntermediatePoints[index] = point;
 
-      //Обновляем intermediatePoints в форме, сохраняя только uuid
       const updatedIntermediatePointsUuids = updatedSelectedIntermediatePoints.map(
         (p) => p?.uuid || '',
       );
 
-      //Обновляем состояние и форму
       setSelectedIntermediatePoints(updatedSelectedIntermediatePoints);
       formMethods.setValue('intermediatePoints', updatedIntermediatePointsUuids);
     },
@@ -344,7 +331,6 @@ export const useOrderCreatePoints = ({
     });
   }, [points, selectedDeparturePoint, selectedArrivalPoint, intermediateSearches, formMethods]);
 
-  //Рефы для хранения последних поисковых запросов intermediateSearches
   const lastIntermediateSearchQueries = useRef<string[]>(Array(5).fill(''));
 
   useEffect(() => {

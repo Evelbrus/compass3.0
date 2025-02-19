@@ -38,13 +38,12 @@ export const useOrderPriceCalculation = ({
       0,
     );
 
-    const arrivalPointPrice = selectedArrivalPoint?.basePrice
-      ? Number(selectedArrivalPoint.basePrice)
+    const arrivalPointPrice = selectedArrivalPoint
+      ? Number(selectedArrivalPoint.pricePerKm.toString())
       : 0;
 
     const intermediatePointsPrice = selectedIntermediatePoints.length * (additionalPointPrice ?? 0);
 
-    //Вычисляем общую цену
     const totalPrice =
       additionalServicesPrice +
       (priceTariff ?? 0) +
@@ -62,7 +61,6 @@ export const useOrderPriceCalculation = ({
     priceTariff,
   ]);
 
-  //Функция для обновления цены в форме
   const handleUpdatePrice = () => {
     setValue('basePrice', price);
     console.log('Setting basePrice to:', price);

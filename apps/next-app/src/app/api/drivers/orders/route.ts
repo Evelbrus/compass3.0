@@ -8,14 +8,11 @@ import { verifyJWT } from '@shared/utils/parse-jwt/parseJwt';
 
 const log = debug('app:drivers/orders');
 
-//Define a type for the JWT payload
 interface JwtPayload {
   uuid: string;
   [key: string]: string;
 }
 
-//GET: Получение заказов для конкретного водителя с пагинацией, фильтрацией и сортировкой
-//Путь: /api/drivers/orders
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
 
@@ -111,12 +108,18 @@ export async function GET(req: NextRequest) {
       departurePoint: {
         uuid: order.departurePoint.uuid,
         address: order.departurePoint.address,
-        basePrice: order.departurePoint.basePrice,
+        pricePerKm: order.departurePoint.pricePerKm,
+        terrainDifficulty: order.departurePoint.terrainDifficulty,
+        latitude: order.departurePoint.latitude,
+        longitude: order.departurePoint.longitude,
       },
       arrivalPoint: {
         uuid: order.arrivalPoint.uuid,
         address: order.arrivalPoint.address,
-        basePrice: order.arrivalPoint.basePrice,
+        pricePerKm: order.arrivalPoint.pricePerKm,
+        terrainDifficulty: order.arrivalPoint.terrainDifficulty,
+        latitude: order.arrivalPoint.latitude,
+        longitude: order.arrivalPoint.longitude,
       },
       orderTariffAdditionalServices: order.orderTariffAdditionalServices.map((ots) => ({
         uuid: ots.uuid,

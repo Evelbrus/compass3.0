@@ -14,16 +14,17 @@ export async function GET(req: Request) {
   const per_page = searchParams.get('per_page') || '10';
   const sort_by = searchParams.get('sort_by') as
     | 'address'
-    | 'basePrice'
+    | 'pricePerKm'
     | 'createdAt'
     | 'updatedAt'
+    | 'terrainDifficulty'
     | undefined;
   const sort_order = searchParams.get('sort_order') as 'asc' | 'desc' | undefined;
 
   const pageNumber = parseInt(page, 10);
   const perPage = parseInt(per_page, 10);
 
-  //📌 Фильтрация по адресу (убрал name, так как его нет)
+  //📌 Фильтрация по адресу
   const where: Prisma.PointWhereInput = search
     ? {
         address: { contains: search, mode: 'insensitive' },
@@ -31,7 +32,7 @@ export async function GET(req: Request) {
     : {};
 
   //📌 Валидация и создание сортировки
-  const validSortFields = ['address', 'basePrice', 'createdAt', 'updatedAt'];
+  const validSortFields = ['address', 'pricePerKm', 'createdAt', 'updatedAt', 'terrainDifficulty'];
   const orderBy: Prisma.PointOrderByWithRelationInput[] = [];
 
   if (sort_by && validSortFields.includes(sort_by)) {
@@ -50,6 +51,17 @@ export async function GET(req: Request) {
         orderBy: orderBy.length ? orderBy : undefined,
         skip: (pageNumber - 1) * perPage,
         take: perPage,
+        select: {
+          uuid: true,
+          address: true,
+          pricePerKm: true,
+          terrainDifficulty: true,
+          airport: true,
+          latitude: true,
+          longitude: true,
+          createdAt: true,
+          updatedAt: true,
+        },
       }),
       prisma.point.count({ where }),
     ]);
@@ -76,12 +88,21 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const data = await req.json();
-    const { address, basePrice } = data;
+    const { address, pricePerKm, terrainDifficulty, latitude, longitude } = data;
 
     //📌 Валидация данных
-    if (!address || basePrice === undefined) {
+    if (
+      !address ||
+      pricePerKm === undefined ||
+      terrainDifficulty === undefined ||
+      !latitude ||
+      !longitude
+    ) {
       return NextResponse.json(
-        { status: 'error', message: 'Адрес и базовая цена обязательны' },
+        {
+          status: 'error',
+          message: 'Адрес, цена за километр, коэффициент сложности, широта и долгота обязательны',
+        },
         { status: 400 },
       );
     }
@@ -94,8 +115,11 @@ export async function POST(req: Request) {
     const point = {
       uuid,
       address,
-      basePrice: Number(basePrice),
-      airport: false, //Всегда false
+      pricePerKm: Number(pricePerKm),
+      terrainDifficulty: Number(terrainDifficulty),
+      airport: false,
+      latitude: Number(latitude),
+      longitude: Number(longitude),
       createdAt: now,
       updatedAt: now,
     };

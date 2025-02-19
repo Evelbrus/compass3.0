@@ -16,7 +16,10 @@ const CreatePointModal: React.FC<CreatePointModalProps> = ({ onClose }) => {
   const uuid = useUnit($pointUuid);
 
   const [address, setAddress] = useState('');
-  const [basePrice, setBasePrice] = useState<number | ''>('');
+  const [pricePerKm, setPricePerKm] = useState<string | ''>('');
+  const [terrainDifficulty, setTerrainDifficulty] = useState<string>('1.0');
+  const [latitude, setLatitude] = useState<string | ''>('');
+  const [longitude, setLongitude] = useState<string | ''>('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -31,12 +34,16 @@ const CreatePointModal: React.FC<CreatePointModalProps> = ({ onClose }) => {
           if (!response.ok) throw new Error(`Ошибка загрузки точки: ${response.status}`);
 
           const data = await response.json();
-          console.log('Полученные данные точки:', data); //✅ Проверяем ответ сервера
+          console.log('Полученные данные точки:', data);
 
-          if (!data.data) throw new Error('Данные точки отсутствуют в ответе');
+          if (!data.data || !data.data.point) throw new Error('Данные точки отсутствуют в ответе');
 
-          setAddress(data.data.address);
-          setBasePrice(Number(data.data.basePrice));
+          const point = data.data.point;
+          setAddress(point.address);
+          setPricePerKm(point.pricePerKm.toString());
+          setTerrainDifficulty(point.terrainDifficulty.toString());
+          setLatitude(point.latitude.toString());
+          setLongitude(point.longitude.toString());
         } catch (err) {
           console.error('Ошибка запроса:', err);
           setError('Ошибка загрузки данных');
@@ -54,8 +61,24 @@ const CreatePointModal: React.FC<CreatePointModalProps> = ({ onClose }) => {
     setError(null);
     setSuccess(null);
 
-    if (!address || basePrice === '') {
-      setError('Адрес и базовая цена обязательны');
+    if (!address || pricePerKm === '' || terrainDifficulty === '' || !latitude || !longitude) {
+      setError('Все поля обязательны');
+      return;
+    }
+
+    //Преобразуем строки в числа, проверяя на наличие десятичной точки
+    const parsedPricePerKm = parseFloat(pricePerKm);
+    const parsedTerrainDifficulty = parseFloat(terrainDifficulty);
+    const parsedLatitude = parseFloat(latitude);
+    const parsedLongitude = parseFloat(longitude);
+
+    if (
+      isNaN(parsedPricePerKm) ||
+      isNaN(parsedTerrainDifficulty) ||
+      isNaN(parsedLatitude) ||
+      isNaN(parsedLongitude)
+    ) {
+      setError('Некоторые числовые поля содержат некорректные значения');
       return;
     }
 
@@ -70,8 +93,11 @@ const CreatePointModal: React.FC<CreatePointModalProps> = ({ onClose }) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           address,
-          basePrice: Number(basePrice),
+          pricePerKm: parsedPricePerKm,
+          terrainDifficulty: parsedTerrainDifficulty,
           airport: false,
+          latitude: parsedLatitude,
+          longitude: parsedLongitude,
         }),
       });
 
@@ -95,7 +121,7 @@ const CreatePointModal: React.FC<CreatePointModalProps> = ({ onClose }) => {
 
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50 p-4">
-      <AnimatedComponent duration={500} className="w-[580px] max-h-[600px] flex justify-center">
+      <AnimatedComponent duration={500} className="w-[580px] max-h[600px] flex justify-center">
         <div className="bg-white rounded-3xl p-8 relative w-full">
           {/*Кнопка закрытия */}
           <IButton
@@ -111,7 +137,7 @@ const CreatePointModal: React.FC<CreatePointModalProps> = ({ onClose }) => {
           </IButton>
 
           <h2 className="text-2xl font-semibold mb-4">
-            {uuid ? 'Редактировать точку прибытия' : 'Добавить точку прибытия'}
+            {uuid ? 'Редактировать точку' : 'Добавить точку'}
           </h2>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -123,11 +149,39 @@ const CreatePointModal: React.FC<CreatePointModalProps> = ({ onClose }) => {
             />
 
             <TextInput
-              label="Базовая цена:"
+              label="Цена за километр:"
               type="number"
-              value={basePrice}
-              onChange={(value) => setBasePrice(Number(value))}
+              value={pricePerKm}
+              onChange={(value) => setPricePerKm(value as string)}
               required
+              step="0.01"
+            />
+
+            <TextInput
+              label="Коэффициент сложности местности:"
+              type="number"
+              value={terrainDifficulty}
+              onChange={(value) => setTerrainDifficulty(value as string)}
+              required
+              step="0.1"
+            />
+
+            <TextInput
+              label="Широта (Latitude):"
+              type="number"
+              value={latitude}
+              onChange={(value) => setLatitude(value as string)}
+              required
+              step="0.000001"
+            />
+
+            <TextInput
+              label="Долгота (Longitude):"
+              type="number"
+              value={longitude}
+              onChange={(value) => setLongitude(value as string)}
+              required
+              step="0.000001"
             />
 
             {error && <p className="text-red-600">{error}</p>}

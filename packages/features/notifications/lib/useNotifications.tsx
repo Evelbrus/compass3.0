@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useSocket } from '@shared/utils/hooks/useSocket';
 import { UserSession } from '@shared/prisma/interface/users/interface';
-import { Action, notification } from '@prisma/client';
+import { Action, Notification } from '@prisma/client';
 
 export interface NotificationIslandProps {
   userSession?: UserSession | null;

@@ -6,8 +6,8 @@ interface Params {
 }
 
 //GET‑запрос для получения детальной информации о заказе по UUID
-export async function GET(req: Request, { params }: { params: Params }) {
-  const { uuid } = params;
+export async function GET(req: Request, { params }: { params: Promise<Params> }) {
+  const { uuid } = await params;
 
   if (!uuid) {
     return NextResponse.json({ error: 'Order UUID is required' }, { status: 400 });

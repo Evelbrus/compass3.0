@@ -76,7 +76,10 @@ export interface TablePointsRow {
   number: number;
   uuid: string;
   address: string;
-  basePrice: number;
+  pricePerKm: number;
+  terrainDifficulty: number;
+  latitude: number;
+  longitude: number;
   airport: boolean | null;
   createdAt: Date;
   updatedAt: Date;

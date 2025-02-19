@@ -4,7 +4,7 @@ export interface TextInputProps {
   label?: string;
   placeholder?: string;
   value: string | number | bigint | null;
-  onChange: (value: string | number | bigint | null) => void;
+  onChange: (value: string | number | null) => void;
   required?: boolean;
   requiredStar?: boolean;
   disabled?: boolean;
@@ -30,4 +30,5 @@ export interface TextInputProps {
   minDate?: Date;
   message?: string;
   ref?: React.Ref<HTMLInputElement | HTMLTextAreaElement | HTMLDivElement>;
+  step?: string | number;
 }

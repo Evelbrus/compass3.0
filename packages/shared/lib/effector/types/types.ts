@@ -11,17 +11,9 @@ export interface OptionBase<T = string> {
 }
 
 /**
- * Опция-«тариф»: например, имеет maxPeople
- */
-export interface OptionTariff<T = string> extends OptionBase<T> {
-  maxPeople: number;
-  price?: number | JSX.Element;
-}
-
-/**
  * Объединённый тип, если нужно различать обычные и тарифные опции
  */
-export type SelectOption<T extends string | number> = OptionBase<T> | OptionTariff<T>;
+export type SelectOption<T extends string | number> = OptionBase<T>;
 
 /**
  * Пример отдельного типа опции для стран,
@@ -33,13 +25,4 @@ export interface CountryOption extends OptionBase<string> {
    * чтобы хранить короткий JSX-вариант метки.
    */
   compactLabel: JSX.Element;
-}
-
-/**
- * Type guard, если нужно проверить тарифную опцию
- */
-export function isOptionTariff<T extends string | number>(
-  option: SelectOption<T>,
-): option is OptionTariff<T> {
-  return (option as OptionTariff<T>).maxPeople !== undefined;
 }

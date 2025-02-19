@@ -1,8 +1,8 @@
-//route.ts
 import { NextResponse, NextRequest } from 'next/server';
 import debug from 'debug';
 import { prisma } from '@shared/prisma/prisma-client';
 import { v4 as uuidv4 } from 'uuid';
+import { Action } from '@prisma/client';
 
 const log = debug('app:api:client-corp/notifications');
 
@@ -31,6 +31,8 @@ export async function POST(request: NextRequest) {
         userId: user.uuid,
         title,
         message,
+        orderId: '',
+        action: Action.info,
       }));
       const notifications = await prisma.notification.createMany({
         data: notificationsData,
@@ -52,6 +54,8 @@ export async function POST(request: NextRequest) {
           userId,
           title,
           message,
+          orderId: '',
+          action: Action.info,
         },
       });
       log('Successfully created notification for user:', userId);

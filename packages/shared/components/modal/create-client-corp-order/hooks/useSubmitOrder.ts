@@ -8,7 +8,7 @@ interface UseSubmitOrderParams {
   arrivalPoint?: string;
   additionalPoints?: string[];
   selectedServices?: string[];
-  totalPrice: Decimal;
+  totalPrice: number | Decimal;
 }
 
 const useSubmitOrder = () => {
@@ -39,7 +39,7 @@ const useSubmitOrder = () => {
       arrivalPoint,
       intermediatePoints: additionalPoints || [],
       selectedServices: selectedServices || [],
-      basePrice: totalPrice.toNumber(),
+      basePrice: typeof totalPrice === 'number' ? totalPrice : totalPrice.toNumber(),
       ...formData,
     };
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { FormProvider } from 'react-hook-form';
 import { IButton } from '@shared/components/ui/buttons';
 import { CloseIcon } from '@shared/components/ui/icon';
@@ -57,7 +57,7 @@ const CreateClientCorpOrder: React.FC<CreateClientCorpOrderProps> = ({ onClose }
     formMethods,
   } = useCreateClientCorpOrderLogic(tariffs, ServiceLevel, VehicleType);
 
-  //------------------ Селектор для адреса подачи (departure) ------------------
+  //Селектор для адреса подачи (departure)
   const {
     isOpen: isFromOpen,
     searchValue: fromSearchValue,
@@ -73,7 +73,7 @@ const CreateClientCorpOrder: React.FC<CreateClientCorpOrderProps> = ({ onClose }
     selectedPoint: departurePoint,
   } = usePointSelector({ mode: 'single' });
 
-  //------------------ Селектор для адреса прибытия (arrival) ------------------
+  //Селектор для адреса прибытия (arrival)
   const {
     isOpen: isToOpen,
     searchValue: toSearchValue,
@@ -89,7 +89,7 @@ const CreateClientCorpOrder: React.FC<CreateClientCorpOrderProps> = ({ onClose }
     selectedPoint: arrivalPoint,
   } = usePointSelector({ mode: 'single' });
 
-  //-------------- Селектор для дополнительных остановок (multiple) --------------
+  //Селектор для дополнительных остановок (multiple)
   const {
     isOpen: isAdditionalOpen,
     searchValue: additionalSearchValue,
@@ -119,36 +119,57 @@ const CreateClientCorpOrder: React.FC<CreateClientCorpOrderProps> = ({ onClose }
     totalAdditionalServicesPrice,
   } = useAdditionalServices(selectedTariff);
 
-  const { handleDepartureSelectPoint, handleArrivalSelectPoint, handleAdditionalSelectPoint } =
-    usePointSelectionHandlers({
-      departurePoint: departurePoint
-        ? { ...departurePoint, basePrice: new Decimal(departurePoint.basePrice) }
-        : undefined,
-      arrivalPoint: arrivalPoint
-        ? { ...arrivalPoint, basePrice: new Decimal(arrivalPoint.basePrice) }
-        : undefined,
-      additionalPoints: additionalPoints
-        ? additionalPoints.map((point) =>
-            point ? { ...point, basePrice: new Decimal(point.basePrice) } : null,
-          )
-        : undefined,
-      onFromSelectPoint: (point) =>
-        onFromSelectPoint({ ...point, basePrice: new Decimal(point.basePrice) }),
-      onToSelectPoint: (point) =>
-        onToSelectPoint({ ...point, basePrice: new Decimal(point.basePrice) }),
-      onAdditionalSelectPoint: (point, index) =>
-        onAdditionalSelectPoint({ ...point, basePrice: new Decimal(point.basePrice) }, index),
-    });
+  const { isPointAlreadySelected, routeCost } = usePointSelectionHandlers({
+    departurePoint: departurePoint ?? undefined,
+    arrivalPoint: arrivalPoint ?? undefined,
+    additionalPoints: additionalPoints ?? [],
+  });
+
+  const handleDepartureSelectPoint = useCallback(
+    (point: Point) => {
+      if (isPointAlreadySelected(point, 'departure')) {
+        alert('Этот город уже выбран в другом селекторе');
+        return;
+      }
+      onFromSelectPoint(point);
+    },
+    [isPointAlreadySelected, onFromSelectPoint],
+  );
+
+  const handleArrivalSelectPoint = useCallback(
+    (point: Point) => {
+      if (isPointAlreadySelected(point, 'arrival')) {
+        alert('Этот город уже выбран в другом селекторе');
+        return;
+      }
+      onToSelectPoint(point);
+    },
+    [isPointAlreadySelected, onToSelectPoint],
+  );
+
+  const handleAdditionalSelectPoint = useCallback(
+    (point: Point, index: number) => {
+      if (isPointAlreadySelected(point, 'additional', index)) {
+        alert('Этот город уже выбран в другом селекторе');
+        return;
+      }
+      onAdditionalSelectPoint(point, index);
+    },
+    [isPointAlreadySelected, onAdditionalSelectPoint],
+  );
 
   const { waitTime, additionalWaitTimeCost, adjustWaitTime, minWaitTime, maxWaitTime } =
     useWaitTime({ selectedTariff, departurePoint });
 
+  //Обновляем расчет стоимости, учитывая расстояние между точками
   const totalPrice = useTotalPrice({
-    tariffPrice: selectedTariff?.price,
-    additionalServicesPrice: totalAdditionalServicesPrice,
-    additionalPointsPrice: totalAdditionalPrice,
-    arrivalPrice: arrivalPoint ? arrivalPoint.basePrice : null,
-    waitTimeCost: additionalWaitTimeCost,
+    tariffPrice: selectedTariff?.price ? new Decimal(selectedTariff.price) : null,
+    additionalServicesPrice: totalAdditionalServicesPrice
+      ? new Decimal(totalAdditionalServicesPrice)
+      : null,
+    additionalPointsPrice: totalAdditionalPrice ? new Decimal(totalAdditionalPrice) : null,
+    waitTimeCost: additionalWaitTimeCost ? new Decimal(additionalWaitTimeCost) : null,
+    routeCost: routeCost ? new Decimal(routeCost) : null,
   });
 
   const { handleOrderSuccess, handleOrderError } = useClientNotifications({
@@ -170,7 +191,7 @@ const CreateClientCorpOrder: React.FC<CreateClientCorpOrderProps> = ({ onClose }
           ?.map((point) => point?.uuid)
           .filter((uuid): uuid is string => Boolean(uuid)),
         selectedServices,
-        totalPrice,
+        totalPrice: totalPrice.toNumber(),
         departureTime: formData.departureTime,
         flightNumber: formData.flightNumber || '',
         description: formData.description || '',
@@ -269,7 +290,7 @@ const CreateClientCorpOrder: React.FC<CreateClientCorpOrderProps> = ({ onClose }
                   handleSearchChange={handleFromSearchChange}
                   filteredPoints={fromFilteredPoints.map((point) => ({
                     ...point,
-                    basePrice: new Decimal(point.basePrice),
+                    pricePerKm: new Decimal(point.pricePerKm),
                   }))}
                   loading={fromLoading}
                   onSelectPoint={handleDepartureSelectPoint}
@@ -277,7 +298,7 @@ const CreateClientCorpOrder: React.FC<CreateClientCorpOrderProps> = ({ onClose }
                   observerRef={fromObserverRef}
                   selectedPoint={
                     departurePoint
-                      ? { ...departurePoint, basePrice: new Decimal(departurePoint.basePrice) }
+                      ? { ...departurePoint, pricePerKm: new Decimal(departurePoint.pricePerKm) }
                       : null
                   }
                 />
@@ -293,7 +314,7 @@ const CreateClientCorpOrder: React.FC<CreateClientCorpOrderProps> = ({ onClose }
                   handleSearchChange={handleToSearchChange}
                   filteredPoints={toFilteredPoints.map((point) => ({
                     ...point,
-                    basePrice: new Decimal(point.basePrice),
+                    pricePerKm: new Decimal(point.pricePerKm),
                   }))}
                   loading={toLoading}
                   onSelectPoint={handleArrivalSelectPoint}
@@ -301,10 +322,10 @@ const CreateClientCorpOrder: React.FC<CreateClientCorpOrderProps> = ({ onClose }
                   observerRef={toObserverRef}
                   selectedPoint={
                     arrivalPoint
-                      ? { ...arrivalPoint, basePrice: new Decimal(arrivalPoint.basePrice) }
+                      ? { ...arrivalPoint, pricePerKm: new Decimal(arrivalPoint.pricePerKm) }
                       : null
                   }
-                  arrivalPointPrice={arrivalPoint?.basePrice || undefined}
+                  arrivalPointPrice={arrivalPoint?.pricePerKm || undefined}
                 />
               </div>
 
@@ -317,7 +338,7 @@ const CreateClientCorpOrder: React.FC<CreateClientCorpOrderProps> = ({ onClose }
                 search={additionalSearch}
                 filteredPoints={additionalFilteredPoints.map((point) => ({
                   ...point,
-                  basePrice: new Decimal(point.basePrice),
+                  pricePerKm: new Decimal(point.pricePerKm),
                 }))}
                 loading={additionalLoading}
                 onSelectPoint={(point: Point, index?: number) =>
@@ -328,7 +349,7 @@ const CreateClientCorpOrder: React.FC<CreateClientCorpOrderProps> = ({ onClose }
                 selectedPoints={
                   additionalPoints
                     ? additionalPoints.map((point) =>
-                        point ? { ...point, basePrice: new Decimal(point.basePrice) } : null,
+                        point ? { ...point, pricePerKm: new Decimal(point.pricePerKm) } : null,
                       )
                     : []
                 }

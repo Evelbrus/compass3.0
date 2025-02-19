@@ -1,5 +1,3 @@
-//@pages/api/client-corp/orders.ts
-
 import { NextRequest, NextResponse } from 'next/server';
 import { OrderStatus } from '@prisma/client';
 import debug from 'debug';
@@ -14,7 +12,6 @@ import { Decimal } from 'decimal.js';
 
 const log = debug('app:client-corp/orders');
 
-//Define a type for the JWT payload
 interface JwtPayload {
   uuid: string;
   [key: string]: string;
@@ -37,7 +34,6 @@ export async function GET(req: NextRequest) {
     try {
       token = await verifyJWT<JwtPayload>(accessToken, authConfig.accessToken.secret);
     } catch (error) {
-      //Handle verification failure (e.g., expired token)
       return NextResponse.json({ status: 'error', message: 'Unauthorized' }, { status: 401 });
     }
     if (!token) {
@@ -92,7 +88,6 @@ export async function GET(req: NextRequest) {
 
     const total = await prisma.order.count({ where });
 
-    //Получаем статистику по всем статусам заказов, созданных пользователем
     const statusesCount = await prisma.order.groupBy({
       by: ['status'],
       _count: {
@@ -119,12 +114,12 @@ export async function GET(req: NextRequest) {
       departurePoint: {
         uuid: order.departurePoint.uuid,
         address: order.departurePoint.address,
-        basePrice: order.departurePoint.basePrice,
+        pricePerKm: order.departurePoint.pricePerKm,
       },
       arrivalPoint: {
         uuid: order.arrivalPoint.uuid,
         address: order.arrivalPoint.address,
-        basePrice: order.arrivalPoint.basePrice,
+        pricePerKm: order.arrivalPoint.pricePerKm,
       },
       orderTariffAdditionalServices: order.orderTariffAdditionalServices.map((ots) => ({
         uuid: ots.uuid,
@@ -185,18 +180,15 @@ export async function POST(req: NextRequest) {
 
   log('Переданные selectedServices:', selectedServices);
 
-  //Получаем токен из cookies
   const accessToken = req.cookies.get(ACCESS_TOKEN_COOKIE)?.value;
   if (!accessToken) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  //Проверяем токен и ожидаем наличие поля uuid
   let token: JwtPayload | null = null;
   try {
     token = await verifyJWT<JwtPayload>(accessToken, authConfig.accessToken.secret);
   } catch (error) {
-    //Log the error and handle token verification failure
     console.error('Token verification failed:', error);
     return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
   }
@@ -208,7 +200,6 @@ export async function POST(req: NextRequest) {
   const result = await prisma.$transaction(async (prismaTx) => {
     log('Начинаем транзакцию');
 
-    //1. Проверка существования тарифа
     const tariffRecord = await prismaTx.tariff.findUnique({
       where: { uuid: tariffUuid },
     });
@@ -218,7 +209,6 @@ export async function POST(req: NextRequest) {
     }
     log('Тариф найден:', tariffRecord);
 
-    //2. Проверка существования точки отправления
     const departurePointRecord = await prismaTx.point.findUnique({
       where: { uuid: departurePoint },
     });
@@ -228,7 +218,6 @@ export async function POST(req: NextRequest) {
     }
     log('Точка отправления найдена:', departurePointRecord);
 
-    //3. Проверка существования точки прибытия
     const arrivalPointRecord = await prismaTx.point.findUnique({
       where: { uuid: arrivalPoint },
     });
@@ -238,7 +227,6 @@ export async function POST(req: NextRequest) {
     }
     log('Точка прибытия найдена:', arrivalPointRecord);
 
-    //4. Создание заказа
     const order = await prismaTx.order.create({
       data: {
         uuid: uuidv4(),
@@ -257,7 +245,6 @@ export async function POST(req: NextRequest) {
     });
     log('Заказ создан:', order);
 
-    //5. Добавление дополнительных услуг
     if (selectedServices && selectedServices.length > 0) {
       log('Выбранные услуги (tariffOnServiceUuid):', selectedServices);
       const tariffOnServices = await prismaTx.tariffOnService.findMany({
@@ -285,9 +272,6 @@ export async function POST(req: NextRequest) {
     return order;
   });
 
-  console.log('result', result);
-
-  //Добавляем задачу на проверку OVERDUE в момент наступления departureTime
   await orderQueue.add(
     'preOrderNotification',
     { order: result },
@@ -297,8 +281,6 @@ export async function POST(req: NextRequest) {
       jobId: `preOrder-${result.uuid}`,
     },
   );
-
-  console.log(`📌 Задача preOrderNotification добавлена, jobId: preOrder-${result.uuid}`);
 
   return NextResponse.json(result, { status: 201 });
 }

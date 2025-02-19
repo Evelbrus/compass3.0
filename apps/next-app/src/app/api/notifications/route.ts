@@ -6,35 +6,48 @@ import { Action } from '@prisma/client';
 
 const log = debug('app:api:notifications');
 
-//POST /api/notifications - Создать новое уведомление
 export async function POST(request: NextRequest) {
   log('Received POST request to /api/notifications');
   try {
-    //Обновлённый набор полей – теперь ожидаем также orderId и action.
-    //Если action не передан, можно задать значение по умолчанию (например, Action.info).
-    const { userId, title, message, orderId, action } = await request.json();
-    log('Request body:', { userId, title, message, orderId, action });
-
-    if (!userId || !title || !message || !orderId) {
-      log('Missing required fields (userId, title, message, orderId)');
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
-    }
-
-    const uuid = uuidv4();
-
-    const notification = await prisma.notification.create({
-      data: {
-        uuid,
+    const body = await request.json();
+    if (Array.isArray(body.userIds)) {
+      const { userIds, title, message, orderId, action } = body;
+      if (!userIds?.length || !title || !message || !orderId) {
+        log('Missing required fields for multiple notifications');
+        return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+      }
+      const notificationsData = userIds.map((userId: string) => ({
+        uuid: uuidv4(),
         userId,
-        orderId,
         title,
         message,
+        orderId,
         action: action ?? Action.info,
-      },
-    });
-
-    log('Successfully created notification in database:', notification);
-    return NextResponse.json(notification, { status: 201 });
+      }));
+      const notifications = await prisma.notification.createMany({
+        data: notificationsData,
+      });
+      log('Successfully created notifications for users:', notifications);
+      return NextResponse.json(notifications, { status: 201 });
+    } else {
+      const { userId, title, message, orderId, action } = body;
+      if (!userId || !title || !message || !orderId) {
+        log('Missing required fields for single notification');
+        return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+      }
+      const notification = await prisma.notification.create({
+        data: {
+          uuid: uuidv4(),
+          userId,
+          title,
+          message,
+          orderId,
+          action: action ?? Action.info,
+        },
+      });
+      log('Successfully created notification in database:', notification);
+      return NextResponse.json(notification, { status: 201 });
+    }
   } catch (error) {
     console.error('Error creating notification:', error);
     log('Error creating notification:', error);
@@ -42,24 +55,20 @@ export async function POST(request: NextRequest) {
   }
 }
 
-//GET /api/notifications?userId=... - Получить все уведомления для пользователя
 export async function GET(request: NextRequest) {
   log('Received GET request to /api/notifications');
   try {
     const searchParams = request.nextUrl.searchParams;
     const userId = searchParams.get('userId');
-
     if (!userId) {
       log('Missing userId parameter');
       return NextResponse.json({ error: 'Missing userId parameter' }, { status: 400 });
     }
-
     log(`Fetching notifications for userId: ${userId}`);
     const notifications = await prisma.notification.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
     });
-
     log(`Successfully fetched ${notifications.length} notifications for userId: ${userId}`);
     return NextResponse.json(notifications);
   } catch (error) {

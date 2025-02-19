@@ -375,9 +375,10 @@ const DriverFormStepTwo: React.FC<DriverFormStepTwoProps> = ({
             defaultValue="NONE"
             rules={{ required: 'Партнер обязателен' }}
             render={({ field, fieldState }) => {
-              const selectedOption = partnerOptions.find((opt) => opt.value === field.value) || null;
+              const selectedOption =
+                partnerOptions.find((opt) => opt.value === field.value) || null;
 
-              const handleSelectChange = (option: SelectOption<PartnerCompany> | null) => {
+              const handleSelectChange = (option: SelectOption<string> | null) => {
                 clearErrors(FIELD_PARTNER_COMPANY);
                 field.onChange(option?.value ?? 'NONE');
               };

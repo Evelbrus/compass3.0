@@ -10,16 +10,34 @@ export const pointsColumns: Column<TablePointsRow, keyof TablePointsRow>[] = [
   },
   {
     accessor: 'address',
-    header: 'адрес',
+    header: 'Адрес',
     render: (row: TablePointsRow) => <span className="text-gray-800">{row.address}</span>,
     sortable: true,
     className: 'w-[250px]',
   },
   {
-    accessor: 'basePrice',
-    header: 'Базовая цена от Аэропорта',
+    accessor: 'pricePerKm',
+    header: 'Цена за км',
     sortable: true,
-    className: 'w-[400px] text-center',
+    className: 'w-[150px] text-center',
+  },
+  {
+    accessor: 'terrainDifficulty',
+    header: 'Коэффициент сложности',
+    sortable: true,
+    className: 'w-[150px] text-center',
+  },
+  {
+    accessor: 'latitude',
+    header: 'Широта',
+    sortable: true,
+    className: 'w-[150px] text-center',
+  },
+  {
+    accessor: 'longitude',
+    header: 'Долгота',
+    sortable: true,
+    className: 'w-[150px] text-center',
   },
   {
     accessor: 'createdAt',

@@ -6,7 +6,6 @@ const log = debug('app:api:points:uuid');
 
 export async function GET(req: Request, { params }: { params: Promise<{ uuid: string }> }) {
   try {
-    //Await the params to resolve it before using it
     const { uuid } = await params;
 
     log('Fetching point with UUID:', uuid);
@@ -19,7 +18,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ uuid: st
 
     if (!point) {
       log('Point not found with UUID:', uuid);
-      return NextResponse.json({ error: 'Point not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Точка не найдена' }, { status: 404 });
     }
 
     log('Fetched point:', point);
@@ -32,39 +31,90 @@ export async function GET(req: Request, { params }: { params: Promise<{ uuid: st
   }
 }
 
-//📌 PUT: Обновление точки прибытия по UUID
+//📌 PUT: Обновление точки по UUID
 export async function PUT(req: Request, { params }: { params: Promise<{ uuid: string }> }) {
   try {
     const { uuid } = await params;
-    const { address, basePrice } = await req.json();
+    const { address, pricePerKm, terrainDifficulty, latitude, longitude } = await req.json();
 
-    if (!address || basePrice === undefined) {
+    if (
+      !address ||
+      pricePerKm === undefined ||
+      terrainDifficulty === undefined ||
+      !latitude ||
+      !longitude
+    ) {
       return NextResponse.json(
-        { status: 'error', message: 'Адрес и базовая цена обязательны' },
+        { status: 'error', message: 'Все поля обязательны' },
         { status: 400 },
       );
     }
 
     const updatedPoint = await prisma.point.update({
       where: { uuid },
-      data: { address, basePrice: Number(basePrice), updatedAt: new Date() },
+      data: {
+        address,
+        pricePerKm: Number(pricePerKm),
+        terrainDifficulty: Number(terrainDifficulty),
+        latitude: Number(latitude),
+        longitude: Number(longitude),
+        updatedAt: new Date(),
+      },
     });
 
-    log(`✅ Точка прибытия ${uuid} обновлена:`, updatedPoint);
+    log(`✅ Точка ${uuid} обновлена:`, updatedPoint);
 
     return NextResponse.json(updatedPoint);
   } catch (error) {
-    log('❌ Ошибка при обновлении точки прибытия:', error);
-    return NextResponse.json({ error: 'Ошибка при обновлении точки прибытия' }, { status: 500 });
+    log('❌ Ошибка при обновлении точки:', error);
+    return NextResponse.json({ error: 'Ошибка при обновлении точки' }, { status: 500 });
   }
 }
 
-//📌 DELETE: Удаление точки прибытия по UUID
+//📌 POST: Создание новой точки
+export async function POST(req: Request) {
+  try {
+    const { address, pricePerKm, terrainDifficulty, latitude, longitude } = await req.json();
+
+    if (
+      !address ||
+      pricePerKm === undefined ||
+      terrainDifficulty === undefined ||
+      !latitude ||
+      !longitude
+    ) {
+      return NextResponse.json(
+        { status: 'error', message: 'Все поля обязательны' },
+        { status: 400 },
+      );
+    }
+
+    const newPoint = await prisma.point.create({
+      data: {
+        address,
+        pricePerKm: Number(pricePerKm),
+        terrainDifficulty: Number(terrainDifficulty),
+        airport: false,
+        latitude: Number(latitude),
+        longitude: Number(longitude),
+      },
+    });
+
+    log(`✅ Новая точка создана:`, newPoint);
+
+    return NextResponse.json(newPoint);
+  } catch (error) {
+    log('❌ Ошибка при создании точки:', error);
+    return NextResponse.json({ error: 'Ошибка при создании точки' }, { status: 500 });
+  }
+}
+
+//📌 DELETE: Удаление точки по UUID
 export async function DELETE(req: Request, { params }: { params: Promise<{ uuid: string }> }) {
   try {
     const { uuid } = await params;
 
-    log('🗑️ Удаляем точку прибытия с UUID:', uuid);
+    log('🗑️ Удаляем точку с UUID:', uuid);
 
     //Проверяем, существует ли точка
     const existingPoint = await prisma.point.findUnique({
@@ -72,21 +122,18 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ uuid:
     });
 
     if (!existingPoint) {
-      return NextResponse.json(
-        { status: 'error', message: 'Точка прибытия не найдена' },
-        { status: 404 },
-      );
+      return NextResponse.json({ status: 'error', message: 'Точка не найдена' }, { status: 404 });
     }
 
     await prisma.point.delete({
       where: { uuid },
     });
 
-    log(`✅ Точка прибытия ${uuid} успешно удалена`);
+    log(`✅ Точка ${uuid} успешно удалена`);
 
-    return NextResponse.json({ status: 'success', message: 'Точка прибытия удалена' });
+    return NextResponse.json({ status: 'success', message: 'Точка удалена' });
   } catch (error) {
-    log('❌ Ошибка при удалении точки прибытия:', error);
-    return NextResponse.json({ error: 'Ошибка при удалении точки прибытия' }, { status: 500 });
+    log('❌ Ошибка при удалении точки:', error);
+    return NextResponse.json({ error: 'Ошибка при удалении точки' }, { status: 500 });
   }
 }

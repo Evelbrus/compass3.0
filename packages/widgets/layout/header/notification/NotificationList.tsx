@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useCallback, useState } from 'react';
-import { Notification } from '@features/notifications/lib/useNotifications';
 import { CloseIcon } from 'next/dist/client/components/react-dev-overlay/internal/icons/CloseIcon';
 import { IButton } from '@shared/components/ui/buttons';
+import { Notification } from '@prisma/client';
 
 interface NotificationListProps {
   notifications: Notification[];

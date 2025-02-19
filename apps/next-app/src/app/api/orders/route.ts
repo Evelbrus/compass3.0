@@ -9,7 +9,6 @@ import { orderQueue } from '@next-app/src/lib/queues/orderQueue';
 
 const log = debug('app:orders');
 
-//GET: Получение заказов (оставляем без изменений)
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const parsedParams = {
@@ -80,12 +79,18 @@ export async function GET(req: Request) {
       departurePoint: {
         uuid: order.departurePoint.uuid,
         address: order.departurePoint.address,
-        basePrice: order.departurePoint.basePrice,
+        pricePerKm: order.departurePoint.pricePerKm,
+        terrainDifficulty: order.departurePoint.terrainDifficulty,
+        latitude: order.departurePoint.latitude,
+        longitude: order.departurePoint.longitude,
       },
       arrivalPoint: {
         uuid: order.arrivalPoint.uuid,
         address: order.arrivalPoint.address,
-        basePrice: order.arrivalPoint.basePrice,
+        pricePerKm: order.arrivalPoint.pricePerKm,
+        terrainDifficulty: order.arrivalPoint.terrainDifficulty,
+        latitude: order.arrivalPoint.latitude,
+        longitude: order.arrivalPoint.longitude,
       },
       orderTariffAdditionalServices: order.orderTariffAdditionalServices.map((ots) => ({
         uuid: ots.uuid,
@@ -122,7 +127,6 @@ export async function GET(req: Request) {
   }
 }
 
-//POST: Создание нового заказа
 export async function POST(req: Request) {
   let data: CreateOrderData;
   try {
@@ -150,7 +154,6 @@ export async function POST(req: Request) {
     phone,
   } = data;
 
-  //Если водитель назначен, статус заказа PLANNED, иначе PENDING
   const orderStatus = assignedDriverId ? OrderStatus.PLANNED : OrderStatus.PENDING;
 
   try {
@@ -158,7 +161,6 @@ export async function POST(req: Request) {
       log('Начинаем транзакцию');
 
       let clientUuid = createdBy;
-      //1. Проверка существования клиента или создание нового временного
       if (fullName && phone) {
         log('Создаем нового временного пользователя');
         const newUser = await prismaTx.user.create({
@@ -184,7 +186,6 @@ export async function POST(req: Request) {
         log('Клиент найден:', client);
       }
 
-      //2. Проверка существования тарифа
       const tariffRecord = await prismaTx.tariff.findUnique({
         where: { uuid: tariffUuid },
       });
@@ -194,7 +195,6 @@ export async function POST(req: Request) {
       }
       log('Тариф найден:', tariffRecord);
 
-      //3. Проверка существования точки отправления
       const departurePointRecord = await prismaTx.point.findUnique({
         where: { uuid: departurePoint },
       });
@@ -204,7 +204,6 @@ export async function POST(req: Request) {
       }
       log('Точка отправления найдена:', departurePointRecord);
 
-      //4. Проверка существования точки прибытия
       const arrivalPointRecord = await prismaTx.point.findUnique({
         where: { uuid: arrivalPoint },
       });
@@ -214,7 +213,6 @@ export async function POST(req: Request) {
       }
       log('Точка прибытия найдена:', arrivalPointRecord);
 
-      //5. Проверка существования водителя (если назначен)
       if (assignedDriverId) {
         const driver = await prismaTx.user.findUnique({
           where: { uuid: assignedDriverId },
@@ -226,7 +224,6 @@ export async function POST(req: Request) {
         log('Водитель найден:', driver);
       }
 
-      //6. Создание заказа (убираем передачу driverAcceptanceStatus, т.к. оно теперь в таблице User)
       const order = await prismaTx.order.create({
         data: {
           uuid: uuidv4(),
@@ -246,7 +243,6 @@ export async function POST(req: Request) {
       });
       log('Заказ создан:', order);
 
-      //7. Если водитель назначен, обновляем его поле driverAcceptanceStatus в таблице User через транзакцию
       if (assignedDriverId) {
         await prismaTx.user.update({
           where: { uuid: assignedDriverId },
@@ -255,7 +251,6 @@ export async function POST(req: Request) {
         log(`driverAcceptanceStatus обновлён для водителя с UUID ${assignedDriverId}`);
       }
 
-      //8. Добавление дополнительных услуг (если выбраны)
       if (selectedServices && selectedServices.length > 0) {
         log('Выбранные услуги (tariffOnServiceUuid):', selectedServices);
         const tariffOnServices = await prismaTx.tariffOnService.findMany({
@@ -280,18 +275,20 @@ export async function POST(req: Request) {
         log('Дополнительные услуги добавлены');
       }
 
-      //9. Завершаем транзакцию и возвращаем созданный заказ
       return order;
     });
 
-    //Пример добавления задачи в очередь уведомлений с задержкой
+    if (!result.uuid) {
+      throw new Error('Созданный заказ не содержит UUID');
+    }
+
     const departureTimestamp = new Date(result.departureTime).getTime();
     const now = Date.now();
     const delay = departureTimestamp - now - 60000;
 
     await orderQueue.add(
       'notification',
-      { order: result.uuid },
+      { orderUuid: result.uuid },
       {
         delay: delay > 0 ? delay : 0,
         attempts: 3,

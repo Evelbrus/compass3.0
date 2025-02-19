@@ -9,24 +9,24 @@ dotenv.config();
 const app = express();
 //Создаём очередь, которую будем мониторить
 const orderQueue = new Queue('orderQueue', {
-    connection: {
-        host: process.env.REDIS_HOST || '127.0.0.1',
-        port: process.env.REDIS_PORT ? parseInt(process.env.REDIS_PORT, 10) : 6379,
-    },
+  connection: {
+    host: process.env.REDIS_HOST || '127.0.0.1',
+    port: process.env.REDIS_PORT ? parseInt(process.env.REDIS_PORT, 10) : 6379,
+  },
 });
 //Настраиваем адаптер для express
 const serverAdapter = new ExpressAdapter();
 serverAdapter.setBasePath('/admin/queues');
 //Создаём Bull Board
 createBullBoard({
-    queues: [new BullMQAdapter(orderQueue)],
-    serverAdapter: serverAdapter,
+  queues: [new BullMQAdapter(orderQueue)],
+  serverAdapter: serverAdapter,
 });
 //Подключаем роутер дашборда к express
 app.use('/admin/queues', serverAdapter.getRouter());
 //Запускаем сервер
 const port = process.env.PORT || 3000;
 app.listen(port, () => {
-    console.log(`BullMQ Dashboard запущен на http://localhost:${port}/admin/queues`);
+  console.log(`BullMQ Dashboard запущен на http://localhost:${port}/admin/queues`);
 });
 //# sourceMappingURL=bullmq-ui.js.map
