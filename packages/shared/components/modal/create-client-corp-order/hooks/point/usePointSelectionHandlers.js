@@ -1,61 +1,59 @@
-import { useCallback } from 'react';
-import { Decimal } from 'decimal.js';
-const usePointSelectionHandlers = ({ departurePoint, arrivalPoint, additionalPoints, onFromSelectPoint, onToSelectPoint, onAdditionalSelectPoint, }) => {
-    //Функция для проверки, выбрана ли точка в каком-либо из селекторов
-    const isPointAlreadySelected = useCallback((point, currentField, additionalIndex) => {
-        //Если точка уже выбрана в текущем селекторе – пропускаем проверку
-        if (currentField === 'departure' && departurePoint?.uuid === point.uuid)
-            return false;
-        if (currentField === 'arrival' && arrivalPoint?.uuid === point.uuid)
-            return false;
-        if (currentField === 'additional' &&
-            typeof additionalIndex === 'number' &&
-            additionalPoints &&
-            additionalPoints[additionalIndex]?.uuid === point.uuid)
-            return false;
-        //Проверяем, выбрана ли точка в других селекторах
-        if (currentField !== 'departure' && departurePoint?.uuid === point.uuid)
-            return true;
-        if (currentField !== 'arrival' && arrivalPoint?.uuid === point.uuid)
-            return true;
-        if (currentField === 'additional') {
-            if (additionalPoints &&
-                additionalPoints.some((p, idx) => idx !== additionalIndex && p?.uuid === point.uuid)) {
-                return true;
-            }
-        }
-        else {
-            if (additionalPoints?.some((p) => p?.uuid === point.uuid))
-                return true;
+import { useState, useCallback, useEffect } from 'react';
+import { getDrivingDistance } from '@shared/components/modal/create-client-corp-order/api/someApiService';
+const usePointSelectionHandlers = ({ departurePoint, arrivalPoint, additionalPoints, }) => {
+    const [routeCost, setRouteCost] = useState(0);
+    //Проверка, была ли уже выбрана точка в другом селекторе
+    const isPointAlreadySelected = useCallback((point, type, index) => {
+        if (type === 'departure')
+            return (arrivalPoint?.uuid === point.uuid || additionalPoints.some((p) => p?.uuid === point.uuid));
+        if (type === 'arrival')
+            return (departurePoint?.uuid === point.uuid ||
+                additionalPoints.some((p) => p?.uuid === point.uuid));
+        if (type === 'additional' && typeof index === 'number') {
+            return (departurePoint?.uuid === point.uuid ||
+                arrivalPoint?.uuid === point.uuid ||
+                additionalPoints.some((p, i) => i !== index && p?.uuid === point.uuid));
         }
         return false;
     }, [departurePoint, arrivalPoint, additionalPoints]);
-    const handleDepartureSelectPoint = useCallback((point) => {
-        if (isPointAlreadySelected(point, 'departure')) {
-            alert('Этот город уже выбран в другом селекторе');
-            return;
+    const calculateRouteCost = useCallback(async (from, to) => {
+        if (!from || !to)
+            return 0;
+        try {
+            //Логируем информацию о цене за километр и коэффициенте сложности для точки отправления
+            console.log(`Цена за километр для точки отправления: ${from.pricePerKm}`);
+            console.log(`Коэффициент сложности для точки отправления: ${from.terrainDifficulty}`);
+            //Если необходимо использовать цену за километр с точки прибытия, раскомментируйте следующие строки:
+            //console.log(`Цена за километр для точки прибытия: ${to.pricePerKm}`);
+            //console.log(`Коэффициент сложности для точки прибытия: ${to.terrainDifficulty}`);
+            const distance = await getDrivingDistance({ latitude: from.latitude, longitude: from.longitude }, { latitude: to.latitude, longitude: to.longitude });
+            const cost = Math.round(distance * Number(from.pricePerKm) * Number(from.terrainDifficulty));
+            console.log(`Расстояние: ${Math.round(distance)} км, Стоимость маршрута: ${cost}`);
+            return cost;
         }
-        //Преобразуем basePrice в Decimal
-        onFromSelectPoint({ ...point, basePrice: new Decimal(point.basePrice) });
-    }, [isPointAlreadySelected, onFromSelectPoint]);
-    const handleArrivalSelectPoint = useCallback((point) => {
-        if (isPointAlreadySelected(point, 'arrival')) {
-            alert('Этот город уже выбран в другом селекторе');
-            return;
+        catch (error) {
+            console.error('Ошибка при расчете стоимости маршрута:', error);
+            return 0;
         }
-        onToSelectPoint({ ...point, basePrice: new Decimal(point.basePrice) });
-    }, [isPointAlreadySelected, onToSelectPoint]);
-    const handleAdditionalSelectPoint = useCallback((point, index) => {
-        if (isPointAlreadySelected(point, 'additional', index)) {
-            alert('Этот город уже выбран в другом селекторе');
-            return;
-        }
-        onAdditionalSelectPoint({ ...point, basePrice: new Decimal(point.basePrice) }, index);
-    }, [isPointAlreadySelected, onAdditionalSelectPoint]);
+    }, []);
+    //Расчет стоимости маршрута между departurePoint и arrivalPoint
+    useEffect(() => {
+        const updateRouteCost = async () => {
+            if (departurePoint && arrivalPoint) {
+                const cost = await calculateRouteCost(departurePoint, arrivalPoint);
+                setRouteCost(cost);
+                console.log('Обновленная стоимость маршрута от точки А до точки Б:', cost);
+            }
+            else {
+                setRouteCost(0);
+            }
+        };
+        updateRouteCost();
+    }, [departurePoint, arrivalPoint, calculateRouteCost]);
     return {
-        handleDepartureSelectPoint,
-        handleArrivalSelectPoint,
-        handleAdditionalSelectPoint,
+        isPointAlreadySelected,
+        calculateRouteCost,
+        routeCost,
     };
 };
 export default usePointSelectionHandlers;

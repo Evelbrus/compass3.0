@@ -7,7 +7,6 @@ export const privateRoutes = {
     TARIFFCREATEMANAGEMENT: '/tariff-management/create',
     TRANSFERSERVICES: '/transfer-services',
     TRANSFERSERVICESCREATE: '/transfer-services/create',
-    //пользователи
     USERS: '/users',
     DRIVERS: '/drivers',
     ORDERSEDIT: '/orders/edit',
@@ -29,4 +28,5 @@ export const privateRoutes = {
     ADMIN: '/admin',
     SETTINGS: '/settings',
     MAP: '/map',
+    REFERENCEBOOK: '/reference-book',
 };

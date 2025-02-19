@@ -11,35 +11,35 @@ const GradientBackground = () => {
     const pathname = usePathname();
     const currentEntityStatus = useUnit($currentEntityStatus);
     useEffect(() => {
-        // Определяем сущность на основе текущего пути
+        //Определяем сущность на основе текущего пути
         let entity;
         let status = null;
         if (pathname.startsWith('/orders')) {
             entity = 'ORDERS';
-            // Здесь можно получить текущий статус заказа, если он есть
-            // Например, из состояния Effector или других источников
-            status = currentEntityStatus.status; // Предполагается, что статус уже установлен
+            //Здесь можно получить текущий статус заказа, если он есть
+            //Например, из состояния Effector или других источников
+            status = currentEntityStatus.status; //Предполагается, что статус уже установлен
         }
         else if (pathname.startsWith('/clients')) {
             entity = 'CLIENTS';
-            // Здесь можно получить текущую роль клиента, если она есть
-            status = currentEntityStatus.status; // Предполагается, что статус уже установлен
+            //Здесь можно получить текущую роль клиента, если она есть
+            status = currentEntityStatus.status; //Предполагается, что статус уже установлен
         }
         else {
             entity = 'DEFAULT';
             status = 'DEFAULT';
         }
-        // Обновляем состояние Effector
+        //Обновляем состояние Effector
         setCurrentEntityStatus({ entity, status });
     }, [pathname]);
     const { entity, status } = currentEntityStatus;
-    let newGradient = defaultGradient; // Стандартный градиент
+    let newGradient = defaultGradient; //Стандартный градиент
     if (entity === 'ORDERCREATE') {
         newGradient = 'bg-gradient-to-r from-gray-100 via-gray-100';
     }
     else if (entity && status && entity !== 'DEFAULT') {
         newGradient = `bg-gradient-to-r ${gradientConfig[entity]?.[status] || 'from-gray-300 via-gray-300'}`;
     }
-    return (_jsx("div", { className: "absolute inset-0", children: _jsx(AnimatedComponent, { visible: !!newGradient, duration: 1000, children: _jsx("div", { className: `absolute inset-0 bg-gradient-to-r md:rounded-l-3xl ${newGradient}`, style: { pointerEvents: 'none' } }) }) }));
+    return (_jsx("div", { className: "absolute inset-0", children: _jsx(AnimatedComponent, { visible: !!newGradient, duration: 1000, children: _jsx("div", { className: `absolute inset-0 bg-gradient-to-r md:rounded-l-3xl lg:rounded-l-3xl ${newGradient}`, style: { pointerEvents: 'none' } }) }) }));
 };
 export default GradientBackground;

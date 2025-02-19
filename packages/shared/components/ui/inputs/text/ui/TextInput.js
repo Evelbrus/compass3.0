@@ -16,7 +16,7 @@ const formatDateForInput = (value) => {
 const formatDateForBackend = (value) => {
     return new Date(value).toISOString();
 };
-export const TextInput = ({ label, placeholder, value, onChange, required = false, disabled = false, readOnly = false, type = 'text', error = false, message = '', minLength, maxLength, onKeyDown, classNameLabel = 'block text-4 font-medium text-gray-500 mb-2', inputClass = cn('w-full rounded p-2 focus:outline-none focus:ring', error ? 'border-2 border-red-400' : 'border border-gray-300 focus:border-blue-300'), }) => {
+export const TextInput = ({ label, placeholder, value, onChange, required = false, disabled = false, readOnly = false, type = 'text', error = false, message = '', minLength, maxLength, onKeyDown, rows = 3, classNameLabel = 'block text-4 font-medium text-gray-500 mb-2', inputClass = cn('w-full rounded p-2 focus:outline-none focus:ring', error ? 'border-2 border-red-400' : 'border border-gray-300 focus:border-blue-300'), step, }) => {
     const inputRef = useRef(null);
     //Состояние для переключения видимости пароля
     const [showPassword, setShowPassword] = useState(false);
@@ -34,16 +34,14 @@ export const TextInput = ({ label, placeholder, value, onChange, required = fals
                         //Если тип "password", меняем тип в зависимости от showPassword
                         type: type === 'password' ? (showPassword ? 'text' : 'password') : type, value: getFormattedValue() ?? '', onChange: (e) => {
                             let newValue = e.target.value ?? '';
-                            if (type === 'number' && e.target.value !== '') {
-                                newValue = /^\d+$/.test(e.target.value)
-                                    ? parseInt(e.target.value, 10)
-                                    : Number(e.target.value);
+                            if (type === 'number') {
+                                newValue = e.target.value;
                             }
                             else if (type === 'date') {
                                 newValue = formatDateForBackend(e.target.value);
                             }
                             onChange(newValue);
-                        }, required: required, disabled: disabled, readOnly: readOnly, placeholder: placeholder, minLength: minLength, maxLength: maxLength, onKeyDown: onKeyDown, "aria-invalid": error, className: 'w-full' }), type === 'password' && (_jsx("button", { type: "button", onClick: () => setShowPassword((prev) => !prev), 
+                        }, required: required, disabled: disabled, readOnly: readOnly, placeholder: placeholder, minLength: minLength, maxLength: maxLength, onKeyDown: onKeyDown, "aria-invalid": error, step: type === 'number' ? (step ? step.toString() : 'any') : undefined, className: 'w-full' }), type === 'password' && (_jsx("button", { type: "button", onClick: () => setShowPassword((prev) => !prev), 
                         //Кнопка расположена внутри инпута: абсолютное позиционирование по правому краю и по всей высоте, с центровкой содержимого
                         className: "relative px-2 flex items-center text-gray-500 hover:text-gray-700 focus:outline-none", children: showPassword ? (
                         //Иконка закрытого глаза (скрытый пароль)

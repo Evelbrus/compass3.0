@@ -56,6 +56,7 @@ export const rolePagesMap = {
         'USERADMINCREATE',
         'USERADMINEDIT',
         'MAP',
+        'REFERENCEBOOK',
     ],
     None: ['LOGIN', 'REGISTER'],
 };

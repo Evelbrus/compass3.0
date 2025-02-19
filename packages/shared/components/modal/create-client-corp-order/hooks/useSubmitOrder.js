@@ -13,7 +13,7 @@ const useSubmitOrder = () => {
             arrivalPoint,
             intermediatePoints: additionalPoints || [],
             selectedServices: selectedServices || [],
-            basePrice: totalPrice.toNumber(),
+            basePrice: typeof totalPrice === 'number' ? totalPrice : totalPrice.toNumber(),
             ...formData,
         };
         setIsSubmitting(true);

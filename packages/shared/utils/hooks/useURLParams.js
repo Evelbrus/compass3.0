@@ -1,17 +1,11 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-const useURLParams = ({ optimisticPage, roleFilter, sortBy, sortOrder, statusFilter, reset, activeTab, }) => {
+const useURLParams = ({ optimisticPage, roleFilter, sortBy, sortOrder, statusFilter, }) => {
     const router = useRouter();
     useEffect(() => {
         const updateURL = () => {
             const currentParams = new URLSearchParams(window.location.search);
-            if (reset) {
-                currentParams.set('page', '1');
-            }
-            else {
-                currentParams.set('page', optimisticPage?.toString() ?? '');
-            }
-            currentParams.set('tab', activeTab ?? '');
+            currentParams.set('page', optimisticPage?.toString() ?? '1');
             currentParams.set('role', roleFilter ?? '');
             currentParams.set('sort_by', sortBy ?? '');
             currentParams.set('sort_order', sortOrder ?? '');
@@ -21,6 +15,6 @@ const useURLParams = ({ optimisticPage, roleFilter, sortBy, sortOrder, statusFil
             router.push(`?${currentParams.toString()}`, { scroll: false });
         };
         updateURL();
-    }, [optimisticPage, roleFilter, sortBy, sortOrder, statusFilter, reset, activeTab]);
+    }, [optimisticPage, roleFilter, sortBy, sortOrder, statusFilter]);
 };
 export default useURLParams;
