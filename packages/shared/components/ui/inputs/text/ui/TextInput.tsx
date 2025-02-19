@@ -31,6 +31,7 @@ export const TextInput: React.FC<TextInputProps> = ({
   minLength,
   maxLength,
   onKeyDown,
+  rows = 3,
   classNameLabel = 'block text-4 font-medium text-gray-500 mb-2',
   inputClass = cn(
     'w-full rounded p-2 focus:outline-none focus:ring',

@@ -3,10 +3,13 @@ import { useFormContext, Controller } from 'react-hook-form';
 import { UserCard } from '@pages/(administrator)/(users)/user/useClientsAdminForm';
 import { TextInput, SelectSingle } from '@shared/components/ui/inputs';
 import { ImageUploadWithCrop } from '@shared/components/ui/images/ui/ImageUploadWithCrop';
-import { citizenshipOptions } from '@shared/lib/effector/drivers/optionsTranslation/optionsTranslationDriver';
+import {
+  citizenshipOptions,
+  partnerOptions,
+} from '@shared/lib/effector/drivers/optionsTranslation/optionsTranslationDriver';
 import { identityDocumentOptions } from '@shared/lib/effector/drivers/optionsTranslation/optionsTranslationDriver';
 import { changingDriverOptions } from '@shared/lib/effector/drivers/optionsTranslation/optionsTranslationDriver';
-import { ChangingDriver, Citizenship, IdentityDocument } from '@prisma/client';
+import { ChangingDriver, Citizenship, IdentityDocument, PartnerCompany } from '@prisma/client';
 import { SelectOption } from '@shared/lib/effector';
 
 //Определяем константы для имен полей.
@@ -24,6 +27,8 @@ const FIELD_CHANGING_DRIVER = 'driverProfile.changingDriver';
 const FIELD_TYPE_DRIVER = 'driverProfile.typeDriver';
 const FIELD_PASSPORT_IMAGE = 'driverProfile.passportImage';
 const FIELD_DRIVER_PROFILE_IMAGE = 'driverProfile.driverProfileImage';
+const FIELD_PARTNER_COMPANY = 'partnerCompany';
+const FIELD_INDIVIDUAL_SALARY_RATE = 'individualSalaryRate';
 
 //Функция форматирования даты в "YYYY-MM-DD"
 function formatDate(value: unknown): string {
@@ -364,11 +369,62 @@ const DriverFormStepTwo: React.FC<DriverFormStepTwoProps> = ({
               );
             }}
           />
+          <Controller
+            name={FIELD_PARTNER_COMPANY}
+            control={control}
+            defaultValue="NONE"
+            rules={{ required: 'Партнер обязателен' }}
+            render={({ field, fieldState }) => {
+              const selectedOption = partnerOptions.find((opt) => opt.value === field.value) || null;
+
+              const handleSelectChange = (option: SelectOption<PartnerCompany> | null) => {
+                clearErrors(FIELD_PARTNER_COMPANY);
+                field.onChange(option?.value ?? 'NONE');
+              };
+
+              return (
+                <SelectSingle
+                  label="Партнер"
+                  options={partnerOptions}
+                  value={selectedOption}
+                  onChange={handleSelectChange}
+                  error={!!fieldState.error}
+                  message={fieldState.error?.message || ''}
+                  requiredStar
+                  placeholder="Выберите партнера"
+                />
+              );
+            }}
+          />
+
+          {/*Новое поле: Индивидуальная ставка */}
+          <Controller
+            name={FIELD_INDIVIDUAL_SALARY_RATE}
+            control={control}
+            render={({ field, fieldState }) => {
+              const handleChange = (newValue: string | number | null) => {
+                clearErrors(FIELD_INDIVIDUAL_SALARY_RATE);
+                field.onChange(newValue === null ? '' : Number(newValue) || null);
+              };
+
+              return (
+                <TextInput
+                  label="Индивидуальная ставка:"
+                  type="number"
+                  value={field.value ?? ''}
+                  onChange={handleChange}
+                  error={!!fieldState.error}
+                  message={fieldState.error?.message || ''}
+                  placeholder="Введите сумму"
+                />
+              );
+            }}
+          />
         </div>
       </div>
 
       {/*Правая колонка — загрузка фото (паспорт, портретное) */}
-      <div className="w-1/3 flex flex-col items-center justify-start">
+      <div className="w-1/3 flex flex-col items-center justify-around">
         {/*Фото паспорта */}
         <Controller
           name={FIELD_PASSPORT_IMAGE}

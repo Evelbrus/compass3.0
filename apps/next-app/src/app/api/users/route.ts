@@ -32,6 +32,9 @@ export async function POST(req: Request) {
       profilePhotoPath,
       companyProfile,
       driverProfile,
+      partnerCompany = 'NONE',
+      individualSalaryRate,
+      defaultSalaryId,
     } = data;
 
     log('Received data:', data);
@@ -50,10 +53,11 @@ export async function POST(req: Request) {
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
     const now = new Date();
-    const uuid = uuidv4();
+    const userUuid = uuidv4();
 
-    const user = {
-      uuid,
+    //Данные пользователя
+    const userData = {
+      uuid: userUuid,
       email,
       password: hashedPassword,
       role,
@@ -63,6 +67,9 @@ export async function POST(req: Request) {
       gender,
       address,
       profilePhotoPath,
+      partnerCompany,
+      defaultSalaryId: defaultSalaryId || null,
+      individualSalaryRate: individualSalaryRate || null,
       createdAt: now,
       updatedAt: now,
     };
@@ -70,12 +77,14 @@ export async function POST(req: Request) {
     let createdUser: User | null = null;
 
     await prisma.$transaction(async (prisma) => {
-      createdUser = await prisma.user.create({ data: user });
+      //Создаем пользователя
+      createdUser = await prisma.user.create({ data: userData });
 
       if (!createdUser) {
         throw new Error('User creation failed');
       }
 
+      //Обработка профилей компании и водителя
       if (role === UserRole.ClientCorp || role === UserRole.Operator) {
         if (!companyProfile) {
           throw new Error('Company profile is required for ClientCorp and Operator roles');
@@ -109,6 +118,57 @@ export async function POST(req: Request) {
         });
       } else if (role !== UserRole.Client && role !== UserRole.Admin) {
         throw new Error('Invalid role');
+      }
+
+      //Обработка общей ставки для партнера
+      if (!defaultSalaryId && partnerCompany !== 'NONE') {
+        const existingSalary = await prisma.partnerSalary.findFirst({
+          where: { partnerCompany },
+        });
+
+        if (!existingSalary) {
+          const newSalaryUuid = uuidv4();
+          await prisma.partnerSalary.create({
+            data: {
+              uuid: newSalaryUuid,
+              partnerCompany,
+              salaryRate: 0,
+              currency: 'RUB',
+              description: `Default salary for ${partnerCompany}`,
+            },
+          });
+
+          //Обновляем пользователя, связывая его с новой ставкой
+          await prisma.user.update({
+            where: { uuid: createdUser.uuid },
+            data: { defaultSalaryId: newSalaryUuid },
+          });
+        } else {
+          //Связываем пользователя с существующей ставкой
+          await prisma.user.update({
+            where: { uuid: createdUser.uuid },
+            data: { defaultSalaryId: existingSalary.uuid },
+          });
+        }
+      }
+
+      //Обработка индивидуальной ставки
+      if (individualSalaryRate !== null && individualSalaryRate !== undefined && !defaultSalaryId) {
+        const newIndividualSalaryUuid = uuidv4();
+        await prisma.partnerSalary.create({
+          data: {
+            uuid: newIndividualSalaryUuid,
+            partnerCompany,
+            salaryRate: individualSalaryRate,
+            currency: 'RUB',
+            description: `Individual salary for user ${createdUser.uuid}`,
+          },
+        });
+
+        await prisma.user.update({
+          where: { uuid: createdUser.uuid },
+          data: { defaultSalaryId: newIndividualSalaryUuid },
+        });
       }
     });
 

@@ -26,7 +26,10 @@ CREATE TYPE "UserRole" AS ENUM ('client', 'client_corp', 'driver', 'operator', '
 CREATE TYPE "Gender" AS ENUM ('male', 'female', 'none');
 
 -- CreateEnum
-CREATE TYPE "DriverAcceptanceStatus" AS ENUM ('PENDING', 'TAKEN', 'REJECTED', 'TIMEOUT', 'ON_THE_WAY', 'ARRIVED', 'PICKED_UP', 'COMPLETED', 'CANCELED');
+CREATE TYPE "PartnerCompany" AS ENUM ('transfer', 'yandex', 'uber', 'none');
+
+-- CreateEnum
+CREATE TYPE "DriverAcceptanceStatus" AS ENUM ('PENDING', 'TAKEN', 'REJECTED', 'TIMEOUT', 'ON_THE_WAY', 'ARRIVED', 'PICKED_UP', 'COMPLETED', 'CANCELLED');
 
 -- CreateEnum
 CREATE TYPE "Color" AS ENUM ('other', 'white', 'silver', 'gold', 'black', 'grey', 'blue', 'pink', 'red', 'orange', 'brown', 'green', 'none');
@@ -100,7 +103,20 @@ CREATE TABLE "driver_profile" (
 );
 
 -- CreateTable
-CREATE TABLE "Notification" (
+CREATE TABLE "partner_salaries" (
+    "uuid" TEXT NOT NULL,
+    "partner_company" "PartnerCompany" NOT NULL,
+    "salary_rate" DOUBLE PRECISION NOT NULL,
+    "currency" TEXT NOT NULL DEFAULT 'RUB',
+    "description" TEXT,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "partner_salaries_pkey" PRIMARY KEY ("uuid")
+);
+
+-- CreateTable
+CREATE TABLE "notification" (
     "uuid" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "orderId" TEXT NOT NULL,
@@ -110,7 +126,7 @@ CREATE TABLE "Notification" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "read" BOOLEAN NOT NULL DEFAULT false,
 
-    CONSTRAINT "Notification_pkey" PRIMARY KEY ("uuid")
+    CONSTRAINT "notification_pkey" PRIMARY KEY ("uuid")
 );
 
 -- CreateTable
@@ -236,6 +252,10 @@ CREATE TABLE "users" (
     "password" TEXT NOT NULL,
     "role" "UserRole" NOT NULL,
     "driver_acceptance_status" "DriverAcceptanceStatus" NOT NULL DEFAULT 'PENDING',
+    "partner_company" "PartnerCompany" NOT NULL DEFAULT 'none',
+    "default_salary_id" TEXT,
+    "individual_salary_rate" DOUBLE PRECISION,
+    "individual_currency" TEXT DEFAULT 'RUB',
     "driver_profile_id" TEXT,
     "company_profile_id" TEXT,
     "LoginAttemptId" TEXT,
@@ -252,6 +272,7 @@ CREATE TABLE "users" (
     "refresh_tokens" TEXT[] DEFAULT ARRAY[]::TEXT[],
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
+    "partnerSalaryUuid" TEXT,
 
     CONSTRAINT "users_pkey" PRIMARY KEY ("uuid")
 );
@@ -365,6 +386,12 @@ ALTER TABLE "company" ADD CONSTRAINT "company_user_id_fkey" FOREIGN KEY ("user_i
 
 -- AddForeignKey
 ALTER TABLE "login_attempts" ADD CONSTRAINT "login_attempts_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("uuid") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "users" ADD CONSTRAINT "users_default_salary_id_fkey" FOREIGN KEY ("default_salary_id") REFERENCES "partner_salaries"("uuid") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "users" ADD CONSTRAINT "users_partnerSalaryUuid_fkey" FOREIGN KEY ("partnerSalaryUuid") REFERENCES "partner_salaries"("uuid") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "vehicle_drivers" ADD CONSTRAINT "vehicle_drivers_vehicle_id_fkey" FOREIGN KEY ("vehicle_id") REFERENCES "vehicles"("uuid") ON DELETE CASCADE ON UPDATE CASCADE;

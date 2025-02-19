@@ -1,19 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useSocket } from '@shared/utils/hooks/useSocket';
 import { UserSession } from '@shared/prisma/interface/users/interface';
-import { Action } from '@prisma/client';
-import { openModal, setDriverOrderUuid, addWarningNotification } from '@shared/lib/effector';
-
-//Интерфейс уведомления (при необходимости можно переиспользовать его из effector или вынести в отдельный файл)
-export interface Notification {
-  uuid: string;
-  orderId: string;
-  title: string;
-  message: string;
-  read: boolean;
-  createdAt: string;
-  action: Action;
-}
+import { Action, notification } from '@prisma/client';
 
 export interface NotificationIslandProps {
   userSession?: UserSession | null;
@@ -23,26 +11,35 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  //Обработчик уведомлений, приходящих через вебсокет
-  const handleNotification = useCallback((notification: Notification) => {
-    console.log('Получено уведомление через вебсокет:', notification);
-    setNotifications((prev) => [notification, ...prev]);
-
-    //Открываем модалку только если уведомление не прочитано (read === false)
-    if (!notification.read) {
-      if (notification.action === Action.noted) {
-        setDriverOrderUuid(notification.orderId);
-        openModal('orderInfoModal');
-      } else if (notification.action === Action.inProgress) {
-        setDriverOrderUuid(notification.orderId);
-        openModal('orderProgressModal');
-      } else if (notification.action === Action.warning) {
-        //Если уведомление со статусом warning — сохраняем его в отдельное хранилище
-        addWarningNotification(notification);
-      }
-    }
+  const [activeModal, setActiveModal] = useState<Action | null>(null);
+  const openModal = useCallback((action: Action) => {
+    setActiveModal(action);
   }, []);
+  const closeModal = useCallback(() => {
+    setActiveModal(null);
+  }, []);
+
+  const handleNotification = useCallback(
+    (notification: Notification) => {
+      console.log('📩 Получено уведомление:', notification);
+      setNotifications((prev) => {
+        const existingIndex = prev.findIndex((n) => n.uuid === notification.uuid);
+        if (existingIndex !== -1) {
+          const updatedNotifications = [...prev];
+          updatedNotifications[existingIndex] = notification;
+          if (!notification.read && prev[existingIndex].action !== notification.action) {
+            openModal(notification.action);
+          }
+          return updatedNotifications;
+        }
+        if (!notification.read) {
+          openModal(notification.action);
+        }
+        return [notification, ...prev];
+      });
+    },
+    [openModal],
+  );
 
   const socket = useSocket('notification', handleNotification);
 
@@ -54,10 +51,14 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
       try {
         const response = await fetch(`/api/notifications?userId=${userSession.uuid}`);
         if (!response.ok) {
-          throw new Error(`Не удалось получить уведомления: ${response.statusText}`);
+          throw new Error(`Ошибка загрузки уведомлений: ${response.statusText}`);
         }
         const data: Notification[] = await response.json();
         setNotifications(data);
+        const unreadNotification = data.find((n) => !n.read);
+        if (unreadNotification) {
+          openModal(unreadNotification.action);
+        }
       } catch (err) {
         console.error('Ошибка при получении уведомлений:', err);
         setError(err instanceof Error ? err.message : 'Не удалось получить уведомления');
@@ -73,41 +74,18 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
       const registerUser = () => {
         socket.emit('register', { userId: userSession.uuid, role: userSession.role });
       };
-
       if (socket.connected) {
         registerUser();
       } else {
         socket.on('connect', registerUser);
       }
-
       return () => {
         socket.off('connect', registerUser);
         socket.off('notification');
       };
     }
-  }, [userSession, socket]);
+  }, [userSession, socket, openModal]);
 
-  //Дополнительный эффект: при загрузке уведомлений проверяем,
-  //если среди них есть непрочитанное уведомление с нужным статусом, открываем модалку.
-  useEffect(() => {
-    if (notifications.length > 0) {
-      //Выбираем первое уведомление с нужным статусом и не прочитанное
-      const targetNotification = notifications.find(
-        (n) => !n.read && (n.action === Action.noted || n.action === Action.inProgress),
-      );
-      if (targetNotification) {
-        console.log('Найдено уведомление с нужным статусом:', targetNotification);
-        setDriverOrderUuid(targetNotification.orderId);
-        if (targetNotification.action === Action.noted) {
-          openModal('orderInfoModal');
-        } else if (targetNotification.action === Action.inProgress) {
-          openModal('orderProgressModal');
-        }
-      }
-    }
-  }, [notifications]);
-
-  //Функция для очистки уведомлений
   const clearNotifications = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -125,6 +103,7 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
         }),
       );
       setNotifications([]);
+      setActiveModal(null);
     } catch (err) {
       console.error('Ошибка при очистке уведомлений:', err);
       setError(err instanceof Error ? err.message : 'Не удалось очистить уведомления');
@@ -133,7 +112,6 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
     }
   }, [notifications]);
 
-  //Функция для пометки уведомления как прочитанного
   const markAsRead = useCallback(async (notificationId: string) => {
     try {
       const response = await fetch(`/api/notifications/${notificationId}`, {
@@ -157,25 +135,16 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
     }
   }, []);
 
-  //Функция для удаления уведомления
-  const deleteNotification = useCallback(async (notificationId: string) => {
-    try {
-      const response = await fetch(`/api/notifications/${notificationId}`, {
-        method: 'DELETE',
-      });
-      if (!response.ok) {
-        throw new Error(`Не удалось удалить уведомление: ${response.statusText}`);
-      }
-      setNotifications((prev) =>
-        prev.filter((notification) => notification.uuid !== notificationId),
-      );
-    } catch (err) {
-      console.error('Ошибка при удалении уведомления:', err);
-      setError(err instanceof Error ? err.message : 'Не удалось удалить уведомление');
-    }
-  }, []);
-
-  return { notifications, clearNotifications, isLoading, error, markAsRead, deleteNotification };
+  return {
+    notifications,
+    isLoading,
+    error,
+    activeModal,
+    openModal,
+    closeModal,
+    clearNotifications,
+    markAsRead,
+  };
 };
 
 export default useNotifications;

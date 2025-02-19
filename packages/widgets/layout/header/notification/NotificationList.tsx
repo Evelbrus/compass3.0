@@ -74,7 +74,7 @@ const NotificationList: React.FC<NotificationListProps> = ({
   };
 
   return (
-    <div className="absolute w-[400px] h-[400px] right-0 top-10 z-50 bg-[#EFEFEF] p-4 rounded-md shadow-lg overflow-auto">
+    <div className="absolute w-[400px] h-[400px] right-0 top-10 z-50 bg-[#EFEFEF] p-4 flex flex-col gap-2 justify-between rounded-md shadow-lg overflow-auto">
       <div className="flex justify-between items-center mb-2">
         <h1 className="text-2xl font-bold text-gray-800">Уведомления</h1>
         <IButton
@@ -123,12 +123,14 @@ const NotificationList: React.FC<NotificationListProps> = ({
           </li>
         ))}
       </ul>
-      <button
-        onClick={onClear}
-        className=" p-2 bg-[color:var(--button-secondary)] text-[color:var(--text-white)] rounded-lg hover:bg-[color:var(--button-secondary-hover)] transition text-sm"
-      >
-        Очистить
-      </button>
+      <div className={'flex justify-end'}>
+        <button
+          onClick={onClear}
+          className="w-[200px] p-3 bg-[color:var(--button-secondary)] text-[color:var(--text-white)] rounded-lg hover:bg-[color:var(--button-secondary-hover)] transition text-sm"
+        >
+          Очистить
+        </button>
+      </div>
     </div>
   );
 };

@@ -7,21 +7,32 @@ import NotificationList from '@widgets/layout/header/notification/NotificationLi
 import DriverNotificationList from '@widgets/layout/header/notification/DriverNotificationList';
 import { LazyImage } from '@shared/components/ui/images';
 import { Action } from '@prisma/client';
+import OrderInfoModal from '@widgets/orders/modal/driver/order-management/OrderInfoModal';
+import OrderProgressModal from '@widgets/orders/modal/driver/order-management/OrderProgressModal';
+import WarningModal from '@widgets/orders/modal/driver/order-management/WarningModal';
+import WarningAdminModal from '@widgets/orders/modal/driver/order-management/WarningAdminModal';
 
 const Notification = ({ userSession }: NotificationIslandProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isDriverOpen, setIsDriverOpen] = useState(false);
   const notificationRef = useRef<HTMLDivElement | null>(null);
 
-  //Получаем уведомления
-  const { notifications, clearNotifications, markAsRead } = useNotifications({ userSession });
+  //Получаем уведомления и функции из хука
+  const { notifications, clearNotifications, markAsRead, activeModal, openModal, closeModal } =
+    useNotifications({ userSession });
 
   //Общее количество непрочитанных уведомлений
   const unreadCount = useMemo(() => notifications.filter((n) => !n.read).length, [notifications]);
 
   //Фильтрация уведомлений для водителя
   const driverNotifications = useMemo(
-    () => notifications.filter((n) => n.action === Action.noted || n.action === Action.inProgress),
+    () =>
+      notifications.filter(
+        (n) =>
+          n.action === Action.noted ||
+          n.action === Action.inProgress ||
+          n.action === Action.warning,
+      ),
     [notifications],
   );
 
@@ -30,6 +41,15 @@ const Notification = ({ userSession }: NotificationIslandProps) => {
     () => driverNotifications.filter((n) => !n.read).length,
     [driverNotifications],
   );
+
+  //Выбираем текущее уведомление для модалки OrderInfoModal.
+  //Например, берём первое уведомление с действием Action.noted, предпочтительно с флагом !read.
+  const currentNotificationForOrderInfo = useMemo(() => {
+    return (
+      notifications.find((n) => n.action === Action.noted && !n.read) ||
+      notifications.find((n) => n.action === Action.noted)
+    );
+  }, [notifications]);
 
   useEffect(() => {
     const handleClick = (event: MouseEvent) => {
@@ -51,64 +71,85 @@ const Notification = ({ userSession }: NotificationIslandProps) => {
   }, []);
 
   return (
-    <div className="relative">
-      {/*Общая кнопка уведомлений */}
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="p-2 rounded-full bg-[#2A3037] hover:bg-gray-100 shadow-md transition-colors group"
-        aria-label="Уведомления"
-      >
-        <LazyImage
-          src="/icons/bell.svg"
-          alt="notification-icon"
-          className="w-[18px] h-[18px] duration-200 filter invert-0 group-hover:invert"
+    <>
+      {/*Автоматически открываем нужную модалку */}
+      {activeModal === Action.noted && currentNotificationForOrderInfo && (
+        <OrderInfoModal
+          isOpen={true}
+          onClose={closeModal}
+          orderUuid={currentNotificationForOrderInfo.orderId}
+          notificationUuid={currentNotificationForOrderInfo.uuid}
+          isNotificationRead={currentNotificationForOrderInfo.read}
         />
-        {unreadCount > 0 && (
-          <span className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-4 h-4 text-xs flex items-center justify-center">
-            {unreadCount}
-          </span>
-        )}
-      </button>
+      )}
 
-      {/*Кнопка для уведомлений водителя */}
-      {userSession?.role === 'Driver' && (
+      {activeModal === Action.inProgress && <OrderProgressModal isOpen onClose={closeModal} />}
+      {activeModal === Action.warning && <WarningModal isOpen onClose={closeModal} />}
+      {activeModal === Action.warning && <WarningAdminModal isOpen onClose={closeModal} />}
+
+      <div className="relative">
+        {/*Общая кнопка уведомлений */}
         <button
-          onClick={() => setIsDriverOpen(!isDriverOpen)}
-          className="ml-2 p-2 rounded-full bg-[#2A3037] hover:bg-gray-100 shadow-md transition-colors group"
-          aria-label="Уведомления водителя"
+          onClick={() => setIsOpen(!isOpen)}
+          className="p-2 rounded-full bg-[#2A3037] hover:bg-gray-100 shadow-md transition-colors group"
+          aria-label="Уведомления"
         >
           <LazyImage
-            src="/icons/driver-bell.svg"
-            alt="driver-notification-icon"
+            src="/icons/bell.svg"
+            alt="notification-icon"
             className="w-[18px] h-[18px] duration-200 filter invert-0 group-hover:invert"
           />
-          {driverUnreadCount > 0 && (
-            <span className="absolute top-0 right-0 bg-blue-500 text-white rounded-full w-4 h-4 text-xs flex items-center justify-center">
-              {driverUnreadCount}
+          {unreadCount > 0 && (
+            <span className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-4 h-4 text-xs flex items-center justify-center">
+              {unreadCount}
             </span>
           )}
         </button>
-      )}
 
-      {/*Список общих уведомлений */}
-      {isOpen && (
-        <div ref={notificationRef}>
-          <NotificationList
-            notifications={notifications}
-            onClose={() => setIsOpen(false)}
-            onClear={clearNotifications}
-            markAsRead={markAsRead}
-          />
-        </div>
-      )}
+        {/*Кнопка для уведомлений водителя */}
+        {userSession?.role === 'Driver' && (
+          <button
+            onClick={() => setIsDriverOpen(!isDriverOpen)}
+            className="ml-2 p-2 rounded-full bg-[#2A3037] hover:bg-gray-100 shadow-md transition-colors group"
+            aria-label="Уведомления водителя"
+          >
+            <LazyImage
+              src="/icons/driver-bell.svg"
+              alt="driver-notification-icon"
+              className="w-[18px] h-[18px] duration-200 filter invert-0 group-hover:invert"
+            />
+            {driverUnreadCount > 0 && (
+              <span className="absolute top-0 right-0 bg-blue-500 text-white rounded-full w-4 h-4 text-xs flex items-center justify-center">
+                {driverUnreadCount}
+              </span>
+            )}
+          </button>
+        )}
 
-      {/*Список уведомлений водителя */}
-      {isDriverOpen && (
-        <div ref={notificationRef}>
-          <DriverNotificationList notifications={driverNotifications} />
-        </div>
-      )}
-    </div>
+        {/*Список общих уведомлений */}
+        {isOpen && (
+          <div ref={notificationRef}>
+            <NotificationList
+              notifications={notifications}
+              onClose={() => setIsOpen(false)}
+              onClear={clearNotifications}
+              markAsRead={markAsRead}
+            />
+          </div>
+        )}
+
+        {/*Список уведомлений водителя */}
+        {isDriverOpen && (
+          <div ref={notificationRef}>
+            <DriverNotificationList
+              notifications={driverNotifications}
+              onClose={() => setIsDriverOpen(false)}
+              openModal={openModal}
+            />
+          </div>
+        )}
+      </div>
+    </>
   );
 };
 

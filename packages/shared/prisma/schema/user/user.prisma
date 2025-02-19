@@ -13,6 +13,13 @@ enum Gender {
   None   @map("none")
 }
 
+enum PartnerCompany {
+  TRANSFER @map("transfer") // Твоя компания "Трансфер"
+  YANDEX   @map("yandex") // Яндекс
+  UBER     @map("uber") // Убер
+  NONE     @map("none") // Нет партнера
+}
+
 enum DriverAcceptanceStatus {
   PENDING // 0: Ожидание решения водителя
   TAKEN // 1: Водитель принял к сведению (готов к выполнению)
@@ -22,7 +29,7 @@ enum DriverAcceptanceStatus {
   ARRIVED // 6: Водитель прибыл к клиенту
   PICKED_UP // 7: Водитель забрал клиента
   COMPLETED // 8: Заказ завершен
-  CANCELED // 9: Заказ отменен
+  CANCELLED // 9: Заказ отменен
 }
 
 model User {
@@ -32,6 +39,15 @@ model User {
   role     UserRole @map("role")
 
   driverAcceptanceStatus DriverAcceptanceStatus @default(PENDING) @map("driver_acceptance_status")
+
+  partnerCompany  PartnerCompany @default(NONE) @map("partner_company") // Партнер пользователя
+  PartnerSalary   PartnerSalary? @relation(fields: [partnerSalaryId], references: [uuid])
+  partnerSalaryId String?
+  defaultSalary   PartnerSalary? @relation("user_default_salary", fields: [defaultSalaryId], references: [uuid]) // Ссылка на общую ставку партнера
+  defaultSalaryId String?        @map("default_salary_id") // ID общей ставки
+
+  individualSalaryRate Float?  @map("individual_salary_rate") // Индивидуальная ставка (опционально)
+  individualCurrency   String? @default("RUB") @map("individual_currency") // Валюта индивидуальной ставки
 
   driverProfileId String?        @unique @map("driver_profile_id")
   driverProfile   DriverProfile? @relation("user_to_driver_profile")

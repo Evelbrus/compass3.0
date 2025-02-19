@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
-import { DriverAcceptanceStatus, User } from '@prisma/client';
+import { DriverAcceptanceStatus, User, UserRole, PartnerCompany } from '@prisma/client';
 import debug from 'debug';
 import { prisma } from '@shared/prisma/prisma-client';
 import { Prisma } from '@prisma/client';
+import { v4 as uuidv4 } from 'uuid';
 
 const log = debug('app:update-user');
 
@@ -10,7 +11,7 @@ interface Params {
   uuid: string;
 }
 
-//GET запрос для получения данных пользователя по UUID
+//GET запрос для получения данных пользователя по UUID (оставляем без изменений)
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
@@ -45,130 +46,195 @@ export async function GET(req: Request) {
 
 //PUT запрос для обновления данных пользователя по UUID
 export async function PUT(req: Request) {
-  //try {
-  const data = await req.json();
-  const { uuid } = data as Params;
+  try {
+    const data = await req.json();
+    const { uuid } = data as Params;
 
-  if (!uuid) {
-    return NextResponse.json({ status: 'error', message: 'UUID is required' }, { status: 400 });
-  }
+    if (!uuid) {
+      return NextResponse.json({ status: 'error', message: 'UUID is required' }, { status: 400 });
+    }
 
-  const {
-    role,
-    availability,
-    fullName,
-    phone,
-    gender,
-    address,
-    profilePhotoPath,
-    companyProfile,
-    driverProfile,
-  } = data;
+    const {
+      role,
+      availability,
+      fullName,
+      phone,
+      gender,
+      address,
+      profilePhotoPath,
+      companyProfile,
+      driverProfile,
+      partnerCompany,
+      individualSalaryRate,
+      defaultSalaryId,
+    } = data;
 
-  log('Received UUID:', uuid);
-  log('Received data:', data);
+    log('Received UUID:', uuid);
+    log('Received data:', data);
 
-  //try {
-  const now = new Date();
+    const now = new Date();
 
-  const user = {
-    role,
-    availability,
-    fullName,
-    phone,
-    gender,
-    address,
-    profilePhotoPath,
-    updatedAt: now,
-  };
+    const userUpdates = {
+      role: role as UserRole,
+      availability,
+      fullName,
+      phone,
+      gender,
+      address,
+      profilePhotoPath,
+      partnerCompany: (partnerCompany as PartnerCompany) || 'NONE',
+      individualSalaryRate: individualSalaryRate || null,
+      defaultSalaryId: defaultSalaryId || null,
+      updatedAt: now,
+    };
 
-  let updatedUser: User | null = null;
+    let updatedUser: User | null = null;
 
-  await prisma.$transaction(async (prisma) => {
-    //Обновление данных пользователя
-    updatedUser = await prisma.user.update({
-      where: { uuid },
-      data: user,
+    await prisma.$transaction(async (prisma) => {
+      //Обновление данных пользователя
+      updatedUser = await prisma.user.update({
+        where: { uuid },
+        data: userUpdates,
+      });
+
+      //Обновление профиля компании или водителя в зависимости от роли
+      if (role === 'ClientCorp' || role === 'Operator') {
+        if (!companyProfile) {
+          throw new Error('Company profile is required for ClientCorp and Operator roles');
+        }
+
+        await prisma.companyProfile.update({
+          where: { userId: uuid },
+          data: {
+            ...companyProfile,
+            updatedAt: now,
+          },
+        });
+      } else if (role === 'Driver') {
+        if (!driverProfile) {
+          throw new Error('Driver profile is required for Driver role');
+        }
+
+        const { driverExperience, ...restDriverProfile } = driverProfile;
+
+        //Обновление профиля водителя
+        await prisma.driverProfile.update({
+          where: { userId: uuid },
+          data: {
+            ...restDriverProfile,
+            updatedAt: now,
+            driverExperience: {
+              deleteMany: {},
+              create:
+                driverExperience?.map(
+                  (experience: {
+                    companyName: string;
+                    position: string;
+                    from: string;
+                    to: string;
+                  }) => ({
+                    companyName: experience.companyName,
+                    position: experience.position,
+                    from: new Date(experience.from),
+                    to: experience.to ? new Date(experience.to) : null,
+                  }),
+                ) || [],
+            },
+          },
+        });
+      } else if (role !== 'Client' && role !== 'Admin') {
+        throw new Error('Invalid role');
+      }
+
+      //Обновление или создание записи в PartnerSalary, если изменились ставки
+      if (partnerCompany && partnerCompany !== 'NONE') {
+        const existingSalary = await prisma.partnerSalary.findFirst({
+          where: { partnerCompany },
+        });
+
+        if (!existingSalary && !defaultSalaryId) {
+          const newSalaryUuid = uuidv4();
+          await prisma.partnerSalary.create({
+            data: {
+              uuid: newSalaryUuid,
+              partnerCompany,
+              salaryRate: individualSalaryRate || 0,
+              currency: 'RUB',
+              description: `Default salary for ${partnerCompany}`,
+              createdAt: now,
+              updatedAt: now,
+            },
+          });
+
+          await prisma.user.update({
+            where: { uuid },
+            data: { defaultSalaryId: newSalaryUuid },
+          });
+        } else if (existingSalary && !defaultSalaryId) {
+          await prisma.user.update({
+            where: { uuid },
+            data: { defaultSalaryId: existingSalary.uuid },
+          });
+        }
+
+        //Обновление индивидуальной ставки, если она указана
+        if (individualSalaryRate !== undefined && individualSalaryRate !== null) {
+          if (defaultSalaryId) {
+            await prisma.partnerSalary.update({
+              where: { uuid: defaultSalaryId },
+              data: {
+                salaryRate: individualSalaryRate,
+                updatedAt: now,
+              },
+            });
+          } else {
+            const newIndividualSalaryUuid = uuidv4();
+            await prisma.partnerSalary.create({
+              data: {
+                uuid: newIndividualSalaryUuid,
+                partnerCompany,
+                salaryRate: individualSalaryRate,
+                currency: 'RUB',
+                description: `Individual salary for user ${uuid}`,
+                createdAt: now,
+                updatedAt: now,
+              },
+            });
+
+            await prisma.user.update({
+              where: { uuid },
+              data: { defaultSalaryId: newIndividualSalaryUuid },
+            });
+          }
+        }
+      }
     });
 
-    //Обновление профиля компании или водителя в зависимости от роли
-    if (role === 'ClientCorp' || role === 'Operator') {
-      if (!companyProfile) {
-        throw new Error('Company profile is required for ClientCorp and Operator roles');
-      }
+    log('Updated user:', updatedUser);
 
-      await prisma.companyProfile.update({
-        where: { userId: uuid },
-        data: companyProfile,
-      });
-    } else if (role === 'Driver') {
-      if (!driverProfile) {
-        throw new Error('Driver profile is required for Driver role');
-      }
-
-      const { driverExperience, ...restDriverProfile } = driverProfile;
-
-      //Обновление профиля водителя
-      await prisma.driverProfile.update({
-        where: { userId: uuid },
-        data: {
-          ...restDriverProfile,
-          driverExperience: {
-            deleteMany: {},
-            create:
-              driverExperience?.map(
-                (experience: {
-                  companyName: string;
-                  position: string;
-                  from: string;
-                  to: string;
-                }) => ({
-                  companyName: experience.companyName,
-                  position: experience.position,
-                  from: new Date(experience.from),
-                  to: new Date(experience.to),
-                }),
-              ) || [],
-          },
-        },
-      });
-    } else if (role !== 'Client' && role !== 'Admin') {
-      throw new Error('Invalid role');
+    return NextResponse.json({
+      status: 'success',
+      message: 'User updated successfully',
+      uuid: updatedUser!.uuid,
+    });
+  } catch (error) {
+    log('Error updating user:', error);
+    if (error instanceof Error) {
+      log('Error message:', error.message);
+      log('Error stack:', error.stack);
     }
-  });
-
-  log('Updated user:', updatedUser);
-
-  return NextResponse.json({
-    status: 'success',
-    message: 'User updated successfully',
-    uuid: updatedUser!.uuid,
-  });
-  //} catch (error) {
-  //log('Error updating user:', error);
-  //if (error instanceof Error) {
-  //log('Error message:', error.message);
-  //log('Error stack:', error.stack);
-  //}
-  //return NextResponse.json(
-  //{
-  //status: 'error',
-  //message: 'Unable to update user',
-  //error: error instanceof Error ? error.message : 'Unknown error',
-  //},
-  //{ status: 500 },
-  //);
-  //}
-  //} catch (error) {
-  //log('Error parsing request:', error);
-  //if (error instanceof Error) {
-  //log('Error message:', error.message);
-  //log('Error stack:', error.stack);
-  //}
-  //return NextResponse.json({ status: 'error', message: 'Invalid request data' }, { status: 400 });
-  //}
+    return NextResponse.json(
+      {
+        status: 'error',
+        message: 'Unable to update user',
+        error: error instanceof Error ? error.message : 'Unknown error',
+      },
+      { status: 500 },
+    );
+  }
 }
 
+//PATCH и DELETE остаются без изменений, так как они не затрагивают новые поля
 export async function PATCH(req: Request) {
   try {
     const data = await req.json();
@@ -210,7 +276,6 @@ export async function PATCH(req: Request) {
   }
 }
 
-//DELETE запрос для удаления пользователя по UUID
 export async function DELETE(req: Request) {
   try {
     const { uuid } = await req.json();

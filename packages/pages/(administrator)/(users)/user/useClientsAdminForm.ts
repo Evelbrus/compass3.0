@@ -189,6 +189,7 @@ export default function useClientsAdminForm({
           'driverProfile.typeDriver',
           'driverProfile.birthPlace',
           'driverProfile.changingDriver',
+          'partnerCompany',
         ];
       } else if (currentStep === 3) {
         fieldsToValidate = ['driverProfile.yearsOfDriving'];

@@ -24,6 +24,8 @@ export type ModalType =
   | 'createPointModal'
   | 'orderInfoModal'
   | 'orderProgressModal'
+  | 'warningModal'
+  | 'warningAdminModal'
   | null;
 
 export type EntityToDelete = {
@@ -76,41 +78,9 @@ export const $userFullName = createStore<string | null>(null)
 export const setAdditionalServiceUuid = createEvent<string | null>();
 export const $additionalServiceUuid = createStore<string | null>(null).on(
   setAdditionalServiceUuid,
-  (_, uuid) => {
-    return uuid;
-  },
+  (_, uuid) => uuid,
 );
 
 //Состояние для хранения UUID точки прибытия
 export const setPointUuid = createEvent<string | null>();
-export const $pointUuid = createStore<string | null>(null).on(setPointUuid, (_, uuid) => {
-  return uuid;
-});
-
-//Создаём отдельное хранилище для uuid заказа, относящегося к модальному окну водителя
-export const setDriverOrderUuid = createEvent<string | null>();
-export const $driverOrderUuid = createStore<string | null>(null)
-  .on(setDriverOrderUuid, (_, uuid) => uuid)
-  .reset(closeModal);
-
-//Интерфейс для уведомлений (можно переиспользовать Notification из вашего кода)
-export interface WarningNotification {
-  uuid: string;
-  orderId: string;
-  title: string;
-  message: string;
-  read: boolean;
-  createdAt: string;
-  action: Action; //здесь значение должно быть Action.warning
-}
-
-//Событие для добавления нового warning-уведомления
-export const addWarningNotification = createEvent<WarningNotification>();
-
-//Событие для очистки всех warning-уведомлений (если потребуется)
-export const clearWarningNotifications = createEvent();
-
-//Хранилище для массива warning-уведомлений
-export const $warningNotifications = createStore<WarningNotification[]>([])
-  .on(addWarningNotification, (state, warning) => [warning, ...state])
-  .reset(clearWarningNotifications);
+export const $pointUuid = createStore<string | null>(null).on(setPointUuid, (_, uuid) => uuid);

@@ -16,6 +16,7 @@ export interface TextInputProps {
   maxLength?: number;
   validationMessage?: string;
   loading?: boolean;
+  rows?: number;
   onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
   className?: string;
   classNameBg?: string;

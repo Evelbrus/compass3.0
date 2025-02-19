@@ -291,7 +291,7 @@ export async function POST(req: Request) {
 
     await orderQueue.add(
       'notification',
-      { order: result },
+      { order: result.uuid },
       {
         delay: delay > 0 ? delay : 0,
         attempts: 3,

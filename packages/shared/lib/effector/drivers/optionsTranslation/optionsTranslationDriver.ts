@@ -1,4 +1,10 @@
-import { Citizenship, IdentityDocument, ChangingDriver, Status } from '@prisma/client';
+import {
+  Citizenship,
+  IdentityDocument,
+  ChangingDriver,
+  Status,
+  PartnerCompany,
+} from '@prisma/client';
 
 export const driverTypeOptions = [
   { value: 'compassTransfer', label: 'Компасс трансфер' },
@@ -24,4 +30,11 @@ export const changingDriverOptions = [
 export const statusOptions = [
   { label: 'Свободен', value: 'Free' as Status },
   { label: 'Занят', value: 'Busy' as Status },
+];
+
+export const partnerOptions = [
+  { value: 'TRANSFER', label: 'Трансфер компас' as PartnerCompany },
+  { value: 'YANDEX', label: 'Яндекс' as PartnerCompany },
+  { value: 'UBER', label: 'Убер' as PartnerCompany },
+  { value: 'NONE', label: 'Нет партнера' as PartnerCompany },
 ];

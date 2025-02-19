@@ -6,7 +6,7 @@ enum Action {
   warning // заказ в просрочено
 }
 
-model notification {
+model Notification {
   uuid      String   @id @default(uuid())
   userId    String
   orderId   String
@@ -15,4 +15,6 @@ model notification {
   action    Action
   createdAt DateTime @default(now())
   read      Boolean  @default(false)
+
+  @@map("notification")
 }

@@ -1,0 +1,15 @@
+model PartnerSalary {
+  uuid           String         @id @default(uuid()) @map("uuid")
+  partnerCompany PartnerCompany @map("partner_company") // Партнер, для которого эта ставка
+  salaryRate     Float          @map("salary_rate") // Общая ставка ЗП
+  currency       String         @default("RUB") @map("currency") // Валюта
+  description    String?        @map("description") // Описание
+
+  users User[] @relation("user_default_salary") // Пользователи, использующие эту ставку по умолчанию
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  User      User[]
+
+  @@map("partner_salaries")
+}

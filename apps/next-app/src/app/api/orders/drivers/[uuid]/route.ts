@@ -34,9 +34,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<Params> 
   }
 
   //Разрешённые значения
-  const allowedStatuses = new Set(['ON_THE_WAY', 'ARRIVED', 'PICKED_UP', 'COMPLETED', 'CANCELED']);
-  if (!allowedStatuses.has(driverProgressStatus)) {
-    log('Unsupported driverProgressStatus value:', driverProgressStatus);
+  if (
+    !Object.values(DriverAcceptanceStatus).includes(driverProgressStatus as DriverAcceptanceStatus)
+  ) {
     return NextResponse.json({ error: 'Unsupported driverProgressStatus value' }, { status: 400 });
   }
 
@@ -53,8 +53,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<Params> 
     case 'COMPLETED':
       orderStatusToUpdate = OrderStatus.COMPLETED;
       break;
-    case 'CANCELED':
-      orderStatusToUpdate = OrderStatus.CANCELLED; //в Order используется CANCELLED (с двумя L)
+    case 'CANCELLED':
+      orderStatusToUpdate = OrderStatus.CANCELLED;
       break;
     case 'ARRIVED':
     case 'PICKED_UP':
