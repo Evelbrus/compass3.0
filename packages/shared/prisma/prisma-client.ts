@@ -17,11 +17,10 @@ console.log(`Загружаем переменные окружения из ф�
 dotenv.config({ path: envFilePath });
 
 const prismaClientSingleton = () => {
-  const databaseUrl: string | undefined = process.env.POSTGRES_URL;
-  const usedVariable = 'POSTGRES_URL';
+  const databaseUrl: string | undefined = process.env.DATABASE_URL;
 
   if (!databaseUrl) {
-    throw new Error('Необходимо установить переменную окружения POSTGRES_URL.');
+    throw new Error('Необходимо установить переменную окружения DATABASE_URL.');
   }
 
   return new PrismaClient({

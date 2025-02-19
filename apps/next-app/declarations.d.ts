@@ -10,7 +10,7 @@ declare namespace NodeJS {
     WEBSOCKET_PORT: string;
     REDIS_HOST: string;
     REDIS_PORT: string;
-    POSTGRES_URL: string;
+    DATABASE_URL: string;
   }
 
   interface Process {
