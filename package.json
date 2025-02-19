@@ -26,8 +26,11 @@
     "generate:profile-routes": "node packages/shared/utils/protected-path-logic-nodeJS/generateProfileRoutes.js",
     "generate:cookie-name": "node packages/shared/utils/cookie/generate-cookie/generateCookieFiles.js",
     "prisma:migrate:dev": "dotenv -e apps/next-app/.env.development -- prisma migrate dev",
-    "prisma:push": "dotenv -e apps/next-app/.env.development -- prisma db push",
-    "prisma:seed": "dotenv -e apps/next-app/.env.development -- prisma db seed"
+    "prisma:push:dev": "dotenv -e apps/next-app/.env.development -- prisma db push",
+    "prisma:seed:dev": "dotenv -e apps/next-app/.env.development -- prisma db seed",
+    "prisma:migrate:prod": "dotenv -e apps/next-app/.env.production -- prisma migrate dev",
+    "prisma:push:prod": "dotenv -e apps/next-app/.env.production -- prisma db push",
+    "prisma:seed:prod": "dotenv -e apps/next-app/.env.production -- prisma db seed"
   },
   "prisma": {
     "schema": "./packages/shared/prisma/schema",
