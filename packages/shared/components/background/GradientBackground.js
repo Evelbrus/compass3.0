@@ -18,12 +18,12 @@ const GradientBackground = () => {
             entity = 'ORDERS';
             //Здесь можно получить текущий статус заказа, если он есть
             //Например, из состояния Effector или других источников
-            status = currentEntityStatus.status; //Предполагается, что статус уже установлен
+            status = currentEntityStatus.status;
         }
         else if (pathname.startsWith('/clients')) {
             entity = 'CLIENTS';
             //Здесь можно получить текущую роль клиента, если она есть
-            status = currentEntityStatus.status; //Предполагается, что статус уже установлен
+            status = currentEntityStatus.status;
         }
         else {
             entity = 'DEFAULT';
@@ -33,7 +33,7 @@ const GradientBackground = () => {
         setCurrentEntityStatus({ entity, status });
     }, [pathname]);
     const { entity, status } = currentEntityStatus;
-    let newGradient = defaultGradient; //Стандартный градиент
+    let newGradient = defaultGradient;
     if (entity === 'ORDERCREATE') {
         newGradient = 'bg-gradient-to-r from-gray-100 via-gray-100';
     }

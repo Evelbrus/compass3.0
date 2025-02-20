@@ -5,7 +5,7 @@ interface Params {
   uuid: string;
 }
 
-//GET‑запрос для получения детальной информации о заказе по UUID
+//GET-запрос для получения детальной информации о заказе по UUID
 export async function GET(req: Request, { params }: { params: Promise<Params> }) {
   const { uuid } = await params;
 
@@ -54,7 +54,7 @@ export async function GET(req: Request, { params }: { params: Promise<Params> })
       address: point.address,
     }));
 
-    //Форматируем дополнительные услуги: берем имя услуги и цену из tariffOnService
+    //Форматируем дополнительные услуги
     const additionalServices = order.orderTariffAdditionalServices.map((ots) => ({
       uuid: ots.uuid,
       name: ots.tariffOnService.service.name,
@@ -96,14 +96,14 @@ export async function GET(req: Request, { params }: { params: Promise<Params> })
         ? {
             fullName: order.assignedDriver.fullName,
             phone: order.assignedDriver.phone,
-            driverAcceptanceStatus: order.assignedDriver.driverAcceptanceStatus,
           }
         : null,
+      driverAcceptanceStatus: order.driverAcceptanceStatus,
       status: order.status,
-      basePrice: order.basePrice,
-      departureTime: order.departureTime,
-      createdAt: order.createdAt,
-      updatedAt: order.updatedAt,
+      basePrice: order.basePrice.toString(),
+      departureTime: order.departureTime.toISOString(),
+      createdAt: order.createdAt.toISOString(),
+      updatedAt: order.updatedAt.toISOString(),
       intermediatePoints: formattedIntermediatePoints,
       description: order.description,
       flightNumber: order.flightNumber,

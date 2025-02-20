@@ -1,17 +1,11 @@
-import { PrismaClient, UserRole, Gender } from '@prisma/client';
+import { PrismaClient, UserRole, Gender, DriverStatus } from '@prisma/client';
 import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcrypt';
 const prisma = new PrismaClient();
 async function down() {
-    //Очищаем таблицы с учетом новых связей.
-    //Если таблица "driver_profile" существует, удаляем её данные.
+    //Очищаем только таблицы, связанные с пользователями
     await prisma.$executeRaw `TRUNCATE TABLE "driver_profile" CASCADE`;
-    //Если в вашей схеме нет таблицы "company_profile", а используется "company",
-    //то очищаем таблицу "company". Если же в будущем появится "company_profile",
-    //замените следующую строку на:
-    //await prisma.$executeRaw`TRUNCATE TABLE "company_profile" CASCADE`;
     await prisma.$executeRaw `TRUNCATE TABLE "company" CASCADE`;
-    //Очищаем таблицу пользователей.
     await prisma.$executeRaw `TRUNCATE TABLE "users" CASCADE`;
 }
 async function main() {
@@ -24,7 +18,7 @@ async function main() {
                 email: 'admin@gmail.com',
                 password: passwordHash,
                 role: UserRole.Admin,
-                //driverAcceptanceStatus не передаём, используется значение по умолчанию (PENDING)
+                driverStatus: DriverStatus.FREE,
                 driverProfileId: null,
                 companyProfileId: null,
                 fullName: 'Elvis Admin',
@@ -39,6 +33,7 @@ async function main() {
                 email: 'client@example.com',
                 password: passwordHash,
                 role: UserRole.Client,
+                driverStatus: DriverStatus.FREE,
                 driverProfileId: null,
                 companyProfileId: null,
                 fullName: 'John Client',
@@ -53,6 +48,7 @@ async function main() {
                 email: 'driver@example.com',
                 password: passwordHash,
                 role: UserRole.Driver,
+                driverStatus: DriverStatus.FREE,
                 driverProfileId: null,
                 companyProfileId: null,
                 fullName: 'Alice Driver',
@@ -67,6 +63,7 @@ async function main() {
                 email: 'operator@example.com',
                 password: passwordHash,
                 role: UserRole.Operator,
+                driverStatus: DriverStatus.FREE,
                 driverProfileId: null,
                 companyProfileId: null,
                 fullName: 'Bob Operator',
@@ -81,6 +78,7 @@ async function main() {
                 email: 'clientcorp@example.com',
                 password: passwordHash,
                 role: UserRole.ClientCorp,
+                driverStatus: DriverStatus.FREE,
                 driverProfileId: null,
                 companyProfileId: null,
                 fullName: 'Eve CorpClient',
@@ -95,6 +93,7 @@ async function main() {
                 email: 'none@example.com',
                 password: passwordHash,
                 role: UserRole.None,
+                driverStatus: DriverStatus.FREE,
                 driverProfileId: null,
                 companyProfileId: null,
                 fullName: 'No Role User',

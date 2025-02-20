@@ -14,10 +14,13 @@ CREATE TYPE "ChangingDriver" AS ENUM ('day', 'night', 'both', 'none');
 CREATE TYPE "Status" AS ENUM ('free', 'busy', 'none');
 
 -- CreateEnum
-CREATE TYPE "Action" AS ENUM ('info', 'noted', 'inProgress', 'success', 'warning');
+CREATE TYPE "Action" AS ENUM ('info', 'noted', 'inProgress', 'success', 'warning', 'cancelled');
 
 -- CreateEnum
 CREATE TYPE "OrderStatus" AS ENUM ('PENDING', 'PLANNED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'OVERDUE');
+
+-- CreateEnum
+CREATE TYPE "DriverAcceptanceStatus" AS ENUM ('pending', 'taken', 'accepted', 'on_the_way', 'arrived', 'picked_up', 'timeout', 'completed');
 
 -- CreateEnum
 CREATE TYPE "UserRole" AS ENUM ('client', 'client_corp', 'driver', 'operator', 'admin', 'none');
@@ -29,7 +32,7 @@ CREATE TYPE "Gender" AS ENUM ('male', 'female', 'none');
 CREATE TYPE "PartnerCompany" AS ENUM ('transfer', 'yandex', 'uber', 'none');
 
 -- CreateEnum
-CREATE TYPE "DriverAcceptanceStatus" AS ENUM ('PENDING', 'TAKEN', 'REJECTED', 'TIMEOUT', 'ON_THE_WAY', 'ARRIVED', 'PICKED_UP', 'COMPLETED', 'CANCELLED');
+CREATE TYPE "DriverStatus" AS ENUM ('free', 'busy', 'offline', 'on_break');
 
 -- CreateEnum
 CREATE TYPE "Color" AS ENUM ('other', 'white', 'silver', 'gold', 'black', 'grey', 'blue', 'pink', 'red', 'orange', 'brown', 'green', 'none');
@@ -86,7 +89,6 @@ CREATE TABLE "driver_profile" (
     "actual_address" TEXT NOT NULL,
     "permanent_address" TEXT NOT NULL,
     "changing_driver" "ChangingDriver" NOT NULL,
-    "driver_type" TEXT NOT NULL,
     "yearsOfDriving" INTEGER NOT NULL,
     "passport_photo_path" TEXT,
     "profile_photo_path" TEXT,
@@ -138,6 +140,7 @@ CREATE TABLE "orders" (
     "arrival_point_id" TEXT NOT NULL,
     "assigned_driver_id" TEXT,
     "status" "OrderStatus" NOT NULL DEFAULT 'PENDING',
+    "driver_acceptance_status" "DriverAcceptanceStatus" DEFAULT 'pending',
     "base_price" DECIMAL(65,30) NOT NULL,
     "final_price" DECIMAL(65,30),
     "departure_time" TIMESTAMP(3) NOT NULL,
@@ -168,8 +171,11 @@ CREATE TABLE "points" (
     "address" TEXT NOT NULL,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
-    "base_price" DECIMAL(65,30) NOT NULL,
+    "price_per_km" DECIMAL(65,30) NOT NULL,
     "airport" BOOLEAN,
+    "latitude" DOUBLE PRECISION NOT NULL,
+    "longitude" DOUBLE PRECISION NOT NULL,
+    "terrain_difficulty" DOUBLE PRECISION NOT NULL DEFAULT 1.0,
 
     CONSTRAINT "points_pkey" PRIMARY KEY ("uuid")
 );
@@ -251,8 +257,9 @@ CREATE TABLE "users" (
     "email" TEXT NOT NULL,
     "password" TEXT NOT NULL,
     "role" "UserRole" NOT NULL,
-    "driver_acceptance_status" "DriverAcceptanceStatus" NOT NULL DEFAULT 'PENDING',
+    "driver_status" "DriverStatus" NOT NULL DEFAULT 'free',
     "partner_company" "PartnerCompany" NOT NULL DEFAULT 'none',
+    "partnerSalaryId" TEXT,
     "default_salary_id" TEXT,
     "individual_salary_rate" DOUBLE PRECISION,
     "individual_currency" TEXT DEFAULT 'RUB',
@@ -272,7 +279,6 @@ CREATE TABLE "users" (
     "refresh_tokens" TEXT[] DEFAULT ARRAY[]::TEXT[],
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
-    "partnerSalaryUuid" TEXT,
 
     CONSTRAINT "users_pkey" PRIMARY KEY ("uuid")
 );
@@ -388,10 +394,10 @@ ALTER TABLE "company" ADD CONSTRAINT "company_user_id_fkey" FOREIGN KEY ("user_i
 ALTER TABLE "login_attempts" ADD CONSTRAINT "login_attempts_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("uuid") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "users" ADD CONSTRAINT "users_default_salary_id_fkey" FOREIGN KEY ("default_salary_id") REFERENCES "partner_salaries"("uuid") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "users" ADD CONSTRAINT "users_partnerSalaryId_fkey" FOREIGN KEY ("partnerSalaryId") REFERENCES "partner_salaries"("uuid") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "users" ADD CONSTRAINT "users_partnerSalaryUuid_fkey" FOREIGN KEY ("partnerSalaryUuid") REFERENCES "partner_salaries"("uuid") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "users" ADD CONSTRAINT "users_default_salary_id_fkey" FOREIGN KEY ("default_salary_id") REFERENCES "partner_salaries"("uuid") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "vehicle_drivers" ADD CONSTRAINT "vehicle_drivers_vehicle_id_fkey" FOREIGN KEY ("vehicle_id") REFERENCES "vehicles"("uuid") ON DELETE CASCADE ON UPDATE CASCADE;

@@ -29,12 +29,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<Params
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<Params> }) {
-  //Дожидаемся разрешения промиса params
   const { uuid: notificationUuid } = await params;
   log(`Received PATCH request to update notification with UUID: ${notificationUuid}`);
 
-  //Извлекаем данные из запроса
-  let data: { read?: boolean };
+  let data: { read?: boolean; action?: 'success' | 'cancelled' };
   try {
     data = await req.json();
   } catch (error) {
@@ -42,16 +40,23 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<Para
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  const { read } = data;
-  if (typeof read !== 'boolean') {
-    log('read property must be a boolean');
-    return NextResponse.json({ error: 'read property must be a boolean' }, { status: 400 });
+  const { read, action } = data;
+
+  if (action !== undefined && !['success', 'cancelled'].includes(action)) {
+    log('action property must be "success" or "cancelled"');
+    return NextResponse.json(
+      { error: 'action property must be "success" or "cancelled"' },
+      { status: 400 },
+    );
   }
 
   try {
     const updatedNotification = await prisma.notification.update({
       where: { uuid: notificationUuid },
-      data: { read },
+      data: {
+        ...(read !== undefined && { read }),
+        ...(action !== undefined && { action }),
+      },
     });
 
     log(`Successfully updated notification with UUID: ${notificationUuid}`);

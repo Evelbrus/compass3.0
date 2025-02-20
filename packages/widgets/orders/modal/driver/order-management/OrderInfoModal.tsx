@@ -1,64 +1,55 @@
-'use client';
-
 import React, { useState, useEffect } from 'react';
 import AnimatedComponent from '@shared/components/animated/CommonAnimated/AnimatedComponent';
 import { IButton } from '@shared/components/ui/buttons';
 import { CloseIcon } from '@shared/components/ui/icon';
 import { TextInput } from '@shared/components/ui/inputs';
-import { DriverAcceptanceStatus, Order, Point, Tariff, User } from '@prisma/client';
+import {
+  Order,
+  Point,
+  Tariff,
+  User,
+  Notification,
+  TariffOnService,
+  AdditionalService,
+} from '@prisma/client';
 import { formatDate } from '@shared/components/ui/inputs/date/functions/formatDate';
+import {
+  fetchOrderDetails,
+  updateOrderStatus,
+} from '@widgets/orders/modal/driver/api/apiDriverModel';
+import { useSocket } from '@shared/utils/hooks/useSocket';
 
-//Интерфейс для дополнительных услуг (пример)
-interface AdditionalService {
-  uuid: string;
-  name: string;
-  price: number;
-}
-
-//Расширяем OrderDetail для поддержки дополнительных услуг
 interface OrderDetail extends Order {
   createdBy: User;
   tariff: Tariff;
   departurePoint: Point;
   arrivalPoint: Point;
   assignedDriver: User | null;
-  additionalServices?: AdditionalService[];
+  additionalServices?: (TariffOnService & AdditionalService)[];
 }
 
 interface OrderInfoModalProps {
   isOpen: boolean;
-  orderUuid: string;
-  notificationUuid: string;
   onClose: () => void;
-  isNotificationRead?: boolean;
+  notification: Notification;
 }
 
-const OrderInfoModal: React.FC<OrderInfoModalProps> = ({
-  isOpen,
-  orderUuid,
-  notificationUuid,
-  onClose,
-  isNotificationRead = false,
-}) => {
+const OrderInfoModal: React.FC<OrderInfoModalProps> = ({ isOpen, notification, onClose }) => {
   const [orderData, setOrderData] = useState<OrderDetail | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [showAdditionalServices, setShowAdditionalServices] = useState<boolean>(false);
+  const [notificationRead, setNotificationRead] = useState<boolean>(notification.read);
 
-  //Функция-заглушка для onChange (поля только для чтения)
+  console.log('notification order info modal', notification);
+
+  const socket = useSocket('notification');
   const noop = () => {};
 
-  //Получение данных заказа при монтировании модального окна
   useEffect(() => {
-    if (!orderUuid) return;
+    if (!isOpen || !notification.orderId) return;
     setLoading(true);
-    fetch(`/api/orders/modal/${orderUuid}`)
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error(`Ошибка получения заказа: ${res.statusText}`);
-        }
-        return res.json();
-      })
+    fetchOrderDetails(notification.orderId)
       .then((data) => {
         setOrderData(data);
         setLoading(false);
@@ -68,61 +59,40 @@ const OrderInfoModal: React.FC<OrderInfoModalProps> = ({
         setError(err instanceof Error ? err.message : 'Ошибка при загрузке данных заказа');
         setLoading(false);
       });
-  }, [orderUuid]);
+  }, [isOpen, notification.orderId]);
 
-  //Обновление статуса водителя происходит только если уведомление еще не прочитано
-  useEffect(() => {
-    if (!orderUuid) return;
-    if (isNotificationRead) return;
-
-    fetch(`/api/orders/drivers/${orderUuid}`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        orderUuid: orderUuid,
-        driverProgressStatus: DriverAcceptanceStatus.TAKEN,
-      }),
-    })
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error(`Ошибка обновления статуса водителя: ${res.statusText}`);
-        }
-        return res.json();
-      })
-      .then((data) => {
-        console.log('Статус водителя обновлён (PATCH):', data);
-      })
-      .catch((err) => {
-        console.error('Ошибка при отправке PATCH-запроса для водителя:', err);
-      });
-  }, [orderData, isNotificationRead, orderUuid]);
-
-  //Пометка уведомления как прочитанного (отправляется только если уведомление еще не прочитано)
-  const markNotificationAsRead = async () => {
-    try {
-      const response = await fetch(`/api/notifications/${notificationUuid}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ read: true }),
-      });
-      if (!response.ok) {
-        throw new Error(`Ошибка обновления уведомления: ${response.statusText}`);
-      }
-      console.log('Уведомление отмечено как прочитанное');
-    } catch (err) {
-      console.error('Ошибка при обновлении уведомления:', err);
-    }
-  };
-
-  //Обработчик закрытия модального окна:
-  //Если уведомление не прочитано – сначала помечаем его как прочитанное, затем закрываем модалку.
   const handleClose = async () => {
-    if (!isNotificationRead) {
-      await markNotificationAsRead();
+    if (!notificationRead) {
+      try {
+        await updateOrderStatus({
+          orderUuid: notification.orderId,
+          notificationUuid: notification.uuid,
+          driverId: notification.userId,
+          markNotificationAsRead: true,
+        });
+
+        if (socket) {
+          const updatedNotification = {
+            uuid: notification.uuid,
+            userId: notification.userId,
+            title: notification.title,
+            message: notification.message,
+            orderId: notification.orderId,
+            action: notification.action,
+            read: true,
+          };
+          console.log('Отправляем WebSocket-уведомление:', updatedNotification);
+          socket.emit('notification', {
+            userId: notification.userId,
+            notification: updatedNotification,
+          });
+        }
+
+        setNotificationRead(true);
+      } catch (err) {
+        console.error('Ошибка при обновлении уведомления:', err);
+        alert('Не удалось обновить уведомление');
+      }
     }
     onClose();
   };
@@ -133,7 +103,6 @@ const OrderInfoModal: React.FC<OrderInfoModalProps> = ({
     <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50 p-4">
       <AnimatedComponent duration={500}>
         <div className="relative bg-white rounded-3xl max-w-3xl w-full p-6">
-          {/*Заголовок и кнопка закрытия (иконка в правом верхнем углу) */}
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold text-center flex-1">Детали заказа</h2>
             <IButton
@@ -152,7 +121,6 @@ const OrderInfoModal: React.FC<OrderInfoModalProps> = ({
             <p className="text-red-500">{error}</p>
           ) : orderData ? (
             <div className="space-y-6">
-              {/*Верхний блок: Время отправления */}
               <div className="text-center">
                 <TextInput
                   label="Время отправления / Departure Time"
@@ -167,7 +135,6 @@ const OrderInfoModal: React.FC<OrderInfoModalProps> = ({
                 />
               </div>
 
-              {/*Блок: Откуда и Куда */}
               <div className="grid grid-cols-2 gap-4">
                 <TextInput
                   label="Откуда"
@@ -193,7 +160,6 @@ const OrderInfoModal: React.FC<OrderInfoModalProps> = ({
                 />
               </div>
 
-              {/*Блок: ФИО клиента и Номер телефона */}
               <div className="grid grid-cols-2 gap-4">
                 <TextInput
                   label="ФИО клиента"
@@ -219,7 +185,6 @@ const OrderInfoModal: React.FC<OrderInfoModalProps> = ({
                 />
               </div>
 
-              {/*Блок: Тариф */}
               <div>
                 <TextInput
                   label="Тариф"
@@ -238,7 +203,6 @@ const OrderInfoModal: React.FC<OrderInfoModalProps> = ({
                 />
               </div>
 
-              {/*Блок: Номер рейса и Описание */}
               <div className="grid grid-cols-2 gap-4">
                 <TextInput
                   label="Номер рейса"
@@ -267,7 +231,6 @@ const OrderInfoModal: React.FC<OrderInfoModalProps> = ({
                 </div>
               </div>
 
-              {/*Селектор дополнительных услуг */}
               <div>
                 <button
                   type="button"
@@ -304,27 +267,25 @@ const OrderInfoModal: React.FC<OrderInfoModalProps> = ({
                   )}
               </div>
 
-              {/*Кнопка "Ознакомлен" или надпись "Ознамился (Прочитано)" */}
               <div className="flex justify-center mt-6">
-                {!isNotificationRead ? (
+                {notificationRead ? (
+                  <div
+                    onClick={handleClose}
+                    className="px-6 py-2 bg-green-500 text-white rounded cursor-default"
+                  >
+                    Ознамился (Прочитано)
+                  </div>
+                ) : (
                   <button
                     type="button"
                     onClick={handleClose}
                     className="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
                   >
-                    Ознакомиться
+                    Закрыть
                   </button>
-                ) : (
-                  <div
-                    onClick={onClose}
-                    className="px-6 py-2 bg-green-500 text-white rounded cursor-default"
-                  >
-                    Ознамился (Прочитано)
-                  </div>
                 )}
               </div>
 
-              {/*Блок: Примечание с датами создания и обновления */}
               <div className="text-sm text-gray-500">
                 Создан: {formatDate(orderData.createdAt.toString())} | Обновлено:{' '}
                 {formatDate(orderData.updatedAt.toString())}

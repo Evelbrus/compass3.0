@@ -250,35 +250,50 @@ export async function PUT(req: Request, { params }: { params: Promise<Params> })
       return finalOrder;
     });
 
-    //Если result равен null, возвращаем ошибку
     if (!result) {
       return NextResponse.json({ error: 'Order update failed' }, { status: 500 });
     }
 
-    //Обновляем задачу в очереди, если departureTime или другие ключевые поля изменились.
-    //Вычисляем новую задержку на основе обновленного departureTime
+    //Обновляем задачу в очереди, если departureTime или другие ключевые поля изменились
     const departureTimestamp = new Date(result.departureTime).getTime();
     const now = Date.now();
-    const delay = departureTimestamp - now - 60000; //например, за 1 минуту до departureTime
+    const delay = departureTimestamp - now - 60000;
 
-    //Удаляем предыдущую задачу, если она существует
+    //Проверяем, существует ли задача
     const existingJob = await orderQueue.getJob(`notification-${result.uuid}`);
     if (existingJob) {
-      await existingJob.remove();
-    }
+      const currentDelay = existingJob.opts.delay;
+      const currentData = existingJob.data;
 
-    //Создаем новую задачу с актуальными параметрами
-    await orderQueue.add(
-      'notification',
-      { order: result },
-      {
-        delay: delay > 0 ? delay : 0,
-        attempts: 3,
-        backoff: { type: 'exponential', delay: 1000 },
-        jobId: `notification-${result.uuid}`,
-      },
-    );
-    log(`📌 Задача notification обновлена, jobId: notification-${result.uuid}`);
+      if (currentDelay !== delay || JSON.stringify(currentData.order) !== JSON.stringify(result)) {
+        await existingJob.remove();
+        await orderQueue.add(
+          'notification',
+          { order: result },
+          {
+            delay: delay > 0 ? delay : 0,
+            attempts: 3,
+            backoff: { type: 'exponential', delay: 1000 },
+            jobId: `notification-${result.uuid}`,
+          },
+        );
+        log(`📌 Задача notification обновлена, jobId: notification-${result.uuid}`);
+      } else {
+        log(`📌 Задача notification не требует обновления, jobId: notification-${result.uuid}`);
+      }
+    } else {
+      await orderQueue.add(
+        'notification',
+        { order: result },
+        {
+          delay: delay > 0 ? delay : 0,
+          attempts: 3,
+          backoff: { type: 'exponential', delay: 1000 },
+          jobId: `notification-${result.uuid}`,
+        },
+      );
+      log(`📌 Новая задача notification создана, jobId: notification-${result.uuid}`);
+    }
 
     return NextResponse.json(result, { status: 200 });
   } catch (error) {

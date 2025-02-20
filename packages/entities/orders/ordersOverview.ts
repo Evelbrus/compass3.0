@@ -1,4 +1,10 @@
-import { StatusItem } from '@widgets/status-overview';
+//Определения интерфейсов для статусов
+export interface StatusItem {
+  key: string;
+  label: string;
+  description: string;
+  color: string;
+}
 
 export const ordersOverview: StatusItem[] = [
   {

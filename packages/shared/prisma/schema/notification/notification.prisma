@@ -1,9 +1,10 @@
 enum Action {
   info // просто уведомление
-  noted // уведомление получено и зафиксировано (более абстрактное, чем acknowledged)
+  noted // уведомление о заказе
   inProgress // заказ в процессе выполнения
   success // заказ успешно выполнен
   warning // заказ в просрочено
+  cancelled // заказ отменен
 }
 
 model Notification {

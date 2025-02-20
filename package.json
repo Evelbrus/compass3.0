@@ -35,7 +35,7 @@
   },
   "prisma": {
     "schema": "./packages/shared/prisma/schema",
-    "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} packages/shared/prisma/seed/seed.ts"
+    "seed": "ts-node packages/shared/prisma/seed/seed.ts"
   },
   "packageManager": "yarn@4.4.1",
   "dependencies": {

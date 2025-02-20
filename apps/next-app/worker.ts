@@ -3,7 +3,14 @@ import dotenv from 'dotenv';
 import { prisma } from '../../packages/shared/prisma/prisma-client.js';
 import { io } from 'socket.io-client';
 import { v4 as uuidv4 } from 'uuid';
-import { Order, Action, OrderStatus, DriverAcceptanceStatus } from '@prisma/client';
+import {
+  Order,
+  Action,
+  OrderStatus,
+  DriverAcceptanceStatus,
+  DriverStatus,
+  UserRole,
+} from '@prisma/client';
 import { orderQueue } from './src/lib/queues/orderQueue.js';
 
 dotenv.config();
@@ -76,7 +83,7 @@ async function processNotificationJob(order: Order) {
   console.log(`Отправка уведомления inProgress для заказа ${order.uuid}`);
 
   if (order.assignedDriverId) {
-    const driverId: string = order.assignedDriverId;
+    const userId: string = order.assignedDriverId;
     await prisma.$transaction(async (prismaTx) => {
       const departurePoint = await prismaTx.point.findUnique({
         where: { uuid: order.departurePointId },
@@ -85,8 +92,19 @@ async function processNotificationJob(order: Order) {
       const newMessage = `Вам назначен новый заказ от ${address}.`;
       const desiredAction = Action.inProgress;
 
+      //Обновляем статус водителя на BUSY и заказ на TAKEN
+      await prismaTx.user.update({
+        where: { uuid: userId },
+        data: { driverStatus: DriverStatus.BUSY },
+      });
+
+      await prismaTx.order.update({
+        where: { uuid: order.uuid },
+        data: { driverAcceptanceStatus: DriverAcceptanceStatus.TAKEN },
+      });
+
       let notification = await prismaTx.notification.findFirst({
-        where: { orderId: order.uuid, userId: driverId },
+        where: { orderId: order.uuid, userId: userId },
       });
 
       if (notification) {
@@ -99,11 +117,11 @@ async function processNotificationJob(order: Order) {
         notification = await prismaTx.notification.create({
           data: {
             uuid: uuidv4(),
-            userId: driverId,
+            userId: userId,
             orderId: order.uuid,
             title: 'Новый заказ!',
             message: newMessage,
-            action: desiredAction, //Исправили на desiredAction
+            action: desiredAction,
             read: false,
           },
         });
@@ -112,6 +130,7 @@ async function processNotificationJob(order: Order) {
 
       const notificationData = {
         uuid: notification.uuid,
+        userId: userId,
         orderId: order.uuid,
         title: notification.title,
         message: notification.message,
@@ -120,8 +139,9 @@ async function processNotificationJob(order: Order) {
         action: notification.action,
       };
 
+      console.log('Перед отправкой WebSocket:', notificationData);
       socket.emit('notification', {
-        userId: driverId,
+        userId: userId,
         notification: notificationData,
       });
       console.log('📡 Уведомление inProgress отправлено через сокет:', notificationData);
@@ -150,89 +170,128 @@ async function processNotificationJob(order: Order) {
 }
 
 async function processCheckoverdueJob(order: Order) {
-  console.log(`Проверка просроченности заказа ${order.uuid} в момент departureTime`);
-
   const freshOrder = await prisma.order.findUnique({ where: { uuid: order.uuid } });
-  if (!freshOrder) {
-    console.error(`Заказ ${order.uuid} не найден в базе данных`);
-    return;
-  }
+  if (!freshOrder) return;
 
   if (freshOrder.status === OrderStatus.PENDING || freshOrder.status === OrderStatus.PLANNED) {
-    await prisma.order.update({
-      where: { uuid: order.uuid },
-      data: { status: OrderStatus.OVERDUE },
-    });
-    console.log(`✅ Статус заказа ${order.uuid} обновлен на OVERDUE`);
-
-    if (order.assignedDriverId) {
-      const driverId: string = order.assignedDriverId;
-      await prisma.user.update({
-        where: { uuid: driverId },
-        data: { driverAcceptanceStatus: DriverAcceptanceStatus.TIMEOUT },
+    await prisma.$transaction(async (prismaTx) => {
+      await prismaTx.order.update({
+        where: { uuid: order.uuid },
+        data: {
+          status: OrderStatus.OVERDUE,
+          driverAcceptanceStatus: DriverAcceptanceStatus.TIMEOUT,
+        },
       });
-      console.log(`✅ Статус водителя для заказа ${order.uuid} обновлен на TIMEOUT`);
 
-      const departurePoint = await prisma.point.findUnique({
+      const departurePoint = await prismaTx.point.findUnique({
         where: { uuid: order.departurePointId },
       });
       const address = departurePoint?.address ?? 'неизвестного места';
       const warningMessage = `Заказ от ${address} просрочен.`;
 
-      let notification = await prisma.notification.findFirst({
-        where: { orderId: order.uuid, userId: driverId },
-      });
+      //Уведомление для водителя
+      if (order.assignedDriverId) {
+        const userId = order.assignedDriverId; //Используем userId
+        await prismaTx.user.update({
+          where: { uuid: userId },
+          data: { driverStatus: DriverStatus.FREE },
+        });
 
-      if (notification) {
-        if (notification.action !== Action.warning) {
-          notification = await prisma.notification.update({
+        let notification = await prismaTx.notification.findFirst({
+          where: { orderId: order.uuid, userId: userId },
+        });
+
+        if (notification) {
+          notification = await prismaTx.notification.update({
             where: { uuid: notification.uuid },
             data: { action: Action.warning, message: warningMessage, read: false },
           });
-          console.log(
-            `✅ Уведомление для заказа ${order.uuid} обновлено до статуса ${Action.warning}`,
-          );
+          console.log(`✅ Уведомление для водителя обновлено до warning для заказа ${order.uuid}`);
         } else {
-          console.log(`ℹ️ Уведомление для заказа ${order.uuid} уже имеет статус ${Action.warning}`);
+          notification = await prismaTx.notification.create({
+            data: {
+              uuid: uuidv4(),
+              userId: userId,
+              orderId: order.uuid,
+              title: 'Просроченный заказ',
+              message: warningMessage,
+              action: Action.warning,
+              read: false,
+            },
+          });
+          console.log(`✅ Создано новое уведомление warning для водителя для заказа ${order.uuid}`);
         }
-      } else {
-        notification = await prisma.notification.create({
-          data: {
-            uuid: uuidv4(),
-            userId: driverId,
-            orderId: order.uuid,
-            title: 'Просроченный заказ',
-            message: warningMessage,
-            action: Action.warning,
-            read: false,
-          },
+
+        const notificationData = {
+          uuid: notification.uuid,
+          userId: userId, //Добавляем userId
+          orderId: order.uuid,
+          title: notification.title,
+          message: notification.message,
+          read: notification.read,
+          createdAt: notification.createdAt?.toISOString() || new Date().toISOString(),
+          action: notification.action,
+        };
+
+        socket.emit('notification', {
+          userId: userId,
+          notification: notificationData,
         });
-        console.log(`✅ Создано новое уведомление для просроченного заказа ${order.uuid}`);
       }
 
-      const notificationData = {
-        uuid: notification.uuid,
-        orderId: order.uuid,
-        title: notification.title,
-        message: notification.message,
-        read: notification.read,
-        createdAt: notification.createdAt?.toISOString() || new Date().toISOString(),
-        action: notification.action,
-      };
-
-      socket.emit('notification', {
-        userId: driverId,
-        notification: notificationData,
+      //Уведомления для админов и операторов
+      const adminsAndOperators = await prismaTx.user.findMany({
+        where: { role: { in: [UserRole.Operator, UserRole.Admin] } },
       });
-      console.log('📡 Уведомление warning отправлено через сокет:', notificationData);
-    } else {
-      console.log(
-        `ℹ️ Для заказа ${order.uuid} водитель не назначен — обновление статуса происходит без уведомления водителя.`,
-      );
-    }
-  } else {
-    console.log(
-      `ℹ️ Заказ ${order.uuid} имеет статус ${freshOrder.status}, обновление до OVERDUE не требуется.`,
-    );
+
+      for (const user of adminsAndOperators) {
+        let notification = await prismaTx.notification.findFirst({
+          where: { orderId: order.uuid, userId: user.uuid },
+        });
+
+        if (notification) {
+          notification = await prismaTx.notification.update({
+            where: { uuid: notification.uuid },
+            data: {
+              title: 'Просроченный заказ',
+              message: `Заказ от ${address} просрочен. Водитель не принял заказ вовремя.`,
+              action: Action.warning,
+              read: false,
+            },
+          });
+          console.log(`✅ Уведомление для ${user.role} ${user.uuid} обновлено до warning`);
+        } else {
+          notification = await prismaTx.notification.create({
+            data: {
+              uuid: uuidv4(),
+              userId: user.uuid,
+              orderId: order.uuid,
+              title: 'Просроченный заказ',
+              message: `Заказ от ${address} просрочен. Водитель не принял заказ вовремя.`,
+              action: Action.warning,
+              read: false,
+            },
+          });
+          console.log(`✅ Создано новое уведомление warning для ${user.role} ${user.uuid}`);
+        }
+
+        const notificationData = {
+          uuid: notification.uuid,
+          userId: user.uuid,
+          orderId: order.uuid,
+          title: notification.title,
+          message: notification.message,
+          read: notification.read,
+          createdAt: notification.createdAt?.toISOString() || new Date().toISOString(),
+          action: notification.action,
+        };
+
+        socket.emit('notification', {
+          userId: user.uuid,
+          notification: notificationData,
+        });
+        console.log(`📡 Уведомление для ${user.role} ${user.uuid} отправлено:`, notificationData);
+      }
+    });
   }
 }

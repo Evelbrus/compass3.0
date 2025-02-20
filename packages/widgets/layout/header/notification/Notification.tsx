@@ -6,7 +6,7 @@ import {
 import NotificationList from '@widgets/layout/header/notification/NotificationList';
 import DriverNotificationList from '@widgets/layout/header/notification/DriverNotificationList';
 import { LazyImage } from '@shared/components/ui/images';
-import { Action } from '@prisma/client';
+import { Action, UserRole } from '@prisma/client';
 import OrderInfoModal from '@widgets/orders/modal/driver/order-management/OrderInfoModal';
 import OrderProgressModal from '@widgets/orders/modal/driver/order-management/OrderProgressModal';
 import WarningModal from '@widgets/orders/modal/driver/order-management/WarningModal';
@@ -17,14 +17,17 @@ const Notification = ({ userSession }: NotificationIslandProps) => {
   const [isDriverOpen, setIsDriverOpen] = useState(false);
   const notificationRef = useRef<HTMLDivElement | null>(null);
 
-  //Получаем уведомления и функции из хука
-  const { notifications, clearNotifications, markAsRead, activeModal, openModal, closeModal } =
-    useNotifications({ userSession });
+  const {
+    notifications,
+    getDriverNotifications,
+    clearNotifications,
+    markAsRead,
+    activeNotification,
+    openModal,
+    closeModal,
+  } = useNotifications({ userSession });
 
-  //Общее количество непрочитанных уведомлений
   const unreadCount = useMemo(() => notifications.filter((n) => !n.read).length, [notifications]);
-
-  //Фильтрация уведомлений для водителя
   const driverNotifications = useMemo(
     () =>
       notifications.filter(
@@ -35,21 +38,10 @@ const Notification = ({ userSession }: NotificationIslandProps) => {
       ),
     [notifications],
   );
-
-  //Количество непрочитанных уведомлений для водителя
   const driverUnreadCount = useMemo(
     () => driverNotifications.filter((n) => !n.read).length,
     [driverNotifications],
   );
-
-  //Выбираем текущее уведомление для модалки OrderInfoModal.
-  //Например, берём первое уведомление с действием Action.noted, предпочтительно с флагом !read.
-  const currentNotificationForOrderInfo = useMemo(() => {
-    return (
-      notifications.find((n) => n.action === Action.noted && !n.read) ||
-      notifications.find((n) => n.action === Action.noted)
-    );
-  }, [notifications]);
 
   useEffect(() => {
     const handleClick = (event: MouseEvent) => {
@@ -72,23 +64,38 @@ const Notification = ({ userSession }: NotificationIslandProps) => {
 
   return (
     <>
-      {/*Автоматически открываем нужную модалку */}
-      {activeModal === Action.noted && currentNotificationForOrderInfo && (
-        <OrderInfoModal
-          isOpen={true}
-          onClose={closeModal}
-          orderUuid={currentNotificationForOrderInfo.orderId}
-          notificationUuid={currentNotificationForOrderInfo.uuid}
-          isNotificationRead={currentNotificationForOrderInfo.read}
-        />
+      {activeNotification && (
+        <>
+          {activeNotification.action === Action.noted && (
+            <OrderInfoModal isOpen={true} onClose={closeModal} notification={activeNotification} />
+          )}
+          {activeNotification.action === Action.inProgress && (
+            <OrderProgressModal
+              isOpen={true}
+              onClose={closeModal}
+              notification={activeNotification}
+              getDriverNotifications={getDriverNotifications}
+            />
+          )}
+          {activeNotification.action === Action.warning &&
+            userSession?.role === UserRole.Driver && (
+              <WarningModal isOpen={true} onClose={closeModal} notification={activeNotification} />
+            )}
+          {activeNotification.action === Action.warning &&
+            (userSession?.role === UserRole.Operator || userSession?.role === UserRole.Admin) && (
+              <WarningAdminModal
+                isOpen={true}
+                onClose={closeModal}
+                notification={activeNotification}
+              />
+            )}
+          {activeNotification.action === Action.success && (
+            <OrderInfoModal isOpen={true} onClose={closeModal} notification={activeNotification} />
+          )}
+        </>
       )}
 
-      {activeModal === Action.inProgress && <OrderProgressModal isOpen onClose={closeModal} />}
-      {activeModal === Action.warning && <WarningModal isOpen onClose={closeModal} />}
-      {activeModal === Action.warning && <WarningAdminModal isOpen onClose={closeModal} />}
-
       <div className="relative">
-        {/*Общая кнопка уведомлений */}
         <button
           onClick={() => setIsOpen(!isOpen)}
           className="p-2 rounded-full bg-[#2A3037] hover:bg-gray-100 shadow-md transition-colors group"
@@ -106,8 +113,7 @@ const Notification = ({ userSession }: NotificationIslandProps) => {
           )}
         </button>
 
-        {/*Кнопка для уведомлений водителя */}
-        {userSession?.role === 'Driver' && (
+        {userSession?.role === UserRole.Driver && (
           <button
             onClick={() => setIsDriverOpen(!isDriverOpen)}
             className="ml-2 p-2 rounded-full bg-[#2A3037] hover:bg-gray-100 shadow-md transition-colors group"
@@ -126,7 +132,6 @@ const Notification = ({ userSession }: NotificationIslandProps) => {
           </button>
         )}
 
-        {/*Список общих уведомлений */}
         {isOpen && (
           <div ref={notificationRef}>
             <NotificationList
@@ -138,7 +143,6 @@ const Notification = ({ userSession }: NotificationIslandProps) => {
           </div>
         )}
 
-        {/*Список уведомлений водителя */}
         {isDriverOpen && (
           <div ref={notificationRef}>
             <DriverNotificationList

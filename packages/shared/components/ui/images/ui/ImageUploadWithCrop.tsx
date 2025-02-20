@@ -56,6 +56,7 @@ export const ImageUploadWithCrop: React.FC<ImageUploadWithCropProps> = ({
   } = useImageEditor(initialSrc);
 
   const session = useSession();
+
   const canEdit =
     session &&
     (session.userSession?.role === UserRole.Operator ||

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { Gender, OrderStatus, UserRole, DriverAcceptanceStatus } from '@prisma/client';
+import { Gender, OrderStatus, UserRole } from '@prisma/client';
 import debug from 'debug';
 import { CreateOrderData } from '@shared/prisma/interface/orders/interface';
 import { v4 as uuidv4 } from 'uuid';
@@ -242,14 +242,6 @@ export async function POST(req: Request) {
         },
       });
       log('Заказ создан:', order);
-
-      if (assignedDriverId) {
-        await prismaTx.user.update({
-          where: { uuid: assignedDriverId },
-          data: { driverAcceptanceStatus: DriverAcceptanceStatus.PENDING },
-        });
-        log(`driverAcceptanceStatus обновлён для водителя с UUID ${assignedDriverId}`);
-      }
 
       if (selectedServices && selectedServices.length > 0) {
         log('Выбранные услуги (tariffOnServiceUuid):', selectedServices);

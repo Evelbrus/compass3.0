@@ -1,0 +1,42 @@
+/**
+ * Получение уведомлений пользователя
+ * @param userId - ID пользователя
+ * @returns Promise<Notification[]>
+ */
+export const fetchNotifications = async (userId) => {
+    const response = await fetch(`/api/notifications?userId=${userId}`);
+    if (!response.ok) {
+        throw new Error(`Ошибка загрузки уведомлений: ${response.statusText}`);
+    }
+    return response.json();
+};
+/**
+ * Удаление нескольких уведомлений
+ * @param notificationIds - Массив UUID уведомлений для удаления
+ * @returns Promise<void>
+ */
+export const bulkDeleteNotifications = async (notificationIds) => {
+    const response = await fetch('/api/notifications/bulk-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notificationIds }),
+    });
+    if (!response.ok) {
+        throw new Error(`Не удалось удалить уведомления: ${response.statusText}`);
+    }
+};
+/**
+ * Пометка уведомления как прочитанного
+ * @param notificationId - UUID уведомления
+ * @returns Promise<void>
+ */
+export const markNotificationAsRead = async (notificationId) => {
+    const response = await fetch(`/api/notifications/${notificationId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ read: true }),
+    });
+    if (!response.ok) {
+        throw new Error(`Не удалось пометить уведомление как прочитанное: ${response.statusText}`);
+    }
+};

@@ -1,15 +1,18 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useSocket } from '@shared/utils/hooks/useSocket';
+import { Action } from '@prisma/client';
+import { bulkDeleteNotifications, fetchNotifications, markNotificationAsRead, } from '@features/notifications/api/apiNotifications';
 export const useNotifications = ({ userSession }) => {
     const [notifications, setNotifications] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [activeModal, setActiveModal] = useState(null);
-    const openModal = useCallback((action) => {
-        setActiveModal(action);
+    const [activeNotification, setActiveNotification] = useState(null);
+    const openModal = useCallback((notification) => {
+        console.log(`Открытие модалки для уведомления ${notification.uuid} с action: ${notification.action}`);
+        setActiveNotification(notification);
     }, []);
     const closeModal = useCallback(() => {
-        setActiveModal(null);
+        setActiveNotification(null);
     }, []);
     const handleNotification = useCallback((notification) => {
         console.log('📩 Получено уведомление:', notification);
@@ -18,34 +21,65 @@ export const useNotifications = ({ userSession }) => {
             if (existingIndex !== -1) {
                 const updatedNotifications = [...prev];
                 updatedNotifications[existingIndex] = notification;
-                if (!notification.read && prev[existingIndex].action !== notification.action) {
-                    openModal(notification.action);
+                if (!notification.read) {
+                    openModal(notification);
                 }
                 return updatedNotifications;
             }
             if (!notification.read) {
-                openModal(notification.action);
+                openModal(notification);
             }
             return [notification, ...prev];
         });
     }, [openModal]);
     const socket = useSocket('notification', handleNotification);
+    const clearNotifications = useCallback(async () => {
+        setIsLoading(true);
+        setError(null);
+        try {
+            const notificationsToDelete = notifications.filter((notification) => notification.action !== Action.noted && notification.action !== Action.inProgress);
+            if (notificationsToDelete.length === 0) {
+                console.log('ℹ️ Нет уведомлений для удаления (исключены noted и inProgress)');
+                setIsLoading(false);
+                return;
+            }
+            await bulkDeleteNotifications(notificationsToDelete.map((n) => n.uuid));
+            setNotifications((prev) => prev.filter((notification) => notification.action === Action.noted || notification.action === Action.inProgress));
+            if (activeNotification &&
+                !notificationsToDelete.some((n) => n.uuid === activeNotification.uuid)) {
+                setActiveNotification(null);
+            }
+        }
+        catch (err) {
+            console.error('Ошибка при очистке уведомлений:', err);
+            setError(err instanceof Error ? err.message : 'Не удалось очистить уведомления');
+        }
+        finally {
+            setIsLoading(false);
+        }
+    }, [notifications, activeNotification]);
+    const markAsRead = useCallback(async (notificationId) => {
+        try {
+            await markNotificationAsRead(notificationId);
+            setNotifications((prev) => prev.map((notification) => notification.uuid === notificationId ? { ...notification, read: true } : notification));
+        }
+        catch (err) {
+            console.error('Ошибка при пометке уведомления как прочитанного:', err);
+            setError(err instanceof Error ? err.message : 'Не удалось пометить уведомление как прочитанное');
+        }
+    }, []);
     useEffect(() => {
-        const fetchNotifications = async () => {
+        const loadNotifications = async () => {
             if (!userSession)
                 return;
             setIsLoading(true);
             setError(null);
             try {
-                const response = await fetch(`/api/notifications?userId=${userSession.uuid}`);
-                if (!response.ok) {
-                    throw new Error(`Ошибка загрузки уведомлений: ${response.statusText}`);
-                }
-                const data = await response.json();
+                const data = await fetchNotifications(userSession.uuid);
                 setNotifications(data);
                 const unreadNotification = data.find((n) => !n.read);
                 if (unreadNotification) {
-                    openModal(unreadNotification.action);
+                    openModal(unreadNotification);
                 }
             }
             catch (err) {
@@ -57,7 +91,7 @@ export const useNotifications = ({ userSession }) => {
                 setIsLoading(false);
             }
         };
-        fetchNotifications();
+        loadNotifications();
         if (socket && userSession) {
             const registerUser = () => {
                 socket.emit('register', { userId: userSession.uuid, role: userSession.role });
@@ -74,51 +108,11 @@ export const useNotifications = ({ userSession }) => {
             };
         }
     }, [userSession, socket, openModal]);
-    const clearNotifications = useCallback(async () => {
-        setIsLoading(true);
-        setError(null);
-        try {
-            await Promise.all(notifications.map(async (notification) => {
-                const response = await fetch(`/api/notifications/${notification.uuid}`, {
-                    method: 'DELETE',
-                });
-                if (!response.ok) {
-                    throw new Error(`Не удалось удалить уведомление ${notification.uuid}: ${response.statusText}`);
-                }
-            }));
-            setNotifications([]);
-            setActiveModal(null);
-        }
-        catch (err) {
-            console.error('Ошибка при очистке уведомлений:', err);
-            setError(err instanceof Error ? err.message : 'Не удалось очистить уведомления');
-        }
-        finally {
-            setIsLoading(false);
-        }
-    }, [notifications]);
-    const markAsRead = useCallback(async (notificationId) => {
-        try {
-            const response = await fetch(`/api/notifications/${notificationId}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ read: true }),
-            });
-            if (!response.ok) {
-                throw new Error(`Не удалось пометить уведомление как прочитанное: ${response.statusText}`);
-            }
-            setNotifications((prev) => prev.map((notification) => notification.uuid === notificationId ? { ...notification, read: true } : notification));
-        }
-        catch (err) {
-            console.error('Ошибка при пометке уведомления как прочитанного:', err);
-            setError(err instanceof Error ? err.message : 'Не удалось пометить уведомление как прочитанное');
-        }
-    }, []);
     return {
         notifications,
         isLoading,
         error,
-        activeModal,
+        activeNotification,
         openModal,
         closeModal,
         clearNotifications,

@@ -7,6 +7,17 @@ enum OrderStatus {
   OVERDUE
 }
 
+enum DriverAcceptanceStatus {
+  PENDING    @map("pending") // Ожидание решения водителя
+  TAKEN      @map("taken") // Водитель принял к сведению (готов к выполнению)
+  ACCEPTED   @map("accepted") // Водитель принял заказ
+  ON_THE_WAY @map("on_the_way") // Водитель в пути к клиенту
+  ARRIVED    @map("arrived") // Водитель прибыл к клиенту
+  PICKED_UP  @map("picked_up") // Водитель забрал клиента
+  TIMEOUT    @map("timeout") // Водитель не принял заказ вовремя
+  COMPLETED  @map("completed") // Водитель успешно завершил поездку
+}
+
 model Order {
   uuid                          String                           @id @default(uuid()) @map("uuid")
   createdById                   String                           @map("created_by_id")
@@ -20,6 +31,7 @@ model Order {
   assignedDriverId              String?                          @map("assigned_driver_id")
   assignedDriver                User?                            @relation("assigned_orders", fields: [assignedDriverId], references: [uuid], onDelete: Cascade)
   status                        OrderStatus                      @default(PENDING) @map("status")
+  driverAcceptanceStatus        DriverAcceptanceStatus?          @default(PENDING) @map("driver_acceptance_status") // Статус выполнения заказа водителем
   basePrice                     Decimal                          @map("base_price")
   finalPrice                    Decimal?                         @map("final_price")
   departureTime                 DateTime                         @map("departure_time")

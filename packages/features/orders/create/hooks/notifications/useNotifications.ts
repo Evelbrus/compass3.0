@@ -1,4 +1,3 @@
-//useNotifications.ts
 import { useCallback } from 'react';
 import { useSocket } from '@shared/utils/hooks/useSocket';
 import { useSession } from '@shared/utils/hooks/useSession';
@@ -8,12 +7,10 @@ interface OrderResult {
   uuid: string;
   createdById?: string;
   assignedDriverId?: string;
-  //При необходимости можно добавить и другие поля
 }
 
 interface PointData {
   address: string;
-  //Другие поля при необходимости
 }
 
 interface UseNotificationsProps {
@@ -30,7 +27,6 @@ export const useNotifications = ({
   const socket = useSocket('notification');
   const { userSession } = useSession();
 
-  //Функция для отправки уведомления по API и через сокеты
   const sendNotification = useCallback(
     async (
       userId: string,
@@ -55,9 +51,19 @@ export const useNotifications = ({
         const data = await response.json();
 
         if (socket && userId && data.uuid) {
+          const notificationData = {
+            uuid: data.uuid,
+            userId: userId,
+            title,
+            message: msg,
+            orderId,
+            action,
+            read: data.read ?? false,
+          };
+          console.log('Отправляем WebSocket-уведомление:', notificationData);
           socket.emit('notification', {
             userId,
-            notification: { uuid: data.uuid, title, message: msg, orderId, action },
+            notification: notificationData,
           });
         }
       } catch (error) {
@@ -67,17 +73,13 @@ export const useNotifications = ({
     [socket],
   );
 
-  /**
-   * Функция handleOrderSuccess принимает результат заказа (result) напрямую.
-   * Использует departurePoint и arrivalPoint для формирования уведомительных сообщений.
-   */
   const handleOrderSuccess = useCallback(
     (result: OrderResult) => {
       const depAddress = departurePoint ? departurePoint.address : 'не указан';
       const arrAddress = arrivalPoint ? arrivalPoint.address : 'не указан';
       const actionText = isEditing ? 'обновлен' : 'создан';
 
-      //Уведомление для водителя
+      //Уведомление для водителя (assignedDriverId как userId)
       if (result.assignedDriverId) {
         const msgDriver = `Вам ${actionText} заказ от ${depAddress} до ${arrAddress}.`;
         sendNotification(
@@ -105,7 +107,7 @@ export const useNotifications = ({
         console.warn('handleOrderSuccess: отсутствует userSession');
       }
 
-      //Уведомление для создателя заказа (если отличается)
+      //Уведомление для создателя заказа (createdById как userId)
       if (result.createdById) {
         const msgCreatedBy = `Ваш заказ от ${depAddress} до ${arrAddress} ${actionText}.`;
         sendNotification(

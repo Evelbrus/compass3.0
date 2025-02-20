@@ -75,54 +75,56 @@ const NotificationList: React.FC<NotificationListProps> = ({
 
   return (
     <div className="absolute w-[400px] h-[400px] right-0 top-10 z-50 bg-[#EFEFEF] p-4 flex flex-col gap-2 justify-between rounded-md shadow-lg overflow-auto">
-      <div className="flex justify-between items-center mb-2">
-        <h1 className="text-2xl font-bold text-gray-800">Уведомления</h1>
-        <IButton
-          variant="close"
-          onClick={onClose}
-          aria-label="Закрыть модальное окно"
-          className="absolute top-2 right-2 border border-gray-200 hover:shadow-[0px_0px_5px_rgba(0,0,0,0.15)] hover:bg-blue-100 rounded-full p-2"
-        >
-          <CloseIcon />
-        </IButton>
-      </div>
-      <ul className="max-h-68 overflow-y-auto">
-        {notifications.map((notification, index) => (
-          <li
-            key={notification.uuid}
-            className="p-2 border-b border-gray-200 rounded-lg last:border-b-0 bg-white mb-1"
-            ref={(el) => {
-              if (el) {
-                notificationRefs.current[index] = el;
-              }
-            }}
-            data-uuid={notification.uuid}
-            onClick={() => toggleOpen(notification.uuid)}
+      <div>
+        <div className="flex justify-between items-center mb-2">
+          <h1 className="text-2xl font-bold text-gray-800">Уведомления</h1>
+          <IButton
+            variant="close"
+            onClick={onClose}
+            aria-label="Закрыть модальное окно"
+            className="absolute top-2 right-2 border border-gray-200 hover:shadow-[0px_0px_5px_rgba(0,0,0,0.15)] hover:bg-blue-100 rounded-full p-2"
           >
-            <p className="text-4 py-1 font-medium text-gray-500 flex items-center justify-between">
-              {notification.title}{' '}
-              <span>
-                {new Date(notification.createdAt).toLocaleTimeString([], {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
-              </span>
-              <span
-                className={`transform transition-transform ${open[notification.uuid] ? 'rotate-180' : 'rotate-0'}`}
-              >
-                ▼
-              </span>
-            </p>
-            <div
-              className={`overflow-hidden transition-all duration-500 ease-in-out ${open[notification.uuid] ? 'max-h-screen' : 'max-h-0'}`}
+            <CloseIcon />
+          </IButton>
+        </div>
+        <ul className="max-h-68 overflow-y-auto">
+          {notifications.map((notification, index) => (
+            <li
+              key={notification.uuid}
+              className="p-2 border-b border-gray-200 rounded-lg last:border-b-0 bg-white mb-1"
+              ref={(el) => {
+                if (el) {
+                  notificationRefs.current[index] = el;
+                }
+              }}
+              data-uuid={notification.uuid}
+              onClick={() => toggleOpen(notification.uuid)}
             >
-              <p className="font-semibold text-sm p-2 border-t border-gray-300">
-                {notification.message}
+              <p className="text-4 py-1 font-medium text-gray-500 flex items-center justify-between">
+                {notification.title}{' '}
+                <span>
+                  {new Date(notification.createdAt).toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </span>
+                <span
+                  className={`transform transition-transform ${open[notification.uuid] ? 'rotate-180' : 'rotate-0'}`}
+                >
+                  ▼
+                </span>
               </p>
-            </div>
-          </li>
-        ))}
-      </ul>
+              <div
+                className={`overflow-hidden transition-all duration-500 ease-in-out ${open[notification.uuid] ? 'max-h-screen' : 'max-h-0'}`}
+              >
+                <p className="font-semibold text-sm p-2 border-t border-gray-300">
+                  {notification.message}
+                </p>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
       <div className={'flex justify-end'}>
         <button
           onClick={onClear}
