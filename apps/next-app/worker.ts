@@ -20,7 +20,6 @@ const redisOptions = {
   port: process.env.REDIS_PORT ? parseInt(process.env.REDIS_PORT) : 6379,
 };
 
-//Логи подключения уже определены в @socket/server, но можно добавить дополнительные проверки
 socket.on('connect', () => console.log('✅ Worker подключён к серверу сокетов'));
 socket.on('disconnect', () => console.log('❌ Worker отключён от сервера сокетов'));
 
@@ -90,7 +89,6 @@ async function processNotificationJob(order: Order) {
     const depAddress = departurePoint?.address ?? 'неизвестного места';
     const arrAddress = arrivalPoint?.address ?? 'неизвестного места';
 
-    //Уведомление водителю
     if (order.assignedDriverId) {
       const userId: string = order.assignedDriverId;
       const newMessage = `Вам назначен заказ от ${depAddress} до ${arrAddress}. Поездка начнётся через минуту.`;
@@ -121,6 +119,7 @@ async function processNotificationJob(order: Order) {
           data: {
             uuid: uuidv4(),
             userId: userId,
+            driverById: order.assignedDriverId,
             orderId: order.uuid,
             title: 'Поездка начинается',
             message: newMessage,
@@ -135,6 +134,7 @@ async function processNotificationJob(order: Order) {
       const driverNotificationData = {
         uuid: driverNotification.uuid,
         userId: userId,
+        driverById: order.assignedDriverId,
         orderId: order.uuid,
         title: driverNotification.title,
         message: driverNotification.message,
@@ -159,7 +159,6 @@ async function processNotificationJob(order: Order) {
       );
     }
 
-    //Уведомление клиенту
     const clientMessage = `Ваш заказ от ${depAddress} до ${arrAddress} скоро начнётся.`;
     let clientNotification = await prismaTx.notification.findFirst({
       where: { orderId: order.uuid, userId: order.createdById },
@@ -176,6 +175,7 @@ async function processNotificationJob(order: Order) {
         data: {
           uuid: uuidv4(),
           userId: order.createdById,
+          driverById: order.assignedDriverId ?? null,
           orderId: order.uuid,
           title: 'Поездка начинается',
           message: clientMessage,
@@ -190,6 +190,7 @@ async function processNotificationJob(order: Order) {
     const clientNotificationData = {
       uuid: clientNotification.uuid,
       userId: order.createdById,
+      driverById: order.assignedDriverId ?? null,
       orderId: order.uuid,
       title: clientNotification.title,
       message: clientNotification.message,
@@ -209,7 +210,6 @@ async function processNotificationJob(order: Order) {
       clientNotificationData,
     );
 
-    //Планируем задачу checkoverdue
     const departureTimeMs = new Date(order.departureTime).getTime();
     const now = Date.now();
     const delay = Math.max(departureTimeMs - now, 0);
@@ -275,6 +275,7 @@ async function processCheckoverdueJob(order: Order) {
             data: {
               uuid: uuidv4(),
               userId: userId,
+              driverById: order.assignedDriverId,
               orderId: order.uuid,
               title: 'Просроченный заказ',
               message: warningMessage,
@@ -289,6 +290,7 @@ async function processCheckoverdueJob(order: Order) {
         const notificationData = {
           uuid: notification.uuid,
           userId: userId,
+          driverById: order.assignedDriverId,
           orderId: order.uuid,
           title: notification.title,
           message: notification.message,
@@ -330,6 +332,7 @@ async function processCheckoverdueJob(order: Order) {
             data: {
               uuid: uuidv4(),
               userId: user.uuid,
+              driverById: order.assignedDriverId ?? null,
               orderId: order.uuid,
               title: 'Просроченный заказ',
               message: `Заказ от ${address} просрочен. Водитель не принял заказ вовремя.`,
@@ -344,6 +347,7 @@ async function processCheckoverdueJob(order: Order) {
         const notificationData = {
           uuid: notification.uuid,
           userId: user.uuid,
+          driverById: order.assignedDriverId ?? null,
           orderId: order.uuid,
           title: notification.title,
           message: notification.message,

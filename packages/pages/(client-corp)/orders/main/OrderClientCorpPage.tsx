@@ -134,7 +134,7 @@ const OrderClientCorpPage = (): JSX.Element => {
       duration={1000}
     >
       <div className="w-full flex flex-row justify-between items-center">
-        <h1 className="text-2xl font-extrabold leading-4">Список заказов (Админ вид)</h1>
+        <h1 className="text-2xl font-extrabold leading-6">Ваш список заказов</h1>
         <div className="flex flex-row gap-2">
           <IButton
             onClick={handleCreate}

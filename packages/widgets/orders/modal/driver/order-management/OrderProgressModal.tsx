@@ -11,7 +11,6 @@ import {
   fetchOrderDetails,
   updateOrderStatus,
 } from '@widgets/orders/modal/driver/api/apiDriverModel';
-import { useSocket } from '@shared/utils/hooks/useSocket';
 import { CloseIcon } from '@shared/components/ui/icon';
 import { IButton } from '@shared/components/ui/buttons';
 import AnimatedComponent from '@shared/components/animated/CommonAnimated/AnimatedComponent';
@@ -60,8 +59,6 @@ const OrderProgressModal: React.FC<OrderProgressModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [orderData, setOrderData] = useState<OrderDetail | null>(null);
   const [showAdditionalServices, setShowAdditionalServices] = useState(false);
-
-  const socket = useSocket('notification');
 
   useEffect(() => {
     if (!isOpen || !notification.orderId) return;
@@ -140,38 +137,6 @@ const OrderProgressModal: React.FC<OrderProgressModalProps> = ({
 
       setCurrentStage(nextDriverStage);
       setOrderStatus(newOrderStatus);
-
-      if (socket) {
-        const updatedNotification = {
-          uuid: notification.uuid,
-          userId: notification.userId,
-          title: notification.title,
-          message: notification.message,
-          orderId: notification.orderId,
-          action: updatedAction,
-          read: true,
-        };
-        socket.emit('notification', {
-          userId: notification.userId,
-          notification: updatedNotification,
-        });
-
-        if (nextDriverStage === DriverAcceptanceStatus.COMPLETED) {
-          const completionNotification = {
-            uuid: notification.uuid,
-            userId: notification.userId,
-            title: 'Поездка завершена',
-            message: 'Вы успешно завершили поездку.',
-            orderId: notification.orderId,
-            action: Action.info,
-            read: false,
-          };
-          socket.emit('notification', {
-            userId: notification.userId,
-            notification: completionNotification,
-          });
-        }
-      }
 
       if (isFinalStage) {
         onClose();

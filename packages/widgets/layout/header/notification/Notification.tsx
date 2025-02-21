@@ -33,14 +33,14 @@ const Notification = ({ userSession }: NotificationIslandProps) => {
   } = useNotifications({ userSession });
 
   const unreadCount = useMemo(() => notifications.filter((n) => !n.read).length, [notifications]);
+
   const driverNotifications = useMemo(
     () =>
       notifications.filter(
         (n) =>
           n.action === Action.noted ||
           n.action === Action.inProgress ||
-          n.action === Action.warning ||
-          n.action === Action.cancelled,
+          n.action === Action.warning,
       ),
     [notifications],
   );
@@ -48,9 +48,14 @@ const Notification = ({ userSession }: NotificationIslandProps) => {
     () => driverNotifications.filter((n) => !n.read).length,
     [driverNotifications],
   );
+
   const clientNotifications = useMemo(
     () =>
-      userSession?.role === UserRole.ClientCorp ? getClientNotifications(userSession.uuid) : [],
+      userSession?.role === UserRole.ClientCorp
+        ? getClientNotifications(userSession.uuid).filter(
+            (n) => n.action === Action.inProgress || n.action === Action.warning,
+          )
+        : [],
     [notifications, userSession, getClientNotifications],
   );
   const clientUnreadCount = useMemo(
@@ -78,6 +83,9 @@ const Notification = ({ userSession }: NotificationIslandProps) => {
       document.removeEventListener('scroll', handleScroll);
     };
   }, []);
+
+  console.log('driverNotifications', driverNotifications);
+  console.log('clientNotifications', clientNotifications);
 
   return (
     <>
@@ -134,7 +142,7 @@ const Notification = ({ userSession }: NotificationIslandProps) => {
       )}
 
       <div className="relative flex items-center">
-        {userSession?.role === UserRole.Driver && driverNotifications.length > 1 && (
+        {userSession?.role === UserRole.Driver && driverNotifications.length > 0 && (
           <button
             onClick={() => setIsDriverOpen(!isDriverOpen)}
             className="mr-2 p-2 rounded-full bg-[#2A3037] hover:bg-gray-100 shadow-md transition-colors group"
@@ -153,7 +161,7 @@ const Notification = ({ userSession }: NotificationIslandProps) => {
           </button>
         )}
 
-        {userSession?.role === UserRole.ClientCorp && clientNotifications.length > 1 && (
+        {userSession?.role === UserRole.ClientCorp && clientNotifications.length > 0 && (
           <button
             onClick={() => setIsClientOpen(!isClientOpen)}
             className="mr-2 p-2 rounded-full bg-[#2A3037] hover:bg-gray-100 shadow-md transition-colors group"

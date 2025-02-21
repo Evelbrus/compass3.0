@@ -4,7 +4,6 @@ import {
   fetchOrderDetails,
   updateOrderStatus,
 } from '@widgets/orders/modal/driver/api/apiDriverModel';
-import { useSocket } from '@shared/utils/hooks/useSocket';
 import { CloseIcon } from '@shared/components/ui/icon';
 import { IButton } from '@shared/components/ui/buttons';
 import AnimatedComponent from '@shared/components/animated/CommonAnimated/AnimatedComponent';
@@ -28,6 +27,17 @@ interface OrderTrackingModalProps {
   notification: Notification;
 }
 
+export const stages: Record<DriverAcceptanceStatus, string> = {
+  PENDING: 'Ожидание принятия заказа водителем',
+  TAKEN: 'Водитель уведомлён о заказе',
+  ACCEPTED: 'Заказ принят водителем',
+  ON_THE_WAY: 'Водитель едет к вам',
+  ARRIVED: 'Водитель прибыл к месту',
+  PICKED_UP: 'Поездка началась',
+  COMPLETED: 'Поездка завершена',
+  TIMEOUT: 'Время ожидания истекло',
+};
+
 const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
   isOpen,
   onClose,
@@ -41,47 +51,35 @@ const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [orderData, setOrderData] = useState<OrderDetail | null>(null);
 
-  const socket = useSocket('notification');
-
-  useEffect(() => {
-    if (!isOpen || !notification.orderId) return;
-
+  const loadOrderData = async () => {
+    if (!notification?.orderId) return;
     setIsLoading(true);
-    fetchOrderDetails(notification.orderId)
-      .then((data) => {
-        setOrderData(data);
-        setOrderStatus(data.status);
-        const initialStage = data.driverAcceptanceStatus || DriverAcceptanceStatus.PENDING;
-        setCurrentStage(initialStage);
+    try {
+      const data = await fetchOrderDetails(notification.orderId);
+      setOrderData(data);
+      setOrderStatus(data.status);
+      const newStage = data.driverAcceptanceStatus || DriverAcceptanceStatus.PENDING;
+      setCurrentStage(newStage);
 
-        if (
-          data.status === OrderStatus.COMPLETED ||
-          data.status === OrderStatus.CANCELLED ||
-          data.status === OrderStatus.OVERDUE
-        ) {
-          onClose();
-        }
-        setIsLoading(false);
-      })
-      .catch((err) => {
-        console.error('Ошибка загрузки данных:', err);
-        setError('Не удалось загрузить данные заказа');
-        setIsLoading(false);
-      });
-  }, [isOpen, notification.orderId, onClose]);
-
-  const stages: Record<DriverAcceptanceStatus, string> = {
-    PENDING: 'Ожидание принятия заказа водителем',
-    TAKEN: 'Водитель уведомлён о заказе',
-    ACCEPTED: 'Заказ принят водителем',
-    ON_THE_WAY: 'Водитель едет к вам',
-    ARRIVED: 'Водитель прибыл к месту',
-    PICKED_UP: 'Поездка началась',
-    COMPLETED: 'Поездка завершена',
-    TIMEOUT: 'Время ожидания истекло',
+      if (data.status === OrderStatus.COMPLETED || data.status === OrderStatus.CANCELLED) {
+        onClose();
+      }
+    } catch (err) {
+      console.error('Ошибка загрузки данных:', err);
+      setError('Не удалось загрузить данные заказа');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
+  useEffect(() => {
+    if (isOpen && notification?.orderId) {
+      loadOrderData();
+    }
+  }, [isOpen, notification?.orderId, notification]);
+
   const handleCancelOrder = async () => {
+    if (!notification?.orderId) return;
     setIsLoading(true);
     setError(null);
 
@@ -96,28 +94,8 @@ const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
         action: Action.cancelled,
       });
 
-      if (socket) {
-        const updatedNotification = {
-          uuid: notification.uuid,
-          userId: notification.userId,
-          title: 'Заказ отменён',
-          message: 'Вы отменили заказ.',
-          orderId: notification.orderId,
-          action: Action.cancelled,
-          read: true,
-          createdById: notification.createdById,
-          createdAt:
-            typeof notification.createdAt === 'string'
-              ? notification.createdAt
-              : notification.createdAt.toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-        socket.emit('notification', {
-          userId: notification.userId,
-          notification: updatedNotification,
-        });
-      }
-
+      setOrderStatus(OrderStatus.CANCELLED);
+      setCurrentStage(DriverAcceptanceStatus.PENDING);
       showToast.warn(`Заказ #${notification.orderId} отменён`, {
         position: 'top-right',
         autoClose: 3000,
@@ -145,7 +123,7 @@ const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
             >
               <CloseIcon />
             </IButton>
-            <h2 className="text-xl font-semibold">Заказ #{notification.orderId}</h2>
+            <h2 className="text-xl font-semibold">Заказ #{notification.orderId || 'N/A'}</h2>
           </div>
 
           {isLoading && !orderData ? (

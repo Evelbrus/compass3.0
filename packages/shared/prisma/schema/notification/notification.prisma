@@ -11,7 +11,7 @@ model Notification {
   uuid        String   @id @default(uuid())
   userId      String
   createdById String
-  driverById  String
+  driverById  String?
   orderId     String
   title       String
   message     String

@@ -1,54 +1,40 @@
-'use client';
-
-import React, { useState } from 'react';
+import React from 'react';
 import { Notification } from '@prisma/client';
 import { useRouter } from 'next/navigation';
-import { useSocket } from '@shared/utils/hooks/useSocket';
-import { markNotificationAsRead } from '@features/notifications/api/apiNotifications';
+import { CloseIcon } from '@shared/components/ui/icon';
+import { IButton } from '@shared/components/ui/buttons';
 
-interface WarningAdminModalProps {
+interface WarningModalProps {
   isOpen: boolean;
   onClose: () => void;
   notification: Notification;
 }
 
-const WarningAdminModal: React.FC<WarningAdminModalProps> = ({ isOpen, onClose, notification }) => {
-  const [isLoading, setIsLoading] = useState(false);
+const WarningAdminModal: React.FC<WarningModalProps> = ({ isOpen, onClose, notification }) => {
   const router = useRouter();
-  const socket = useSocket('notification');
 
-  const handleUpdateOrder = () => {
-    setIsLoading(true);
-    router.push(`/order/edit/${notification.orderId}`);
-    onClose();
+  //Функция для отправки PATCH-запроса
+  const markNotificationAsRead = async () => {
+    try {
+      const response = await fetch(`/api/notifications/${notification.uuid}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ read: true }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Ошибка при обновлении уведомления');
+      }
+    } catch (error) {
+      console.error('Не удалось отметить уведомление как прочитанное:', error);
+    }
   };
 
-  const handleClose = async () => {
-    try {
-      //Помечаем уведомление как прочитанное через API
-      await markNotificationAsRead(notification.uuid);
-
-      //Отправляем WebSocket-уведомление
-      if (socket) {
-        const updatedNotification = {
-          uuid: notification.uuid,
-          userId: notification.userId,
-          title: notification.title,
-          message: notification.message,
-          orderId: notification.orderId,
-          action: notification.action,
-          read: true,
-        };
-        console.log('Отправляем WebSocket-уведомление (закрытие):', updatedNotification);
-        socket.emit('notification', {
-          userId: notification.userId,
-          notification: updatedNotification,
-        });
-      }
-    } catch (err) {
-      console.error('Ошибка при пометке уведомления как прочитанного:', err);
-    }
-
+  const handleRedirect = async () => {
+    await markNotificationAsRead();
+    router.push(`/order/edit/${notification.orderId}`);
     onClose();
   };
 
@@ -56,29 +42,19 @@ const WarningAdminModal: React.FC<WarningAdminModalProps> = ({ isOpen, onClose, 
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-      <div className="bg-white p-6 rounded-lg shadow-lg w-[400px] max-w-[90%]">
-        <h2 className="text-xl font-semibold mb-4">Водитель не принял заказ</h2>
-        <p className="mb-4">
-          Заказ #{notification.orderId} не был принят водителем вовремя. Обновите заказ или закройте
-          уведомление.
+      <div className="relative bg-white p-6 rounded-lg shadow-lg w-[400px] max-w-[90%]">
+        <IButton
+          variant="close"
+          onClick={onClose}
+          aria-label="Закрыть модальное окно"
+          className="absolute top-2 right-2 border border-gray-200 hover:shadow-[0px_0px_5px_rgba(0,0,0,0.15)] hover:bg-blue-100 rounded-full"
+        >
+          <CloseIcon />
+        </IButton>
+        <h2 className="text-xl font-semibold mb-4">Просроченный заказ</h2>
+        <p className="mb-4 cursor-pointer hover:underline" onClick={handleRedirect}>
+          Заказ #{notification.orderId} поступил с просрочкой. Перейти к заказу.
         </p>
-        <div className="flex justify-end gap-2">
-          <button
-            className={`px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition ${
-              isLoading ? 'opacity-50 cursor-not-allowed' : ''
-            }`}
-            onClick={handleUpdateOrder}
-            disabled={isLoading}
-          >
-            {isLoading ? 'Перенаправление...' : 'Обновить заказ'}
-          </button>
-          <button
-            className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition"
-            onClick={handleClose}
-          >
-            Закрыть
-          </button>
-        </div>
       </div>
     </div>
   );
