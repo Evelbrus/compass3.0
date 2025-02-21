@@ -13,9 +13,9 @@ export async function POST(request: NextRequest) {
     log('Request body:', body);
 
     if (body.roles && Array.isArray(body.roles) && body.roles.length > 0) {
-      const { roles, title, message } = body;
-      if (!title || !message) {
-        log('Missing required fields (title, message) for broadcast notifications');
+      const { roles, title, message, orderId } = body;
+      if (!title || !message || !orderId) {
+        log('Missing required fields (title, message, orderId) for broadcast notifications');
         return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
       }
       const users = await prisma.user.findMany({
@@ -31,8 +31,9 @@ export async function POST(request: NextRequest) {
         userId: user.uuid,
         title,
         message,
-        orderId: '',
+        orderId,
         action: Action.info,
+        createdById: body.createdById || users[0].uuid,
       }));
       const notifications = await prisma.notification.createMany({
         data: notificationsData,
@@ -43,9 +44,9 @@ export async function POST(request: NextRequest) {
       );
       return NextResponse.json({ created: notifications.count }, { status: 201 });
     } else if (body.userId) {
-      const { userId, title, message } = body;
-      if (!title || !message) {
-        log('Missing required fields (title, message) for single notification');
+      const { userId, title, message, orderId, action, createdById } = body;
+      if (!userId || !title || !message || !orderId || !createdById) {
+        log('Missing required fields for single notification');
         return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
       }
       const notification = await prisma.notification.create({
@@ -54,8 +55,9 @@ export async function POST(request: NextRequest) {
           userId,
           title,
           message,
-          orderId: '',
-          action: Action.info,
+          orderId,
+          action: action || Action.info,
+          createdById,
         },
       });
       log('Successfully created notification for user:', userId);

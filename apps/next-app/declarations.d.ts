@@ -20,10 +20,16 @@ declare namespace NodeJS {
 }
 
 declare module '@socket' {
-  export const socket: any;
+  import { Socket } from 'socket.io-client';
+  export const socket: Socket;
 }
 
-// глобальная переменная process
+declare module '@socket-server' {
+  import { Socket } from 'socket.io-client';
+  export const socket: Socket;
+}
+
+//глобальная переменная process
 declare var process: NodeJS.Process;
 
 declare module '*.css' {

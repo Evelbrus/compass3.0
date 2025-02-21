@@ -2,6 +2,9 @@ import React from 'react';
 import { DriverAcceptanceStatus, OrderStatus, Action, Notification } from '@prisma/client';
 import { updateOrderStatus } from '@widgets/orders/modal/driver/api/apiDriverModel';
 import { useSocket } from '@shared/utils/hooks/useSocket';
+import { IButton } from '@shared/components/ui/buttons';
+import { CloseIcon } from '@shared/components/ui/icon';
+import { showToast } from '@shared/components/toast/ToastManager';
 
 interface WarningModalProps {
   isOpen: boolean;
@@ -28,40 +31,60 @@ const WarningModal: React.FC<WarningModalProps> = ({
           n.orderId !== notification.orderId,
       );
       if (hasActiveOrder) {
-        alert('Вы не можете принять новый заказ, пока не завершите текущий');
+        showToast.error('Вы не можете принять новый заказ, пока не завершите текущий', {
+          position: 'top-right',
+          autoClose: 5000,
+        });
         return;
       }
 
       await updateOrderStatus({
         orderUuid: notification.orderId,
-        driverStatus: DriverAcceptanceStatus.TAKEN,
+        driverStatus: DriverAcceptanceStatus.ACCEPTED,
         orderStatus: OrderStatus.IN_PROGRESS,
         driverId: notification.userId,
         notificationUuid: notification.uuid,
-        markNotificationAsRead: true,
+        markNotificationAsRead: false,
         action: Action.inProgress,
       });
 
       if (socket) {
-        const updatedNotification = {
+        const updatedDriverNotification = {
           uuid: notification.uuid,
           userId: notification.userId,
           title: notification.title,
-          message: notification.message,
+          message: `Вы приняли заказ #${notification.orderId}`,
           orderId: notification.orderId,
           action: Action.inProgress,
-          read: true,
+          read: false,
+          createdById: notification.createdById,
+          createdAt:
+            typeof notification.createdAt === 'string'
+              ? notification.createdAt
+              : notification.createdAt.toISOString(),
+          updatedAt: new Date().toISOString(),
         };
-        console.log('Отправляем WebSocket-уведомление (принятие):', updatedNotification);
+        console.log(
+          'Отправляем WebSocket-уведомление (принятие водителю):',
+          updatedDriverNotification,
+        );
         socket.emit('notification', {
           userId: notification.userId,
-          notification: updatedNotification,
+          notification: updatedDriverNotification,
         });
       }
 
+      showToast.success(`Заказ #${notification.orderId} успешно принят`, {
+        position: 'top-right',
+        autoClose: 3000,
+      });
       onClose();
     } catch (err) {
       console.error('Ошибка при принятии заказа:', err);
+      showToast.error('Не удалось принять заказ. Попробуйте снова.', {
+        position: 'top-right',
+        autoClose: 5000,
+      });
     }
   };
 
@@ -82,10 +105,16 @@ const WarningModal: React.FC<WarningModalProps> = ({
           uuid: notification.uuid,
           userId: notification.userId,
           title: notification.title,
-          message: notification.message,
+          message: `Вы отклонили заказ #${notification.orderId}`,
           orderId: notification.orderId,
           action: Action.cancelled,
           read: true,
+          createdById: notification.createdById,
+          createdAt:
+            typeof notification.createdAt === 'string'
+              ? notification.createdAt
+              : notification.createdAt.toISOString(),
+          updatedAt: new Date().toISOString(),
         };
         console.log('Отправляем WebSocket-уведомление (отклонение):', updatedNotification);
         socket.emit('notification', {
@@ -94,9 +123,17 @@ const WarningModal: React.FC<WarningModalProps> = ({
         });
       }
 
+      showToast.warn(`Заказ #${notification.orderId} отклонён`, {
+        position: 'top-right',
+        autoClose: 3000,
+      });
       onClose();
     } catch (err) {
       console.error('Ошибка при отклонении заказа:', err);
+      showToast.error('Не удалось отклонить заказ. Попробуйте снова.', {
+        position: 'top-right',
+        autoClose: 5000,
+      });
     }
   };
 
@@ -104,7 +141,15 @@ const WarningModal: React.FC<WarningModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-      <div className="bg-white p-6 rounded-lg shadow-lg w-[400px] max-w-[90%]">
+      <div className="relative bg-white p-6 rounded-lg shadow-lg w-[400px] max-w-[90%]">
+        <IButton
+          variant="close"
+          onClick={onClose}
+          aria-label="Закрыть модальное окно"
+          className="ml-4 border border-gray-200 hover:shadow-[0px_0px_5px_rgba(0,0,0,0.15)] hover:bg-blue-100 rounded-full"
+        >
+          <CloseIcon />
+        </IButton>
         <h2 className="text-xl font-semibold mb-4">Просроченный заказ</h2>
         <p className="mb-4">
           Заказ #{notification.orderId} поступил с просрочкой. Вы можете взять его или отклонить.

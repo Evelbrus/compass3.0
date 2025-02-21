@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 
-function useDebounce<T>(value: T, delay: number): T {
+//Хук useDebounce (без изменений, он уже хорошо типизирован)
+export function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
 
   useEffect(() => {
@@ -12,4 +13,14 @@ function useDebounce<T>(value: T, delay: number): T {
   return debouncedValue;
 }
 
-export default useDebounce;
+//Типизированная реализация debounce
+export const debounce = <F extends (...args: unknown[]) => unknown>(
+  func: F,
+  wait: number,
+): ((...args: Parameters<F>) => void) => {
+  let timeout: NodeJS.Timeout;
+  return (...args: Parameters<F>) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  };
+};

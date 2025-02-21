@@ -66,20 +66,26 @@ const Notification = ({ userSession }: NotificationIslandProps) => {
     <>
       {activeNotification && (
         <>
-          {activeNotification.action === Action.noted && (
+          {activeNotification.action === Action.noted && userSession?.role === UserRole.Driver && (
             <OrderInfoModal isOpen={true} onClose={closeModal} notification={activeNotification} />
           )}
-          {activeNotification.action === Action.inProgress && (
-            <OrderProgressModal
-              isOpen={true}
-              onClose={closeModal}
-              notification={activeNotification}
-              getDriverNotifications={getDriverNotifications}
-            />
-          )}
+          {activeNotification.action === Action.inProgress &&
+            userSession?.role === UserRole.Driver && (
+              <OrderProgressModal
+                isOpen={true}
+                onClose={closeModal}
+                notification={activeNotification}
+                getDriverNotifications={getDriverNotifications}
+              />
+            )}
           {activeNotification.action === Action.warning &&
             userSession?.role === UserRole.Driver && (
-              <WarningModal isOpen={true} onClose={closeModal} notification={activeNotification} />
+              <WarningModal
+                isOpen={true}
+                onClose={closeModal}
+                notification={activeNotification}
+                getDriverNotifications={getDriverNotifications}
+              />
             )}
           {activeNotification.action === Action.warning &&
             (userSession?.role === UserRole.Operator || userSession?.role === UserRole.Admin) && (
@@ -89,9 +95,6 @@ const Notification = ({ userSession }: NotificationIslandProps) => {
                 notification={activeNotification}
               />
             )}
-          {activeNotification.action === Action.success && (
-            <OrderInfoModal isOpen={true} onClose={closeModal} notification={activeNotification} />
-          )}
         </>
       )}
 

@@ -12,6 +12,9 @@ import {
   updateOrderStatus,
 } from '@widgets/orders/modal/driver/api/apiDriverModel';
 import { useSocket } from '@shared/utils/hooks/useSocket';
+import { CloseIcon } from '@shared/components/ui/icon';
+import { IButton } from '@shared/components/ui/buttons';
+import AnimatedComponent from '@shared/components/animated/CommonAnimated/AnimatedComponent';
 
 interface OrderDetail {
   departurePoint: { address: string };
@@ -155,7 +158,7 @@ const OrderProgressModal: React.FC<OrderProgressModalProps> = ({
 
         if (nextDriverStage === DriverAcceptanceStatus.COMPLETED) {
           const completionNotification = {
-            uuid: crypto.randomUUID(),
+            uuid: notification.uuid,
             userId: notification.userId,
             title: 'Поездка завершена',
             message: 'Вы успешно завершили поездку.',
@@ -263,76 +266,87 @@ const OrderProgressModal: React.FC<OrderProgressModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <>
-      <div className="fixed inset-0 bg-black bg-opacity-50 z-50" onClick={onClose} />
-      <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-5 rounded-lg shadow-lg z-50 w-[500px] max-w-[90%]">
-        <h2 className="text-xl font-semibold mb-4">Заказ #{notification.orderId}</h2>
-
-        {isLoading && !orderData ? (
-          <div className="flex justify-center">
-            <div className="w-5 h-5 border-4 border-gray-200 border-t-blue-500 rounded-full animate-spin" />
+    <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50 p-4">
+      <AnimatedComponent duration={500}>
+        <div className="relative bg-white rounded-3xl max-w-3xl w-full p-6">
+          <div className="flex justify-between items-center mb-6">
+            <IButton
+              variant="close"
+              onClick={onClose}
+              aria-label="Закрыть модальное окно"
+              className="ml-4 border border-gray-200 hover:shadow-[0px_0px_5px_rgba(0,0,0,0.15)] hover:bg-blue-100 rounded-full"
+            >
+              <CloseIcon />
+            </IButton>
+            <h2 className="text-xl font-semibold">Заказ #{notification.orderId}</h2>
           </div>
-        ) : orderData ? (
-          <div className="space-y-4">
-            <div>
-              <p>
-                <strong>Время отправления:</strong>{' '}
-                {new Date(orderData.departureTime).toLocaleString()}
-              </p>
-              <p>
-                <strong>Откуда:</strong> {orderData.departurePoint.address}
-              </p>
-              <p>
-                <strong>Куда:</strong> {orderData.arrivalPoint.address}
-              </p>
-              <p>
-                <strong>Клиент:</strong> {orderData.createdBy.fullName} ({orderData.createdBy.phone}
-                )
-              </p>
-              <p>
-                <strong>Тариф:</strong> {orderData.tariff.name} ({orderData.tariff.price} сом)
-              </p>
-              {orderData.description && (
-                <p>
-                  <strong>Описание:</strong> {orderData.description}
-                </p>
-              )}
-            </div>
 
-            {orderData.additionalServices && orderData.additionalServices.length > 0 && (
+          {isLoading && !orderData ? (
+            <div className="flex justify-center">
+              <div className="w-5 h-5 border-4 border-gray-200 border-t-blue-500 rounded-full animate-spin" />
+            </div>
+          ) : orderData ? (
+            <div className="space-y-4">
               <div>
-                <button
-                  className="text-blue-500 hover:underline"
-                  onClick={() => setShowAdditionalServices(!showAdditionalServices)}
-                >
-                  {showAdditionalServices ? 'Скрыть доп. услуги' : 'Показать доп. услуги'}
-                </button>
-                {showAdditionalServices && (
-                  <ul className="mt-2 list-disc pl-5">
-                    {orderData.additionalServices.map((service) => (
-                      <li key={service.uuid}>
-                        {service.name} - {service.price} сом
-                      </li>
-                    ))}
-                  </ul>
+                <p>
+                  <strong>Время отправления:</strong>{' '}
+                  {new Date(orderData.departureTime).toLocaleString()}
+                </p>
+                <p>
+                  <strong>Откуда:</strong> {orderData.departurePoint.address}
+                </p>
+                <p>
+                  <strong>Куда:</strong> {orderData.arrivalPoint.address}
+                </p>
+                <p>
+                  <strong>Клиент:</strong> {orderData.createdBy.fullName} (
+                  {orderData.createdBy.phone})
+                </p>
+                <p>
+                  <strong>Тариф:</strong> {orderData.tariff.name} ({orderData.tariff.price} сом)
+                </p>
+                {orderData.description && (
+                  <p>
+                    <strong>Описание:</strong> {orderData.description}
+                  </p>
                 )}
               </div>
-            )}
 
-            <p className="mt-4 font-semibold">Текущий этап: {stages[currentStage]}</p>
-            {error && <p className="text-red-500">{error}</p>}
-            {isLoading && (
-              <div className="inline-block w-5 h-5 border-4 border-gray-200 border-t-blue-500 rounded-full animate-spin" />
-            )}
-          </div>
-        ) : (
-          <p>Не удалось загрузить данные заказа</p>
-        )}
+              {orderData.additionalServices && orderData.additionalServices.length > 0 && (
+                <div>
+                  <button
+                    className="text-blue-500 hover:underline"
+                    onClick={() => setShowAdditionalServices(!showAdditionalServices)}
+                  >
+                    {showAdditionalServices ? 'Скрыть доп. услуги' : 'Показать доп. услуги'}
+                  </button>
+                  {showAdditionalServices && (
+                    <ul className="mt-2 list-disc pl-5">
+                      {orderData.additionalServices.map((service) => (
+                        <li key={service.uuid}>
+                          {service.name} - {service.price} сом
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
 
-        <div className="mt-5 flex gap-2">{getNextActions()}</div>
-      </div>
-    </>
+              <p className="mt-4 font-semibold">Текущий этап: {stages[currentStage]}</p>
+              {error && <p className="text-red-500">{error}</p>}
+              {isLoading && (
+                <div className="inline-block w-5 h-5 border-4 border-gray-200 border-t-blue-500 rounded-full animate-spin" />
+              )}
+            </div>
+          ) : (
+            <p>Не удалось загрузить данные заказа</p>
+          )}
+
+          <div className="mt-5 flex gap-2">{getNextActions()}</div>
+        </div>
+      </AnimatedComponent>
+    </div>
   );
 };
 
-export default OrderProgressModal;
+export default React.memo(OrderProgressModal);

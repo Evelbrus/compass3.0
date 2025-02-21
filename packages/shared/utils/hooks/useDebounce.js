@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-function useDebounce(value, delay) {
+//Хук useDebounce (без изменений, он уже хорошо типизирован)
+export function useDebounce(value, delay) {
     const [debouncedValue, setDebouncedValue] = useState(value);
     useEffect(() => {
         const handler = setTimeout(() => setDebouncedValue(value), delay);
@@ -7,4 +8,11 @@ function useDebounce(value, delay) {
     }, [value, delay]);
     return debouncedValue;
 }
-export default useDebounce;
+//Типизированная реализация debounce
+export const debounce = (func, wait) => {
+    let timeout;
+    return (...args) => {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func(...args), wait);
+    };
+};

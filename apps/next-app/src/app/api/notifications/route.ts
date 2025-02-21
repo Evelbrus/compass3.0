@@ -11,8 +11,8 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     if (Array.isArray(body.userIds)) {
-      const { userIds, title, message, orderId, action } = body;
-      if (!userIds?.length || !title || !message || !orderId) {
+      const { userIds, title, message, orderId, action, createdById } = body;
+      if (!userIds?.length || !title || !message || !orderId || !createdById) {
         log('Missing required fields for multiple notifications');
         return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
       }
@@ -23,6 +23,7 @@ export async function POST(request: NextRequest) {
         message,
         orderId,
         action: action ?? Action.info,
+        createdById, //Добавляем createdById
       }));
       const notifications = await prisma.notification.createMany({
         data: notificationsData,
@@ -30,8 +31,8 @@ export async function POST(request: NextRequest) {
       log('Successfully created notifications for users:', notifications);
       return NextResponse.json(notifications, { status: 201 });
     } else {
-      const { userId, title, message, orderId, action } = body;
-      if (!userId || !title || !message || !orderId) {
+      const { userId, title, message, orderId, action, createdById } = body;
+      if (!userId || !title || !message || !orderId || !createdById) {
         log('Missing required fields for single notification');
         return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
       }
@@ -43,6 +44,7 @@ export async function POST(request: NextRequest) {
           message,
           orderId,
           action: action ?? Action.info,
+          createdById, //Добавляем createdById
         },
       });
       log('Successfully created notification in database:', notification);

@@ -272,13 +272,18 @@ export async function POST(req: NextRequest) {
     return order;
   });
 
+  const departureTimestamp = new Date(result.departureTime).getTime();
+  const now = Date.now();
+  const delay = departureTimestamp - now - 60000;
+
   await orderQueue.add(
-    'preOrderNotification',
-    { order: result },
+    'notification',
+    { orderUuid: result.uuid },
     {
+      delay: delay > 0 ? delay : 0,
       attempts: 3,
       backoff: { type: 'exponential', delay: 1000 },
-      jobId: `preOrder-${result.uuid}`,
+      jobId: `notification-${result.uuid}`,
     },
   );
 

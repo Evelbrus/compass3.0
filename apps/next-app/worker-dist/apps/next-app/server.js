@@ -31,8 +31,6 @@ const users = {};
 const usersByRole = {
   operator: new Set(),
   admin: new Set(),
-  //При необходимости можно добавить другие роли, например:
-  //client: new Set(),
 };
 const origin = process.env.NEXT_PUBLIC_URL || '*';
 const io = new Server(server, {
@@ -47,38 +45,31 @@ const io = new Server(server, {
 });
 io.on('connection', (socket) => {
   console.log('New client connected', socket.id);
-  socket.on('hello', (value) => {
-    console.log('HELLO', value);
-  });
-  //Обработчик регистрации с передачей роли
+  //Обработчик регистрации
   socket.on('register', (data) => {
     if (!data.role) {
       console.warn(`Регистрация пользователя ${data.userId} без роли`);
-      //Можно назначить роль по умолчанию или просто выйти из функции
       return;
     }
-    //Приводим роль к нижнему регистру для единообразия
     const role = data.role.toLowerCase();
     users[data.userId] = { socketId: socket.id, role };
-    //Добавляем userId в нужную группу
     if (usersByRole[role]) {
       usersByRole[role].add(data.userId);
     } else {
-      //Если для данной роли ещё не создан набор, создаём его
       usersByRole[role] = new Set([data.userId]);
     }
     console.log(`User ${data.userId} with role ${role} registered with socket id ${socket.id}`);
   });
+  //Обработчик сообщения
   socket.on('message', (message) => {
     io.emit('message', message);
   });
+  //Обработчик уведомления
   socket.on('notification', (data) => {
     console.log('Получено событие notification на сервере. Данные:', data);
-    if (data.roles) {
-      //Обработка broadcast-уведомлений
+    if ('roles' in data) {
       const { roles, notification } = data;
       console.log('Broadcasting notification for roles:', roles);
-      //Для каждой указанной роли отправляем уведомление
       roles.forEach((role) => {
         const lowerRole = role.toLowerCase();
         const userIds = usersByRole[lowerRole];
@@ -93,7 +84,6 @@ io.on('connection', (socket) => {
         }
       });
     } else {
-      //Обработка индивидуального уведомления
       const { userId, notification } = data;
       console.log('Индивидуальное уведомление для userId:', userId);
       const targetSocketId = users[userId]?.socketId;
@@ -105,9 +95,9 @@ io.on('connection', (socket) => {
       }
     }
   });
+  //Обработчик отключения
   socket.on('disconnect', () => {
     console.log('Client disconnected', socket.id);
-    //При отключении удаляем пользователя из users и группы по ролям
     for (const userId in users) {
       if (users[userId].socketId === socket.id) {
         const role = users[userId].role;

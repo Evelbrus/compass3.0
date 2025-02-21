@@ -56,6 +56,15 @@ const DriverNotificationList: React.FC<DriverNotificationListProps> = ({
     }
   };
 
+  const sortedNotifications = [...notifications].sort((a, b) => {
+    const order = {
+      [Action.warning]: 1,
+      [Action.inProgress]: 2,
+      [Action.noted]: 3,
+    };
+    return (order[a.action] || 4) - (order[b.action] || 4);
+  });
+
   return (
     <div className="absolute w-[400px] max-h-[400px] right-0 top-10 z-50 bg-[#EFEFEF] p-4 rounded-md shadow-lg overflow-auto">
       <div className="flex justify-between items-center mb-4">
@@ -69,11 +78,11 @@ const DriverNotificationList: React.FC<DriverNotificationListProps> = ({
           <CloseIcon />
         </IButton>
       </div>
-      {notifications.length === 0 ? (
+      {sortedNotifications.length === 0 ? (
         <p className="text-gray-500 text-center">Уведомлений нет</p>
       ) : (
         <ul className="space-y-2">
-          {notifications.map((notification) => {
+          {sortedNotifications.map((notification) => {
             const { bgColor, textColor, label } = getActionStyles(notification.action);
             return (
               <li

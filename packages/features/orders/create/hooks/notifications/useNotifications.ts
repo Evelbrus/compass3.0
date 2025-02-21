@@ -5,8 +5,10 @@ import { Action } from '@prisma/client';
 
 interface OrderResult {
   uuid: string;
-  createdById?: string;
+  createdById: string;
   assignedDriverId?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 interface PointData {
@@ -19,6 +21,20 @@ interface UseNotificationsProps {
   isEditing: boolean;
 }
 
+interface NotificationData {
+  uuid: string;
+  userId: string;
+  title: string;
+  message: string;
+  orderId: string;
+  action: Action;
+  read: boolean;
+  createdById: string;
+  assignedDriverId?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export const useNotifications = ({
   departurePoint,
   arrivalPoint,
@@ -28,19 +44,30 @@ export const useNotifications = ({
   const { userSession } = useSession();
 
   const sendNotification = useCallback(
-    async (
-      userId: string,
-      title: string,
-      msg: string,
-      orderId: string,
-      action: Action = Action.info,
-    ) => {
-      console.log('sendNotification:', { userId, title, msg, orderId, action });
+    async (notification: {
+      userId: string;
+      title: string;
+      message: string;
+      orderId: string;
+      action: Action;
+      createdById: string;
+      assignedDriverId?: string;
+      createdAt?: Date;
+      updatedAt?: Date;
+    }) => {
+      console.log('sendNotification:', notification);
       try {
         const response = await fetch('/api/notifications', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId, title, message: msg, orderId, action }),
+          body: JSON.stringify({
+            userId: notification.userId,
+            title: notification.title,
+            message: notification.message,
+            orderId: notification.orderId,
+            action: notification.action,
+            createdById: notification.createdById,
+          }),
         });
 
         if (!response.ok) {
@@ -50,19 +77,27 @@ export const useNotifications = ({
 
         const data = await response.json();
 
-        if (socket && userId && data.uuid) {
-          const notificationData = {
+        if (socket && notification.userId && data.uuid) {
+          const notificationData: NotificationData = {
             uuid: data.uuid,
-            userId: userId,
-            title,
-            message: msg,
-            orderId,
-            action,
+            userId: notification.userId,
+            title: notification.title,
+            message: notification.message,
+            orderId: notification.orderId,
+            action: notification.action,
             read: data.read ?? false,
+            createdById: notification.createdById,
+            assignedDriverId: notification.assignedDriverId || data.assignedDriverId,
+            ...(isEditing && notification.updatedAt
+              ? { updatedAt: notification.updatedAt.toISOString() }
+              : {}),
+            ...(!isEditing && notification.createdAt
+              ? { createdAt: notification.createdAt.toISOString() }
+              : {}),
           };
           console.log('Отправляем WebSocket-уведомление:', notificationData);
           socket.emit('notification', {
-            userId,
+            userId: notification.userId,
             notification: notificationData,
           });
         }
@@ -70,7 +105,7 @@ export const useNotifications = ({
         console.error('Error saving notification to database:', error);
       }
     },
-    [socket],
+    [socket, isEditing],
   );
 
   const handleOrderSuccess = useCallback(
@@ -79,47 +114,37 @@ export const useNotifications = ({
       const arrAddress = arrivalPoint ? arrivalPoint.address : 'не указан';
       const actionText = isEditing ? 'обновлен' : 'создан';
 
-      //Уведомление для водителя (assignedDriverId как userId)
-      if (result.assignedDriverId) {
-        const msgDriver = `Вам ${actionText} заказ от ${depAddress} до ${arrAddress}.`;
-        sendNotification(
-          result.assignedDriverId,
-          `Заказ ${actionText}`,
-          msgDriver,
-          result.uuid,
-          Action.noted,
-        );
-      } else {
-        console.warn('handleOrderSuccess: отсутствует assignedDriverId');
+      //Уведомление для текущего пользователя (если он не водитель)
+      if (userSession?.uuid && userSession.uuid !== result.assignedDriverId) {
+        sendNotification({
+          userId: userSession.uuid,
+          title: `Заказ ${actionText}`,
+          message: `Заказ от ${depAddress} до ${arrAddress} ${actionText}.`,
+          orderId: result.uuid,
+          action: Action.info,
+          createdById: result.createdById,
+          assignedDriverId: result.assignedDriverId,
+          createdAt: result.createdAt,
+          updatedAt: result.updatedAt,
+        });
       }
 
-      //Уведомление для текущего пользователя (создателя) через userSession
-      if (userSession?.uuid) {
-        const msgCreator = `Заказ от ${depAddress} до ${arrAddress} ${actionText}.`;
-        sendNotification(
-          userSession.uuid,
-          `Заказ ${actionText}`,
-          msgCreator,
-          result.uuid,
-          Action.info,
-        );
-      } else {
-        console.warn('handleOrderSuccess: отсутствует userSession');
+      //Уведомление для создателя заказа (если он не водитель)
+      if (result.createdById !== result.assignedDriverId) {
+        sendNotification({
+          userId: result.createdById,
+          title: `Заказ ${actionText}`,
+          message: `Ваш заказ от ${depAddress} до ${arrAddress} ${actionText}.`,
+          orderId: result.uuid,
+          action: Action.info,
+          createdById: result.createdById,
+          assignedDriverId: result.assignedDriverId,
+          createdAt: result.createdAt,
+          updatedAt: result.updatedAt,
+        });
       }
 
-      //Уведомление для создателя заказа (createdById как userId)
-      if (result.createdById) {
-        const msgCreatedBy = `Ваш заказ от ${depAddress} до ${arrAddress} ${actionText}.`;
-        sendNotification(
-          result.createdById,
-          `Заказ ${actionText}`,
-          msgCreatedBy,
-          result.uuid,
-          Action.info,
-        );
-      } else {
-        console.warn('handleOrderSuccess: отсутствует createdById');
-      }
+      //Уведомление для водителя теперь обрабатывается в POST /api/orders
     },
     [departurePoint, arrivalPoint, isEditing, sendNotification, userSession],
   );

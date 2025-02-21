@@ -61,7 +61,11 @@ export const useOrderCreateLogic = (uuid?: string) => {
             return;
           }
           const data = await response.json();
-          setOrderData(data);
+          setOrderData({
+            ...data,
+            createdAt: new Date(data.createdAt),
+            updatedAt: new Date(data.updatedAt),
+          });
           reset(data);
         } catch (error) {
           showToast.error(`Error fetching order data: ${error}`);
@@ -127,18 +131,21 @@ export const useOrderCreateLogic = (uuid?: string) => {
     extraWaitingTimeCost: time.extraWaitingTimeCost,
   });
 
-  //Используем новый вариант useNotifications, который не зависит от состояния результата,
-  //а его функция handleOrderSuccess принимает результат напрямую.
   const notifications = useNotifications({
     departurePoint: points.selectedDeparturePoint,
     arrivalPoint: points.selectedArrivalPoint,
     isEditing: isEditingProp,
   });
 
-  //Функция, которая будет вызываться после получения ответа от API
   const handleSuccessCallback = useCallback(
     (res: any) => {
-      notifications.handleOrderSuccess(res);
+      notifications.handleOrderSuccess({
+        uuid: res.uuid,
+        createdById: res.createdById || res.createdBy,
+        assignedDriverId: res.assignedDriverId,
+        createdAt: new Date(res.createdAt),
+        updatedAt: new Date(res.updatedAt),
+      });
       router.push('/orders');
     },
     [notifications, router],
@@ -173,7 +180,6 @@ export const useOrderCreateLogic = (uuid?: string) => {
       }
 
       if (!uuid) {
-        //Если создаётся новый заказ, получаем результат и сразу вызываем уведомление
         const res = await response.json();
         console.log('result', res);
         if (res && res.uuid) {
@@ -183,7 +189,6 @@ export const useOrderCreateLogic = (uuid?: string) => {
         }
       } else {
         if (!orderData) {
-          //Можно вывести сообщение об ошибке или вернуть, чтобы не продолжать выполнение.
           showToast.error('Нет данных заказа');
           return;
         }
@@ -192,6 +197,8 @@ export const useOrderCreateLogic = (uuid?: string) => {
           uuid,
           assignedDriverId: orderData.assignedDriverId || '',
           createdById: orderData.createdBy || '',
+          createdAt: orderData.createdAt,
+          updatedAt: new Date(),
         });
         router.push('/orders');
       }

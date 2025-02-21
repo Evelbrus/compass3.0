@@ -5,6 +5,8 @@ import { CreateOrderData } from '@shared/prisma/interface/orders/interface';
 import { Decimal } from 'decimal.js';
 import { v4 as uuidv4 } from 'uuid';
 import { orderQueue } from '@next-app/src/lib/queues/orderQueue';
+import { Action } from '@prisma/client';
+import { socket } from '@socket-server';
 
 const log = debug('app:orders');
 
@@ -125,21 +127,19 @@ export async function PUT(req: Request, { params }: { params: Promise<Params> })
     assignedDriverId,
   } = data;
 
-  console.log('selectedServices отправленные на сервер:', selectedServices);
-
   try {
     const result = await prisma.$transaction(async (prismaTx) => {
       log('Starting transaction for order update');
 
-      //1. Проверка существования заказа
-      const existingOrder = await prismaTx.order.findUnique({ where: { uuid } });
+      const existingOrder = await prismaTx.order.findUnique({
+        where: { uuid },
+      });
       if (!existingOrder) {
         log(`Order with UUID ${uuid} not found`);
         throw new Error('Order not found');
       }
       log('Order found:', existingOrder);
 
-      //2. Проверка существования клиента
       const client = await prismaTx.user.findUnique({ where: { uuid: createdBy } });
       if (!client) {
         log(`Client with UUID ${createdBy} not found`);
@@ -147,7 +147,6 @@ export async function PUT(req: Request, { params }: { params: Promise<Params> })
       }
       log('Client found:', client);
 
-      //3. Проверка существования тарифа
       const tariffRecord = await prismaTx.tariff.findUnique({
         where: { uuid: tariffUuid },
       });
@@ -157,7 +156,6 @@ export async function PUT(req: Request, { params }: { params: Promise<Params> })
       }
       log('Tariff found:', tariffRecord);
 
-      //4. Проверка существования точки отправления
       const departurePointRecord = await prismaTx.point.findUnique({
         where: { uuid: departurePoint },
       });
@@ -167,7 +165,6 @@ export async function PUT(req: Request, { params }: { params: Promise<Params> })
       }
       log('Departure point found:', departurePointRecord);
 
-      //5. Проверка существования точки прибытия
       const arrivalPointRecord = await prismaTx.point.findUnique({
         where: { uuid: arrivalPoint },
       });
@@ -177,7 +174,6 @@ export async function PUT(req: Request, { params }: { params: Promise<Params> })
       }
       log('Arrival point found:', arrivalPointRecord);
 
-      //6. Проверка существования водителя
       if (assignedDriverId) {
         const driver = await prismaTx.user.findUnique({ where: { uuid: assignedDriverId } });
         if (!driver) {
@@ -187,7 +183,6 @@ export async function PUT(req: Request, { params }: { params: Promise<Params> })
         log('Driver found:', driver);
       }
 
-      //7. Обновление заказа
       const updatedOrder = await prismaTx.order.update({
         where: { uuid },
         data: {
@@ -199,15 +194,14 @@ export async function PUT(req: Request, { params }: { params: Promise<Params> })
           basePrice: new Decimal(basePrice ?? 0),
           assignedDriverId: assignedDriverId || null,
           intermediatePoints: (intermediatePoints || []).filter(Boolean),
+          updatedAt: new Date(),
         },
       });
       log('Order updated:', updatedOrder);
 
-      //8. Удаление старых дополнительных услуг
       await prismaTx.orderOnTariffAdditionalService.deleteMany({ where: { orderUuid: uuid } });
       log('Old additional services removed');
 
-      //9. Добавление новых дополнительных услуг
       if (selectedServices && selectedServices.length > 0) {
         log('Selected services (tariffOnServiceUuid):', selectedServices);
         const tariffOnServices = await prismaTx.tariffOnService.findMany({
@@ -230,7 +224,86 @@ export async function PUT(req: Request, { params }: { params: Promise<Params> })
         log('New additional services added');
       }
 
-      //10. Возвращаем обновленный заказ
+      //Обработка смены водителя с отправкой через WebSocket
+      if (existingOrder.assignedDriverId && existingOrder.assignedDriverId !== assignedDriverId) {
+        const oldDriverNotification = await prismaTx.notification.findFirst({
+          where: {
+            userId: existingOrder.assignedDriverId,
+            orderId: uuid,
+          },
+        });
+
+        if (oldDriverNotification) {
+          const updatedNotification = await prismaTx.notification.update({
+            where: { uuid: oldDriverNotification.uuid },
+            data: {
+              action: Action.info,
+              message: `Вы не приняли заказ #${uuid} вовремя, он передан другому водителю.`,
+              read: false,
+              updatedAt: new Date(),
+            },
+          });
+          log(`Notification updated for old driver ${existingOrder.assignedDriverId}`);
+
+          const notificationData = {
+            uuid: updatedNotification.uuid,
+            userId: updatedNotification.userId,
+            title: updatedNotification.title || 'Заказ передан',
+            message: updatedNotification.message,
+            orderId: updatedNotification.orderId,
+            action: updatedNotification.action,
+            read: updatedNotification.read,
+            createdById: updatedNotification.createdById,
+            createdAt: updatedNotification.createdAt.toISOString(),
+            updatedAt: updatedNotification.updatedAt.toISOString(),
+          };
+          socket.emit('notification', {
+            userId: existingOrder.assignedDriverId,
+            notification: notificationData,
+          });
+          log(
+            `WebSocket notification sent to old driver ${existingOrder.assignedDriverId}:`,
+            notificationData,
+          );
+        }
+
+        if (assignedDriverId) {
+          const newNotification = await prismaTx.notification.create({
+            data: {
+              uuid: uuidv4(),
+              userId: assignedDriverId,
+              title: 'Заказ назначен',
+              message: `Вам назначен заказ от ${departurePointRecord.address} до ${arrivalPointRecord.address}.`,
+              orderId: uuid,
+              action: Action.noted,
+              read: false,
+              createdById: createdBy,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            },
+          });
+          log(`Notification created for new driver ${assignedDriverId}:`, newNotification);
+
+          const notificationData = {
+            uuid: newNotification.uuid,
+            userId: newNotification.userId,
+            title: newNotification.title,
+            message: newNotification.message,
+            orderId: newNotification.orderId,
+            action: newNotification.action,
+            read: newNotification.read,
+            createdById: newNotification.createdById,
+            createdAt: newNotification.createdAt.toISOString(),
+            updatedAt: newNotification.updatedAt.toISOString(),
+          };
+          socket.emit('notification', {
+            userId: assignedDriverId,
+            notification: notificationData,
+          });
+          log(`WebSocket notification sent to new driver ${assignedDriverId}:`, notificationData);
+        }
+      }
+
       const finalOrder = await prismaTx.order.findUnique({
         where: { uuid: updatedOrder.uuid },
         include: {
@@ -254,12 +327,10 @@ export async function PUT(req: Request, { params }: { params: Promise<Params> })
       return NextResponse.json({ error: 'Order update failed' }, { status: 500 });
     }
 
-    //Обновляем задачу в очереди, если departureTime или другие ключевые поля изменились
     const departureTimestamp = new Date(result.departureTime).getTime();
     const now = Date.now();
     const delay = departureTimestamp - now - 60000;
 
-    //Проверяем, существует ли задача
     const existingJob = await orderQueue.getJob(`notification-${result.uuid}`);
     if (existingJob) {
       const currentDelay = existingJob.opts.delay;

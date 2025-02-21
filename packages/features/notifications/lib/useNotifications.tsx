@@ -7,6 +7,17 @@ import {
   fetchNotifications,
   markNotificationAsRead,
 } from '@features/notifications/api/apiNotifications';
+import { debounce } from '@shared/utils/hooks/useDebounce';
+
+//Константы для типов уведомлений
+const NOTIFICATION_TYPES = {
+  NOTED: Action.noted,
+  IN_PROGRESS: Action.inProgress,
+  WARNING: Action.warning,
+  SUCCESS: Action.success,
+  CANCELLED: Action.cancelled,
+  INFO: Action.info,
+} as const;
 
 export interface NotificationIslandProps {
   userSession?: UserSession | null;
@@ -30,7 +41,7 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
   }, []);
 
   const handleNotification = useCallback(
-    (notification: Notification) => {
+    debounce((notification: Notification) => {
       console.log('📩 Получено обновление уведомления через сокет:', notification);
       setNotifications((prev) => {
         const existingIndex = prev.findIndex((n) => n.uuid === notification.uuid);
@@ -54,13 +65,19 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
         }
         return [notification, ...prev];
       });
-    },
+    }, 300),
     [openModal],
   );
 
   const getDriverNotifications = useCallback(
     (driverId: string) => {
-      return notifications.filter((n) => n.userId === driverId);
+      return notifications.filter(
+        (n) =>
+          n.userId === driverId &&
+          (n.action === NOTIFICATION_TYPES.NOTED ||
+            n.action === NOTIFICATION_TYPES.IN_PROGRESS ||
+            n.action === NOTIFICATION_TYPES.WARNING),
+      );
     },
     [notifications],
   );
@@ -73,7 +90,8 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
     try {
       const notificationsToDelete = notifications.filter(
         (notification) =>
-          notification.action !== Action.noted && notification.action !== Action.inProgress,
+          notification.action !== NOTIFICATION_TYPES.NOTED &&
+          notification.action !== NOTIFICATION_TYPES.IN_PROGRESS,
       );
 
       if (notificationsToDelete.length === 0) {
@@ -86,7 +104,8 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
       setNotifications((prev) =>
         prev.filter(
           (notification) =>
-            notification.action === Action.noted || notification.action === Action.inProgress,
+            notification.action === NOTIFICATION_TYPES.NOTED ||
+            notification.action === NOTIFICATION_TYPES.IN_PROGRESS,
         ),
       );
 

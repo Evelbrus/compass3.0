@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useClients } from '@features/orders/create/hooks';
-import useDebounce from '@shared/utils/hooks/useDebounce';
 import { CompanyProfile, User } from '@prisma/client';
+import { useDebounce } from '@shared/utils/hooks/useDebounce';
 
 export interface ExtendedUser extends User {
   companyProfile?: CompanyProfile | null;

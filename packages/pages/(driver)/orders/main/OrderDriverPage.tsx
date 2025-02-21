@@ -135,17 +135,8 @@ const OrderDriverPage = (): JSX.Element => {
       duration={1000}
     >
       <div className="w-full flex flex-row justify-between items-center">
-        <h1 className="text-2xl font-extrabold leading-4">Список заказов (Админ вид)</h1>
+        <h1 className="text-2xl font-extrabold leading-6">Список заказов (Водитель)</h1>
         <div className="flex flex-row gap-2">
-          <IButton
-            onClick={handleCreate}
-            className="w-[250px] h-[56px] rounded-lg border-none bg-[color:var(--button-secondary)]
-                    text-white font-semibold transition duration-300 ease-in-out
-                    hover:bg-[color:var(--button-secondary-hover)]"
-            textClassName="text-4 leading-4 text-medium justify-center"
-          >
-            Добавить заказ
-          </IButton>
           <Filters />
         </div>
       </div>

@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
-import { Gender, OrderStatus, UserRole } from '@prisma/client';
+import { Action, Gender, OrderStatus, UserRole } from '@prisma/client';
 import debug from 'debug';
 import { CreateOrderData } from '@shared/prisma/interface/orders/interface';
 import { v4 as uuidv4 } from 'uuid';
 import { Decimal } from 'decimal.js';
 import { prisma } from '@shared/prisma/prisma-client';
 import { orderQueue } from '@next-app/src/lib/queues/orderQueue';
+import { socket } from '@socket-server';
 
 const log = debug('app:orders');
 
@@ -265,6 +266,39 @@ export async function POST(req: Request) {
           })),
         });
         log('Дополнительные услуги добавлены');
+      }
+
+      //Создаём уведомление для водителя с action: noted
+      if (assignedDriverId) {
+        const notification = await prismaTx.notification.create({
+          data: {
+            uuid: uuidv4(),
+            userId: assignedDriverId,
+            orderId: order.uuid,
+            title: 'Заказ создан',
+            message: `Вам назначен новый заказ от ${departurePointRecord.address} до ${arrivalPointRecord.address}.`,
+            action: Action.noted,
+            read: false,
+            createdById: clientUuid,
+          },
+        });
+
+        socket.emit('notification', {
+          userId: assignedDriverId,
+          notification: {
+            uuid: notification.uuid,
+            userId: assignedDriverId,
+            orderId: order.uuid,
+            title: notification.title,
+            message: notification.message,
+            action: notification.action,
+            read: notification.read,
+            createdById: clientUuid,
+            createdAt: notification.createdAt.toISOString(),
+            updatedAt: notification.updatedAt.toISOString(),
+          },
+        });
+        log(`Уведомление с action: noted отправлено водителю ${assignedDriverId}`);
       }
 
       return order;

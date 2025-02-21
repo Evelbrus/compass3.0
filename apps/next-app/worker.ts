@@ -1,7 +1,6 @@
 import { Worker, Job } from 'bullmq';
 import dotenv from 'dotenv';
 import { prisma } from '../../packages/shared/prisma/prisma-client.js';
-import { io } from 'socket.io-client';
 import { v4 as uuidv4 } from 'uuid';
 import {
   Order,
@@ -12,6 +11,7 @@ import {
   UserRole,
 } from '@prisma/client';
 import { orderQueue } from './src/lib/queues/orderQueue.js';
+import { socket } from './src/socket-server.js';
 
 dotenv.config();
 
@@ -20,14 +20,9 @@ const redisOptions = {
   port: process.env.REDIS_PORT ? parseInt(process.env.REDIS_PORT) : 6379,
 };
 
-const socket = io(process.env.NEXT_PUBLIC_SOCKET_ORIGIN || 'http://localhost:3008', {
-  transports: ['websocket'],
-  path: '/socket.io',
-  autoConnect: true,
-});
-
-socket.on('connect', () => console.log('✅ Подключено к серверу сокетов'));
-socket.on('disconnect', () => console.log('❌ Отключено от сервера сокетов'));
+//Логи подключения уже определены в @socket/server, но можно добавить дополнительные проверки
+socket.on('connect', () => console.log('✅ Worker подключён к серверу сокетов'));
+socket.on('disconnect', () => console.log('❌ Worker отключён от сервера сокетов'));
 
 export interface CheckOverdueJobData {
   orderUuid: string;
@@ -92,7 +87,6 @@ async function processNotificationJob(order: Order) {
       const newMessage = `Вам назначен новый заказ от ${address}.`;
       const desiredAction = Action.inProgress;
 
-      //Обновляем статус водителя на BUSY и заказ на TAKEN
       await prismaTx.user.update({
         where: { uuid: userId },
         data: { driverStatus: DriverStatus.BUSY },
@@ -123,6 +117,7 @@ async function processNotificationJob(order: Order) {
             message: newMessage,
             action: desiredAction,
             read: false,
+            createdById: order.createdById,
           },
         });
         console.log(`✅ Уведомление для заказа ${order.uuid} создано со статусом ${desiredAction}`);
@@ -135,7 +130,9 @@ async function processNotificationJob(order: Order) {
         title: notification.title,
         message: notification.message,
         read: notification.read,
+        createdById: order.createdById,
         createdAt: notification.createdAt?.toISOString() || new Date().toISOString(),
+        updatedAt: notification.updatedAt?.toISOString() || new Date().toISOString(),
         action: notification.action,
       };
 
@@ -189,9 +186,8 @@ async function processCheckoverdueJob(order: Order) {
       const address = departurePoint?.address ?? 'неизвестного места';
       const warningMessage = `Заказ от ${address} просрочен.`;
 
-      //Уведомление для водителя
       if (order.assignedDriverId) {
-        const userId = order.assignedDriverId; //Используем userId
+        const userId = order.assignedDriverId;
         await prismaTx.user.update({
           where: { uuid: userId },
           data: { driverStatus: DriverStatus.FREE },
@@ -217,6 +213,7 @@ async function processCheckoverdueJob(order: Order) {
               message: warningMessage,
               action: Action.warning,
               read: false,
+              createdById: order.createdById,
             },
           });
           console.log(`✅ Создано новое уведомление warning для водителя для заказа ${order.uuid}`);
@@ -224,12 +221,14 @@ async function processCheckoverdueJob(order: Order) {
 
         const notificationData = {
           uuid: notification.uuid,
-          userId: userId, //Добавляем userId
+          userId: userId,
           orderId: order.uuid,
           title: notification.title,
           message: notification.message,
           read: notification.read,
+          createdById: order.createdById,
           createdAt: notification.createdAt?.toISOString() || new Date().toISOString(),
+          updatedAt: notification.updatedAt?.toISOString() || new Date().toISOString(),
           action: notification.action,
         };
 
@@ -239,7 +238,6 @@ async function processCheckoverdueJob(order: Order) {
         });
       }
 
-      //Уведомления для админов и операторов
       const adminsAndOperators = await prismaTx.user.findMany({
         where: { role: { in: [UserRole.Operator, UserRole.Admin] } },
       });
@@ -270,6 +268,7 @@ async function processCheckoverdueJob(order: Order) {
               message: `Заказ от ${address} просрочен. Водитель не принял заказ вовремя.`,
               action: Action.warning,
               read: false,
+              createdById: order.createdById,
             },
           });
           console.log(`✅ Создано новое уведомление warning для ${user.role} ${user.uuid}`);
@@ -282,7 +281,9 @@ async function processCheckoverdueJob(order: Order) {
           title: notification.title,
           message: notification.message,
           read: notification.read,
+          createdById: order.createdById,
           createdAt: notification.createdAt?.toISOString() || new Date().toISOString(),
+          updatedAt: notification.updatedAt?.toISOString() || new Date().toISOString(),
           action: notification.action,
         };
 

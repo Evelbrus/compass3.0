@@ -4,6 +4,7 @@ import { Server, Socket } from 'socket.io';
 import * as dotenv from 'dotenv';
 import * as fs from 'fs';
 import * as path from 'path';
+import { Notification } from '@prisma/client';
 
 dotenv.config();
 
@@ -30,7 +31,7 @@ if (
   console.log('Using HTTP server');
 }
 
-//Обновлённый интерфейс для хранения информации о пользователе
+//Интерфейс для хранения информации о пользователе
 interface UserInfo {
   socketId: string;
   role: string;
@@ -43,9 +44,33 @@ const users: { [userId: string]: UserInfo } = {};
 const usersByRole: { [role: string]: Set<string> } = {
   operator: new Set(),
   admin: new Set(),
-  //При необходимости можно добавить другие роли, например:
-  //client: new Set(),
 };
+
+//Тип для структуры сообщения
+interface Message {
+  content: string;
+}
+
+//Типы для события notification
+interface IndividualNotificationData {
+  userId: string;
+  notification: Notification;
+}
+
+interface BroadcastNotificationData {
+  roles: string[];
+  notification: Notification;
+}
+
+type NotificationData = IndividualNotificationData | BroadcastNotificationData;
+
+//Интерфейс для всех событий сокета
+interface SocketEvents {
+  register: (data: { userId: string; role?: string }) => void;
+  message: (message: Message) => void;
+  notification: (data: NotificationData) => void;
+  disconnect: () => void;
+}
 
 const origin = process.env.NEXT_PUBLIC_URL || '*';
 
@@ -63,44 +88,37 @@ const io = new Server(server, {
 io.on('connection', (socket: Socket) => {
   console.log('New client connected', socket.id);
 
-  socket.on('hello', (value: any) => {
-    console.log('HELLO', value);
-  });
-
-  //Обработчик регистрации с передачей роли
-  socket.on('register', (data: { userId: string; role?: string }) => {
+  //Обработчик регистрации
+  socket.on('register', ((data: { userId: string; role?: string }) => {
     if (!data.role) {
       console.warn(`Регистрация пользователя ${data.userId} без роли`);
-      //Можно назначить роль по умолчанию или просто выйти из функции
       return;
     }
-    //Приводим роль к нижнему регистру для единообразия
     const role = data.role.toLowerCase();
     users[data.userId] = { socketId: socket.id, role };
 
-    //Добавляем userId в нужную группу
     if (usersByRole[role]) {
       usersByRole[role].add(data.userId);
     } else {
-      //Если для данной роли ещё не создан набор, создаём его
       usersByRole[role] = new Set([data.userId]);
     }
 
     console.log(`User ${data.userId} with role ${role} registered with socket id ${socket.id}`);
-  });
+  }) as SocketEvents['register']);
 
-  socket.on('message', (message: any) => {
+  //Обработчик сообщения
+  socket.on('message', ((message: Message) => {
     io.emit('message', message);
-  });
+  }) as SocketEvents['message']);
 
-  socket.on('notification', (data: any) => {
+  //Обработчик уведомления
+  socket.on('notification', ((data: NotificationData) => {
     console.log('Получено событие notification на сервере. Данные:', data);
-    if (data.roles) {
-      //Обработка broadcast-уведомлений
-      const { roles, notification } = data;
+
+    if ('roles' in data) {
+      const { roles, notification } = data as BroadcastNotificationData;
       console.log('Broadcasting notification for roles:', roles);
 
-      //Для каждой указанной роли отправляем уведомление
       roles.forEach((role: string) => {
         const lowerRole = role.toLowerCase();
         const userIds = usersByRole[lowerRole];
@@ -115,8 +133,7 @@ io.on('connection', (socket: Socket) => {
         }
       });
     } else {
-      //Обработка индивидуального уведомления
-      const { userId, notification } = data;
+      const { userId, notification } = data as IndividualNotificationData;
       console.log('Индивидуальное уведомление для userId:', userId);
       const targetSocketId = users[userId]?.socketId;
       if (targetSocketId) {
@@ -126,11 +143,11 @@ io.on('connection', (socket: Socket) => {
         console.log(`User ${userId} not found`);
       }
     }
-  });
+  }) as SocketEvents['notification']);
 
-  socket.on('disconnect', () => {
+  //Обработчик отключения
+  socket.on('disconnect', (() => {
     console.log('Client disconnected', socket.id);
-    //При отключении удаляем пользователя из users и группы по ролям
     for (const userId in users) {
       if (users[userId].socketId === socket.id) {
         const role = users[userId].role;
@@ -141,7 +158,7 @@ io.on('connection', (socket: Socket) => {
         break;
       }
     }
-  });
+  }) as SocketEvents['disconnect']);
 });
 
 server.listen(port, () => {

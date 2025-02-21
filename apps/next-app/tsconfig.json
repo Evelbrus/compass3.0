@@ -22,6 +22,7 @@
     "paths": {
       "@next-app/*": ["./*"],
       "@socket": ["src/socket.js"],
+      "@socket-server": ["src/socket-server.ts"],
       "@public/*": ["public/*"],
       "@app/*": ["../../packages/app/*"],
       "@pages/*": ["../../packages/pages/*"],

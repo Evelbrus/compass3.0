@@ -29,10 +29,15 @@ const useSubmitOrder = () => {
             }
             const result = await response.json();
             console.log('Заказ создан:', result);
-            return result;
+            return {
+                uuid: result.uuid,
+                createdById: result.createdById,
+                assignedDriverId: result.assignedDriverId,
+                createdAt: new Date(result.createdAt),
+                updatedAt: new Date(result.updatedAt),
+            };
         }
         catch (err) {
-            //Проверка типа ошибки
             if (err instanceof Error) {
                 setError(err.message);
                 console.error('Ошибка:', err);

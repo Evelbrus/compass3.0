@@ -175,14 +175,12 @@ const CreateClientCorpOrder: React.FC<CreateClientCorpOrderProps> = ({ onClose }
   const { handleOrderSuccess, handleOrderError } = useClientNotifications({
     departurePoint,
     arrivalPoint,
-    orderId,
   });
 
   const { submitOrder, isSubmitting, error } = useSubmitOrder();
 
   const onSubmit = async (formData: CreateClientCorpOrderData) => {
     try {
-      //Передаём все необходимые данные в submitOrder
       const result = await submitOrder({
         selectedTariff,
         departurePoint: departurePoint?.uuid ?? '',
@@ -200,16 +198,19 @@ const CreateClientCorpOrder: React.FC<CreateClientCorpOrderProps> = ({ onClose }
 
       if (result && result.uuid) {
         setOrderId(result.uuid);
+        handleOrderSuccess(result);
+        showToast.success('Заказ создан успешно!');
+        router.push('/orders');
+        onClose();
       } else {
         throw new Error('Не удалось получить uuid заказа из ответа сервера');
       }
-
-      showToast.success('Заказ создан успешно!');
-      handleOrderSuccess();
-      router.push('/orders');
-      onClose();
     } catch (err) {
       handleOrderError(err);
+      showToast.error(
+        'Ошибка при создании заказа: ' +
+          (err instanceof Error ? err.message : 'Неизвестная ошибка'),
+      );
     }
   };
 

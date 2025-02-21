@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import AnimatedComponent from '@shared/components/animated/CommonAnimated/AnimatedComponent';
 import { IButton } from '@shared/components/ui/buttons';
 import { CloseIcon } from '@shared/components/ui/icon';
-import { TextInput } from '@shared/components/ui/inputs';
 import {
   Order,
   Point,
@@ -12,7 +11,6 @@ import {
   TariffOnService,
   AdditionalService,
 } from '@prisma/client';
-import { formatDate } from '@shared/components/ui/inputs/date/functions/formatDate';
 import {
   fetchOrderDetails,
   updateOrderStatus,
@@ -41,10 +39,7 @@ const OrderInfoModal: React.FC<OrderInfoModalProps> = ({ isOpen, notification, o
   const [showAdditionalServices, setShowAdditionalServices] = useState<boolean>(false);
   const [notificationRead, setNotificationRead] = useState<boolean>(notification.read);
 
-  console.log('notification order info modal', notification);
-
   const socket = useSocket('notification');
-  const noop = () => {};
 
   useEffect(() => {
     if (!isOpen || !notification.orderId) return;
@@ -73,12 +68,7 @@ const OrderInfoModal: React.FC<OrderInfoModalProps> = ({ isOpen, notification, o
 
         if (socket) {
           const updatedNotification = {
-            uuid: notification.uuid,
-            userId: notification.userId,
-            title: notification.title,
-            message: notification.message,
-            orderId: notification.orderId,
-            action: notification.action,
+            ...notification,
             read: true,
           };
           console.log('Отправляем WebSocket-уведомление:', updatedNotification);
@@ -104,10 +94,10 @@ const OrderInfoModal: React.FC<OrderInfoModalProps> = ({ isOpen, notification, o
       <AnimatedComponent duration={500}>
         <div className="relative bg-white rounded-3xl max-w-3xl w-full p-6">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-center flex-1">Детали заказа</h2>
+            <h2 className="text-2xl font-bold text-center flex-1">Заказ #{notification.orderId}</h2>
             <IButton
               variant="close"
-              onClick={handleClose}
+              onClick={onClose}
               aria-label="Закрыть модальное окно"
               className="ml-4 border border-gray-200 hover:shadow-[0px_0px_5px_rgba(0,0,0,0.15)] hover:bg-blue-100 rounded-full"
             >
@@ -116,163 +106,67 @@ const OrderInfoModal: React.FC<OrderInfoModalProps> = ({ isOpen, notification, o
           </div>
 
           {loading ? (
-            <p>Загрузка заказа...</p>
+            <div className="flex justify-center">
+              <div className="w-5 h-5 border-4 border-gray-200 border-t-blue-500 rounded-full animate-spin" />
+            </div>
           ) : error ? (
             <p className="text-red-500">{error}</p>
           ) : orderData ? (
-            <div className="space-y-6">
-              <div className="text-center">
-                <TextInput
-                  label="Время отправления / Departure Time"
-                  value={formatDate(orderData.departureTime)}
-                  onChange={noop}
-                  readOnly
-                  disabled
-                  type="date"
-                  error={false}
-                  errorBorder={false}
-                  validationMessage=""
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <TextInput
-                  label="Откуда"
-                  value={orderData.departurePoint?.address || ''}
-                  onChange={noop}
-                  readOnly
-                  disabled
-                  type="text"
-                  error={false}
-                  errorBorder={false}
-                  validationMessage=""
-                />
-                <TextInput
-                  label="Куда"
-                  value={orderData.arrivalPoint?.address || ''}
-                  onChange={noop}
-                  readOnly
-                  disabled
-                  type="text"
-                  error={false}
-                  errorBorder={false}
-                  validationMessage=""
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <TextInput
-                  label="ФИО клиента"
-                  value={orderData.createdBy?.fullName || ''}
-                  onChange={noop}
-                  readOnly
-                  disabled
-                  type="text"
-                  error={false}
-                  errorBorder={false}
-                  validationMessage=""
-                />
-                <TextInput
-                  label="Номер телефона"
-                  value={orderData.createdBy?.phone || ''}
-                  onChange={noop}
-                  readOnly
-                  disabled
-                  type="text"
-                  error={false}
-                  errorBorder={false}
-                  validationMessage=""
-                />
-              </div>
-
+            <div className="space-y-4">
               <div>
-                <TextInput
-                  label="Тариф"
-                  value={
-                    orderData.tariff
-                      ? `${orderData.tariff.name} (${orderData.tariff.price} сом)`
-                      : ''
-                  }
-                  onChange={noop}
-                  readOnly
-                  disabled
-                  type="text"
-                  error={false}
-                  errorBorder={false}
-                  validationMessage=""
-                />
+                <p>
+                  <strong>Время отправления:</strong>{' '}
+                  {new Date(orderData.departureTime).toLocaleString()}
+                </p>
+                <p>
+                  <strong>Откуда:</strong> {orderData.departurePoint?.address || '—'}
+                </p>
+                <p>
+                  <strong>Куда:</strong> {orderData.arrivalPoint?.address || '—'}
+                </p>
+                <p>
+                  <strong>Клиент:</strong> {orderData.createdBy?.fullName || '—'} (
+                  {orderData.createdBy?.phone || '—'})
+                </p>
+                <p>
+                  <strong>Тариф:</strong>{' '}
+                  {orderData.tariff
+                    ? `${orderData.tariff.name} (${orderData.tariff.price} сом)`
+                    : '—'}
+                </p>
+                <p>
+                  <strong>Номер рейса:</strong> {orderData.flightNumber || '—'}
+                </p>
+                {orderData.description && (
+                  <p>
+                    <strong>Описание:</strong> {orderData.description}
+                  </p>
+                )}
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <TextInput
-                  label="Номер рейса"
-                  value={orderData.flightNumber || '—'}
-                  onChange={noop}
-                  readOnly
-                  disabled
-                  type="text"
-                  error={false}
-                  errorBorder={false}
-                  validationMessage=""
-                />
+              {orderData.additionalServices && orderData.additionalServices.length > 0 && (
                 <div>
-                  <TextInput
-                    label="Описание"
-                    value={orderData.description || ''}
-                    onChange={noop}
-                    readOnly
-                    disabled
-                    type="textarea"
-                    error={false}
-                    errorBorder={false}
-                    validationMessage=""
-                    rows={3}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <button
-                  type="button"
-                  onClick={() => setShowAdditionalServices((prev) => !prev)}
-                  className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 transition"
-                >
-                  {showAdditionalServices ? 'Скрыть доп. услуги' : 'Показать доп. услуги'}
-                </button>
-                {showAdditionalServices &&
-                  orderData.additionalServices &&
-                  orderData.additionalServices.length > 0 && (
-                    <div className="mt-4 overflow-x-auto">
-                      <table className="min-w-full border-collapse">
-                        <thead>
-                          <tr>
-                            <th className="px-4 py-2 border border-gray-300 text-left">
-                              Наименование
-                            </th>
-                            <th className="px-4 py-2 border border-gray-300 text-left">Цена</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {orderData.additionalServices.map((service) => (
-                            <tr key={service.uuid}>
-                              <td className="px-4 py-2 border border-gray-300">{service.name}</td>
-                              <td className="px-4 py-2 border border-gray-300">
-                                {service.price} сом
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                  <button
+                    className="text-blue-500 hover:underline"
+                    onClick={() => setShowAdditionalServices(!showAdditionalServices)}
+                  >
+                    {showAdditionalServices ? 'Скрыть доп. услуги' : 'Показать доп. услуги'}
+                  </button>
+                  {showAdditionalServices && (
+                    <ul className="mt-2 list-disc pl-5">
+                      {orderData.additionalServices.map((service) => (
+                        <li key={service.uuid}>
+                          {service.name} - {service.price} сом
+                        </li>
+                      ))}
+                    </ul>
                   )}
-              </div>
+                </div>
+              )}
 
               <div className="flex justify-center mt-6">
                 {notificationRead ? (
-                  <div
-                    onClick={handleClose}
-                    className="px-6 py-2 bg-green-500 text-white rounded cursor-default"
-                  >
+                  <div className="px-6 py-2 bg-green-500 text-white rounded cursor-default">
                     Ознамился (Прочитано)
                   </div>
                 ) : (
@@ -287,12 +181,12 @@ const OrderInfoModal: React.FC<OrderInfoModalProps> = ({ isOpen, notification, o
               </div>
 
               <div className="text-sm text-gray-500">
-                Создан: {formatDate(orderData.createdAt.toString())} | Обновлено:{' '}
-                {formatDate(orderData.updatedAt.toString())}
+                Создан: {new Date(orderData.createdAt).toLocaleString()} | Обновлено:{' '}
+                {new Date(orderData.updatedAt).toLocaleString()}
               </div>
             </div>
           ) : (
-            <p>Нет данных для отображения.</p>
+            <p>Не удалось загрузить данные заказа</p>
           )}
         </div>
       </AnimatedComponent>
@@ -300,4 +194,5 @@ const OrderInfoModal: React.FC<OrderInfoModalProps> = ({ isOpen, notification, o
   );
 };
 
-export default OrderInfoModal;
+//Мемоизация компонента
+export default React.memo(OrderInfoModal);
