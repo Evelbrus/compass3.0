@@ -17,6 +17,28 @@ interface Params {
   uuid: string;
 }
 
+//Объект stages для уведомлений клиента
+const stages: Record<DriverAcceptanceStatus, string> = {
+  PENDING: 'Ожидание принятия заказа водителем',
+  TAKEN: 'Водитель уведомлён о заказе',
+  ACCEPTED: 'Заказ принят водителем',
+  ON_THE_WAY: 'Водитель едет к вам',
+  ARRIVED: 'Водитель прибыл к месту',
+  PICKED_UP: 'Поездка началась',
+  COMPLETED: 'Поездка завершена',
+  TIMEOUT: 'Время ожидания истекло',
+};
+
+//Интерфейс для типизации тела запроса
+interface UpdateOrderRequest {
+  driverStatus?: DriverAcceptanceStatus;
+  orderStatus?: OrderStatus;
+  driverId?: string;
+  notificationUuid?: string;
+  markNotificationAsRead?: boolean;
+  action?: Action;
+}
+
 export async function PATCH(req: Request, { params }: { params: Promise<Params> }) {
   const { uuid } = await params;
   log(`Updating status for order UUID: ${uuid}`);
@@ -29,7 +51,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<Params> 
       notificationUuid,
       markNotificationAsRead,
       action,
-    } = await req.json();
+    }: UpdateOrderRequest = await req.json();
 
     log(`Received data:`, { driverStatus, orderStatus, driverId, notificationUuid, action });
 
@@ -110,9 +132,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<Params> 
         });
         log(`Updated driver notification:`, updatedNotification);
 
-        //Отправка обновлённого уведомления водителю через WebSocket
+        //Отправка уведомления водителю
         if (driverId) {
-          const notificationData = {
+          const driverNotificationData = {
             uuid: updatedNotification.uuid,
             userId: updatedNotification.userId,
             title: updatedNotification.title || 'Статус заказа обновлён',
@@ -126,18 +148,148 @@ export async function PATCH(req: Request, { params }: { params: Promise<Params> 
           };
           socket.emit('notification', {
             userId: driverId,
-            notification: notificationData,
+            notification: driverNotificationData,
           });
-          log(`WebSocket notification sent to driver ${driverId}:`, notificationData);
+          log(`WebSocket notification sent to driver ${driverId}:`, driverNotificationData);
+        }
+
+        //Отправка уведомления клиенту (createdById)
+        if (driverStatus) {
+          let clientNotification = await prismaTx.notification.findFirst({
+            where: {
+              orderId: order.uuid,
+              userId: order.createdById,
+              action: { in: [Action.inProgress, Action.info] },
+            },
+          });
+
+          const notificationData = {
+            title: 'Обновление статуса заказа',
+            message: `Статус заказа #${uuid}: ${stages[driverStatus]}`,
+            action: action || Action.inProgress,
+            read: false,
+          };
+
+          if (clientNotification) {
+            clientNotification = await prismaTx.notification.update({
+              where: { uuid: clientNotification.uuid },
+              data: {
+                ...notificationData,
+                updatedAt: new Date(),
+              },
+            });
+            log(`Updated client notification:`, clientNotification);
+          } else {
+            clientNotification = await prismaTx.notification.create({
+              data: {
+                uuid: uuidv4(),
+                userId: order.createdById,
+                orderId: order.uuid,
+                ...notificationData,
+                createdById: order.createdById,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              },
+            });
+            log(`Created new client notification:`, clientNotification);
+          }
+
+          const clientNotificationData = {
+            uuid: clientNotification.uuid,
+            userId: clientNotification.userId,
+            title: clientNotification.title,
+            message: clientNotification.message,
+            orderId: clientNotification.orderId,
+            action: clientNotification.action,
+            read: clientNotification.read,
+            createdById: clientNotification.createdById,
+            createdAt: clientNotification.createdAt.toISOString(),
+            updatedAt: clientNotification.updatedAt.toISOString(),
+          };
+          socket.emit('notification', {
+            userId: order.createdById,
+            notification: clientNotificationData,
+          });
+          log(
+            `WebSocket notification sent to client ${order.createdById}:`,
+            clientNotificationData,
+          );
         }
       }
 
       //Логика уведомлений для операторов и администраторов
       let updatedAdminNotifications = [];
       if (
-        (driverStatus === DriverAcceptanceStatus.ACCEPTED &&
-          orderStatus === OrderStatus.IN_PROGRESS) ||
-        (driverStatus === DriverAcceptanceStatus.TIMEOUT && orderStatus === OrderStatus.CANCELLED)
+        driverStatus === DriverAcceptanceStatus.ACCEPTED &&
+        orderStatus === OrderStatus.IN_PROGRESS
+      ) {
+        //Проверяем, был ли заказ просрочен
+        const isOverdue =
+          order.status === OrderStatus.OVERDUE ||
+          new Date(order.departureTime).getTime() < Date.now();
+
+        if (isOverdue) {
+          const adminsAndOperators = await prismaTx.user.findMany({
+            where: { role: { in: [UserRole.Operator, UserRole.Admin] } },
+          });
+
+          updatedAdminNotifications = [];
+          for (const user of adminsAndOperators) {
+            const adminNotification = await prismaTx.notification.findFirst({
+              where: { orderId: order.uuid, userId: user.uuid, action: Action.warning },
+            });
+
+            let notification;
+            if (adminNotification) {
+              notification = await prismaTx.notification.update({
+                where: { uuid: adminNotification.uuid },
+                data: {
+                  title: 'Заказ принят водителем',
+                  message: `Заказ #${order.uuid} был принят водителем после просрочки.`,
+                  action: Action.info,
+                  read: false,
+                },
+              });
+              log(`Updated admin notification for ${user.uuid}`);
+            } else {
+              notification = await prismaTx.notification.create({
+                data: {
+                  uuid: uuidv4(),
+                  userId: user.uuid,
+                  title: 'Заказ принят водителем',
+                  message: `Заказ #${order.uuid} был принят водителем после просрочки.`,
+                  orderId: order.uuid,
+                  action: Action.info,
+                  read: false,
+                  createdById: order.createdById,
+                },
+              });
+              log(`Created new admin notification for ${user.uuid}`);
+            }
+            updatedAdminNotifications.push(notification);
+
+            const notificationData = {
+              uuid: notification.uuid,
+              userId: notification.userId,
+              title: notification.title,
+              message: notification.message,
+              orderId: notification.orderId,
+              action: notification.action,
+              read: notification.read,
+              createdById: notification.createdById,
+              createdAt: notification.createdAt,
+              updatedAt: notification.updatedAt,
+            };
+            socket.emit('notification', {
+              userId: notification.userId,
+              notification: notificationData,
+            });
+            log(`WebSocket notification sent to ${notification.userId}:`, notificationData);
+          }
+        }
+      } else if (
+        driverStatus === DriverAcceptanceStatus.TIMEOUT &&
+        orderStatus === OrderStatus.CANCELLED
       ) {
         const adminsAndOperators = await prismaTx.user.findMany({
           where: { role: { in: [UserRole.Operator, UserRole.Admin] } },
@@ -151,31 +303,25 @@ export async function PATCH(req: Request, { params }: { params: Promise<Params> 
 
           let notification;
           if (adminNotification) {
-            const isAccepted = driverStatus === DriverAcceptanceStatus.ACCEPTED;
             notification = await prismaTx.notification.update({
               where: { uuid: adminNotification.uuid },
               data: {
-                title: isAccepted ? 'Заказ принят водителем' : 'Заказ отклонён водителем',
-                message: isAccepted
-                  ? `Заказ #${order.uuid} был принят водителем после просрочки.`
-                  : `Заказ #${order.uuid} был отклонён водителем после просрочки.`,
-                action: isAccepted ? Action.info : Action.cancelled,
+                title: 'Заказ отклонён водителем',
+                message: `Заказ #${order.uuid} был отклонён водителем после просрочки.`,
+                action: Action.cancelled,
                 read: false,
               },
             });
             log(`Updated admin notification for ${user.uuid}`);
           } else {
-            const isAccepted = driverStatus === DriverAcceptanceStatus.ACCEPTED;
             notification = await prismaTx.notification.create({
               data: {
                 uuid: uuidv4(),
                 userId: user.uuid,
-                title: isAccepted ? 'Заказ принят водителем' : 'Заказ отклонён водителем',
-                message: isAccepted
-                  ? `Заказ #${order.uuid} был принят водителем после просрочки.`
-                  : `Заказ #${order.uuid} был отклонён водителем после просрочки.`,
+                title: 'Заказ отклонён водителем',
+                message: `Заказ #${order.uuid} был отклонён водителем после просрочки.`,
                 orderId: order.uuid,
-                action: isAccepted ? Action.info : Action.cancelled,
+                action: Action.cancelled,
                 read: false,
                 createdById: order.createdById,
               },
@@ -184,7 +330,6 @@ export async function PATCH(req: Request, { params }: { params: Promise<Params> 
           }
           updatedAdminNotifications.push(notification);
 
-          //Отправка WebSocket-уведомлений операторам и администраторам
           const notificationData = {
             uuid: notification.uuid,
             userId: notification.userId,

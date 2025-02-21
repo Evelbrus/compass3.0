@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
         message,
         orderId,
         action: action ?? Action.info,
-        createdById, //Добавляем createdById
+        createdById,
       }));
       const notifications = await prisma.notification.createMany({
         data: notificationsData,
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
           message,
           orderId,
           action: action ?? Action.info,
-          createdById, //Добавляем createdById
+          createdById,
         },
       });
       log('Successfully created notification in database:', notification);

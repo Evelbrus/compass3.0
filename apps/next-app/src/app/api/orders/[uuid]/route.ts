@@ -224,6 +224,39 @@ export async function PUT(req: Request, { params }: { params: Promise<Params> })
         log('New additional services added');
       }
 
+      //Уведомление клиенту об обновлении заказа
+      const clientNotification = await prismaTx.notification.create({
+        data: {
+          uuid: uuidv4(),
+          userId: createdBy,
+          title: 'Заказ обновлён',
+          message: `Ваш заказ от ${departurePointRecord.address} до ${arrivalPointRecord.address} обновлён.`,
+          orderId: uuid,
+          action: Action.info,
+          read: false,
+          createdById: createdBy,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      });
+
+      socket.emit('notification', {
+        userId: createdBy,
+        notification: {
+          uuid: clientNotification.uuid,
+          userId: clientNotification.userId,
+          title: clientNotification.title,
+          message: clientNotification.message,
+          orderId: clientNotification.orderId,
+          action: clientNotification.action,
+          read: clientNotification.read,
+          createdById: clientNotification.createdById,
+          createdAt: clientNotification.createdAt.toISOString(),
+          updatedAt: clientNotification.updatedAt.toISOString(),
+        },
+      });
+      log('Уведомление клиенту об обновлении заказа отправлено:', clientNotification);
+
       //Обработка смены водителя с отправкой через WebSocket
       if (existingOrder.assignedDriverId && existingOrder.assignedDriverId !== assignedDriverId) {
         const oldDriverNotification = await prismaTx.notification.findFirst({
@@ -340,7 +373,7 @@ export async function PUT(req: Request, { params }: { params: Promise<Params> })
         await existingJob.remove();
         await orderQueue.add(
           'notification',
-          { order: result },
+          { orderUuid: result.uuid },
           {
             delay: delay > 0 ? delay : 0,
             attempts: 3,

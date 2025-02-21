@@ -40,7 +40,10 @@ export const worker = new Worker(
         throw new Error('UUID заказа отсутствует в данных задачи');
       }
 
-      const order = await prisma.order.findUnique({ where: { uuid: job.data.orderUuid } });
+      const order = await prisma.order.findUnique({
+        where: { uuid: job.data.orderUuid },
+        include: { departurePoint: true, arrivalPoint: true },
+      });
       if (!order) {
         console.error(`Заказ с UUID ${job.data.orderUuid} не найден`);
         throw new Error(`Заказ ${job.data.orderUuid} не найден`);
@@ -77,14 +80,20 @@ worker.on('failed', (job: Job<CheckOverdueJobData> | undefined, err: Error, prev
 async function processNotificationJob(order: Order) {
   console.log(`Отправка уведомления inProgress для заказа ${order.uuid}`);
 
-  if (order.assignedDriverId) {
-    const userId: string = order.assignedDriverId;
-    await prisma.$transaction(async (prismaTx) => {
-      const departurePoint = await prismaTx.point.findUnique({
-        where: { uuid: order.departurePointId },
-      });
-      const address = departurePoint?.address ?? 'неизвестного места';
-      const newMessage = `Вам назначен новый заказ от ${address}.`;
+  await prisma.$transaction(async (prismaTx) => {
+    const departurePoint = await prismaTx.point.findUnique({
+      where: { uuid: order.departurePointId },
+    });
+    const arrivalPoint = await prismaTx.point.findUnique({
+      where: { uuid: order.arrivalPointId },
+    });
+    const depAddress = departurePoint?.address ?? 'неизвестного места';
+    const arrAddress = arrivalPoint?.address ?? 'неизвестного места';
+
+    //Уведомление водителю
+    if (order.assignedDriverId) {
+      const userId: string = order.assignedDriverId;
+      const newMessage = `Вам назначен заказ от ${depAddress} до ${arrAddress}. Поездка начнётся через минуту.`;
       const desiredAction = Action.inProgress;
 
       await prismaTx.user.update({
@@ -97,77 +106,135 @@ async function processNotificationJob(order: Order) {
         data: { driverAcceptanceStatus: DriverAcceptanceStatus.TAKEN },
       });
 
-      let notification = await prismaTx.notification.findFirst({
+      let driverNotification = await prismaTx.notification.findFirst({
         where: { orderId: order.uuid, userId: userId },
       });
 
-      if (notification) {
-        notification = await prismaTx.notification.update({
-          where: { uuid: notification.uuid },
+      if (driverNotification) {
+        driverNotification = await prismaTx.notification.update({
+          where: { uuid: driverNotification.uuid },
           data: { action: desiredAction, message: newMessage, read: false },
         });
-        console.log(`✅ Уведомление для заказа ${order.uuid} обновлено статусом ${desiredAction}`);
+        console.log(`✅ Уведомление для водителя обновлено статусом ${desiredAction}`);
       } else {
-        notification = await prismaTx.notification.create({
+        driverNotification = await prismaTx.notification.create({
           data: {
             uuid: uuidv4(),
             userId: userId,
             orderId: order.uuid,
-            title: 'Новый заказ!',
+            title: 'Поездка начинается',
             message: newMessage,
             action: desiredAction,
             read: false,
             createdById: order.createdById,
           },
         });
-        console.log(`✅ Уведомление для заказа ${order.uuid} создано со статусом ${desiredAction}`);
+        console.log(`✅ Уведомление для водителя создано со статусом ${desiredAction}`);
       }
 
-      const notificationData = {
-        uuid: notification.uuid,
+      const driverNotificationData = {
+        uuid: driverNotification.uuid,
         userId: userId,
         orderId: order.uuid,
-        title: notification.title,
-        message: notification.message,
-        read: notification.read,
+        title: driverNotification.title,
+        message: driverNotification.message,
+        read: driverNotification.read,
         createdById: order.createdById,
-        createdAt: notification.createdAt?.toISOString() || new Date().toISOString(),
-        updatedAt: notification.updatedAt?.toISOString() || new Date().toISOString(),
-        action: notification.action,
+        createdAt: driverNotification.createdAt?.toISOString() || new Date().toISOString(),
+        updatedAt: driverNotification.updatedAt?.toISOString() || new Date().toISOString(),
+        action: driverNotification.action,
       };
 
-      console.log('Перед отправкой WebSocket:', notificationData);
       socket.emit('notification', {
         userId: userId,
-        notification: notificationData,
+        notification: driverNotificationData,
       });
-      console.log('📡 Уведомление inProgress отправлено через сокет:', notificationData);
+      console.log(
+        '📡 Уведомление inProgress отправлено водителю через сокет:',
+        driverNotificationData,
+      );
+    } else {
+      console.warn(
+        `Заказ ${order.uuid} не имеет назначенного водителя — уведомление водителю не отправлено.`,
+      );
+    }
+
+    //Уведомление клиенту
+    const clientMessage = `Ваш заказ от ${depAddress} до ${arrAddress} скоро начнётся.`;
+    let clientNotification = await prismaTx.notification.findFirst({
+      where: { orderId: order.uuid, userId: order.createdById },
     });
-  } else {
-    console.warn(
-      `Заказ ${order.uuid} не имеет назначенного водителя — уведомление не отправляется.`,
+
+    if (clientNotification) {
+      clientNotification = await prismaTx.notification.update({
+        where: { uuid: clientNotification.uuid },
+        data: { action: Action.inProgress, message: clientMessage, read: false },
+      });
+      console.log(`✅ Уведомление для клиента обновлено статусом inProgress`);
+    } else {
+      clientNotification = await prismaTx.notification.create({
+        data: {
+          uuid: uuidv4(),
+          userId: order.createdById,
+          orderId: order.uuid,
+          title: 'Поездка начинается',
+          message: clientMessage,
+          action: Action.inProgress,
+          read: false,
+          createdById: order.createdById,
+        },
+      });
+      console.log(`✅ Уведомление для клиента создано со статусом inProgress`);
+    }
+
+    const clientNotificationData = {
+      uuid: clientNotification.uuid,
+      userId: order.createdById,
+      orderId: order.uuid,
+      title: clientNotification.title,
+      message: clientNotification.message,
+      read: clientNotification.read,
+      createdById: order.createdById,
+      createdAt: clientNotification.createdAt?.toISOString() || new Date().toISOString(),
+      updatedAt: clientNotification.updatedAt?.toISOString() || new Date().toISOString(),
+      action: clientNotification.action,
+    };
+
+    socket.emit('notification', {
+      userId: order.createdById,
+      notification: clientNotificationData,
+    });
+    console.log(
+      '📡 Уведомление inProgress отправлено клиенту через сокет:',
+      clientNotificationData,
     );
-  }
 
-  const departureTimeMs = new Date(order.departureTime).getTime();
-  const now = Date.now();
-  const delay = Math.max(departureTimeMs - now, 0);
+    //Планируем задачу checkoverdue
+    const departureTimeMs = new Date(order.departureTime).getTime();
+    const now = Date.now();
+    const delay = Math.max(departureTimeMs - now, 0);
 
-  await orderQueue.add(
-    'checkoverdue',
-    { orderUuid: order.uuid },
-    {
-      delay,
-      attempts: 3,
-      backoff: { type: 'exponential', delay: 1000 },
-      jobId: `checkoverdue-${order.uuid}`,
-    },
-  );
-  console.log(`⏱ Задача "checkoverdue" для заказа ${order.uuid} запланирована через ${delay} мс.`);
+    await orderQueue.add(
+      'checkoverdue',
+      { orderUuid: order.uuid },
+      {
+        delay,
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 1000 },
+        jobId: `checkoverdue-${order.uuid}`,
+      },
+    );
+    console.log(
+      `⏱ Задача "checkoverdue" для заказа ${order.uuid} запланирована через ${delay} мс.`,
+    );
+  });
 }
 
 async function processCheckoverdueJob(order: Order) {
-  const freshOrder = await prisma.order.findUnique({ where: { uuid: order.uuid } });
+  const freshOrder = await prisma.order.findUnique({
+    where: { uuid: order.uuid },
+    include: { departurePoint: true },
+  });
   if (!freshOrder) return;
 
   if (freshOrder.status === OrderStatus.PENDING || freshOrder.status === OrderStatus.PLANNED) {

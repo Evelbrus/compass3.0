@@ -35,6 +35,17 @@ interface OrderProgressModalProps {
   getDriverNotifications: (driverId: string) => Notification[];
 }
 
+export const stages: Record<DriverAcceptanceStatus, string> = {
+  PENDING: 'Ожидание принятия заказа',
+  TAKEN: 'Водитель уведомлен о заказе',
+  ACCEPTED: 'Заказ принят водителем',
+  ON_THE_WAY: 'Еду к клиенту',
+  ARRIVED: 'Прибыл к клиенту',
+  PICKED_UP: 'Клиент в машине, поездка начата',
+  COMPLETED: 'Поездка завершена',
+  TIMEOUT: 'Время ожидания истекло',
+};
+
 const OrderProgressModal: React.FC<OrderProgressModalProps> = ({
   isOpen,
   onClose,
@@ -76,17 +87,6 @@ const OrderProgressModal: React.FC<OrderProgressModalProps> = ({
         setIsLoading(false);
       });
   }, [isOpen, notification.orderId, onClose]);
-
-  const stages: Record<DriverAcceptanceStatus, string> = {
-    PENDING: 'Ожидание принятия заказа',
-    TAKEN: 'Водитель уведомлен о заказе',
-    ACCEPTED: 'Заказ принят водителем',
-    ON_THE_WAY: 'Еду к клиенту',
-    ARRIVED: 'Прибыл к клиенту',
-    PICKED_UP: 'Клиент в машине, поездка начата',
-    COMPLETED: 'Поездка завершена',
-    TIMEOUT: 'Время ожидания истекло',
-  };
 
   const stageToOrderStatus: Partial<Record<DriverAcceptanceStatus, OrderStatus>> = {
     TAKEN: OrderStatus.PLANNED,

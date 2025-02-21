@@ -2,7 +2,6 @@ import { useForm, UseFormSetValue } from 'react-hook-form';
 import { CreateOrderData } from '@shared/prisma/interface/orders/interface';
 import { useErrorMessage } from '@features/orders/create/functions/useErrorMessage';
 import {
-  useNotifications,
   useOrderCreateClients,
   useOrderCreateDrivers,
   useOrderConfiguration,
@@ -13,7 +12,7 @@ import {
 } from '@features/orders/create/hooks';
 import { cleanIntermediatePoints } from '@features/orders/create/helpers';
 import { showToast } from '@shared/components/toast/ToastManager';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Point, Status, Tariff } from '@prisma/client';
 import { useRouter } from 'next/navigation';
 
@@ -131,26 +130,6 @@ export const useOrderCreateLogic = (uuid?: string) => {
     extraWaitingTimeCost: time.extraWaitingTimeCost,
   });
 
-  const notifications = useNotifications({
-    departurePoint: points.selectedDeparturePoint,
-    arrivalPoint: points.selectedArrivalPoint,
-    isEditing: isEditingProp,
-  });
-
-  const handleSuccessCallback = useCallback(
-    (res: any) => {
-      notifications.handleOrderSuccess({
-        uuid: res.uuid,
-        createdById: res.createdById || res.createdBy,
-        assignedDriverId: res.assignedDriverId,
-        createdAt: new Date(res.createdAt),
-        updatedAt: new Date(res.updatedAt),
-      });
-      router.push('/orders');
-    },
-    [notifications, router],
-  );
-
   const onSubmit = async (data: CreateOrderData) => {
     try {
       const cleanedIntermediatePoints = cleanIntermediatePoints(data.intermediatePoints || []);
@@ -177,33 +156,11 @@ export const useOrderCreateLogic = (uuid?: string) => {
         return;
       } else {
         showToast.success(uuid ? 'Order updated successfully!' : 'Order created successfully!');
-      }
-
-      if (!uuid) {
-        const res = await response.json();
-        console.log('result', res);
-        if (res && res.uuid) {
-          handleSuccessCallback(res);
-        } else {
-          throw new Error('Не удалось получить uuid заказа из ответа сервера');
-        }
-      } else {
-        if (!orderData) {
-          showToast.error('Нет данных заказа');
-          return;
-        }
-
-        notifications.handleOrderSuccess({
-          uuid,
-          assignedDriverId: orderData.assignedDriverId || '',
-          createdById: orderData.createdBy || '',
-          createdAt: orderData.createdAt,
-          updatedAt: new Date(),
-        });
         router.push('/orders');
       }
     } catch (err) {
-      notifications.handleOrderError(err);
+      console.error('Error submitting order:', err);
+      showToast.error('An error occurred while submitting the order.');
     }
   };
 
@@ -212,7 +169,6 @@ export const useOrderCreateLogic = (uuid?: string) => {
     ...handlers,
     ...drivers,
     ...clients,
-    ...notifications,
     ...points,
     ...additionalServices,
     ...time,
@@ -225,7 +181,6 @@ export const useOrderCreateLogic = (uuid?: string) => {
     ...handlers,
     ...drivers,
     ...clients,
-    ...notifications,
     ...points,
     ...additionalServices,
     ...time,

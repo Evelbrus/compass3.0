@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { OrderStatus } from '@prisma/client';
+import { Action, OrderStatus, UserRole } from '@prisma/client';
 import debug from 'debug';
 import { prisma } from '@shared/prisma/prisma-client';
 import { v4 as uuidv4 } from 'uuid';
@@ -9,6 +9,7 @@ import { verifyJWT } from '@shared/utils/parse-jwt/parseJwt';
 import { orderQueue } from '@next-app/src/lib/queues/orderQueue';
 import { CreateClientCorpOrderData } from '@shared/components/modal/create-client-corp-order/hooks/useCreateClientCorpOrder';
 import { Decimal } from 'decimal.js';
+import { socket } from '@socket-server';
 
 const log = debug('app:client-corp/orders');
 
@@ -267,6 +268,81 @@ export async function POST(req: NextRequest) {
         })),
       });
       log('Дополнительные услуги добавлены');
+    }
+
+    //Создаём уведомление для клиента
+    const clientNotification = await prismaTx.notification.create({
+      data: {
+        uuid: uuidv4(),
+        userId: clientUuid,
+        title: 'Заказ создан',
+        message: `Ваш заказ №${order.uuid.slice(0, 8)} создан от ${departurePointRecord.address} до ${arrivalPointRecord.address}`,
+        orderId: order.uuid,
+        action: Action.info,
+        read: false,
+        createdById: clientUuid,
+      },
+    });
+
+    socket.emit('notification', {
+      userId: clientUuid,
+      notification: {
+        uuid: clientNotification.uuid,
+        userId: clientNotification.userId,
+        title: clientNotification.title,
+        message: clientNotification.message,
+        orderId: clientNotification.orderId,
+        action: clientNotification.action,
+        read: clientNotification.read,
+        createdById: clientNotification.createdById,
+        createdAt: clientNotification.createdAt.toISOString(),
+        updatedAt: clientNotification.updatedAt.toISOString(),
+      },
+    });
+    log('Уведомление клиенту отправлено через WebSocket:', clientNotification);
+
+    //Создаём уведомления для администраторов и операторов
+    const adminsAndOperators = await prismaTx.user.findMany({
+      where: { role: { in: [UserRole.Operator, UserRole.Admin] } },
+    });
+
+    if (adminsAndOperators.length > 0) {
+      const notificationsData = adminsAndOperators.map((user) => ({
+        uuid: uuidv4(),
+        userId: user.uuid,
+        title: 'Новый заказ',
+        message: `Новый заказ №${order.uuid.slice(0, 8)} создан от ${departurePointRecord.address} до ${arrivalPointRecord.address}`,
+        orderId: order.uuid,
+        action: Action.info,
+        read: false,
+        createdById: clientUuid,
+      }));
+
+      await prismaTx.notification.createMany({
+        data: notificationsData,
+      });
+
+      notificationsData.forEach((notification) => {
+        socket.emit('notification', {
+          userId: notification.userId,
+          notification: {
+            uuid: notification.uuid,
+            userId: notification.userId,
+            title: notification.title,
+            message: notification.message,
+            orderId: notification.orderId,
+            action: notification.action,
+            read: notification.read,
+            createdById: notification.createdById,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+        });
+      });
+      log(
+        'Уведомления администраторам и операторам отправлены через WebSocket:',
+        notificationsData,
+      );
     }
 
     return order;

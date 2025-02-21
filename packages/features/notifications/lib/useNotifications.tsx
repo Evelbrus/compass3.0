@@ -76,7 +76,18 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
           n.userId === driverId &&
           (n.action === NOTIFICATION_TYPES.NOTED ||
             n.action === NOTIFICATION_TYPES.IN_PROGRESS ||
-            n.action === NOTIFICATION_TYPES.WARNING),
+            n.action === NOTIFICATION_TYPES.WARNING ||
+            n.action === NOTIFICATION_TYPES.CANCELLED),
+      );
+    },
+    [notifications],
+  );
+
+  const getClientNotifications = useCallback(
+    (clientId: string) => {
+      console.log('clientId', clientId);
+      return notifications.filter(
+        (n) => n.createdById === clientId && n.action === NOTIFICATION_TYPES.IN_PROGRESS,
       );
     },
     [notifications],
@@ -170,11 +181,10 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
     }
   }, [userSession, socket, openModal]);
 
-  console.log('use notifications', notifications);
-
   return {
     notifications,
     getDriverNotifications,
+    getClientNotifications,
     isLoading,
     error,
     activeNotification,

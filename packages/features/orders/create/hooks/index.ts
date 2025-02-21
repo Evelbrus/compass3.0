@@ -2,7 +2,6 @@ export * from './drivers/useDrivers';
 export * from './drivers/useOrderCreateDrivers';
 export * from './points/usePoints';
 export * from './points/useOrderCreatePoints';
-export * from './notifications/useNotifications';
 export * from './tariffs/useTariffs';
 export * from './useOrderConfiguration';
 export * from './clients/useClients';

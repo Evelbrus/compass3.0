@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { Action, Gender, OrderStatus, UserRole } from '@prisma/client';
+import { Action, Gender, OrderStatus, UserRole, DriverAcceptanceStatus } from '@prisma/client';
 import debug from 'debug';
 import { CreateOrderData } from '@shared/prisma/interface/orders/interface';
 import { v4 as uuidv4 } from 'uuid';
@@ -240,6 +240,7 @@ export async function POST(req: Request) {
           description: description || null,
           flightNumber: flightNumber || null,
           waitingTimeMinutes: waitingTimeMinutes,
+          driverAcceptanceStatus: assignedDriverId ? DriverAcceptanceStatus.PENDING : null,
         },
       });
       log('Заказ создан:', order);
@@ -283,23 +284,63 @@ export async function POST(req: Request) {
           },
         });
 
+        const driverNotificationData = {
+          uuid: notification.uuid,
+          userId: assignedDriverId,
+          orderId: order.uuid,
+          title: notification.title,
+          message: notification.message,
+          action: notification.action,
+          read: notification.read,
+          createdById: clientUuid,
+          createdAt: notification.createdAt.toISOString(),
+          updatedAt: notification.updatedAt.toISOString(),
+          driverAcceptanceStatus: DriverAcceptanceStatus.PENDING,
+        };
+
         socket.emit('notification', {
           userId: assignedDriverId,
-          notification: {
-            uuid: notification.uuid,
-            userId: assignedDriverId,
-            orderId: order.uuid,
-            title: notification.title,
-            message: notification.message,
-            action: notification.action,
-            read: notification.read,
-            createdById: clientUuid,
-            createdAt: notification.createdAt.toISOString(),
-            updatedAt: notification.updatedAt.toISOString(),
-          },
+          notification: driverNotificationData,
         });
-        log(`Уведомление с action: noted отправлено водителю ${assignedDriverId}`);
+        log(
+          `Уведомление с action: noted отправлено водителю ${assignedDriverId}:`,
+          driverNotificationData,
+        );
       }
+
+      //Создаём уведомление для клиента
+      const clientNotification = await prismaTx.notification.create({
+        data: {
+          uuid: uuidv4(),
+          userId: clientUuid,
+          orderId: order.uuid,
+          title: 'Заказ успешно создан',
+          message: `Ваш заказ от ${departurePointRecord.address} до ${arrivalPointRecord.address} создан.`,
+          action: Action.info,
+          read: false,
+          createdById: clientUuid,
+        },
+      });
+
+      const clientNotificationData = {
+        uuid: clientNotification.uuid,
+        userId: clientUuid,
+        orderId: order.uuid,
+        title: clientNotification.title,
+        message: clientNotification.message,
+        action: clientNotification.action,
+        read: clientNotification.read,
+        createdById: clientUuid,
+        createdAt: clientNotification.createdAt.toISOString(),
+        updatedAt: clientNotification.updatedAt.toISOString(),
+        driverAcceptanceStatus: assignedDriverId ? DriverAcceptanceStatus.PENDING : null,
+      };
+
+      socket.emit('notification', {
+        userId: clientUuid,
+        notification: clientNotificationData,
+      });
+      log(`Уведомление с action: info отправлено клиенту ${clientUuid}:`, clientNotificationData);
 
       return order;
     });
