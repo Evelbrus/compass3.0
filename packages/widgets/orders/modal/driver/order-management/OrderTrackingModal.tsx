@@ -25,6 +25,7 @@ interface OrderTrackingModalProps {
   isOpen: boolean;
   onClose: () => void;
   notification: Notification;
+  getClientNotifications: (clientId: string) => Notification[];
 }
 
 export const stages: Record<DriverAcceptanceStatus, string> = {
@@ -39,10 +40,11 @@ export const stages: Record<DriverAcceptanceStatus, string> = {
 };
 
 const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
-  isOpen,
-  onClose,
-  notification,
-}) => {
+                                                                 isOpen,
+                                                                 onClose,
+                                                                 notification,
+                                                                 getClientNotifications,
+                                                               }) => {
   const [currentStage, setCurrentStage] = useState<DriverAcceptanceStatus>(
     DriverAcceptanceStatus.PENDING,
   );
@@ -51,35 +53,73 @@ const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [orderData, setOrderData] = useState<OrderDetail | null>(null);
 
-  const loadOrderData = async () => {
-    if (!notification?.orderId) return;
-    setIsLoading(true);
-    try {
-      const data = await fetchOrderDetails(notification.orderId);
-      setOrderData(data);
-      setOrderStatus(data.status);
-      const newStage = data.driverAcceptanceStatus || DriverAcceptanceStatus.PENDING;
-      setCurrentStage(newStage);
-
-      if (data.status === OrderStatus.COMPLETED || data.status === OrderStatus.CANCELLED) {
-        onClose();
-      }
-    } catch (err) {
-      console.error('Ошибка загрузки данных:', err);
-      setError('Не удалось загрузить данные заказа');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
+  // Закрываем модалку, если action !== inProgress
   useEffect(() => {
-    if (isOpen && notification?.orderId) {
-      loadOrderData();
+    if (isOpen && notification.action !== Action.inProgress) {
+      console.log(`Закрываем OrderTrackingModal: action=${notification.action} не inProgress`);
+      onClose();
     }
-  }, [isOpen, notification?.orderId, notification]);
+  }, [isOpen, notification.action, onClose]);
+
+  // Начальная загрузка данных
+  useEffect(() => {
+    if (!isOpen || !notification.orderId) return;
+    setIsLoading(true);
+    setError(null);
+    fetchOrderDetails(notification.orderId)
+      .then((data) => {
+        setOrderData(data);
+        setOrderStatus(data.status);
+        setCurrentStage(data.driverAcceptanceStatus || DriverAcceptanceStatus.PENDING);
+        if (data.status === OrderStatus.COMPLETED || data.status === OrderStatus.CANCELLED) {
+          onClose();
+        }
+      })
+      .catch((err) => {
+        console.error('Ошибка загрузки данных:', err);
+        setError('Не удалось загрузить данные заказа');
+      })
+      .finally(() => setIsLoading(false));
+  }, [isOpen, notification.orderId, onClose]);
+
+  // Подписка на уведомления корпоротивного клиента
+  useEffect(() => {
+    if (!isOpen || !notification.orderId || !notification.createdById) return;
+
+    const clientNotifications = getClientNotifications(notification.createdById);
+    const latestNotification = clientNotifications.find(
+      (n) => n.orderId === notification.orderId,
+    );
+
+    if (!latestNotification || (latestNotification && latestNotification.action !== Action.inProgress)) {
+      console.log(
+        latestNotification
+          ? `Закрываем модалку: latestNotification.action=${latestNotification.action}`
+          : `Закрываем модалку: latestNotification undefined`,
+      );
+      onClose();
+      return;
+    }
+
+    if (latestNotification) {
+      fetchOrderDetails(notification.orderId)
+        .then((data) => {
+          setOrderData(data);
+          setOrderStatus(data.status);
+          setCurrentStage(data.driverAcceptanceStatus || DriverAcceptanceStatus.PENDING);
+          if (data.status === OrderStatus.COMPLETED || data.status === OrderStatus.CANCELLED) {
+            onClose();
+          }
+        })
+        .catch((err) => {
+          console.error('Ошибка при обновлении данных заказа:', err);
+          setError('Не удалось обновить статус заказа');
+        });
+    }
+  }, [isOpen, notification.orderId, notification.createdById, getClientNotifications, onClose]);
 
   const handleCancelOrder = async () => {
-    if (!notification?.orderId) return;
+    if (!notification.orderId) return;
     setIsLoading(true);
     setError(null);
 
@@ -88,8 +128,10 @@ const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
         orderUuid: notification.orderId,
         driverStatus: DriverAcceptanceStatus.PENDING,
         orderStatus: OrderStatus.CANCELLED,
-        driverId: orderData?.assignedDriverId || undefined,
         notificationUuid: notification.uuid,
+        userId: notification.userId,
+        createdById: notification.createdById,
+        driverById: orderData?.assignedDriverId || undefined,
         markNotificationAsRead: true,
         action: Action.cancelled,
       });
@@ -150,12 +192,9 @@ const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
 
               <p className="mt-4 font-semibold">Текущий этап: {stages[currentStage]}</p>
               {error && <p className="text-red-500">{error}</p>}
-              {isLoading && (
-                <div className="inline-block w-5 h-5 border-4 border-gray-200 border-t-blue-500 rounded-full animate-spin" />
-              )}
             </div>
           ) : (
-            <p>Не удалось загрузить данные заказа</p>
+            <p className="text-red-500">Не удалось загрузить данные заказа</p>
           )}
 
           <div className="mt-5 flex justify-center gap-4">

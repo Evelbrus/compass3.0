@@ -1,36 +1,48 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { socket } from '@socket';
-import { useEffect, useState } from 'react';
 import { SocketContext } from '@shared/utils/contexts/SocketContext';
 
 export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
-  const [isReady, setIsReady] = useState(false);
+  const [isConnected, setIsConnected] = useState(socket.connected); // Изначально проверяем состояние сокета
 
   useEffect(() => {
-    const onConnect = () => {};
-
-    const onDisconnect = () => {
-      console.log('Socket disconnected');
+    // Обработчик успешного подключения
+    const onConnect = () => {
+      console.log('Socket connected:', socket.id);
+      setIsConnected(true);
     };
 
+    // Обработчик отключения
+    const onDisconnect = () => {
+      console.log('Socket disconnected');
+      setIsConnected(false);
+    };
+
+    // Подписываемся на события
     socket.on('connect', onConnect);
     socket.on('disconnect', onDisconnect);
 
+    // Если сокет не подключен, инициируем подключение
     if (!socket.connected) {
+      console.log('Инициируем подключение к WebSocket');
       socket.connect();
-      setIsReady(true);
+    } else {
+      console.log('Сокет уже подключен:', socket.id);
+      setIsConnected(true); // Если подключен изначально, сразу обновляем состояние
     }
 
+    // Очистка подписок при размонтировании
     return () => {
       socket.off('connect', onConnect);
       socket.off('disconnect', onDisconnect);
-      socket.disconnect();
     };
   }, []);
 
   return (
-    <SocketContext.Provider value={isReady ? socket : null}>{children}</SocketContext.Provider>
+    <SocketContext.Provider value={isConnected ? socket : null}>
+      {children}
+    </SocketContext.Provider>
   );
 };

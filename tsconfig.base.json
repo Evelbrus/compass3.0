@@ -3,7 +3,6 @@
     "baseUrl": ".",
     "rootDir": ".",
     "importHelpers": true,
-    "allowJs": false,
     "allowSyntheticDefaultImports": true,
     "downlevelIteration": true,
     "esModuleInterop": true,
@@ -29,14 +28,7 @@
   },
   "include": [
     "packages/**/*",
-    "apps/next-app/src/socket.js",
-    "apps/next-app/declarations.d.ts",
-    "apps/next-app/next-auth.d.ts",
-    "apps/next-app/public/*"
+    "apps/next-app/**/*"
   ],
-  "exclude": ["**/node_modules", "**/dist", "**/types", "apps/next-app/out", "apps/next-app/.next"],
-  "sideEffects": ["*.scss"],
-  "typeAcquisition": {
-    "enable": true
-  }
+  "exclude": ["**/node_modules", "**/dist", "**/types", "apps/next-app/out", "apps/next-app/.next"]
 }

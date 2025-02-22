@@ -1,0 +1,21 @@
+{
+  "extends": "./tsconfig.base",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "noEmit": true,
+    "allowJs": true,
+    "noUncheckedIndexedAccess": true,
+    "baseUrl": ".",
+    "paths": {
+      "@socket": ["./apps/next-app/src/lib/websocket/websocket-client.ts"],
+      "@next-app/*": ["./apps/next-app/*"],
+      "@app/*": ["./packages/app/*"],
+      "@pages/*": ["./packages/pages/*"],
+      "@widgets/*": ["./packages/widgets/*"],
+      "@entities/*": ["./packages/entities/*"],
+      "@features/*": ["./packages/features/*"],
+      "@shared/*": ["./packages/shared/*"]
+    }
+  },
+  "exclude": ["node_modules", ".next"]
+}

@@ -35,14 +35,8 @@ const Notification = ({ userSession }: NotificationIslandProps) => {
   const unreadCount = useMemo(() => notifications.filter((n) => !n.read).length, [notifications]);
 
   const driverNotifications = useMemo(
-    () =>
-      notifications.filter(
-        (n) =>
-          n.action === Action.noted ||
-          n.action === Action.inProgress ||
-          n.action === Action.warning,
-      ),
-    [notifications],
+    () => (userSession?.role === UserRole.Driver ? getDriverNotifications(userSession.uuid) : []),
+    [notifications, userSession, getDriverNotifications],
   );
   const driverUnreadCount = useMemo(
     () => driverNotifications.filter((n) => !n.read).length,
@@ -51,11 +45,7 @@ const Notification = ({ userSession }: NotificationIslandProps) => {
 
   const clientNotifications = useMemo(
     () =>
-      userSession?.role === UserRole.ClientCorp
-        ? getClientNotifications(userSession.uuid).filter(
-            (n) => n.action === Action.inProgress || n.action === Action.warning,
-          )
-        : [],
+      userSession?.role === UserRole.ClientCorp ? getClientNotifications(userSession.uuid) : [],
     [notifications, userSession, getClientNotifications],
   );
   const clientUnreadCount = useMemo(
@@ -84,9 +74,6 @@ const Notification = ({ userSession }: NotificationIslandProps) => {
     };
   }, []);
 
-  console.log('driverNotifications', driverNotifications);
-  console.log('clientNotifications', clientNotifications);
-
   return (
     <>
       {activeNotification && (
@@ -112,30 +99,28 @@ const Notification = ({ userSession }: NotificationIslandProps) => {
                 getDriverNotifications={getDriverNotifications}
               />
             )}
-          {activeNotification.action === Action.cancelled &&
-            userSession?.role === UserRole.Driver && (
-              <>
-                {showToast.warn('Заказ был отменён клиентом', {
-                  position: 'top-right',
-                  autoClose: 3000,
-                })}
-                {closeModal()}
-              </>
-            )}
-          {activeNotification.action === Action.warning &&
-            (userSession?.role === UserRole.Operator || userSession?.role === UserRole.Admin) && (
-              <WarningAdminModal
-                isOpen={true}
-                onClose={closeModal}
-                notification={activeNotification}
-              />
-            )}
+          {activeNotification && (
+            <>
+              {activeNotification.action === Action.warning &&
+                (userSession?.role === UserRole.Operator || userSession?.role === UserRole.Admin) && (
+                  console.log('Роль пользователя:', userSession?.role),
+                  console.log('Попытка открыть WarningAdminModal для:', activeNotification),
+                    <WarningAdminModal
+                      isOpen={true}
+                      onClose={closeModal}
+                      notification={activeNotification}
+                      notifications={notifications}
+                    />
+                )}
+            </>
+          )}
           {activeNotification.action === Action.inProgress &&
             userSession?.role === UserRole.ClientCorp && (
               <OrderTrackingModal
                 isOpen={true}
                 onClose={closeModal}
                 notification={activeNotification}
+                getClientNotifications={getClientNotifications} // Передаем для отслеживания уведомлений
               />
             )}
         </>

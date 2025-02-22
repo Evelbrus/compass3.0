@@ -31,7 +31,7 @@ model Order {
   assignedDriverId              String?                          @map("assigned_driver_id")
   assignedDriver                User?                            @relation("assigned_orders", fields: [assignedDriverId], references: [uuid], onDelete: Cascade)
   status                        OrderStatus                      @default(PENDING) @map("status")
-  driverAcceptanceStatus        DriverAcceptanceStatus?          @default(PENDING) @map("driver_acceptance_status") // Статус выполнения заказа водителем
+  driverAcceptanceStatus        DriverAcceptanceStatus?          @default(PENDING) @map("driver_acceptance_status")
   basePrice                     Decimal                          @map("base_price")
   finalPrice                    Decimal?                         @map("final_price")
   departureTime                 DateTime                         @map("departure_time")

@@ -3,12 +3,5 @@
   "name": "@my/app",
   "main": "index.ts",
   "types": "./index.ts",
-  "private": true,
-  "sideEffects": [
-    "*.scss"
-  ],
-  "files": [
-    "types",
-    "dist"
-  ]
+  "private": true
 }

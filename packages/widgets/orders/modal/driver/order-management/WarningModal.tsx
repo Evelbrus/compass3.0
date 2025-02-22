@@ -14,11 +14,11 @@ interface WarningModalProps {
 }
 
 const WarningModal: React.FC<WarningModalProps> = ({
-  isOpen,
-  onClose,
-  notification,
-  getDriverNotifications,
-}) => {
+                                                     isOpen,
+                                                     onClose,
+                                                     notification,
+                                                     getDriverNotifications,
+                                                   }) => {
   const socket = useSocket('notification');
 
   const handleAcceptOrder = async () => {
@@ -42,7 +42,8 @@ const WarningModal: React.FC<WarningModalProps> = ({
         orderUuid: notification.orderId,
         driverStatus: DriverAcceptanceStatus.ACCEPTED,
         orderStatus: OrderStatus.IN_PROGRESS,
-        driverId: notification.userId,
+        userId: notification.userId, // Исправлено с driverId на userId
+        createdById: notification.createdById, // Добавлено обязательное поле
         notificationUuid: notification.uuid,
         markNotificationAsRead: false,
         action: Action.inProgress,
@@ -94,7 +95,8 @@ const WarningModal: React.FC<WarningModalProps> = ({
         orderUuid: notification.orderId,
         driverStatus: DriverAcceptanceStatus.TIMEOUT,
         orderStatus: OrderStatus.CANCELLED,
-        driverId: notification.userId,
+        userId: notification.userId, // Исправлено с driverId на userId
+        createdById: notification.createdById, // Добавлено обязательное поле
         notificationUuid: notification.uuid,
         markNotificationAsRead: true,
         action: Action.cancelled,

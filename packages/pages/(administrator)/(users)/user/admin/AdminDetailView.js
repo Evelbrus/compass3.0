@@ -1,6 +1,0 @@
-'use client';
-import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
-const AdminDetailView = ({ userData }) => {
-    return (_jsxs("div", { children: [_jsx("h2", { children: "Admin Details" }), _jsxs("div", { children: [_jsx("label", { children: "Email:" }), _jsx("p", { children: userData.email })] }), _jsxs("div", { children: [_jsx("label", { children: "Role:" }), _jsx("p", { children: userData.role })] }), _jsxs("div", { children: [_jsx("label", { children: "Availability:" }), _jsx("p", { children: userData.availability ? 'Available' : 'Unavailable' })] }), _jsxs("div", { children: [_jsx("label", { children: "Full Name:" }), _jsx("p", { children: userData.fullName })] }), _jsxs("div", { children: [_jsx("label", { children: "Phone:" }), _jsx("p", { children: userData.phone })] }), _jsxs("div", { children: [_jsx("label", { children: "Gender:" }), _jsx("p", { children: userData.gender })] }), _jsxs("div", { children: [_jsx("label", { children: "Address:" }), _jsx("p", { children: userData.address })] }), _jsxs("div", { children: [_jsx("label", { children: "Profile Photo Path:" }), _jsx("p", { children: userData.profilePhotoPath })] })] }));
-};
-export default AdminDetailView;

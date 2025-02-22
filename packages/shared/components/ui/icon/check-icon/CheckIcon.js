@@ -1,3 +1,0 @@
-import { jsx as _jsx } from "react/jsx-runtime";
-const CheckIcon = (props) => (_jsx("svg", { width: "20", height: "20", viewBox: "0 0 20 20", fill: "none", xmlns: "http://www.w3.org/2000/svg", ...props, children: _jsx("path", { fillRule: "evenodd", clipRule: "evenodd", d: "M19.4998 5.1694C20.0052 5.67487 20.0052 6.4944 19.4998 6.99988L7.58177 19.5269C7.07629 20.0323 6.25675 20.0323 5.75128 19.5269L0.379105 14.7094C-0.126368 14.204 -0.126368 13.3844 0.379105 12.879C0.884579 12.3735 1.70411 12.3735 2.20959 12.879L6.66652 16.7811L17.6693 5.1694C18.1748 4.66392 18.9943 4.66392 19.4998 5.1694Z", fill: "#2A3037" }) }));
-export default CheckIcon;

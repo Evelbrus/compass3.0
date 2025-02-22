@@ -39,7 +39,7 @@ const nextConfig: NextConfig = {
   webpack: (config) => {
     config.resolve.alias = {
       ...config.resolve.alias,
-      '@socket': path.resolve(__dirname, 'src/socket.js'),
+      '@socket': path.resolve(__dirname, 'src/socket.ts'),
       '@app': path.resolve(__dirname, '../../packages/app'),
       '@pages': path.resolve(__dirname, '../../packages/pages'),
       '@widgets': path.resolve(__dirname, '../../packages/widgets'),

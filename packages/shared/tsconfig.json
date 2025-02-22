@@ -1,18 +1,4 @@
 {
-  "extends": "../../tsconfig.base",
-  "compilerOptions": {
-    "noEmit": true,
-    "baseUrl": ".",
-    "rootDir": ".",
-    "paths": {
-      "@socket": ["../../apps/next-app/src/socket.js"],
-      "@shared/*": ["./*"],
-      "@public/*": ["../../apps/next-app/public/*"],
-      "@prisma/*": ["./shared/prisma/schema/*.prisma"]
-    }
-  },
-  "include": [
-    "declarations.d.ts",
-  ],
-  "sideEffects": ["*.scss"]
+  "extends": "../../tsconfig.root",
+  "include": ["./**/*"]
 }

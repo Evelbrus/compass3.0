@@ -7,7 +7,7 @@ export function deleteAllCookies(response: NextResponse, request: NextRequest) {
     response.cookies.set(cookie.name, '', {
       expires: new Date(0),
       path: '/',
-      domain: 'operator.garage.kg',
+      domain: process.env.NEXT_PUBLIC_URL,
       httpOnly: true,
       secure: true,
       sameSite: 'lax',

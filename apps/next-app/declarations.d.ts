@@ -7,7 +7,7 @@ declare namespace NodeJS {
     REFRESH_TOKEN_SECRET: string;
     ENCRYPTION_KEY: string;
     RATE_LIMIT_MAX_ATTEMPTS: string;
-    WEBSOCKET_PORT: string;
+    WEBSOCKET_PORT: number;
     REDIS_HOST: string;
     REDIS_PORT: string;
     DATABASE_URL: string;
@@ -20,11 +20,6 @@ declare namespace NodeJS {
 }
 
 declare module '@socket' {
-  import { Socket } from 'socket.io-client';
-  export const socket: Socket;
-}
-
-declare module '@socket-server' {
   import { Socket } from 'socket.io-client';
   export const socket: Socket;
 }

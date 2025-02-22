@@ -1,22 +1,10 @@
 {
-  "extends": "../../tsconfig.base",
+  "extends": "../../tsconfig.root",
   "include": [
     "./**/*",
-    "../widgets/**/*",
-    "../features/**/*",
-    "../entities/**/*",
-    "../shared/**/*"
-  ],
-  "compilerOptions": {
-    "lib": ["dom", "dom.iterable", "esnext"],
-    "noEmit": true,
-    "baseUrl": ".",
-    "paths": {
-      "@pages/*": ["./*"],
-      "@widgets/*": ["../widgets/*"],
-      "@features/*": ["../features/*"],
-      "@entities/*": ["../entities/*"],
-      "@shared/*": ["../shared/*"]
-    }
-  }
+    "../../packages/widgets/**/*",
+    "../../packages/features/**/*",
+    "../../packages/entities/**/*",
+    "../../packages/shared/**/*"
+  ]
 }

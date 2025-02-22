@@ -31,7 +31,7 @@ interface OrderProgressModalProps {
   isOpen: boolean;
   onClose: () => void;
   notification: Notification;
-  getDriverNotifications: (driverId: string) => Notification[];
+  getDriverNotifications?: (driverId: string) => Notification[];
 }
 
 export const stages: Record<DriverAcceptanceStatus, string> = {
@@ -46,11 +46,11 @@ export const stages: Record<DriverAcceptanceStatus, string> = {
 };
 
 const OrderProgressModal: React.FC<OrderProgressModalProps> = ({
-  isOpen,
-  onClose,
-  notification,
-  getDriverNotifications,
-}) => {
+                                                                 isOpen,
+                                                                 onClose,
+                                                                 notification,
+                                                                 getDriverNotifications,
+                                                               }) => {
   const [currentStage, setCurrentStage] = useState<DriverAcceptanceStatus>(
     DriverAcceptanceStatus.PENDING,
   );
@@ -60,30 +60,64 @@ const OrderProgressModal: React.FC<OrderProgressModalProps> = ({
   const [orderData, setOrderData] = useState<OrderDetail | null>(null);
   const [showAdditionalServices, setShowAdditionalServices] = useState(false);
 
+  // Закрываем модалку, если action !== inProgress
+  useEffect(() => {
+    if (isOpen && notification.action !== Action.inProgress) {
+      console.log(`Закрываем OrderProgressModal: action=${notification.action} не inProgress`);
+      onClose();
+    }
+  }, [isOpen, notification.action, onClose]);
+
+  // Начальная загрузка данных
   useEffect(() => {
     if (!isOpen || !notification.orderId) return;
     setIsLoading(true);
+    setError(null);
     fetchOrderDetails(notification.orderId)
       .then((data) => {
         setOrderData(data);
         setOrderStatus(data.status);
-        const initialStage = data.driverAcceptanceStatus || DriverAcceptanceStatus.PENDING;
-        setCurrentStage(initialStage);
-        if (
-          data.status === OrderStatus.COMPLETED ||
-          data.status === OrderStatus.CANCELLED ||
-          data.status === OrderStatus.OVERDUE
-        ) {
-          onClose();
-        }
-        setIsLoading(false);
+        setCurrentStage(data.driverAcceptanceStatus || DriverAcceptanceStatus.PENDING);
       })
       .catch((err) => {
         console.error('Ошибка загрузки данных:', err);
         setError('Не удалось загрузить данные заказа');
-        setIsLoading(false);
-      });
+      })
+      .finally(() => setIsLoading(false));
   }, [isOpen, notification.orderId, onClose]);
+
+  // Подписка на уведомления водителя
+  useEffect(() => {
+    if (!isOpen || !notification.orderId || !notification.userId || !getDriverNotifications) return;
+
+    const driverNotifications = getDriverNotifications(notification.userId);
+    const latestNotification = driverNotifications.find(
+      (n) => n.orderId === notification.orderId,
+    );
+
+    if (!latestNotification || (latestNotification && latestNotification.action !== Action.inProgress)) {
+      console.log(
+        latestNotification
+          ? `Закрываем модалку: latestNotification.action=${latestNotification.action}`
+          : `Закрываем модалку: latestNotification undefined`,
+      );
+      onClose();
+      return;
+    }
+
+    if (latestNotification) {
+      fetchOrderDetails(notification.orderId)
+        .then((data) => {
+          setOrderData(data);
+          setOrderStatus(data.status);
+          setCurrentStage(data.driverAcceptanceStatus || DriverAcceptanceStatus.PENDING);
+        })
+        .catch((err) => {
+          console.error('Ошибка при обновлении данных заказа:', err);
+          setError('Не удалось обновить статус заказа');
+        });
+    }
+  }, [isOpen, notification.orderId, notification.userId, getDriverNotifications, onClose]);
 
   const stageToOrderStatus: Partial<Record<DriverAcceptanceStatus, OrderStatus>> = {
     TAKEN: OrderStatus.PLANNED,
@@ -93,6 +127,7 @@ const OrderProgressModal: React.FC<OrderProgressModalProps> = ({
     PICKED_UP: OrderStatus.IN_PROGRESS,
     COMPLETED: OrderStatus.COMPLETED,
     PENDING: OrderStatus.CANCELLED,
+    TIMEOUT: OrderStatus.CANCELLED,
   };
 
   const handleNextStage = async (nextDriverStage: DriverAcceptanceStatus) => {
@@ -100,21 +135,6 @@ const OrderProgressModal: React.FC<OrderProgressModalProps> = ({
     setError(null);
 
     try {
-      if (nextDriverStage === DriverAcceptanceStatus.ACCEPTED) {
-        const driverNotifications = getDriverNotifications(notification.userId);
-        const hasActiveOrder = driverNotifications.some(
-          (n) =>
-            n.userId === notification.userId &&
-            n.action === Action.inProgress &&
-            n.orderId !== notification.orderId,
-        );
-        if (hasActiveOrder) {
-          setError('Вы не можете принять новый заказ, пока не завершите текущий');
-          setIsLoading(false);
-          return;
-        }
-      }
-
       const newOrderStatus = stageToOrderStatus[nextDriverStage] || orderStatus;
       const isFinalStage =
         nextDriverStage === DriverAcceptanceStatus.COMPLETED ||
@@ -129,18 +149,16 @@ const OrderProgressModal: React.FC<OrderProgressModalProps> = ({
         orderUuid: notification.orderId,
         driverStatus: nextDriverStage,
         orderStatus: newOrderStatus,
-        driverId: notification.userId,
         notificationUuid: notification.uuid,
+        userId: notification.userId,
+        createdById: notification.createdById,
+        driverById: notification.driverById || undefined,
         markNotificationAsRead: true,
         action: updatedAction,
       });
-
       setCurrentStage(nextDriverStage);
       setOrderStatus(newOrderStatus);
-
-      if (isFinalStage) {
-        onClose();
-      }
+      if (isFinalStage) onClose();
     } catch (err) {
       console.error('Ошибка при обновлении статуса:', err);
       setError(err instanceof Error ? err.message : 'Не удалось обновить статус');
@@ -156,18 +174,14 @@ const OrderProgressModal: React.FC<OrderProgressModalProps> = ({
         return (
           <>
             <button
-              className={`px-5 py-2 rounded-md text-white transition-colors ${
-                isLoading ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600'
-              }`}
+              className={`px-5 py-2 rounded-md text-white transition-colors ${isLoading ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600'}`}
               onClick={() => handleNextStage(DriverAcceptanceStatus.ACCEPTED)}
               disabled={isLoading}
             >
               Принять заказ
             </button>
             <button
-              className={`px-5 py-2 rounded-md text-white transition-colors ${
-                isLoading ? 'bg-gray-400 cursor-not-allowed' : 'bg-red-500 hover:bg-red-600'
-              }`}
+              className={`px-5 py-2 rounded-md text-white transition-colors ${isLoading ? 'bg-gray-400 cursor-not-allowed' : 'bg-red-500 hover:bg-red-600'}`}
               onClick={() => handleNextStage(DriverAcceptanceStatus.TIMEOUT)}
               disabled={isLoading}
             >
@@ -178,9 +192,7 @@ const OrderProgressModal: React.FC<OrderProgressModalProps> = ({
       case DriverAcceptanceStatus.ACCEPTED:
         return (
           <button
-            className={`px-5 py-2 rounded-md text-white transition-colors ${
-              isLoading ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600'
-            }`}
+            className={`px-5 py-2 rounded-md text-white transition-colors ${isLoading ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600'}`}
             onClick={() => handleNextStage(DriverAcceptanceStatus.ON_THE_WAY)}
             disabled={isLoading}
           >
@@ -190,9 +202,7 @@ const OrderProgressModal: React.FC<OrderProgressModalProps> = ({
       case DriverAcceptanceStatus.ON_THE_WAY:
         return (
           <button
-            className={`px-5 py-2 rounded-md text-white transition-colors ${
-              isLoading ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600'
-            }`}
+            className={`px-5 py-2 rounded-md text-white transition-colors ${isLoading ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600'}`}
             onClick={() => handleNextStage(DriverAcceptanceStatus.ARRIVED)}
             disabled={isLoading}
           >
@@ -202,9 +212,7 @@ const OrderProgressModal: React.FC<OrderProgressModalProps> = ({
       case DriverAcceptanceStatus.ARRIVED:
         return (
           <button
-            className={`px-5 py-2 rounded-md text-white transition-colors ${
-              isLoading ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600'
-            }`}
+            className={`px-5 py-2 rounded-md text-white transition-colors ${isLoading ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600'}`}
             onClick={() => handleNextStage(DriverAcceptanceStatus.PICKED_UP)}
             disabled={isLoading}
           >
@@ -214,9 +222,7 @@ const OrderProgressModal: React.FC<OrderProgressModalProps> = ({
       case DriverAcceptanceStatus.PICKED_UP:
         return (
           <button
-            className={`px-5 py-2 rounded-md text-white transition-colors ${
-              isLoading ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600'
-            }`}
+            className={`px-5 py-2 rounded-md text-white transition-colors ${isLoading ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600'}`}
             onClick={() => handleNextStage(DriverAcceptanceStatus.COMPLETED)}
             disabled={isLoading}
           >
@@ -299,15 +305,12 @@ const OrderProgressModal: React.FC<OrderProgressModalProps> = ({
 
               <p className="mt-4 font-semibold">Текущий этап: {stages[currentStage]}</p>
               {error && <p className="text-red-500">{error}</p>}
-              {isLoading && (
-                <div className="inline-block w-5 h-5 border-4 border-gray-200 border-t-blue-500 rounded-full animate-spin" />
-              )}
             </div>
           ) : (
-            <p>Не удалось загрузить данные заказа</p>
+            <p className="text-red-500">Не удалось загрузить данные заказа</p>
           )}
 
-          <div className="mt-5 flex gap-2">{getNextActions()}</div>
+          <div className="mt-5 flex gap-2 justify-center">{getNextActions()}</div>
         </div>
       </AnimatedComponent>
     </div>

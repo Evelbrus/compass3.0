@@ -2,32 +2,40 @@ import { Action, DriverAcceptanceStatus, OrderStatus } from '@prisma/client';
 
 interface UpdateOrderStatusParams {
   orderUuid: string;
-  driverStatus?: DriverAcceptanceStatus;
-  orderStatus?: OrderStatus;
-  driverId?: string;
-  notificationUuid?: string;
+  driverStatus?: DriverAcceptanceStatus; // Сделали опциональным
+  orderStatus?: OrderStatus; // Сделали опциональным
+  notificationUuid: string;
+  userId: string; // UUID получателя уведомления (водитель, клиент, администратор)
+  createdById: string; // UUID корпоративного клиента, создавшего заказ
+  driverById?: string; // UUID водителя, назначенного на заказ
   markNotificationAsRead?: boolean;
-  action?: Action;
+  action: Action;
 }
 
 export const updateOrderStatus = async ({
-  orderUuid,
-  driverStatus,
-  orderStatus,
-  driverId,
-  notificationUuid,
-  markNotificationAsRead,
-  action,
-}: UpdateOrderStatusParams) => {
-  const body: Partial<UpdateOrderStatusParams> = {};
+                                          orderUuid,
+                                          driverStatus,
+                                          orderStatus,
+                                          userId,
+                                          createdById,
+                                          notificationUuid,
+                                          markNotificationAsRead,
+                                          action,
+                                          driverById,
+                                        }: UpdateOrderStatusParams) => {
+  const body: Partial<UpdateOrderStatusParams> = {
+    orderUuid,
+    notificationUuid,
+    userId,
+    createdById,
+    action,
+  };
 
-  //Добавляем только те поля, которые переданы
+  // Добавляем только те поля, которые переданы
   if (driverStatus !== undefined) body.driverStatus = driverStatus;
   if (orderStatus !== undefined) body.orderStatus = orderStatus;
-  if (driverId !== undefined) body.driverId = driverId;
-  if (notificationUuid !== undefined) body.notificationUuid = notificationUuid;
+  if (driverById !== undefined) body.driverById = driverById;
   if (markNotificationAsRead !== undefined) body.markNotificationAsRead = markNotificationAsRead;
-  if (action !== undefined) body.action = action;
 
   const response = await fetch(`/api/orders/${orderUuid}/update-status`, {
     method: 'PATCH',

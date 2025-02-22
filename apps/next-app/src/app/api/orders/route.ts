@@ -1,29 +1,226 @@
-import { NextResponse } from 'next/server';
-import { Action, Gender, OrderStatus, UserRole, DriverAcceptanceStatus } from '@prisma/client';
+import { NextRequest, NextResponse } from 'next/server';
+import {
+  Action,
+  Gender,
+  OrderStatus,
+  UserRole,
+  DriverAcceptanceStatus,
+} from '@prisma/client';
 import debug from 'debug';
 import { CreateOrderData } from '@shared/prisma/interface/orders/interface';
 import { v4 as uuidv4 } from 'uuid';
 import { Decimal } from 'decimal.js';
 import { prisma } from '@shared/prisma/prisma-client';
 import { orderQueue } from '@next-app/src/lib/queues/orderQueue';
-import { socket } from '@socket-server';
+import { processNotification } from '@next-app/src/utils/notifications/notifications';
+import { authenticateRequest, JwtPayload } from '@next-app/src/utils/authenticate/authenticateRequest';
 
-const log = debug('app:orders');
+const logError = debug('app:orders:error');
 
-export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
-  const parsedParams = {
-    page: parseInt(searchParams.get('page') || '1', 10),
-    per_page: parseInt(searchParams.get('per_page') || '10', 10),
-    status: searchParams.get('status') as OrderStatus | null,
-    sort_by:
-      (searchParams.get('sort_by') as 'createdAt' | 'updatedAt' | 'finalPrice') || 'createdAt',
-    sort_order: (searchParams.get('sort_order') as 'asc' | 'desc') || 'desc',
-  };
-
-  log('Parsed parameters:', parsedParams);
+/**
+ * POST /api/orders
+ * Создает заказ и рассылает уведомления:
+ * - Администратору (идентификатор берется из токена)
+ * - Корпоративному клиенту (поле createdBy из тела запроса)
+ * - Водителю (если выбран)
+ */
+export async function POST(req: NextRequest) {
+  let token: JwtPayload;
+  const allowedRoles = [UserRole.Operator, UserRole.Admin];
+  try {
+    token = await authenticateRequest(req, allowedRoles);
+  } catch (error) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  // Идентификатор администратора, создающего заказ, извлекается из токена
+  const adminUserId = token.uuid;
 
   try {
+    let data: CreateOrderData;
+    try {
+      data = await req.json();
+    } catch (error) {
+      logError('× Ошибка разбора JSON (400)');
+      return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+    }
+
+    // createdBy — идентификатор корпоративного клиента, для которого создается заказ
+    const corpClientId = data.createdBy;
+    const {
+      tariffUuid,
+      departureTime,
+      departurePoint,
+      arrivalPoint,
+      intermediatePoints,
+      basePrice,
+      selectedServices,
+      assignedDriverId,
+      description,
+      flightNumber,
+      waitingTimeMinutes,
+      fullName,
+      phone,
+    } = data;
+
+    const orderStatus = assignedDriverId ? OrderStatus.PLANNED : OrderStatus.PENDING;
+
+    // Создаем заказ в транзакции
+    const createdOrder = await prisma.$transaction(async (prismaTx) => {
+      let clientUuid = corpClientId;
+      if (fullName && phone) {
+        const newUser = await prismaTx.user.create({
+          data: {
+            fullName,
+            phone,
+            role: UserRole.None,
+            email: `${Date.now()}@temp.com`,
+            password: 'temp_password',
+            gender: Gender.None,
+          },
+        });
+        clientUuid = newUser.uuid;
+      } else {
+        const client = await prismaTx.user.findUnique({ where: { uuid: corpClientId } });
+        if (!client) {
+          logError(`× Клиент ${corpClientId} не найден (400)`);
+          throw new Error('Client not found');
+        }
+      }
+      const tariffRecord = await prismaTx.tariff.findUnique({ where: { uuid: tariffUuid } });
+      if (!tariffRecord) {
+        logError(`× Тариф ${tariffUuid} не найден (400)`);
+        throw new Error('Tariff not found');
+      }
+      const departurePointRecord = await prismaTx.point.findUnique({ where: { uuid: departurePoint } });
+      if (!departurePointRecord) {
+        logError(`× Точка отправления ${departurePoint} не найдена (400)`);
+        throw new Error('Departure point not found');
+      }
+      const arrivalPointRecord = await prismaTx.point.findUnique({ where: { uuid: arrivalPoint } });
+      if (!arrivalPointRecord) {
+        logError(`× Точка прибытия ${arrivalPoint} не найдена (400)`);
+        throw new Error('Arrival point not found');
+      }
+      if (assignedDriverId) {
+        const driver = await prismaTx.user.findUnique({ where: { uuid: assignedDriverId } });
+        if (!driver || driver.role !== UserRole.Driver) {
+          logError(`× Водитель ${assignedDriverId} не найден/не Driver (400)`);
+          throw new Error('Driver not found');
+        }
+      }
+      const order = await prismaTx.order.create({
+        data: {
+          uuid: uuidv4(),
+          createdById: clientUuid,
+          tariffUuid,
+          departureTime: new Date(departureTime),
+          departurePointId: departurePoint,
+          arrivalPointId: arrivalPoint,
+          basePrice: basePrice !== undefined ? new Decimal(basePrice) : new Decimal(0),
+          status: orderStatus,
+          assignedDriverId: assignedDriverId || null,
+          intermediatePoints: (intermediatePoints || []).filter(Boolean),
+          description: description || null,
+          flightNumber: flightNumber || null,
+          waitingTimeMinutes: waitingTimeMinutes || 0,
+          driverAcceptanceStatus: assignedDriverId ? DriverAcceptanceStatus.PENDING : null,
+        },
+      });
+      if (selectedServices && selectedServices.length > 0) {
+        const tariffOnServices = await prismaTx.tariffOnService.findMany({
+          where: { uuid: { in: selectedServices } },
+        });
+        if (tariffOnServices.length !== selectedServices.length) {
+          logError(`× Не все услуги найдены для тарифа ${tariffUuid} (400)`);
+          throw new Error('Not all services found for tariff');
+        }
+        await prismaTx.orderOnTariffAdditionalService.createMany({
+          data: tariffOnServices.map((t) => ({
+            uuid: uuidv4(),
+            orderUuid: order.uuid,
+            tariffOnServiceUuid: t.uuid,
+          })),
+        });
+      }
+      return order;
+    });
+
+    // Рассылаем уведомления через processNotification
+    try {
+      await processNotification({
+        userId: adminUserId,
+        orderId: createdOrder.uuid,
+        action: Action.info,
+        templateKey: 'orderCreatedByAdminToAdmin',
+        createdById: adminUserId,
+      });
+      await processNotification({
+        userId: corpClientId,
+        orderId: createdOrder.uuid,
+        action: Action.info,
+        templateKey: 'orderCreatedByAdminToClient',
+        createdById: adminUserId,
+      });
+      if (assignedDriverId) {
+        await processNotification({
+          userId: assignedDriverId,
+          orderId: createdOrder.uuid,
+          action: Action.noted,
+          templateKey: 'orderCreatedDriverAssigned',
+          createdById: adminUserId,
+          driverById: assignedDriverId,
+        });
+      }
+    } catch (notifyErr) {
+      logError('× Ошибка при отправке уведомления (не критично для создания заказа)');
+      if (notifyErr instanceof Error) {
+        logError('Error message:', notifyErr.message);
+        logError('Error stack:', notifyErr.stack);
+      }
+    }
+
+    const departureTimestamp = new Date(createdOrder.departureTime).getTime();
+    const now = Date.now();
+    const delay = Math.max(departureTimestamp - now - 60_000, 0);
+    await orderQueue.add(
+      'notification',
+      { orderUuid: createdOrder.uuid },
+      {
+        delay,
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 1000 },
+        jobId: `notification-${createdOrder.uuid}`,
+      },
+    );
+    console.log(`⏱ Задача "notification" для заказа ${createdOrder.uuid} запланирована через ${delay} мс`);
+
+    return NextResponse.json(createdOrder, { status: 201 });
+  } catch (error) {
+    logError('× Ошибка при создании заказа (500)');
+    if (error instanceof Error) {
+      logError('Error message:', error.message);
+      logError('Error stack:', error.stack);
+    }
+    return NextResponse.json({ error: 'Unable to create order' }, { status: 500 });
+  }
+}
+
+/**
+ * GET /api/orders
+ * Получает список заказов с пагинацией, фильтрацией по статусу и сортировкой.
+ */
+export async function GET(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const parsedParams = {
+      page: Math.max(1, parseInt(searchParams.get('page') || '1', 10)),
+      per_page: Math.max(1, Math.min(100, parseInt(searchParams.get('per_page') || '10', 10))),
+      status: searchParams.get('status') as OrderStatus | null,
+      sort_by:
+        (searchParams.get('sort_by') as 'createdAt' | 'updatedAt' | 'finalPrice') || 'createdAt',
+      sort_order: (searchParams.get('sort_order') as 'asc' | 'desc') || 'desc',
+    };
+
     const where: { status?: OrderStatus } = {};
     if (parsedParams.status) {
       where.status = parsedParams.status;
@@ -44,9 +241,7 @@ export async function GET(req: Request) {
         orderTariffAdditionalServices: {
           include: {
             tariffOnService: {
-              include: {
-                service: true,
-              },
+              include: { service: true },
             },
           },
         },
@@ -57,58 +252,8 @@ export async function GET(req: Request) {
     const totalAllOrders = await prisma.order.count();
     const statusesCount = await prisma.order.groupBy({
       by: ['status'],
-      _count: {
-        status: true,
-      },
+      _count: { status: true },
     });
-
-    log('Fetched orders:', orders);
-
-    const response = orders.map((order) => ({
-      ...order,
-      createdBy: {
-        uuid: order.createdBy.uuid,
-        fullName: order.createdBy.fullName,
-        email: order.createdBy.email,
-        phone: order.createdBy.phone,
-      },
-      tariff: {
-        uuid: order.tariff.uuid,
-        name: order.tariff.name,
-        vehicleTypes: order.tariff.vehicleType,
-      },
-      departurePoint: {
-        uuid: order.departurePoint.uuid,
-        address: order.departurePoint.address,
-        pricePerKm: order.departurePoint.pricePerKm,
-        terrainDifficulty: order.departurePoint.terrainDifficulty,
-        latitude: order.departurePoint.latitude,
-        longitude: order.departurePoint.longitude,
-      },
-      arrivalPoint: {
-        uuid: order.arrivalPoint.uuid,
-        address: order.arrivalPoint.address,
-        pricePerKm: order.arrivalPoint.pricePerKm,
-        terrainDifficulty: order.arrivalPoint.terrainDifficulty,
-        latitude: order.arrivalPoint.latitude,
-        longitude: order.arrivalPoint.longitude,
-      },
-      orderTariffAdditionalServices: order.orderTariffAdditionalServices.map((ots) => ({
-        uuid: ots.uuid,
-        tariffOnServiceUuid: ots.tariffOnServiceUuid,
-        createdAt: ots.createdAt,
-        updatedAt: ots.updatedAt,
-        tariffOnService: {
-          uuid: ots.tariffOnService.uuid,
-          price: ots.tariffOnService.price,
-          isAvailable: ots.tariffOnService.isAvailable,
-          serviceUuid: ots.tariffOnService.serviceUuid,
-          createdAt: ots.tariffOnService.createdAt,
-          updatedAt: ots.tariffOnService.updatedAt,
-          name: ots.tariffOnService.service.name,
-        },
-      })),
-    }));
 
     return NextResponse.json({
       page: parsedParams.page,
@@ -116,259 +261,58 @@ export async function GET(req: Request) {
       total,
       totalAllOrders,
       statusesCount,
-      orders: response,
+      orders: orders.map((order) => ({
+        ...order,
+        createdBy: {
+          uuid: order.createdBy.uuid,
+          fullName: order.createdBy.fullName,
+          email: order.createdBy.email,
+          phone: order.createdBy.phone,
+        },
+        tariff: {
+          uuid: order.tariff.uuid,
+          name: order.tariff.name,
+          vehicleTypes: order.tariff.vehicleType,
+        },
+        departurePoint: {
+          uuid: order.departurePoint.uuid,
+          address: order.departurePoint.address,
+          pricePerKm: order.departurePoint.pricePerKm,
+          terrainDifficulty: order.departurePoint.terrainDifficulty,
+          latitude: order.departurePoint.latitude,
+          longitude: order.departurePoint.longitude,
+        },
+        arrivalPoint: {
+          uuid: order.arrivalPoint.uuid,
+          address: order.arrivalPoint.address,
+          pricePerKm: order.arrivalPoint.pricePerKm,
+          terrainDifficulty: order.arrivalPoint.terrainDifficulty,
+          latitude: order.arrivalPoint.latitude,
+          longitude: order.arrivalPoint.longitude,
+        },
+        orderTariffAdditionalServices: order.orderTariffAdditionalServices.map((ots) => ({
+          uuid: ots.uuid,
+          tariffOnServiceUuid: ots.tariffOnServiceUuid,
+          createdAt: ots.createdAt,
+          updatedAt: ots.updatedAt,
+          tariffOnService: {
+            uuid: ots.tariffOnService.uuid,
+            price: ots.tariffOnService.price,
+            isAvailable: ots.tariffOnService.isAvailable,
+            serviceUuid: ots.tariffOnService.serviceUuid,
+            createdAt: ots.tariffOnService.createdAt,
+            updatedAt: ots.tariffOnService.updatedAt,
+            name: ots.tariffOnService.service.name,
+          },
+        })),
+      })),
     });
   } catch (error) {
-    log('Error fetching orders:', error);
+    logError('× Ошибка при получении списка заказов');
     if (error instanceof Error) {
-      log('Error message:', error.message);
-      log('Error stack:', error.stack);
+      logError('Error message:', error.message);
+      logError('Error stack:', error.stack);
     }
     return NextResponse.json({ error: 'Unable to fetch orders' }, { status: 500 });
-  }
-}
-
-export async function POST(req: Request) {
-  let data: CreateOrderData;
-  try {
-    data = await req.json();
-    log('Получены данные:', data);
-  } catch (error) {
-    log('Ошибка разбора JSON:', error);
-    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
-  }
-
-  const {
-    createdBy,
-    tariffUuid,
-    departureTime,
-    departurePoint,
-    arrivalPoint,
-    intermediatePoints,
-    basePrice,
-    selectedServices,
-    assignedDriverId,
-    description,
-    flightNumber,
-    waitingTimeMinutes,
-    fullName,
-    phone,
-  } = data;
-
-  const orderStatus = assignedDriverId ? OrderStatus.PLANNED : OrderStatus.PENDING;
-
-  try {
-    const result = await prisma.$transaction(async (prismaTx) => {
-      log('Начинаем транзакцию');
-
-      let clientUuid = createdBy;
-      if (fullName && phone) {
-        log('Создаем нового временного пользователя');
-        const newUser = await prismaTx.user.create({
-          data: {
-            fullName,
-            phone,
-            role: UserRole.None,
-            email: `${Date.now()}@temp.com`,
-            password: 'temp_password',
-            gender: Gender.None,
-          },
-        });
-        clientUuid = newUser.uuid;
-        log('Новый временный пользователь создан:', newUser);
-      } else {
-        const client = await prismaTx.user.findUnique({
-          where: { uuid: createdBy },
-        });
-        if (!client) {
-          log(`Клиент с UUID ${createdBy} не найден`);
-          throw new Error('Client not found');
-        }
-        log('Клиент найден:', client);
-      }
-
-      const tariffRecord = await prismaTx.tariff.findUnique({
-        where: { uuid: tariffUuid },
-      });
-      if (!tariffRecord) {
-        log(`Тариф с UUID ${tariffUuid} не найден`);
-        throw new Error('Tariff not found');
-      }
-      log('Тариф найден:', tariffRecord);
-
-      const departurePointRecord = await prismaTx.point.findUnique({
-        where: { uuid: departurePoint },
-      });
-      if (!departurePointRecord) {
-        log(`Точка отправления с UUID ${departurePoint} не найдена`);
-        throw new Error('Departure point not found');
-      }
-      log('Точка отправления найдена:', departurePointRecord);
-
-      const arrivalPointRecord = await prismaTx.point.findUnique({
-        where: { uuid: arrivalPoint },
-      });
-      if (!arrivalPointRecord) {
-        log(`Точка прибытия с UUID ${arrivalPoint} не найдена`);
-        throw new Error('Arrival point not found');
-      }
-      log('Точка прибытия найдена:', arrivalPointRecord);
-
-      if (assignedDriverId) {
-        const driver = await prismaTx.user.findUnique({
-          where: { uuid: assignedDriverId },
-        });
-        if (!driver) {
-          log(`Водитель с UUID ${assignedDriverId} не найден`);
-          throw new Error('Driver not found');
-        }
-        log('Водитель найден:', driver);
-      }
-
-      const order = await prismaTx.order.create({
-        data: {
-          uuid: uuidv4(),
-          createdById: clientUuid,
-          tariffUuid,
-          departureTime: new Date(departureTime!),
-          departurePointId: departurePoint,
-          arrivalPointId: arrivalPoint,
-          basePrice: basePrice !== undefined ? new Decimal(basePrice) : new Decimal(0),
-          status: orderStatus,
-          assignedDriverId: assignedDriverId || null,
-          intermediatePoints: (intermediatePoints || []).filter(Boolean),
-          description: description || null,
-          flightNumber: flightNumber || null,
-          waitingTimeMinutes: waitingTimeMinutes,
-          driverAcceptanceStatus: assignedDriverId ? DriverAcceptanceStatus.PENDING : null,
-        },
-      });
-      log('Заказ создан:', order);
-
-      if (selectedServices && selectedServices.length > 0) {
-        log('Выбранные услуги (tariffOnServiceUuid):', selectedServices);
-        const tariffOnServices = await prismaTx.tariffOnService.findMany({
-          where: {
-            uuid: { in: selectedServices },
-          },
-        });
-        if (tariffOnServices.length !== selectedServices.length) {
-          log(
-            `Не все услуги найдены для тарифа ${tariffUuid}. Выбранные услуги: ${selectedServices.join(', ')}`,
-          );
-          throw new Error('Not all services found for tariff');
-        }
-
-        await prismaTx.orderOnTariffAdditionalService.createMany({
-          data: tariffOnServices.map((tariffOnService) => ({
-            uuid: uuidv4(),
-            orderUuid: order.uuid,
-            tariffOnServiceUuid: tariffOnService.uuid,
-          })),
-        });
-        log('Дополнительные услуги добавлены');
-      }
-
-      //Создаём уведомление для водителя с action: noted
-      if (assignedDriverId) {
-        const notification = await prismaTx.notification.create({
-          data: {
-            uuid: uuidv4(),
-            userId: assignedDriverId,
-            orderId: order.uuid,
-            title: 'Заказ создан',
-            message: `Вам назначен новый заказ от ${departurePointRecord.address} до ${arrivalPointRecord.address}.`,
-            action: Action.noted,
-            read: false,
-            createdById: clientUuid,
-          },
-        });
-
-        const driverNotificationData = {
-          uuid: notification.uuid,
-          userId: assignedDriverId,
-          orderId: order.uuid,
-          title: notification.title,
-          message: notification.message,
-          action: notification.action,
-          read: notification.read,
-          createdById: clientUuid,
-          createdAt: notification.createdAt.toISOString(),
-          updatedAt: notification.updatedAt.toISOString(),
-          driverAcceptanceStatus: DriverAcceptanceStatus.PENDING,
-        };
-
-        socket.emit('notification', {
-          userId: assignedDriverId,
-          notification: driverNotificationData,
-        });
-        log(
-          `Уведомление с action: noted отправлено водителю ${assignedDriverId}:`,
-          driverNotificationData,
-        );
-      }
-
-      //Создаём уведомление для клиента
-      const clientNotification = await prismaTx.notification.create({
-        data: {
-          uuid: uuidv4(),
-          userId: clientUuid,
-          orderId: order.uuid,
-          title: 'Заказ успешно создан',
-          message: `Ваш заказ от ${departurePointRecord.address} до ${arrivalPointRecord.address} создан.`,
-          action: Action.info,
-          read: false,
-          createdById: clientUuid,
-        },
-      });
-
-      const clientNotificationData = {
-        uuid: clientNotification.uuid,
-        userId: clientUuid,
-        orderId: order.uuid,
-        title: clientNotification.title,
-        message: clientNotification.message,
-        action: clientNotification.action,
-        read: clientNotification.read,
-        createdById: clientUuid,
-        createdAt: clientNotification.createdAt.toISOString(),
-        updatedAt: clientNotification.updatedAt.toISOString(),
-        driverAcceptanceStatus: assignedDriverId ? DriverAcceptanceStatus.PENDING : null,
-      };
-
-      socket.emit('notification', {
-        userId: clientUuid,
-        notification: clientNotificationData,
-      });
-      log(`Уведомление с action: info отправлено клиенту ${clientUuid}:`, clientNotificationData);
-
-      return order;
-    });
-
-    if (!result.uuid) {
-      throw new Error('Созданный заказ не содержит UUID');
-    }
-
-    const departureTimestamp = new Date(result.departureTime).getTime();
-    const now = Date.now();
-    const delay = departureTimestamp - now - 60000;
-
-    await orderQueue.add(
-      'notification',
-      { orderUuid: result.uuid },
-      {
-        delay: delay > 0 ? delay : 0,
-        attempts: 3,
-        backoff: { type: 'exponential', delay: 1000 },
-        jobId: `notification-${result.uuid}`,
-      },
-    );
-
-    console.log(`📌 Задача notification добавлена, jobId: notification-${result.uuid}`);
-
-    return NextResponse.json(result, { status: 201 });
-  } catch (error) {
-    log('Ошибка создания заказа:', error);
-    return NextResponse.json({ error: 'Unable to create order' }, { status: 500 });
   }
 }

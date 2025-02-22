@@ -1,38 +1,38 @@
-import { NextResponse } from 'next/server';
-import { VehicleType, ServiceLevels } from '@prisma/client';
-import debug from 'debug';
-import { CreateTariffData } from '@shared/prisma/interface/tariff/interface';
-import { v4 as uuidv4 } from 'uuid';
-import { prisma } from '@shared/prisma/prisma-client';
+import { NextResponse } from 'next/server'
+import { VehicleType, ServiceLevels } from '@prisma/client'
+import debug from 'debug'
+import { CreateTariffData } from '@shared/prisma/interface/tariff/interface'
+import { v4 as uuidv4 } from 'uuid'
+import { prisma } from '@shared/prisma/prisma-client'
 
-const log = debug('app:tariffs');
+// Логи только для ошибок
+const logError = debug('app:tariffs:error')
 
+// GET: Получить список тарифов
 export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
-  const parsedParams = {
-    page: parseInt(searchParams.get('page') || '1', 10),
-    per_page: parseInt(searchParams.get('per_page') || '20', 10),
-    vehicleType: searchParams.get('vehicleType') as VehicleType | null,
-    serviceLevel: searchParams.get('serviceLevel') as ServiceLevels | null,
-    sort_by: (searchParams.get('sort_by') as 'name' | 'createdAt' | 'updatedAt') || 'createdAt',
-    sort_order: (searchParams.get('sort_order') as 'asc' | 'desc') || 'asc',
-  };
-
-  log('Parsed parameters:', parsedParams);
-
   try {
+    const { searchParams } = new URL(req.url)
+    const parsedParams = {
+      page: parseInt(searchParams.get('page') || '1', 10),
+      per_page: parseInt(searchParams.get('per_page') || '20', 10),
+      vehicleType: searchParams.get('vehicleType') as VehicleType | null,
+      serviceLevel: searchParams.get('serviceLevel') as ServiceLevels | null,
+      sort_by: (searchParams.get('sort_by') as 'name' | 'createdAt' | 'updatedAt') || 'createdAt',
+      sort_order: (searchParams.get('sort_order') as 'asc' | 'desc') || 'asc',
+    }
+
+    // Формируем условие выборки
     const where: {
-      vehicleType?: VehicleType;
-      serviceLevel?: ServiceLevels;
-    } = {};
+      vehicleType?: VehicleType
+      serviceLevel?: ServiceLevels
+    } = {}
     if (parsedParams.vehicleType) {
-      where.vehicleType = parsedParams.vehicleType;
+      where.vehicleType = parsedParams.vehicleType
     }
     if (parsedParams.serviceLevel) {
-      where.serviceLevel = parsedParams.serviceLevel;
+      where.serviceLevel = parsedParams.serviceLevel
     }
 
-    //Выполняем запрос к базе данных для получения списка тарифов
     const tariffs = await prisma.tariff.findMany({
       skip: (parsedParams.page - 1) * parsedParams.per_page,
       take: parsedParams.per_page,
@@ -47,14 +47,12 @@ export async function GET(req: Request) {
           },
         },
       },
-    });
+    })
 
-    const total = await prisma.tariff.count({ where });
-    const totalAllTariffs = await prisma.tariff.count();
+    const total = await prisma.tariff.count({ where })
+    const totalAllTariffs = await prisma.tariff.count()
 
-    log('Fetched tariffs:', tariffs);
-
-    //Формируем ответ с данными о тарифах, опциях тарифа и уровнях обслуживания тарифа
+    // Успешный ответ без логов
     const response = tariffs.map((tariff) => ({
       ...tariff,
       tariffAdditionalServices: tariff.tariffAdditionalServices.map((service) => ({
@@ -62,7 +60,7 @@ export async function GET(req: Request) {
         name: service.service.name,
         price: service.price,
       })),
-    }));
+    }))
 
     return NextResponse.json({
       status: 'success',
@@ -74,65 +72,57 @@ export async function GET(req: Request) {
         totalAllTariffs,
         tariffs: response,
       },
-    });
+    })
   } catch (error) {
-    log('Error fetching tariffs:', error);
+    // Логируем только при ошибке
+    logError('× Error fetching tariffs')
     if (error instanceof Error) {
-      log('Error message:', error.message);
-      log('Error stack:', error.stack);
+      logError('Error message:', error.message)
+      logError('Error stack:', error.stack)
     }
-    return NextResponse.json({ error: 'Unable to fetch tariffs' }, { status: 500 });
+    return NextResponse.json({ error: 'Unable to fetch tariffs' }, { status: 500 })
   }
 }
 
+// POST: Создать тариф
 export async function POST(req: Request) {
-  const data: CreateTariffData = await req.json();
-  const {
-    name,
-    vehicleType,
-    description,
-    price,
-    additionalPointPrice,
-    freeWaitTimeBishkek,
-    pricePerMinuteAfterBishkek,
-    freeWaitTimeAirport,
-    pricePerMinuteAfterAirport,
-    serviceLevel,
-    tariffAdditionalServices,
-  } = data;
-
-  //Валидация входных данных с детализированным логированием
-  if (!name) log('Missing field: name');
-  if (!vehicleType) log('Missing field: vehicleType');
-  if (price === undefined) log('Missing field: price');
-  if (additionalPointPrice === undefined) log('Missing field: additionalPointPrice');
-  if (freeWaitTimeBishkek === undefined) log('Missing field: freeWaitTimeBishkek');
-  if (pricePerMinuteAfterBishkek === undefined) log('Missing field: pricePerMinuteAfterBishkek');
-  if (freeWaitTimeAirport === undefined) log('Missing field: freeWaitTimeAirport');
-  if (pricePerMinuteAfterAirport === undefined) log('Missing field: pricePerMinuteAfterAirport');
-  if (!serviceLevel) log('Missing field: serviceLevel');
-  if (!tariffAdditionalServices) log('Missing field: tariffAdditionalServices');
-
-  if (
-    !name ||
-    !vehicleType ||
-    price === undefined ||
-    additionalPointPrice === undefined ||
-    freeWaitTimeBishkek === undefined ||
-    pricePerMinuteAfterBishkek === undefined ||
-    freeWaitTimeAirport === undefined ||
-    pricePerMinuteAfterAirport === undefined ||
-    !serviceLevel ||
-    !tariffAdditionalServices
-  ) {
-    return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
-  }
-
   try {
-    //Используем транзакцию для создания тарифа и связанных записей
-    const result = await prisma.$transaction(async (prisma) => {
-      //Создаем новый тариф
-      const newTariff = await prisma.tariff.create({
+    const data: CreateTariffData = await req.json()
+    const {
+      name,
+      vehicleType,
+      description,
+      price,
+      additionalPointPrice,
+      freeWaitTimeBishkek,
+      pricePerMinuteAfterBishkek,
+      freeWaitTimeAirport,
+      pricePerMinuteAfterAirport,
+      serviceLevel,
+      tariffAdditionalServices,
+    } = data
+
+    // Проверка обязательных полей
+    if (
+      !name ||
+      !vehicleType ||
+      price === undefined ||
+      additionalPointPrice === undefined ||
+      freeWaitTimeBishkek === undefined ||
+      pricePerMinuteAfterBishkek === undefined ||
+      freeWaitTimeAirport === undefined ||
+      pricePerMinuteAfterAirport === undefined ||
+      !serviceLevel ||
+      !tariffAdditionalServices
+    ) {
+      logError('× Missing required fields (400)')
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    }
+
+    // Транзакция
+    const result = await prisma.$transaction(async (tx) => {
+      // Создаем тариф
+      const newTariff = await tx.tariff.create({
         data: {
           uuid: uuidv4(),
           name,
@@ -146,14 +136,11 @@ export async function POST(req: Request) {
           pricePerMinuteAfterAirport,
           serviceLevel,
         },
-      });
+      })
 
-      //Логирование нового тарифа
-      log('New tariff created:', newTariff);
-
-      //Создаем записи в таблице tariff_on_service
+      // Создаем тариф + сервисы
       for (const additionalService of tariffAdditionalServices) {
-        await prisma.tariffOnService.create({
+        await tx.tariffOnService.create({
           data: {
             uuid: uuidv4(),
             tariffUuid: newTariff.uuid,
@@ -162,35 +149,25 @@ export async function POST(req: Request) {
             isAvailable:
               additionalService.isAvailable !== undefined ? additionalService.isAvailable : true,
           },
-        });
-
-        log(
-          'TariffOnService created with tariffUuid:',
-          newTariff.uuid,
-          'serviceUuid:',
-          additionalService.serviceUuid,
-          'price:',
-          additionalService.price,
-          'isAvailable:',
-          additionalService.isAvailable,
-        );
+        })
       }
 
-      return newTariff;
-    });
+      return newTariff
+    })
 
-    log('Created new tariff:', result);
+    // Успешный ответ без логов
     return NextResponse.json({
       status: 'success',
       message: 'Tariff created successfully',
       uuid: result.uuid,
-    });
+    })
   } catch (error) {
-    log('Error creating tariff:', error);
+    // Логируем только при ошибке
+    logError('× Error creating tariff')
     if (error instanceof Error) {
-      log('Error message:', error.message);
-      log('Error stack:', error.stack);
+      logError('Error message:', error.message)
+      logError('Error stack:', error.stack)
     }
-    return NextResponse.json({ error: 'Unable to create tariff' }, { status: 500 });
+    return NextResponse.json({ error: 'Unable to create tariff' }, { status: 500 })
   }
 }

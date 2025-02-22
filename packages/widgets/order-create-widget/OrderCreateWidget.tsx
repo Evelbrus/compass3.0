@@ -128,13 +128,11 @@ const OrderCreateWidget: React.FC<OrderCreateWidgetProps> = ({
 
   const handleCreateOrder = () => {
     handleSubmit((data) => {
-      console.log('Data before sending:', data);
       const orderData = {
         ...data,
         basePrice: Number(data.basePrice),
         status: selectedStatus as OrderStatus,
       };
-      console.log('Order data before onSubmit:', orderData);
       onSubmit(orderData);
       setIsModalOpen(false);
     })();

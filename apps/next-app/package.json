@@ -5,13 +5,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack -p 3008",
-    "devWS": "node --experimental-modules worker-dist/apps/next-app/server.js",
-    "devW": "node worker-dist/apps/next-app/server.js",
-    "worker": "node worker-dist/apps/next-app/worker.js",
-    "bullmq": "node worker-dist/apps/next-app/bullmq-ui.js",
-    "build": "next build",
+    "bullmq": "node dist/apps/next-app/src/lib/queues/dashboard-bull.js",
+    "websocket": "node dist/apps/next-app/src/lib/websocket/websocket-server.js",
     "start": "next start -p 3008",
-    "startWS": "node --experimental-modules server.mjs",
     "lint": "next lint"
   },
   "dependencies": {

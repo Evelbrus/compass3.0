@@ -1,59 +1,52 @@
-import { NextResponse } from 'next/server';
-import { VehicleType, ServiceLevels, UserRole } from '@prisma/client';
-import debug from 'debug';
-import { prisma } from '@shared/prisma/prisma-client';
+import { NextResponse } from 'next/server'
+import { VehicleType, ServiceLevels, UserRole } from '@prisma/client'
+import debug from 'debug'
+import { prisma } from '@shared/prisma/prisma-client'
 
-const log = debug('app:api:drivers');
+const logError = debug('app:api:drivers:error')
 
 export async function GET(request: Request) {
   try {
-    const url = new URL(request.url);
-    const searchParams = url.searchParams;
+    const url = new URL(request.url)
+    const searchParams = url.searchParams
 
-    //Парсинг параметров запроса
-    const page = parseInt(searchParams.get('page') || '1');
-    const perPage = parseInt(searchParams.get('per_page') || '10');
-    const serviceLevel = searchParams.get('serviceLevel');
-    const vehicleType = searchParams.get('vehicleType');
-    const search = searchParams.get('search');
-    const assignedDriverId = searchParams.get('assignedDriverId');
+    // Парсинг параметров
+    const page = parseInt(searchParams.get('page') || '1', 10)
+    const perPage = parseInt(searchParams.get('per_page') || '10', 10)
+    const serviceLevel = searchParams.get('serviceLevel')
+    const vehicleType = searchParams.get('vehicleType')
+    const search = searchParams.get('search')
+    const assignedDriverId = searchParams.get('assignedDriverId')
 
-    //Валидация параметров запроса
-    const errors = [];
+    // Валидация
+    const errors: string[] = []
 
     if (isNaN(page) || page < 1) {
-      errors.push('Invalid page parameter');
+      errors.push('Invalid page parameter')
     }
-
     if (isNaN(perPage) || perPage < 1 || perPage > 100) {
-      errors.push('Invalid per_page parameter (1-100)');
+      errors.push('Invalid per_page parameter (1-100)')
     }
-
     if (serviceLevel && !Object.values(ServiceLevels).includes(serviceLevel as ServiceLevels)) {
-      errors.push(
-        `Invalid serviceLevel. Allowed values: ${Object.values(ServiceLevels).join(', ')}`,
-      );
+      errors.push(`Invalid serviceLevel. Allowed values: ${Object.values(ServiceLevels).join(', ')}`)
     }
-
     if (vehicleType && !Object.values(VehicleType).includes(vehicleType as VehicleType)) {
-      errors.push(`Invalid vehicleType. Allowed values: ${Object.values(VehicleType).join(', ')}`);
+      errors.push(`Invalid vehicleType. Allowed values: ${Object.values(VehicleType).join(', ')}`)
     }
 
     if (errors.length > 0) {
+      logError('× Ошибки валидации (400)', errors)
       return NextResponse.json(
         { status: 'error', message: 'Validation errors', errors },
         { status: 400 },
-      );
+      )
     }
 
-    //Формирование условий фильтрации
+    // Формируем условия
     const whereClause = {
       role: UserRole.Driver,
       ...(search && {
-        fullName: {
-          startsWith: search,
-          mode: 'insensitive' as const,
-        },
+        fullName: { startsWith: search, mode: 'insensitive' as const },
       }),
       ...(assignedDriverId && {
         uuid: assignedDriverId,
@@ -66,14 +59,12 @@ export async function GET(request: Request) {
           },
         },
       },
-    };
+    }
 
-    //Если указан assignedDriverId, ищем только одного водителя
+    // Если указан assignedDriverId, ищем одного водителя
     if (assignedDriverId) {
       const driver = await prisma.user.findUnique({
-        where: {
-          uuid: assignedDriverId,
-        },
+        where: { uuid: assignedDriverId },
         select: {
           uuid: true,
           fullName: true,
@@ -81,102 +72,77 @@ export async function GET(request: Request) {
           profilePhotoPath: true,
           lastActive: true,
           vehicleDriver: {
-            //Загружаем информацию об автомобиле
             select: {
-              vehicle: {
-                select: {
-                  vehicleType: true,
-                  serviceLevels: true,
-                },
-              },
+              vehicle: { select: { vehicleType: true, serviceLevels: true } },
             },
           },
         },
-      });
+      })
 
       if (!driver) {
-        return NextResponse.json({ status: 'error', message: 'Driver not found' }, { status: 404 });
+        logError(`× Водитель не найден (assignedDriverId=${assignedDriverId}) (404)`)
+        return NextResponse.json({ status: 'error', message: 'Driver not found' }, { status: 404 })
       }
 
-      log(`Fetched driver with assignedDriverId: ${assignedDriverId}`);
-
+      // Успешный ответ — без логов
       return NextResponse.json({
         status: 'success',
         data: {
           driver,
           serverTime: new Date().toISOString(),
         },
-      });
-    } else {
-      //Иначе выполняем старый код с пагинацией
-      //Параллельное выполнение запросов
-      const [totalDrivers, drivers] = await Promise.all([
-        prisma.user.count({ where: whereClause }),
-        prisma.user.findMany({
-          where: whereClause,
-          select: {
-            uuid: true,
-            fullName: true,
-            phone: true,
-            profilePhotoPath: true,
-            lastActive: true,
-            vehicleDriver: {
-              //Загружаем информацию об автомобиле
-              select: {
-                vehicle: {
-                  select: {
-                    vehicleType: true,
-                    serviceLevels: true,
-                  },
-                },
-              },
+      })
+    }
+
+    // Иначе — список с пагинацией
+    const [totalDrivers, drivers] = await Promise.all([
+      prisma.user.count({ where: whereClause }),
+      prisma.user.findMany({
+        where: whereClause,
+        select: {
+          uuid: true,
+          fullName: true,
+          phone: true,
+          profilePhotoPath: true,
+          lastActive: true,
+          vehicleDriver: {
+            select: {
+              vehicle: { select: { vehicleType: true, serviceLevels: true } },
             },
           },
-          orderBy: { lastActive: 'desc' },
-          skip: (page - 1) * perPage,
-          take: perPage,
-        }),
-      ]);
-
-      log(`Fetched ${drivers.length} drivers with filters`, {
-        serviceLevel,
-        vehicleType,
-        search,
-      });
-
-      return NextResponse.json({
-        status: 'success',
-        data: {
-          page,
-          perPage,
-          total: totalDrivers,
-          filters: {
-            ...(serviceLevel && { serviceLevel }),
-            ...(vehicleType && { vehicleType }),
-            ...(search && { search }),
-          },
-          drivers: drivers.map((driver) => ({
-            ...driver,
-            vehicleType: driver.vehicleDriver?.vehicle.vehicleType || null,
-            serviceLevels: driver.vehicleDriver?.vehicle.serviceLevels || null,
-            uuid: driver.uuid,
-          })),
-          serverTime: new Date().toISOString(),
         },
-      });
-    }
-  } catch (error) {
-    console.error('Error fetching drivers:', error);
-    log(
-      'Error details:',
-      error instanceof Error
-        ? {
-            message: error.message,
-            stack: error.stack,
-          }
-        : error,
-    );
+        orderBy: { lastActive: 'desc' },
+        skip: (page - 1) * perPage,
+        take: perPage,
+      }),
+    ])
 
+    // Успешный ответ — без логов
+    return NextResponse.json({
+      status: 'success',
+      data: {
+        page,
+        perPage,
+        total: totalDrivers,
+        filters: {
+          ...(serviceLevel && { serviceLevel }),
+          ...(vehicleType && { vehicleType }),
+          ...(search && { search }),
+        },
+        drivers: drivers.map((driver) => ({
+          ...driver,
+          vehicleType: driver.vehicleDriver?.vehicle.vehicleType || null,
+          serviceLevels: driver.vehicleDriver?.vehicle.serviceLevels || null,
+        })),
+        serverTime: new Date().toISOString(),
+      },
+    })
+  } catch (error) {
+    logError('× Ошибка при получении списка (500)')
+    if (error instanceof Error) {
+      logError('Error message:', error.message)
+      logError('Error stack:', error.stack)
+    }
     return NextResponse.json(
       {
         status: 'error',
@@ -184,6 +150,6 @@ export async function GET(request: Request) {
         error: error instanceof Error ? error.message : 'Unknown error',
       },
       { status: 500 },
-    );
+    )
   }
 }

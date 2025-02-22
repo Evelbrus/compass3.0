@@ -10,6 +10,7 @@ import {
   Notification,
   TariffOnService,
   AdditionalService,
+  Action, // Добавляем импорт Action
 } from '@prisma/client';
 import {
   fetchOrderDetails,
@@ -62,8 +63,11 @@ const OrderInfoModal: React.FC<OrderInfoModalProps> = ({ isOpen, notification, o
         await updateOrderStatus({
           orderUuid: notification.orderId,
           notificationUuid: notification.uuid,
-          driverId: notification.userId,
+          userId: notification.userId, // Исправляем driverId на userId
+          createdById: notification.createdById || orderData?.createdById || '',
           markNotificationAsRead: true,
+          action: Action.info,
+          driverById: notification.driverById || orderData?.assignedDriverId || undefined,
         });
 
         if (socket) {
@@ -194,5 +198,4 @@ const OrderInfoModal: React.FC<OrderInfoModalProps> = ({ isOpen, notification, o
   );
 };
 
-//Мемоизация компонента
 export default React.memo(OrderInfoModal);

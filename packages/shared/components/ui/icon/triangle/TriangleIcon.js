@@ -1,3 +1,0 @@
-import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
-const TriangleIcon = (props) => (_jsxs("svg", { className: `react-datepicker__triangle ${props.className || ''}`, "aria-hidden": "true", width: "18", height: "16", viewBox: "0 0 16 16", fill: "none", ...props, children: [_jsx("path", { clipPath: "url(#triangle-clip-path)", fill: "white", strokeWidth: "3", d: "M0,0 H16 L8,8 Q8,8 8,8 Z" }), _jsx("path", { stroke: "rgba(242, 242, 242, 0.5)", d: "M0,0 H16 L8,8 Q8,8 8,8 Z" }), _jsx("clipPath", { id: "triangle-clip-path", children: _jsx("rect", { x: "-1", y: "1", width: "18", height: "16" }) })] }));
-export default TriangleIcon;

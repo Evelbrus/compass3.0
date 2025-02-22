@@ -25,7 +25,6 @@ export interface CreateOrderData
     | 'departurePointId'
     | 'assignedDriverId'
     | 'arrivalPointId'
-    | 'departureTime'
     | 'intermediatePoints'
   > {
   createdBy: string;
@@ -37,41 +36,10 @@ export interface CreateOrderData
   intermediatePoints?: string[];
   selectedServices?: string[];
   basePrice?: number;
-  departureTime?: string;
   fullName?: string;
   phone?: string;
   vehicleType?: VehicleType;
   serviceLevel?: ServiceLevels;
-}
-
-//Тип данных для редактирования заказа
-export interface EditOrderData
-  extends Omit<
-    Order,
-    | 'uuid'
-    | 'finalPrice'
-    | 'createdAt'
-    | 'updatedAt'
-    | 'tariff'
-    | 'createdById'
-    | 'basePrice'
-    | 'departurePointId'
-    | 'assignedDriverId'
-    | 'arrivalPointId'
-    | 'status'
-    | 'departureTime'
-    | 'intermediatePoints'
-  > {
-  createdBy: string;
-  tariffUuid: string;
-  departurePoint: string;
-  arrivalPoint: string;
-  assignedDriverId?: string | null;
-  assignedDriverUserId?: string | null;
-  intermediatePoints?: string[];
-  selectedServices?: string[];
-  basePrice?: number;
-  departureTime?: string;
 }
 
 //Тип данных для детализированного представления заказа

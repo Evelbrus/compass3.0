@@ -23,7 +23,6 @@ enum PartnerCompany {
 enum DriverStatus {
   FREE     @map("free") // Водитель свободен и готов взять заказ
   BUSY     @map("busy") // Водитель занят (выполняет заказ)
-  OFFLINE  @map("offline") // Водитель не в сети
   ON_BREAK @map("on_break") // Водитель на перерыве
 }
 
