@@ -10,10 +10,10 @@ interface ClientNotificationListProps {
 }
 
 const ClientNotificationList: React.FC<ClientNotificationListProps> = ({
-  notifications,
-  onClose,
-  openModal,
-}) => {
+                                                                         notifications,
+                                                                         onClose,
+                                                                         openModal,
+                                                                       }) => {
   const handleNotificationClick = useCallback(
     (notification: Notification) => {
       console.log('🟢 Нажатие на уведомление клиента:', notification);
@@ -35,6 +35,30 @@ const ClientNotificationList: React.FC<ClientNotificationListProps> = ({
           textColor: 'text-blue-800',
           label: 'В процессе',
         };
+      case Action.warning:
+        return {
+          bgColor: 'bg-red-100',
+          textColor: 'text-red-800',
+          label: 'Предупреждение',
+        };
+      case Action.noted:
+        return {
+          bgColor: 'bg-green-100',
+          textColor: 'text-green-800',
+          label: 'Отмечено',
+        };
+      case Action.cancelled:
+        return {
+          bgColor: 'bg-orange-100',
+          textColor: 'text-orange-800',
+          label: 'Отменено',
+        };
+      case Action.success:
+        return {
+          bgColor: 'bg-green-200',
+          textColor: 'text-green-900',
+          label: 'Успешно',
+        };
       default:
         return {
           bgColor: 'bg-gray-100',
@@ -44,8 +68,9 @@ const ClientNotificationList: React.FC<ClientNotificationListProps> = ({
     }
   };
 
+  // Сортируем уведомления по дате создания (от новых к старым)
   const sortedNotifications = [...notifications].sort((a, b) => {
-    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(); //Сортировка по дате создания
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
   });
 
   return (

@@ -1,8 +1,8 @@
 'use client';
 
 import React, { JSX } from 'react';
-import { CompanyProfile } from '@prisma/client';
 import Image from 'next/image';
+import { CompanyProfile } from '@prisma/client';
 import { LazyImage } from '@shared/components/ui/images';
 import { DetailItem } from '@pages/(administrator)/vehicles/VehiclesDetail';
 import { SafeUser } from '@pages/(administrator)/(users)/user/ClientsDetailAdminPage';

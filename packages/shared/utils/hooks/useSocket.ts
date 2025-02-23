@@ -4,8 +4,6 @@ import { SocketContext } from '@shared/utils/contexts/SocketContext';
 export function useSocket(event?: string, callback?: (data: any) => void) {
   const socket = useContext(SocketContext);
 
-  console.log('useSocket: socket инициализирован?', !!socket);
-
   useEffect(() => {
     if (!socket) {
       console.warn('Socket не доступен в useSocket');

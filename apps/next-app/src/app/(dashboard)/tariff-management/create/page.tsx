@@ -1,10 +1,11 @@
 import React, { JSX } from 'react';
 import { getLayoutData } from '@shared/utils/cookie/layout-data/getLayoutData';
-import TariffCreateForm from '@pages/(administrator)/tariff/TariffCreateForm';
+import TariffForm from '@pages/(administrator)/tariff/TariffForm';
 import Loading from '@entities/loading/loading';
 import { UserRole } from '@prisma/client';
 import { redirect } from 'next/navigation';
 import { publicRoutes } from '@shared/utils/routing';
+
 
 export const revalidate = 60;
 
@@ -13,7 +14,7 @@ const Page = async (): Promise<JSX.Element> => {
 
   if (refreshToken) {
     if (role === UserRole.Admin || role === UserRole.Operator) {
-      return <TariffCreateForm />;
+      return <TariffForm mode={'create'} />;
     } else {
       return <Loading />;
     }

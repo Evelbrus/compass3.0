@@ -125,14 +125,6 @@ const NotificationList: React.FC<NotificationListProps> = ({
           ))}
         </ul>
       </div>
-      <div className={'flex justify-end'}>
-        <button
-          onClick={onClear}
-          className="w-[200px] p-3 bg-[color:var(--button-secondary)] text-[color:var(--text-white)] rounded-lg hover:bg-[color:var(--button-secondary-hover)] transition text-sm"
-        >
-          Очистить
-        </button>
-      </div>
     </div>
   );
 };

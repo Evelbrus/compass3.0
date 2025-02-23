@@ -1,31 +1,39 @@
 import { NextResponse, NextRequest } from 'next/server';
 import debug from 'debug';
 import { prisma } from '@shared/prisma/prisma-client';
+import { Params } from '@next-app/src/interface/interface';
 
 const log = debug('app:api:notifications');
 
-interface Params {
-  uuid: string;
-}
-
 //PUT /api/notifications/[uuid] - Обновить уведомление (например, пометить как прочитанное)
 export async function PUT(req: NextRequest, { params }: { params: Promise<Params> }) {
-  //Дожидаемся разрешения промиса params
   const { uuid: notificationUuid } = await params;
   log(`Received PUT request to update notification with UUID: ${notificationUuid}`);
 
   const data = await req.json();
   const { read } = data;
 
-  log(`Marking notification ${notificationUuid} as read: ${read}`);
+  try {
+    const notification = await prisma.notification.findUnique({
+      where: { uuid: notificationUuid },
+    });
 
-  const updatedNotification = await prisma.notification.update({
-    where: { uuid: notificationUuid },
-    data: { read },
-  });
+    if (!notification) {
+      log(`Notification with UUID: ${notificationUuid} not found`);
+      return NextResponse.json({ error: 'Notification not found' }, { status: 404 });
+    }
 
-  log(`Successfully updated notification with UUID: ${notificationUuid}`);
-  return NextResponse.json(updatedNotification);
+    const updatedNotification = await prisma.notification.update({
+      where: { uuid: notificationUuid },
+      data: { read },
+    });
+
+    log(`Successfully updated notification with UUID: ${notificationUuid}`);
+    return NextResponse.json(updatedNotification);
+  } catch (error) {
+    log(`Error updating notification ${notificationUuid}:`, error);
+    return NextResponse.json({ error: 'Failed to update notification' }, { status: 500 });
+  }
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<Params> }) {
@@ -51,6 +59,21 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<Para
   }
 
   try {
+    const notification = await prisma.notification.findUnique({
+      where: { uuid: notificationUuid },
+    });
+
+    if (!notification) {
+      log(`Notification with UUID: ${notificationUuid} not found`);
+      return NextResponse.json({ error: 'Notification not found' }, { status: 404 });
+    }
+
+    // Если read уже соответствует запрошенному значению, возвращаем успех без обновления
+    if (read !== undefined && notification.read === read) {
+      log(`Notification ${notificationUuid} already has read: ${read}`);
+      return NextResponse.json(notification, { status: 200 });
+    }
+
     const updatedNotification = await prisma.notification.update({
       where: { uuid: notificationUuid },
       data: {
@@ -69,7 +92,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<Para
 
 //DELETE /api/notifications/[uuid] - Удалить уведомление
 export async function DELETE(req: NextRequest, { params }: { params: Promise<Params> }) {
-  //Дожидаемся разрешения промиса params
   const { uuid: notificationUuid } = await params;
   log(`Received DELETE request for notification with UUID: ${notificationUuid}`);
 

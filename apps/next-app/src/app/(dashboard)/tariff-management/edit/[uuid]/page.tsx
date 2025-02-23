@@ -1,6 +1,6 @@
 import { getLayoutData } from '@shared/utils/cookie/layout-data/getLayoutData';
 import { DetailTariffData } from '@shared/prisma/interface/tariff/interface';
-import TariffEdit from '@pages/(administrator)/tariff/TariffEditPage';
+import TariffForm from '@pages/(administrator)/tariff/TariffForm';
 import Loading from '@entities/loading/loading';
 import { UserRole } from '@prisma/client';
 import { prisma } from '@shared/prisma/prisma-client';
@@ -50,7 +50,7 @@ const TariffEditPage = async ({ params }: PageProps): Promise<JSX.Element> => {
         })),
       };
 
-      return <TariffEdit data={tariffData} />;
+      return <TariffForm initialData={tariffData} mode="edit" />;
     } else {
       return <Loading />;
     }

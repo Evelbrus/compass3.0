@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   useNotifications,
   NotificationIslandProps,
@@ -7,13 +7,11 @@ import NotificationList from '@widgets/layout/header/notification/NotificationLi
 import DriverNotificationList from '@widgets/layout/header/notification/DriverNotificationList';
 import ClientNotificationList from '@widgets/layout/header/notification/ClientNotificationList';
 import { LazyImage } from '@shared/components/ui/images';
-import { Action, UserRole } from '@prisma/client';
-import OrderInfoModal from '@widgets/orders/modal/driver/order-management/OrderInfoModal';
-import OrderProgressModal from '@widgets/orders/modal/driver/order-management/OrderProgressModal';
-import WarningModal from '@widgets/orders/modal/driver/order-management/WarningModal';
-import WarningAdminModal from '@widgets/orders/modal/driver/order-management/WarningAdminModal';
-import OrderTrackingModal from '@widgets/orders/modal/driver/order-management/OrderTrackingModal';
-import { showToast } from '@shared/components/toast/ToastManager';
+import { UserRole } from '@prisma/client';
+import OrderDriverModal from '@widgets/orders/modal/driver/order-management/driver/OrderDriverModal';
+import OrderTrackingModal from '@widgets/orders/modal/driver/order-management/client-corp/OrderTrackingModal';
+import WarningAdminModal from '@widgets/orders/modal/driver/order-management/admin/WarningAdminModal';
+
 
 const Notification = ({ userSession }: NotificationIslandProps) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -23,35 +21,18 @@ const Notification = ({ userSession }: NotificationIslandProps) => {
 
   const {
     notifications,
-    getDriverNotifications,
-    getClientNotifications,
+    unreadCount,
+    driverNotifications,
+    driverUnreadCount,
+    clientNotifications,
+    clientUnreadCount,
     clearNotifications,
     markAsRead,
     activeNotification,
     openModal,
     closeModal,
+    shouldShowModal,
   } = useNotifications({ userSession });
-
-  const unreadCount = useMemo(() => notifications.filter((n) => !n.read).length, [notifications]);
-
-  const driverNotifications = useMemo(
-    () => (userSession?.role === UserRole.Driver ? getDriverNotifications(userSession.uuid) : []),
-    [notifications, userSession, getDriverNotifications],
-  );
-  const driverUnreadCount = useMemo(
-    () => driverNotifications.filter((n) => !n.read).length,
-    [driverNotifications],
-  );
-
-  const clientNotifications = useMemo(
-    () =>
-      userSession?.role === UserRole.ClientCorp ? getClientNotifications(userSession.uuid) : [],
-    [notifications, userSession, getClientNotifications],
-  );
-  const clientUnreadCount = useMemo(
-    () => clientNotifications.filter((n) => !n.read).length,
-    [clientNotifications],
-  );
 
   useEffect(() => {
     const handleClick = (event: MouseEvent) => {
@@ -76,53 +57,35 @@ const Notification = ({ userSession }: NotificationIslandProps) => {
 
   return (
     <>
-      {activeNotification && (
+      {shouldShowModal && activeNotification && (
         <>
-          {activeNotification.action === Action.noted && userSession?.role === UserRole.Driver && (
-            <OrderInfoModal isOpen={true} onClose={closeModal} notification={activeNotification} />
+          {userSession?.role === UserRole.Driver && (
+            <OrderDriverModal
+              isOpen={true}
+              onClose={closeModal}
+              notification={activeNotification}
+              getDriverNotifications={() => driverNotifications}
+              userRole={userSession.role}
+            />
           )}
-          {activeNotification.action === Action.inProgress &&
-            userSession?.role === UserRole.Driver && (
-              <OrderProgressModal
-                isOpen={true}
-                onClose={closeModal}
-                notification={activeNotification}
-                getDriverNotifications={getDriverNotifications}
-              />
-            )}
-          {activeNotification.action === Action.warning &&
-            userSession?.role === UserRole.Driver && (
-              <WarningModal
-                isOpen={true}
-                onClose={closeModal}
-                notification={activeNotification}
-                getDriverNotifications={getDriverNotifications}
-              />
-            )}
-          {activeNotification && (
-            <>
-              {activeNotification.action === Action.warning &&
-                (userSession?.role === UserRole.Operator || userSession?.role === UserRole.Admin) && (
-                  console.log('Роль пользователя:', userSession?.role),
-                  console.log('Попытка открыть WarningAdminModal для:', activeNotification),
-                    <WarningAdminModal
-                      isOpen={true}
-                      onClose={closeModal}
-                      notification={activeNotification}
-                      notifications={notifications}
-                    />
-                )}
-            </>
+          {userSession?.role === UserRole.ClientCorp && (
+            <OrderTrackingModal
+              isOpen={true}
+              onClose={closeModal}
+              notification={activeNotification}
+              getClientNotifications={() => clientNotifications}
+              userRole={userSession.role}
+            />
           )}
-          {activeNotification.action === Action.inProgress &&
-            userSession?.role === UserRole.ClientCorp && (
-              <OrderTrackingModal
-                isOpen={true}
-                onClose={closeModal}
-                notification={activeNotification}
-                getClientNotifications={getClientNotifications} // Передаем для отслеживания уведомлений
-              />
-            )}
+          {(userSession?.role === UserRole.Admin || userSession?.role === UserRole.Operator) && (
+            <WarningAdminModal
+              isOpen={true}
+              onClose={closeModal}
+              notification={activeNotification}
+              notifications={notifications}
+              userRole={userSession.role}
+            />
+          )}
         </>
       )}
 

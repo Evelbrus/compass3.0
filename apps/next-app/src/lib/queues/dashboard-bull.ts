@@ -8,18 +8,19 @@ import { Order, Action, OrderStatus, UserRole } from '@prisma/client';
 import { prisma } from '@shared/prisma/prisma-client';
 import { processBulkNotifications, processNotification } from '@next-app/src/utils/notifications/notifications';
 
-
 dotenv.config();
 
+// Настройка подключения к Redis
 const redisOptions = {
   host: process.env.REDIS_HOST || '127.0.0.1',
   port: process.env.REDIS_PORT ? parseInt(process.env.REDIS_PORT, 10) : 6379,
 };
 
+// Создание очереди
 export const orderQueue = new Queue('orderQueue', { connection: redisOptions });
 
+// Настройка Express и дашборда BullMQ
 const app = express();
-
 const serverAdapter = new ExpressAdapter();
 serverAdapter.setBasePath('/admin/queues');
 
@@ -30,10 +31,12 @@ createBullBoard({
 
 app.use('/admin/queues', serverAdapter.getRouter());
 
+// Интерфейс для данных задачи checkoverdue
 interface CheckOverdueJobData {
   orderUuid: string;
 }
 
+// Создание воркера для обработки задач
 const worker = new Worker(
   'orderQueue',
   async (job: Job<CheckOverdueJobData>) => {
@@ -73,6 +76,7 @@ const worker = new Worker(
   { connection: redisOptions },
 );
 
+// Логирование событий воркера
 worker.on('completed', (job) => {
   console.log(`✅ Задача ${job.id} ("${job.name}") выполнена`);
 });
@@ -86,6 +90,7 @@ worker.on('failed', (job: Job<CheckOverdueJobData> | undefined, err: Error) => {
   }
 });
 
+// Обработка задачи notification
 async function processNotificationJob(order: Order) {
   console.info(`🚀 Отправка уведомления inProgress для заказа ${order.uuid}`);
 
@@ -93,13 +98,15 @@ async function processNotificationJob(order: Order) {
     await prisma.$transaction(async (prismaTx) => {
       const fullOrder = await prismaTx.order.findUnique({
         where: { uuid: order.uuid },
-        include: { departurePoint: true, arrivalPoint: true },
+        include: { departurePoint: true, arrivalPoint: true, createdBy: true, assignedDriver: true },
       });
 
       if (!fullOrder) {
         console.error(`Заказ ${order.uuid} не найден`);
         throw new Error(`Заказ ${order.uuid} не найден`);
       }
+
+      console.log(`Данные заказа: ${JSON.stringify(fullOrder)}`);
 
       if (fullOrder.assignedDriverId) {
         const driverId = fullOrder.assignedDriverId;
@@ -111,7 +118,7 @@ async function processNotificationJob(order: Order) {
           createdById: fullOrder.createdById,
           driverById: driverId,
         });
-        console.info(`✅ Уведомление для водителя отправлено для заказа ${fullOrder.uuid}`);
+        console.info(`✅ Уведомление для водителя отправлено: orderInProgressDriver`);
       }
 
       await processNotification({
@@ -120,26 +127,9 @@ async function processNotificationJob(order: Order) {
         action: Action.inProgress,
         templateKey: 'orderInProgressClient',
         createdById: fullOrder.createdById,
+        driverById: fullOrder.assignedDriverId,
       });
-      console.info(`✅ Уведомление для клиента отправлено для заказа ${fullOrder.uuid}`);
-
-      const departureTimeMs = new Date(fullOrder.departureTime).getTime();
-      const now = Date.now();
-      const delay = Math.max(departureTimeMs - now, 0);
-
-      if (delay > 0) {
-        await orderQueue.add(
-          'checkoverdue',
-          { orderUuid: fullOrder.uuid },
-          {
-            delay,
-            attempts: 3,
-            backoff: { type: 'exponential', delay: 1000 },
-            jobId: `checkoverdue-${fullOrder.uuid}`,
-          },
-        );
-        console.info(`⏱ Задача "checkoverdue" для заказа ${fullOrder.uuid} запланирована через ${delay} мс`);
-      }
+      console.info(`✅ Уведомление для клиента отправлено: orderInProgressClient`);
     });
   } catch (error) {
     console.error(`❌ Ошибка при обработке notification для заказа ${order.uuid}:`, error);
@@ -147,13 +137,14 @@ async function processNotificationJob(order: Order) {
   }
 }
 
+// Обработка задачи checkoverdue
 async function processCheckoverdueJob(order: Order) {
   console.info(`🚀 Начало проверки просроченного заказа ${order.uuid}`);
 
   try {
     const freshOrder = await prisma.order.findUnique({
       where: { uuid: order.uuid },
-      include: { departurePoint: true },
+      include: { departurePoint: true, createdBy: true, assignedDriver: true },
     });
 
     if (!freshOrder) {
@@ -214,12 +205,14 @@ async function processCheckoverdueJob(order: Order) {
   }
 }
 
+// Запуск сервера
 const port = process.env.PORT || 3000;
 app.listen(port, () => {
   console.log(`Сервер запущен на http://localhost:${port}`);
   console.log(`Дашборд BullMQ доступен на http://localhost:${port}/admin/queues`);
 });
 
+// Обработка сигналов завершения
 process.on('SIGTERM', async () => {
   console.log('Получен сигнал SIGTERM, завершаем работу...');
   await worker.close();

@@ -157,7 +157,7 @@ export async function POST(req: NextRequest) {
       await processNotification({
         userId: corpClientId,
         orderId: createdOrder.uuid,
-        action: Action.info,
+        action: Action.noted,
         templateKey: 'orderCreatedByAdminToClient',
         createdById: adminUserId,
       });
@@ -179,20 +179,58 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Планирование задач
     const departureTimestamp = new Date(createdOrder.departureTime).getTime();
     const now = Date.now();
-    const delay = Math.max(departureTimestamp - now - 60_000, 0);
-    await orderQueue.add(
-      'notification',
-      { orderUuid: createdOrder.uuid },
-      {
-        delay,
-        attempts: 3,
-        backoff: { type: 'exponential', delay: 1000 },
-        jobId: `notification-${createdOrder.uuid}`,
-      },
-    );
-    console.log(`⏱ Задача "notification" для заказа ${createdOrder.uuid} запланирована через ${delay} мс`);
+    const delay = departureTimestamp - now - 60_000;
+
+    if (delay <= 0) {
+      console.log(`⚠️ DepartureTime (${createdOrder.departureTime}) уже меньше минуты или прошло, отправляем notification мгновенно`);
+      await orderQueue.add(
+        'notification',
+        { orderUuid: createdOrder.uuid },
+        {
+          delay: 0,
+          attempts: 3,
+          backoff: { type: 'exponential', delay: 1000 },
+          jobId: `notification-${createdOrder.uuid}`,
+        },
+      );
+      console.log(`⏱ Планируем checkoverdue для заказа ${createdOrder.uuid} через 1 минуту`);
+      await orderQueue.add(
+        'checkoverdue',
+        { orderUuid: createdOrder.uuid },
+        {
+          delay: 60_000, // 1 минута
+          attempts: 3,
+          backoff: { type: 'exponential', delay: 1000 },
+          jobId: `checkoverdue-${createdOrder.uuid}`,
+        },
+      );
+    } else {
+      console.log(`⏱ Задача "notification" для заказа ${createdOrder.uuid} запланирована через ${delay} мс`);
+      await orderQueue.add(
+        'notification',
+        { orderUuid: createdOrder.uuid },
+        {
+          delay: Math.max(delay, 0),
+          attempts: 3,
+          backoff: { type: 'exponential', delay: 1000 },
+          jobId: `notification-${createdOrder.uuid}`,
+        },
+      );
+      console.log(`⏱ Планируем checkoverdue для заказа ${createdOrder.uuid} через ${delay + 60_000} мс`);
+      await orderQueue.add(
+        'checkoverdue',
+        { orderUuid: createdOrder.uuid },
+        {
+          delay: delay + 60_000,
+          attempts: 3,
+          backoff: { type: 'exponential', delay: 1000 },
+          jobId: `checkoverdue-${createdOrder.uuid}`,
+        },
+      );
+    }
 
     return NextResponse.json(createdOrder, { status: 201 });
   } catch (error) {

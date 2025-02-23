@@ -14,6 +14,9 @@ const DriverNotificationList: React.FC<DriverNotificationListProps> = ({
   onClose,
   openModal,
 }) => {
+
+  console.log('notifications', notifications)
+
   const handleNotificationClick = useCallback(
     (notification: Notification) => {
       console.log('🟢 Нажатие на уведомление:', notification);
@@ -46,6 +49,18 @@ const DriverNotificationList: React.FC<DriverNotificationListProps> = ({
           bgColor: 'bg-green-100',
           textColor: 'text-green-800',
           label: 'Отмечено',
+        };
+      case Action.cancelled:
+        return {
+          bgColor: 'bg-orange-100',
+          textColor: 'text-orange-800',
+          label: 'Отменено',
+        };
+      case Action.success:
+        return {
+          bgColor: 'bg-green-200',
+          textColor: 'text-green-900',
+          label: 'Успешно',
         };
       default:
         return {
