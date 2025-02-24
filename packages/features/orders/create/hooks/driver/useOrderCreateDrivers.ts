@@ -1,6 +1,4 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { useDrivers } from '@features/orders/create/hooks';
-
 import { UseFormSetValue } from 'react-hook-form';
 import { ServiceLevels, User, VehicleType } from '@prisma/client';
 import { showToast } from '@shared/components/toast/ToastManager';
@@ -12,8 +10,9 @@ import {
   setSelectedVehicleType,
   setSelectedServiceLevel,
 } from '@shared/lib/effector/orders/stateStore';
-import { OrderData } from '@features/orders/create/OrderCreate.logic';
 import { useDebounce } from '@shared/utils/hooks/useDebounce';
+import { FormOrderValues } from '@features/orders/create/hooks/useCreateAdminOrderLogic';
+import { useDrivers } from '@features/orders/create/hooks/driver/useDrivers';
 
 export interface ExtendedDriver extends User {
   vehicleDriver?: {
@@ -25,17 +24,15 @@ export interface ExtendedDriver extends User {
 }
 
 interface UseOrderCreateDriversProps {
-  setValue: UseFormSetValue<OrderData>;
+  setValue: UseFormSetValue<FormOrderValues>;
   assignedDriverId?: string | null;
-  setErrorMessage: (error: Error | null | undefined, message: string) => void;
 }
 
 export const useOrderCreateDrivers = ({
   setValue,
   assignedDriverId,
-  setErrorMessage,
 }: UseOrderCreateDriversProps) => {
-  //Берем данные из Effector
+  // Берём данные из Effector
   const selectedVehicleType = useUnit($selectedVehicleType);
   const selectedServiceLevel = useUnit($selectedServiceLevel);
   const areValuesFromProps = useUnit($areValuesFromProps);
@@ -62,7 +59,6 @@ export const useOrderCreateDrivers = ({
   } = useDrivers({
     vehicleType: selectedVehicleType ?? undefined,
     serviceLevel: selectedServiceLevel,
-    setErrorMessage,
   });
 
   const drivers: ExtendedDriver[] | undefined = rawDrivers as ExtendedDriver[];
@@ -82,7 +78,7 @@ export const useOrderCreateDrivers = ({
       if (!driver.vehicleDriver?.vehicle) return false;
       const { vehicle } = driver.vehicleDriver;
 
-      //If areValuesFromProps = false, do NOT check compatibility
+      // Если areValuesFromProps === false, не проверяем совместимость
       if (!areValuesFromProps) return true;
 
       return (
@@ -165,16 +161,14 @@ export const useOrderCreateDrivers = ({
 
       const { vehicle } = driver.vehicleDriver;
 
-      //Проверяем, нужно ли обновлять значения в effector store
       if (
         vehicle.vehicleType !== selectedVehicleType ||
         vehicle.serviceLevels !== selectedServiceLevel
       ) {
         setSelectedVehicleType(vehicle.vehicleType as VehicleType);
         setSelectedServiceLevel(vehicle.serviceLevels as ServiceLevels);
-        //Явно устанавливаем значения в react-hook-form
-        setValue('tariff.vehicleType', vehicle.vehicleType as VehicleType);
-        setValue('tariff.serviceLevel', vehicle.serviceLevels as ServiceLevels);
+        setValue('vehicleType', vehicle.vehicleType as VehicleType);
+        setValue('serviceLevel', vehicle.serviceLevels as ServiceLevels);
       }
 
       if (!validateDriverCompatibility(driver)) {
@@ -231,7 +225,7 @@ export const useOrderCreateDrivers = ({
     selectedDriverInfo,
     page,
     perPage,
-    currentTotal,
+    total: currentTotal,
     serverTime,
     handleSearchDriverChange,
     handleSelectOpenChange,

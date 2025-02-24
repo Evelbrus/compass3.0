@@ -29,7 +29,7 @@ const AdditionalServicesList: React.FC<AdditionalServicesListProps> = ({
   return (
     <div className="w-full flex flex-col gap-2">
       <label className={'flex p-2 border rounded-md bg-[#989898] text-white'}>{label}</label>
-      <p className="m-2 text-sm text-gray-500">
+      <p className="text-sm text-gray-500">
         Общая стоимость ({selectedCount} доп. услуг {totalAdditionalServicesPrice}с){' '}
         {/*Изменили текст*/}
       </p>

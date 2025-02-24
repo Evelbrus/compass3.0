@@ -23,13 +23,13 @@ const WaitTimeSelector: React.FC<WaitTimeSelectorProps> = ({
   const isAirport = departurePoint?.airport === true;
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex flex-col">
+    <div className="w-1/2 flex flex-col gap-4">
+      <div className="flex flex-col gap-2">
         {isAirport
           ? `Время ожидания в аэропорту ${departurePoint?.address || ''}`
           : 'Время ожидания'}
         <div className="flex items-center gap-4">
-          <div className="w-full flex flex-row justify-between items-center rounded-md p-2 bg-gray-300">
+          <div className="w-1/2 flex flex-row justify-between items-center rounded-md p-2 bg-gray-300">
             <button
               type="button"
               onClick={() => adjustWaitTime(-5)}

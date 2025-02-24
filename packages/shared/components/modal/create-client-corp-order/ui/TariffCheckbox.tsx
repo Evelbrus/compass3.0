@@ -55,7 +55,7 @@ const TariffCheckbox: React.FC<TariffCheckboxProps> = ({
   );
 
   return (
-    <div className="flex flex-row flex-wrap justify-between gap-4">
+    <div className="w-full flex flex-row flex-wrap justify-between gap-4">
       <div className={'flex-1 flex flex-col gap-4'}>
         <div className={'flex flex-row flex-wrap gap-4'}>
           <div className={'flex-1 flex flex-col gap-4'}>

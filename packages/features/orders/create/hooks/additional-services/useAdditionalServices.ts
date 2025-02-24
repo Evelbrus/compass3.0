@@ -1,17 +1,17 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { fetchAdditionalServices } from '@shared/components/modal/create-client-corp-order/api/useApi';
-import { ExtendedTariff, TariffAdditionalService } from '@shared/prisma/interface/orders/interface';
-import { AdditionalService } from '@prisma/client';
+import { fetchAdditionalServices } from '@features/orders/create/api/orders.api';
+import {
+  AdditionalService,
+} from '@prisma/client';
+import { TariffWithServices } from '@pages/(administrator)/orders/create/OrderCreate.view';
 
-const useAdditionalServices = (selectedTariff: ExtendedTariff | null) => {
+const useAdditionalServices = (selectedTariff: TariffWithServices | null) => {
   const [allServices, setAllServices] = useState<AdditionalService[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [totalAdditionalServicesPrice, setTotalAdditionalServicesPrice] = useState<number>(0);
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [selectedServicesMap, setSelectedServicesMap] = useState<Record<string, string[]>>({});
-
-  const prevTariffRef = useRef<ExtendedTariff | null>(null);
+  const prevTariffRef = useRef<TariffWithServices | null>(null);
   const prevSelectedServicesRef = useRef<string[]>(selectedServices);
 
   useEffect(() => {
@@ -21,7 +21,6 @@ const useAdditionalServices = (selectedTariff: ExtendedTariff | null) => {
         setAllServices(services);
       } catch (err: unknown) {
         console.error('Failed to fetch additional services:', err);
-        //Проверяем, является ли err экземпляром Error
         if (err instanceof Error) {
           setError(err.message || 'Не удалось загрузить дополнительные услуги');
         } else {
@@ -39,10 +38,9 @@ const useAdditionalServices = (selectedTariff: ExtendedTariff | null) => {
   }, [selectedServices]);
 
   useEffect(() => {
-    if (prevTariffRef.current && prevTariffRef.current.uuid != null) {
+    if (prevTariffRef.current && prevTariffRef.current.uuid) {
       const prevUuid = prevTariffRef.current.uuid;
       const newUuid = selectedTariff?.uuid ?? null;
-
       if (prevUuid !== newUuid) {
         setSelectedServicesMap((prevMap) => ({
           ...prevMap,
@@ -52,20 +50,15 @@ const useAdditionalServices = (selectedTariff: ExtendedTariff | null) => {
     }
     prevTariffRef.current = selectedTariff;
 
-    if (selectedTariff && selectedTariff.uuid != null) {
+    if (selectedTariff && selectedTariff.uuid) {
       const newUuid = selectedTariff.uuid;
-      if (selectedServicesMap.hasOwnProperty(newUuid)) {
-        setSelectedServices(selectedServicesMap[newUuid] || []);
-      } else {
-        setSelectedServices([]);
-      }
+      setSelectedServices(selectedServicesMap[newUuid] || []);
     } else {
       setSelectedServices([]);
     }
   }, [selectedTariff, selectedServicesMap]);
 
   const availableServices = useMemo(() => {
-    //Если тариф не выбран, показываем все услуги как недоступные.
     if (!selectedTariff) {
       return allServices.map((service) => ({
         service,
@@ -75,16 +68,20 @@ const useAdditionalServices = (selectedTariff: ExtendedTariff | null) => {
       }));
     }
 
-    //Создаем Map для быстрого поиска.
-    const tariffServiceMap = new Map<string, TariffAdditionalService>();
+    const tariffServiceMap = new Map<
+      string,
+      { price: number; isAvailable: boolean; uuid: string }
+    >();
     selectedTariff.tariffAdditionalServices?.forEach((ts) => {
-      tariffServiceMap.set(ts.serviceUuid, ts);
+      tariffServiceMap.set(ts.serviceUuid, {
+        price: ts.price,
+        isAvailable: ts.isAvailable,
+        uuid: ts.uuid,
+      });
     });
 
-    //Для каждого сервиса из общего списка ищем информацию в Map.
     return allServices.map((service) => {
       const tariffService = tariffServiceMap.get(service.uuid);
-
       return {
         service,
         price: tariffService?.price || 0,
@@ -94,40 +91,30 @@ const useAdditionalServices = (selectedTariff: ExtendedTariff | null) => {
     });
   }, [allServices, selectedTariff]);
 
-  useEffect(() => {
-    let newTotalPrice = 0;
-    selectedServices.forEach((tariffOnServiceUuid) => {
-      const info = availableServices.find(
-        (item) => item.tariffOnServiceUuid === tariffOnServiceUuid,
-      );
-      if (info?.isAvailable) {
-        newTotalPrice += info.price;
-      }
-    });
-    setTotalAdditionalServicesPrice(newTotalPrice);
-  }, [selectedServices, availableServices]);
-
   const handleServiceSelection = (serviceUuid: string, price: number, isAvailable: boolean) => {
     if (!isAvailable || !selectedTariff) return;
 
     const tariffService = selectedTariff.tariffAdditionalServices?.find(
       (service) => service.serviceUuid === serviceUuid,
     );
-
     if (!tariffService) return;
 
     setSelectedServices((prev) => {
       const isAlreadySelected = prev.includes(tariffService.uuid);
-
       if (isAlreadySelected) {
-        setTotalAdditionalServicesPrice((prevPrice) => prevPrice - tariffService.price);
         return prev.filter((uuid) => uuid !== tariffService.uuid);
       } else {
-        setTotalAdditionalServicesPrice((prevPrice) => prevPrice + tariffService.price);
         return [...prev, tariffService.uuid];
       }
     });
   };
+
+  const totalAdditionalServicesPrice = useMemo(() => {
+    return selectedServices.reduce((total, uuid) => {
+      const info = availableServices.find((item) => item.tariffOnServiceUuid === uuid);
+      return total + (info && info.isAvailable ? info.price : 0);
+    }, 0);
+  }, [selectedServices, availableServices]);
 
   return {
     availableServices,
