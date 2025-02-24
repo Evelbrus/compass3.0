@@ -2189,6 +2189,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@pbe/react-yandex-maps@npm:^1.2.5":
+  version: 1.2.5
+  resolution: "@pbe/react-yandex-maps@npm:1.2.5"
+  dependencies:
+    "@types/yandex-maps": "npm:2.1.29"
+  peerDependencies:
+    react: ^16.x || ^17.x || ^18.x
+  checksum: 10/d960f0c491d161eae8f1f7916b597ba909b4be091d0cd8ceecc9885a76d92e95968e2b9c048b8aaa25d1a133b499ed19413a6dbba27d8fdeb99d0e5bafadd642
+  languageName: node
+  linkType: hard
+
 "@pkgjs/parseargs@npm:^0.11.0":
   version: 0.11.0
   resolution: "@pkgjs/parseargs@npm:0.11.0"
@@ -3153,6 +3164,20 @@ __metadata:
   dependencies:
     "@types/node": "npm:*"
   checksum: 10/21369beafa75c91ae3b00d3a2671c7408fceae1d492ca2abd5ac7c8c8bf4596d513c1599ebbddeae82c27c4a2d248976d0d714c4b3d34362b2ae35b964e2e637
+  languageName: node
+  linkType: hard
+
+"@types/yandex-maps@npm:2.1.29":
+  version: 2.1.29
+  resolution: "@types/yandex-maps@npm:2.1.29"
+  checksum: 10/fa7f8b277b5c5dd165fed287299097361d594eb1a7157562d258d368d33264071667d7f4182280cc4e260c2bcbebe174abfbd6fcf8f5f6c91fe250f8c1ea381e
+  languageName: node
+  linkType: hard
+
+"@types/yandex-maps@npm:^2.1.36":
+  version: 2.1.36
+  resolution: "@types/yandex-maps@npm:2.1.36"
+  checksum: 10/02e911e30cd969420dc5526bd151daa289548c442633eba39ca89f4639e6f2601e6a3f396922da9c9793ff948755a6654a8ec4b5101be3faf8a654fa97f76df1
   languageName: node
   linkType: hard
 
@@ -4394,6 +4419,7 @@ __metadata:
     "@babel/traverse": "npm:^7.26.4"
     "@bull-board/api": "npm:^6.7.7"
     "@bull-board/express": "npm:^6.7.7"
+    "@pbe/react-yandex-maps": "npm:^1.2.5"
     "@prisma/adapter-pg": "npm:^6.2.1"
     "@prisma/client": "npm:^6.3.1"
     "@tailwindcss/aspect-ratio": "npm:^0.4.2"
@@ -4414,6 +4440,7 @@ __metadata:
     "@types/sanitize-html": "npm:^2"
     "@types/webpack": "npm:^5.28.5"
     "@types/ws": "npm:^8.5.13"
+    "@types/yandex-maps": "npm:^2.1.36"
     "@types/zxcvbn": "npm:^4"
     autoprefixer: "npm:^10.4.20"
     axios: "npm:^1.7.7"

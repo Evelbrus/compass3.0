@@ -25,6 +25,7 @@ export interface TableOrdersRow {
   updatedAt: Date;
   basePrice: number;
   actions: React.ReactNode;
+  departureTime: Date;
 }
 
 export interface TableVehicleRow {

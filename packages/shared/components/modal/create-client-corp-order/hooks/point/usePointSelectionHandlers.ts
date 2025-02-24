@@ -1,21 +1,21 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Point } from '@prisma/client';
-import { getDrivingDistance } from '@shared/components/modal/create-client-corp-order/api/someApiService';
 
 interface PointSelectionHandlersProps {
   departurePoint?: Point;
   arrivalPoint?: Point;
   additionalPoints: (Point | null)[];
+  routeDistance: number;
 }
 
 const usePointSelectionHandlers = ({
-  departurePoint,
-  arrivalPoint,
-  additionalPoints,
-}: PointSelectionHandlersProps) => {
+                                     departurePoint,
+                                     arrivalPoint,
+                                     additionalPoints,
+                                     routeDistance,
+                                   }: PointSelectionHandlersProps) => {
   const [routeCost, setRouteCost] = useState<number>(0);
 
-  //Проверка, была ли уже выбрана точка в другом селекторе
   const isPointAlreadySelected = useCallback(
     (point: Point, type: 'departure' | 'arrival' | 'additional', index?: number) => {
       if (type === 'departure')
@@ -39,49 +39,58 @@ const usePointSelectionHandlers = ({
     [departurePoint, arrivalPoint, additionalPoints],
   );
 
-  const calculateRouteCost = useCallback(async (from: Point, to: Point): Promise<number> => {
-    if (!from || !to) return 0;
-
-    try {
-      //Логируем информацию о цене за километр и коэффициенте сложности для точки отправления
-      console.log(`Цена за километр для точки отправления: ${from.pricePerKm}`);
-      console.log(`Коэффициент сложности для точки отправления: ${from.terrainDifficulty}`);
-
-      //Если необходимо использовать цену за километр с точки прибытия, раскомментируйте следующие строки:
-      //console.log(`Цена за километр для точки прибытия: ${to.pricePerKm}`);
-      //console.log(`Коэффициент сложности для точки прибытия: ${to.terrainDifficulty}`);
-
-      const distance = await getDrivingDistance(
-        { latitude: from.latitude, longitude: from.longitude },
-        { latitude: to.latitude, longitude: to.longitude },
-      );
-
-      const cost = Math.round(distance * Number(from.pricePerKm) * Number(from.terrainDifficulty));
-      console.log(`Расстояние: ${Math.round(distance)} км, Стоимость маршрута: ${cost}`);
-      return cost;
-    } catch (error) {
-      console.error('Ошибка при расчете стоимости маршрута:', error);
-      return 0;
+  const calculateRouteCost = useCallback(() => {
+    if (!departurePoint || !arrivalPoint || routeDistance === 0) {
+      setRouteCost(0);
+      return;
     }
-  }, []);
 
-  //Расчет стоимости маршрута между departurePoint и arrivalPoint
-  useEffect(() => {
-    const updateRouteCost = async () => {
-      if (departurePoint && arrivalPoint) {
-        const cost = await calculateRouteCost(departurePoint, arrivalPoint);
-        setRouteCost(cost);
-        console.log('Обновленная стоимость маршрута от точки А до точки Б:', cost);
-      } else {
-        setRouteCost(0);
+    // Формируем маршрут: отправление → дополнительные точки → прибытие
+    const filteredAdditionalPoints = additionalPoints.filter((p): p is Point => p !== null);
+    const allPointsInRoute = [
+      departurePoint,              // Начало: точка отправления
+      ...filteredAdditionalPoints, // Середина: дополнительные точки в порядке выбора
+      arrivalPoint,                // Конец: точка прибытия
+    ];
+
+    if (allPointsInRoute.length < 2) {
+      setRouteCost(0);
+      return;
+    }
+
+    const segmentCount = allPointsInRoute.length - 1; // Количество сегментов
+    const avgDistancePerSegment = routeDistance / segmentCount;
+
+    let totalCost = 0;
+
+    for (let i = 0; i < segmentCount; i++) {
+      const fromPoint = allPointsInRoute[i];
+      if (!fromPoint) {
+        console.warn(`Точка на индексе ${i} не определена`);
+        continue;
       }
-    };
-    updateRouteCost();
-  }, [departurePoint, arrivalPoint, calculateRouteCost]);
+      console.log(`Сегмент ${i + 1}: от ${fromPoint.address}`);
+      console.log(`Цена за километр: ${fromPoint.pricePerKm}`);
+      console.log(`Коэффициент сложности: ${fromPoint.terrainDifficulty}`);
+      console.log(`Расстояние сегмента (среднее): ${avgDistancePerSegment} км`);
+
+      const segmentCost = Math.round(
+        avgDistancePerSegment * Number(fromPoint.pricePerKm) * Number(fromPoint.terrainDifficulty)
+      );
+      totalCost += segmentCost;
+      console.log(`Стоимость сегмента: ${segmentCost}`);
+    }
+
+    setRouteCost(totalCost);
+    console.log(`Общая стоимость маршрута: ${totalCost}`);
+  }, [departurePoint, arrivalPoint, additionalPoints, routeDistance]);
+
+  useEffect(() => {
+    calculateRouteCost();
+  }, [calculateRouteCost]);
 
   return {
     isPointAlreadySelected,
-    calculateRouteCost,
     routeCost,
   };
 };

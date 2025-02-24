@@ -1,11 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import {
-  Action,
-  Gender,
-  OrderStatus,
-  UserRole,
-  DriverAcceptanceStatus,
-} from '@prisma/client';
+import { Action, Gender, OrderStatus, UserRole, DriverAcceptanceStatus } from '@prisma/client';
 import debug from 'debug';
 import { CreateOrderData } from '@shared/prisma/interface/orders/interface';
 import { v4 as uuidv4 } from 'uuid';
@@ -13,7 +7,10 @@ import { Decimal } from 'decimal.js';
 import { prisma } from '@shared/prisma/prisma-client';
 import { orderQueue } from '@next-app/src/lib/queues/orderQueue';
 import { processNotification } from '@next-app/src/utils/notifications/notifications';
-import { authenticateRequest, JwtPayload } from '@next-app/src/utils/authenticate/authenticateRequest';
+import {
+  authenticateRequest,
+  JwtPayload,
+} from '@next-app/src/utils/authenticate/authenticateRequest';
 
 const logError = debug('app:orders:error');
 
@@ -91,7 +88,9 @@ export async function POST(req: NextRequest) {
         logError(`× Тариф ${tariffUuid} не найден (400)`);
         throw new Error('Tariff not found');
       }
-      const departurePointRecord = await prismaTx.point.findUnique({ where: { uuid: departurePoint } });
+      const departurePointRecord = await prismaTx.point.findUnique({
+        where: { uuid: departurePoint },
+      });
       if (!departurePointRecord) {
         logError(`× Точка отправления ${departurePoint} не найдена (400)`);
         throw new Error('Departure point not found');
@@ -185,7 +184,9 @@ export async function POST(req: NextRequest) {
     const delay = departureTimestamp - now - 60_000;
 
     if (delay <= 0) {
-      console.log(`⚠️ DepartureTime (${createdOrder.departureTime}) уже меньше минуты или прошло, отправляем notification мгновенно`);
+      console.log(
+        `⚠️ DepartureTime (${createdOrder.departureTime}) уже меньше минуты или прошло, отправляем notification мгновенно`,
+      );
       await orderQueue.add(
         'notification',
         { orderUuid: createdOrder.uuid },
@@ -208,7 +209,9 @@ export async function POST(req: NextRequest) {
         },
       );
     } else {
-      console.log(`⏱ Задача "notification" для заказа ${createdOrder.uuid} запланирована через ${delay} мс`);
+      console.log(
+        `⏱ Задача "notification" для заказа ${createdOrder.uuid} запланирована через ${delay} мс`,
+      );
       await orderQueue.add(
         'notification',
         { orderUuid: createdOrder.uuid },
@@ -219,7 +222,9 @@ export async function POST(req: NextRequest) {
           jobId: `notification-${createdOrder.uuid}`,
         },
       );
-      console.log(`⏱ Планируем checkoverdue для заказа ${createdOrder.uuid} через ${delay + 60_000} мс`);
+      console.log(
+        `⏱ Планируем checkoverdue для заказа ${createdOrder.uuid} через ${delay + 60_000} мс`,
+      );
       await orderQueue.add(
         'checkoverdue',
         { orderUuid: createdOrder.uuid },
@@ -254,9 +259,15 @@ export async function GET(req: Request) {
       page: Math.max(1, parseInt(searchParams.get('page') || '1', 10)),
       per_page: Math.max(1, Math.min(100, parseInt(searchParams.get('per_page') || '10', 10))),
       status: searchParams.get('status') as OrderStatus | null,
+      // Меняем sort_by на departureTime по умолчанию
       sort_by:
-        (searchParams.get('sort_by') as 'createdAt' | 'updatedAt' | 'finalPrice') || 'createdAt',
-      sort_order: (searchParams.get('sort_order') as 'asc' | 'desc') || 'desc',
+        (searchParams.get('sort_by') as
+          | 'createdAt'
+          | 'updatedAt'
+          | 'finalPrice'
+          | 'departureTime') || 'departureTime',
+      // Меняем sort_order на asc по умолчанию
+      sort_order: (searchParams.get('sort_order') as 'asc' | 'desc') || 'asc',
     };
 
     const where: { status?: OrderStatus } = {};

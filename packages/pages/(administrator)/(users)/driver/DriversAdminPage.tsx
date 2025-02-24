@@ -58,10 +58,9 @@ const DriversAdminPage: React.FC = () => {
           >
             Добавить водителя
           </button>
+          <Filters />
         </div>
       </div>
-
-      <Filters />
 
       <DriverTable
         users={users}

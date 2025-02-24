@@ -1,19 +1,23 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
-const useURLParams = ({
-  optimisticPage,
-  roleFilter,
-  sortBy,
-  sortOrder,
-  statusFilter,
-}: {
+interface URLParams {
   optimisticPage?: number;
   roleFilter?: string;
+  vehicleTypeFilter?: string;
   sortBy?: string | null;
   sortOrder?: 'asc' | 'desc';
   statusFilter?: string | null;
-}) => {
+}
+
+const useURLParams = ({
+  optimisticPage,
+  roleFilter,
+  vehicleTypeFilter,
+  sortBy,
+  sortOrder,
+  statusFilter,
+}: URLParams) => {
   const router = useRouter();
 
   useEffect(() => {
@@ -22,7 +26,13 @@ const useURLParams = ({
 
       currentParams.set('page', optimisticPage?.toString() ?? '1');
 
-      currentParams.set('role', roleFilter ?? '');
+      // Устанавливаем фильтр в зависимости от того, что передано
+      if (roleFilter !== undefined) {
+        currentParams.set('role', roleFilter ?? '');
+      }
+      if (vehicleTypeFilter !== undefined) {
+        currentParams.set('vehicleType', vehicleTypeFilter ?? '');
+      }
       currentParams.set('sort_by', sortBy ?? '');
       currentParams.set('sort_order', sortOrder ?? '');
 
@@ -34,7 +44,7 @@ const useURLParams = ({
     };
 
     updateURL();
-  }, [optimisticPage, roleFilter, sortBy, sortOrder, statusFilter]);
+  }, [optimisticPage, roleFilter, vehicleTypeFilter, sortBy, sortOrder, statusFilter, router]);
 };
 
 export default useURLParams;

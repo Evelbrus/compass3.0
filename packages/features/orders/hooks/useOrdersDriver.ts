@@ -1,44 +1,51 @@
+'use client';
+
 import { useState, useEffect, useCallback } from 'react';
-import { OrderStatus } from '@prisma/client';
+import { OrderStatus, Order, User, Tariff, Point } from '@prisma/client';
+import { useSearchParams } from 'next/navigation';
 import { TableOrdersRow } from '@shared/components/ui/table';
-import { renderOrdersActions } from '@shared/components/ui/table/ui/TableRenders';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { DetailOrderData } from '@shared/prisma/interface/orders/interface';
+import { renderOrderDriverActions } from '@shared/components/ui/table/ui/TableRenders';
 import { orderStatusTranslations } from '@shared/lib/effector/orders/options-and-translation/optionsStatusOrder';
 import { useUnit } from 'effector-react';
 import { $updateFlag } from '@shared/lib/effector/state/state';
 
-const useOrders = () => {
+type OrderWithDetails = Order & {
+  createdBy: User;
+  tariff: Tariff;
+  departurePoint: Point;
+  arrivalPoint: Point;
+};
+
+const useOrdersDriver = () => {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const updateFlag = useUnit($updateFlag);
 
-  const [orders, setOrders] = useState<DetailOrderData[]>([]);
+  const [orders, setOrders] = useState<OrderWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [perPage] = useState<number>(Number(searchParams.get('per_page')) || 10);
   const [page, setPage] = useState<number>(Number(searchParams.get('page')) || 1);
   const [optimisticPage, setOptimisticPage] = useState<number>(page);
-  // Меняем sortBy на departureTime по умолчанию
-  const [sortBy, setSortBy] = useState<keyof TableOrdersRow | null>('departureTime');
-  // Меняем sortOrder на asc по умолчанию
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | undefined>('asc');
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>(
     (searchParams.get('status') as OrderStatus) || 'all',
   );
+  // Меняем sortBy на departureTime по умолчанию
+  const [sortBy, setSortBy] = useState<keyof TableOrdersRow | null>('departureTime');
+  // Устанавливаем sortOrder как asc по умолчанию
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | undefined>('asc');
   const [total, setTotal] = useState(0);
   const [statusesCount, setStatusesCount] = useState<Record<string, number>>({});
 
   const fetchOrders = useCallback(async () => {
     setLoading(true);
     try {
-      const url = new URL('/api/orders', window.location.origin);
+      const url = new URL('/api/drivers/orders', window.location.origin);
       url.searchParams.append('page', page.toString());
       url.searchParams.append('per_page', perPage.toString());
       if (statusFilter !== 'all') {
         url.searchParams.append('status', statusFilter);
       }
-      if (sortBy !== null) {
+      if (sortBy) {
         url.searchParams.append('sort_by', sortBy as string);
       }
       if (sortOrder) {
@@ -46,13 +53,13 @@ const useOrders = () => {
       }
       url.searchParams.append('role', 'Driver');
 
-      const response = await fetch(url.toString());
-      if (!response.ok) {
-        throw new Error('Network response was not ok');
-      }
+      const response = await fetch(url.toString(), {
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error('Network response was not ok');
 
       const data = await response.json();
-      setOrders(data.orders);
+      setOrders(data.orders || []);
       setTotal(data.total);
 
       const statusesCountData: Record<string, number> = {};
@@ -60,8 +67,8 @@ const useOrders = () => {
         statusesCountData[item.status] = item._count.status;
       });
       setStatusesCount(statusesCountData);
-    } catch (error) {
-      console.error('Error fetching orders:', error);
+    } catch (err) {
+      console.error('Error fetching driver orders:', err);
       setError('Error fetching orders');
     } finally {
       setLoading(false);
@@ -95,8 +102,8 @@ const useOrders = () => {
   const tableData: TableOrdersRow[] = orders.map((order, index) => ({
     number: (optimisticPage - 1) * perPage + index + 1,
     createdBy: {
-      fullName: order.createdBy.fullName,
-      phone: order.createdBy.phone,
+      fullName: order.createdBy.fullName || 'Не указано',
+      phone: order.createdBy.phone || 'Не указано',
     },
     tariff: {
       name: order.tariff.name,
@@ -112,11 +119,7 @@ const useOrders = () => {
     updatedAt: order.updatedAt,
     departureTime: order.departureTime, // Добавляем поле
     basePrice: parseFloat(order.basePrice.toString()),
-    actions: renderOrdersActions({
-      entity: 'orders',
-      uuid: order.uuid,
-      navigate: router.push,
-    }),
+    actions: renderOrderDriverActions({ entity: 'orders', uuid: order.uuid }),
   }));
 
   return {
@@ -130,10 +133,10 @@ const useOrders = () => {
     sortOrder,
     statusesCount,
     statusFilter,
-    handleStatusFilterChange,
     handlePageChange,
     handleSort,
+    handleStatusFilterChange,
   };
 };
 
-export default useOrders;
+export default useOrdersDriver;

@@ -18,6 +18,7 @@ export type ModalType =
   | 'deleteModal'
   | 'createTariffModal'
   | 'orderDetailDriver'
+  | 'vehicleDetail'
   | 'createClientCorpOrder'
   | 'changePasswordModal'
   | 'createAdditionalServiceModal'
@@ -84,3 +85,9 @@ export const $additionalServiceUuid = createStore<string | null>(null).on(
 //Состояние для хранения UUID точки прибытия
 export const setPointUuid = createEvent<string | null>();
 export const $pointUuid = createStore<string | null>(null).on(setPointUuid, (_, uuid) => uuid);
+
+// Хранилище для идентификатора автомобиля
+export const setVehicleUuid = createEvent<string | null>();
+export const $vehicleUuid = createStore<string | null>(null)
+  .on(setVehicleUuid, (_, uuid) => uuid)
+  .reset(closeModal);

@@ -13,11 +13,9 @@ export function useSocket(event?: string, callback?: (data: any) => void) {
     if (!event || !callback) return;
 
     socket.on(event, callback);
-    console.log(`Событие "${event}" зарегистрировано в useSocket`);
 
     return () => {
       socket.off(event, callback);
-      console.log(`Событие "${event}" удалено в useSocket`);
     };
   }, [socket, event, callback]);
 

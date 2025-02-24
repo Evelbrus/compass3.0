@@ -1,140 +1,75 @@
 'use client';
 
-import React, { JSX, useEffect, useTransition, useCallback, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useUnit } from 'effector-react';
-import { $updateFlag, View } from '@shared/lib/effector/state/state';
-import { ITable, TableVehicleRow } from '@shared/components/ui/table';
-import SkeletonTable from '@shared/components/ui/table/ui/SkeletonTable';
-import Pagination from '@shared/components/ui/pagination/Pagination';
+import React, { useRef } from 'react';
 import AnimatedComponent from '@shared/components/animated/CommonAnimated/AnimatedComponent';
-import NoData from '@shared/components/errors/noData';
 import StatusOverview from '@widgets/status-overview/ui/StatusOverview';
-import { useVehiclesData } from '@pages/(driver)/vehicles/main/useVehiclesData';
-import { vehicleColumns } from '@pages/(driver)/vehicles/main/vehicleColums';
-import { mapVehiclesToTableData } from '@pages/(driver)/vehicles/main/tableDataUtils';
-import { vehicleTypesOverview } from '@pages/(driver)/vehicles/main/vehicleTypesOverview';
-import { VehicleType } from '@prisma/client';
+import PaginationComponent from '@shared/components/ui/pagination/PaginationComponent';
+import useVehicles from '@features/vehicles/hooks/useVehicles';
+import useURLParams from '@shared/utils/hooks/useURLParams';
+import VehiclesDriverTable from '@features/vehicles/table/VehiclesDriverTable';
+import { vehicleTypesOverview } from '@entities/vehicles/vehiclesOverview';
 
-const VehiclesDriverPage = (): JSX.Element => {
-  const [isPending, startTransition] = useTransition();
-  const updateFlag = useUnit($updateFlag);
-  const router = useRouter();
-  const [view, setView] = useState<View>('skeleton');
-  const [optimisticPage, setOptimisticPage] = useState(1);
+const VehiclesDriverPage: React.FC = () => {
+  const topRef = useRef<HTMLDivElement>(null);
 
   const {
     vehicles,
     loading,
     error,
-    page,
-    perPage,
     total,
-    vehicleTypeFilter,
     vehicleTypeCounts,
+    optimisticPage,
+    perPage,
+    vehicleTypeFilter,
     sortBy,
     sortOrder,
-    setPage,
-    setVehicleTypeFilter,
-    setSortBy,
-    setSortOrder,
-    fetchVehicles,
-  } = useVehiclesData();
+    handlePageChange,
+    handleSort,
+    handleVehicleTypeFilterChange,
+  } = useVehicles();
 
-  const fetchData = useCallback(async () => {
-    try {
-      await fetchVehicles();
-    } catch (error) {
-      console.error('Ошибка загрузки:', error);
+  useURLParams({ optimisticPage, vehicleTypeFilter, sortBy, sortOrder });
+
+  const handlePageChangeWithScroll = (newPage: number) => {
+    handlePageChange(newPage);
+    if (topRef.current) {
+      topRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
-  }, [fetchVehicles]);
-
-  useEffect(() => {
-    startTransition(() => {
-      fetchData();
-    });
-  }, [page, vehicleTypeFilter, sortBy, sortOrder, updateFlag, fetchData]);
-
-  useEffect(() => {
-    if (error) {
-      setView('error');
-    } else if (loading && view !== 'skeleton') {
-      setView('loading');
-    } else if (!loading && vehicles.length > 0) {
-      setView('data');
-    } else if (!loading && vehicles.length === 0) {
-      setView('noData');
-    }
-  }, [loading, error, vehicles, view]);
-
-  const handlePageChange = (newPage: number) => {
-    startTransition(() => {
-      setOptimisticPage(newPage);
-      setPage(newPage);
-    });
   };
-
-  const handleSort = useCallback(
-    (sortByKey: keyof TableVehicleRow | null, sortDirection: 'asc' | 'desc') => {
-      startTransition(() => {
-        setSortBy(sortByKey ?? 'createdAt');
-        setSortOrder(sortDirection);
-      });
-    },
-    [setSortBy, setSortOrder],
-  );
-
-  const handleFilterChange = (status: string) => {
-    startTransition(() => {
-      setVehicleTypeFilter(status as VehicleType);
-      setPage(1);
-    });
-  };
-
-  const tableData = mapVehiclesToTableData(vehicles, optimisticPage, perPage, router.push);
 
   return (
     <AnimatedComponent
       className="relative max-w-full min-h-[calc(100vh-80px)] p-5 flex flex-col gap-4"
       duration={1000}
     >
-      <h1 className="text-2xl font-extrabold leading-4">Мои транспортные средства</h1>
+      <div ref={topRef} className="w-full flex flex-row justify-between items-center">
+        <h1 className="text-2xl font-extrabold leading-4">Мои транспортные средства</h1>
+      </div>
 
       <StatusOverview
         selectedStatus={vehicleTypeFilter}
         statusCounts={vehicleTypeCounts}
-        onSelectStatus={handleFilterChange}
+        onSelectStatus={handleVehicleTypeFilterChange}
         statusOverview={vehicleTypesOverview}
       />
 
-      <>
-        {view === 'skeleton' && <SkeletonTable columns={vehicleColumns} rows={perPage} />}
+      <VehiclesDriverTable
+        vehicles={vehicles}
+        loading={loading}
+        error={error}
+        sortBy={sortBy}
+        sortOrder={sortOrder}
+        handleSort={handleSort}
+      />
 
-        {view === 'data' ? (
-          <AnimatedComponent duration={500} className="w-full">
-            <ITable<TableVehicleRow>
-              data={tableData}
-              columns={vehicleColumns}
-              sortBy={sortBy}
-              sortDirection={sortOrder}
-              onSort={handleSort}
-            />
-          </AnimatedComponent>
-        ) : view === 'error' ? (
-          <div className="text-red-500 mb-4">{error}</div>
-        ) : (
-          <NoData />
-        )}
-
-        {total > perPage && (
-          <Pagination
-            pageNumber={optimisticPage}
-            pageSize={perPage}
-            totalCount={total}
-            setPageNumber={handlePageChange}
-          />
-        )}
-      </>
+      {total > perPage && (
+        <PaginationComponent
+          pageNumber={optimisticPage}
+          pageSize={perPage}
+          totalCount={total}
+          setPageNumber={handlePageChangeWithScroll}
+        />
+      )}
     </AnimatedComponent>
   );
 };

@@ -1,14 +1,17 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { useUnit } from 'effector-react';
 import { TablePointsRow } from '@shared/components/ui/table';
 import { renderActions } from '@shared/components/ui/table/ui/TableRenders';
 import { Point } from '@prisma/client';
+import { $updateFlag } from '@shared/lib/effector/state/state';
 
 const usePoints = () => {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const updateFlag = useUnit($updateFlag); // Подключаем глобальный флаг обновления из Effector
 
-  //📌 Инициализация состояния из URL параметров
+  // 📌 Инициализация состояния из URL параметров
   const [page, setPage] = useState<number>(Number(searchParams.get('page')) || 1);
   const [optimisticPage, setOptimisticPage] = useState<number>(page);
   const [perPage] = useState<number>(Number(searchParams.get('per_page')) || 10);
@@ -19,13 +22,13 @@ const usePoints = () => {
     (searchParams.get('sort_order') as 'asc' | 'desc' | undefined) || 'desc',
   );
 
-  //📌 Данные из API
+  // 📌 Данные из API
   const [points, setPoints] = useState<TablePointsRow[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [total, setTotal] = useState<number>(0);
 
-  //📌 Функция загрузки точек с сервера
+  // 📌 Функция загрузки точек с сервера
   const fetchPoints = useCallback(async () => {
     setLoading(true);
     try {
@@ -73,13 +76,14 @@ const usePoints = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, perPage, sortBy, sortOrder, router]);
+  }, [page, perPage, sortBy, sortOrder, router, optimisticPage]);
 
+  // 📌 Эффект для загрузки данных при изменении параметров или флага обновления
   useEffect(() => {
     fetchPoints();
-  }, [fetchPoints]);
+  }, [fetchPoints, updateFlag]); // Добавляем updateFlag в зависимости
 
-  //📌 Функции для смены страницы и сортировки
+  // 📌 Функции для смены страницы и сортировки
   const handlePageChange = (newPage: number) => {
     setOptimisticPage(newPage);
     setPage(newPage);
