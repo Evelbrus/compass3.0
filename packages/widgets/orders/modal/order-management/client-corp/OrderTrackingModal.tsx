@@ -6,20 +6,16 @@ import {
   Notification,
   UserRole,
 } from '@prisma/client';
-import {
-  fetchOrderDetails,
-  updateOrderStatus,
-} from '@widgets/orders/modal/driver/api/apiDriverModel';
 import { CloseIcon } from '@shared/components/ui/icon';
 import { IButton } from '@shared/components/ui/buttons';
 import AnimatedComponent from '@shared/components/animated/CommonAnimated/AnimatedComponent';
 import { showToast } from '@shared/components/toast/ToastManager';
 import { OrderDetail, stages } from '@features/notifications/lib/useNotifications';
-import NotedStage from '@widgets/orders/modal/driver/order-management/client-corp/stage/NotedStage';
-import CancelOrderStage from '@widgets/orders/modal/driver/order-management/client-corp/stage/CancelOrderStage';
-import CompletedStage from '@widgets/orders/modal/driver/order-management/client-corp/stage/CompletedStage';
-import CancelledStage from '@widgets/orders/modal/driver/order-management/client-corp/stage/CancelledStage';
-
+import CancelledStage from '@widgets/orders/modal/order-management/client-corp/stage/CancelledStage';
+import CancelOrderStage from '@widgets/orders/modal/order-management/client-corp/stage/CancelOrderStage';
+import CompletedStage from '@widgets/orders/modal/order-management/client-corp/stage/CompletedStage';
+import { updateClientOrderStatus } from '@widgets/orders/modal/order-management/client-corp/api/apiClientCorpModel';
+import { fetchOrderDetails } from '@widgets/orders/modal/order-management/api/apiOrder';
 
 interface OrderTrackingModalProps {
   isOpen: boolean;
@@ -43,7 +39,6 @@ const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [orderData, setOrderData] = useState<OrderDetail | null>(null);
-  const [notificationRead, setNotificationRead] = useState(notification.read);
   const [showAdditionalServices, setShowAdditionalServices] = useState(false);
 
   useEffect(() => {
@@ -107,16 +102,15 @@ const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
     setError(null);
 
     try {
-      await updateOrderStatus({
+      await updateClientOrderStatus({
         orderUuid: notification.orderId,
         driverStatus: DriverAcceptanceStatus.PENDING,
         orderStatus: OrderStatus.CANCELLED,
         notificationUuid: notification.uuid,
-        userId: notification.userId,
+        userId: notification.createdById,
         createdById: notification.createdById,
-        driverById: orderData?.assignedDriverId || undefined,
-        markNotificationAsRead: true,
         action: Action.cancelled,
+        markNotificationAsRead: true,
       });
 
       setOrderStatus(OrderStatus.CANCELLED);
@@ -135,17 +129,14 @@ const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
 
   const handleMarkAsRead = async () => {
     try {
-      await updateOrderStatus({
+      await updateClientOrderStatus({
         orderUuid: notification.orderId,
         notificationUuid: notification.uuid,
-        userId: notification.userId,
+        userId: notification.createdById,
         createdById: notification.createdById,
-        driverById: orderData?.assignedDriverId || undefined,
-        markNotificationAsRead: true,
         action: Action.noted,
+        markNotificationAsRead: true,
       });
-
-      setNotificationRead(true);
       showToast.success('Уведомление отмечено как прочитанное', {
         position: 'top-right',
         autoClose: 3000,
@@ -160,12 +151,34 @@ const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
     }
   };
 
+  const handleCloseModal = () => {
+    onClose();
+  };
+
   const getActions = () => {
     if (userRole !== UserRole.ClientCorp) return null;
 
     switch (notification.action) {
       case Action.noted:
-        return <NotedStage onMarkAsRead={handleMarkAsRead} notificationRead={notificationRead} />;
+        return (
+          <div className="flex justify-center mt-6">
+            {notification.read ? (
+              <button
+                className="px-6 py-2 bg-green-500 text-white rounded cursor-default"
+                onClick={handleCloseModal}
+              >
+                Уведомление прочитано
+              </button>
+            ) : (
+              <button
+                className="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+                onClick={handleMarkAsRead}
+              >
+                Ознакомился
+              </button>
+            )}
+          </div>
+        );
       case Action.inProgress:
       case Action.warning:
         return (
@@ -177,9 +190,9 @@ const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
           />
         );
       case Action.success:
-        return <CompletedStage onClose={onClose} />;
+        return <CompletedStage onClose={handleCloseModal} />;
       case Action.cancelled:
-        return <CancelledStage onClose={onClose} orderId={notification.orderId} />;
+        return <CancelledStage onClose={handleCloseModal} orderId={notification.orderId} />;
       default:
         return null;
     }
@@ -194,7 +207,7 @@ const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
           <div className="flex justify-between items-center mb-6">
             <IButton
               variant="close"
-              onClick={onClose}
+              onClick={handleCloseModal}
               aria-label="Закрыть модальное окно"
               className="ml-4 border border-gray-200 hover:shadow-[0px_0px_5px_rgba(0,0,0,0.15)] hover:bg-blue-100 rounded-full"
             >

@@ -158,7 +158,7 @@ export async function POST(req: NextRequest) {
         orderId: createdOrder.uuid,
         action: Action.noted,
         templateKey: 'orderCreatedByAdminToClient',
-        createdById: adminUserId,
+        createdById: corpClientId,
       });
       if (assignedDriverId) {
         await processNotification({

@@ -8,10 +8,9 @@ import DriverNotificationList from '@widgets/layout/header/notification/DriverNo
 import ClientNotificationList from '@widgets/layout/header/notification/ClientNotificationList';
 import { LazyImage } from '@shared/components/ui/images';
 import { UserRole } from '@prisma/client';
-import OrderDriverModal from '@widgets/orders/modal/driver/order-management/driver/OrderDriverModal';
-import OrderTrackingModal from '@widgets/orders/modal/driver/order-management/client-corp/OrderTrackingModal';
-import WarningAdminModal from '@widgets/orders/modal/driver/order-management/admin/WarningAdminModal';
-
+import OrderDriverModal from '@widgets/orders/modal/order-management/driver/OrderDriverModal';
+import OrderTrackingModal from '@widgets/orders/modal/order-management/client-corp/OrderTrackingModal';
+import WarningAdminModal from '@widgets/orders/modal/order-management/admin/WarningAdminModal';
 
 const Notification = ({ userSession }: NotificationIslandProps) => {
   const [isOpen, setIsOpen] = useState(false);

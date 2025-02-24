@@ -9,8 +9,8 @@ import {
 import { useRouter } from 'next/navigation';
 import { CloseIcon } from '@shared/components/ui/icon';
 import { IButton } from '@shared/components/ui/buttons';
-import { fetchOrderDetails } from '@widgets/orders/modal/driver/api/apiDriverModel';
 import { OrderDetail, stages } from '@features/notifications/lib/useNotifications';
+import { fetchOrderDetails } from '@widgets/orders/modal/order-management/api/apiOrder';
 
 interface WarningModalProps {
   isOpen: boolean;

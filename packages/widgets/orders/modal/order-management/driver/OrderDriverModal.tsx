@@ -6,21 +6,19 @@ import {
   Notification,
   UserRole,
 } from '@prisma/client';
-import {
-  fetchOrderDetails,
-  updateOrderStatus,
-} from '@widgets/orders/modal/driver/api/apiDriverModel';
 import { CloseIcon } from '@shared/components/ui/icon';
 import { IButton } from '@shared/components/ui/buttons';
 import AnimatedComponent from '@shared/components/animated/CommonAnimated/AnimatedComponent';
 import { showToast } from '@shared/components/toast/ToastManager';
 import { OrderDetail, stages } from '@features/notifications/lib/useNotifications';
-import PendingStage from '@widgets/orders/modal/driver/order-management/driver/stage/PendingStage';
-import AcceptedStage from '@widgets/orders/modal/driver/order-management/driver/stage/AcceptedStage';
-import OnTheWayStage from '@widgets/orders/modal/driver/order-management/driver/stage/OnTheWayStage';
-import ArrivedStage from '@widgets/orders/modal/driver/order-management/driver/stage/ArrivedStage';
-import PickedUpStage from '@widgets/orders/modal/driver/order-management/driver/stage/PickedUpStage';
-import CompletedStage from '@widgets/orders/modal/driver/order-management/driver/stage/CompletedStage';
+import { fetchOrderDetails } from '@widgets/orders/modal/order-management/api/apiOrder';
+import PendingStage from '@widgets/orders/modal/order-management/driver/stage/PendingStage';
+import AcceptedStage from '@widgets/orders/modal/order-management/driver/stage/AcceptedStage';
+import OnTheWayStage from '@widgets/orders/modal/order-management/driver/stage/OnTheWayStage';
+import ArrivedStage from '@widgets/orders/modal/order-management/driver/stage/ArrivedStage';
+import PickedUpStage from '@widgets/orders/modal/order-management/driver/stage/PickedUpStage';
+import CompletedStage from '@widgets/orders/modal/order-management/driver/stage/CompletedStage';
+import { updateDriverOrderStatus } from '@widgets/orders/modal/order-management/driver/api/apiDriverModel';
 
 interface OrderDriverModalProps {
   isOpen: boolean;
@@ -31,12 +29,12 @@ interface OrderDriverModalProps {
 }
 
 const OrderDriverModal: React.FC<OrderDriverModalProps> = ({
-  isOpen,
-  onClose,
-  notification,
-  getDriverNotifications,
-  userRole,
-}) => {
+                                                             isOpen,
+                                                             onClose,
+                                                             notification,
+                                                             getDriverNotifications,
+                                                             userRole,
+                                                           }) => {
   const [orderData, setOrderData] = useState<OrderDetail | null>(null);
   const [currentStage, setCurrentStage] = useState<DriverAcceptanceStatus>(
     DriverAcceptanceStatus.PENDING,
@@ -122,7 +120,8 @@ const OrderDriverModal: React.FC<OrderDriverModalProps> = ({
     setError(null);
 
     try {
-      const newOrderStatus = driverStatusToOrderStatus[driverStatus];
+      // Если action === cancelled, устанавливаем orderStatus в CANCELLED
+      const newOrderStatus = action === Action.cancelled ? OrderStatus.CANCELLED : driverStatusToOrderStatus[driverStatus];
 
       if (driverStatus === DriverAcceptanceStatus.ACCEPTED && getDriverNotifications) {
         const driverNotifications = getDriverNotifications(notification.userId);
@@ -142,16 +141,15 @@ const OrderDriverModal: React.FC<OrderDriverModalProps> = ({
         }
       }
 
-      await updateOrderStatus({
+      await updateDriverOrderStatus({
         orderUuid: notification.orderId,
         driverStatus,
         orderStatus: newOrderStatus,
         notificationUuid: notification.uuid,
-        userId: notification.userId,
+        userId: notification.userId, // ID водителя
         createdById: notification.createdById,
-        driverById: notification.driverById || orderData?.assignedDriverId || undefined,
-        markNotificationAsRead: true,
         action,
+        markNotificationAsRead: true,
       });
 
       setCurrentStage(driverStatus);
@@ -172,14 +170,13 @@ const OrderDriverModal: React.FC<OrderDriverModalProps> = ({
 
   const handleMarkAsRead = async () => {
     try {
-      await updateOrderStatus({
+      await updateDriverOrderStatus({
         orderUuid: notification.orderId,
         notificationUuid: notification.uuid,
-        userId: notification.userId,
+        userId: notification.userId, // ID водителя
         createdById: notification.createdById,
-        driverById: notification.driverById || orderData?.assignedDriverId || undefined,
-        markNotificationAsRead: true,
         action: Action.noted,
+        markNotificationAsRead: true,
       });
 
       showToast.success('Уведомление отмечено как прочитанное', {
@@ -238,7 +235,7 @@ const OrderDriverModal: React.FC<OrderDriverModalProps> = ({
                 }
                 onCancel={() =>
                   handleDriverAction(
-                    DriverAcceptanceStatus.TIMEOUT,
+                    DriverAcceptanceStatus.PENDING,
                     Action.cancelled,
                     `Заказ #${notification.orderId} отменён водителем`,
                     'Не удалось отменить заказ',
@@ -260,7 +257,7 @@ const OrderDriverModal: React.FC<OrderDriverModalProps> = ({
                 }
                 onCancel={() =>
                   handleDriverAction(
-                    DriverAcceptanceStatus.TIMEOUT,
+                    DriverAcceptanceStatus.PENDING,
                     Action.cancelled,
                     `Заказ #${notification.orderId} отменён водителем`,
                     'Не удалось отменить заказ',
@@ -342,7 +339,7 @@ const OrderDriverModal: React.FC<OrderDriverModalProps> = ({
               className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition"
               onClick={() =>
                 handleDriverAction(
-                  DriverAcceptanceStatus.TIMEOUT,
+                  DriverAcceptanceStatus.PENDING,
                   Action.cancelled,
                   `Заказ #${notification.orderId} отклонён`,
                   'Не удалось отклонить заказ',
