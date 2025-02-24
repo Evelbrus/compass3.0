@@ -5,7 +5,8 @@ import {
   Action,
   AdditionalService,
   DriverAcceptanceStatus,
-  Notification, OrderStatus,
+  Notification,
+  OrderStatus,
   TariffOnService,
   UserRole,
 } from '@prisma/client';
@@ -72,12 +73,16 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
           console.log(`Обновляем уведомление ${notification.uuid}, read: ${notification.read}`);
           updatedNotifications[existingIndex] = notification;
         } else {
-          console.log(`Добавляем новое уведомление ${notification.uuid}, read: ${notification.read}`);
+          console.log(
+            `Добавляем новое уведомление ${notification.uuid}, read: ${notification.read}`,
+          );
           updatedNotifications.unshift(notification);
         }
 
         console.log(`Текущая роль userSession: ${userSession?.role}, userId: ${userSession?.uuid}`);
-        console.log(`Проверка для админа/оператора: action=${notification.action}, read=${notification.read}`);
+        console.log(
+          `Проверка для админа/оператора: action=${notification.action}, read=${notification.read}`,
+        );
 
         console.log(`Открываем модалку для уведомления ${notification.uuid}`);
         openModal(notification);
@@ -153,7 +158,9 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
       setIsLoading(true);
       setError(null);
       try {
-        console.log(`Загружаем уведомления для userId: ${userSession.uuid}, role: ${userSession.role}`);
+        console.log(
+          `Загружаем уведомления для userId: ${userSession.uuid}, role: ${userSession.role}`,
+        );
         const data = await fetchNotifications(userSession.uuid);
         console.log('Полученные уведомления:', data);
         setNotifications(data);
@@ -183,7 +190,7 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
     loadNotifications();
 
     if (!socket) {
-      console.error('Сокет не инициализирован');
+      // console.error('Сокет не инициализирован');
       return;
     }
 
@@ -208,7 +215,9 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
 
     if (socket.connected) {
       socket.emit('register', { userId: userSession.uuid, role: userSession.role });
-      console.log(`Клиент зарегистрирован (немедленно): userId: ${userSession.uuid}, role: ${userSession.role}`);
+      console.log(
+        `Клиент зарегистрирован (немедленно): userId: ${userSession.uuid}, role: ${userSession.role}`,
+      );
     }
 
     return () => {
@@ -230,7 +239,8 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
   );
 
   const clientNotifications = useMemo(
-    () => (userSession?.role === UserRole.ClientCorp ? getClientNotifications(userSession.uuid) : []),
+    () =>
+      userSession?.role === UserRole.ClientCorp ? getClientNotifications(userSession.uuid) : [],
     [notifications, userSession],
   );
   const clientUnreadCount = useMemo(
@@ -254,7 +264,10 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
     }
 
     if (userSession.role === UserRole.Admin || userSession.role === UserRole.Operator) {
-      return activeNotification.action === Action.warning || activeNotification.action === Action.cancelled;
+      return (
+        activeNotification.action === Action.warning ||
+        activeNotification.action === Action.cancelled
+      );
     }
 
     return false;
