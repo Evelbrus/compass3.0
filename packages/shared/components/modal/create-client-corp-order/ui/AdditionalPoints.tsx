@@ -10,10 +10,8 @@ interface AdditionalPointsProps {
   search: string;
   handleSearchChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   filteredPoints: Point[];
-  loading: boolean;
   onSelectPoint: (point: Point, index?: number) => void;
   selectorRef: React.RefObject<HTMLDivElement | null>;
-  observerRef: React.RefObject<HTMLDivElement | null>;
   selectedPoints: (Point | null)[];
   onRemovePoint: (index: number) => void;
   onChangeOrder: (currentIndex: number, newIndex: number) => void;
@@ -24,35 +22,28 @@ interface AdditionalPointsProps {
 const MAX_POINTS = 5;
 
 const AdditionalPoints: React.FC<AdditionalPointsProps> = ({
-  label,
-  isOpen,
-  searchValue,
-  onOpenSelect,
-  onSearchValueChange,
-  search,
-  handleSearchChange,
-  filteredPoints,
-  loading,
-  onSelectPoint,
-  selectorRef,
-  observerRef,
-  selectedPoints,
-  onRemovePoint,
-  onChangeOrder,
-  onMaxLimitReached,
-  totalAdditionalPrice,
-}) => {
+                                                             label,
+                                                             isOpen,
+                                                             searchValue,
+                                                             onOpenSelect,
+                                                             onSearchValueChange,
+                                                             search,
+                                                             handleSearchChange,
+                                                             filteredPoints,
+                                                             onSelectPoint,
+                                                             selectorRef,
+                                                             selectedPoints,
+                                                             onRemovePoint,
+                                                             onChangeOrder,
+                                                             onMaxLimitReached,
+                                                             totalAdditionalPrice,
+                                                           }) => {
   const selectedCount = selectedPoints.filter(Boolean).length;
 
   return (
     <div className="w-full relative">
-      <label className={'flex p-2 border rounded-md bg-[#989898] text-white'}>{label}</label>
-      {/*Выводим текст с общей стоимостью под заголовком */}
-      <div className="m-2 text-sm text-gray-500">
-        Общая стоимость ({selectedCount} доп. точек {totalAdditionalPrice}с)
-      </div>
-      {/*Поле для добавления остановки всегда отображается */}
-      <div className="mb-4">
+      <label className="flex p-2 border rounded-md bg-[#989898] text-white">{label}</label>
+      <div className="my-4">
         <input
           type="text"
           value={searchValue}
@@ -68,7 +59,6 @@ const AdditionalPoints: React.FC<AdditionalPointsProps> = ({
           className="w-full p-2 border rounded cursor-pointer"
           readOnly
         />
-        {/*Показываем выпадающий список только если лимит ещё не достигнут */}
         {isOpen && selectedCount < MAX_POINTS && (
           <div
             className="absolute z-10 w-full bg-white border rounded mt-1 shadow-md max-h-[200px] overflow-y-auto"
@@ -97,20 +87,17 @@ const AdditionalPoints: React.FC<AdditionalPointsProps> = ({
                 {point.address}
               </div>
             ))}
-            <div ref={observerRef} className="p-2 text-center">
-              {loading ? 'Загрузка...' : ''}
-            </div>
           </div>
         )}
       </div>
-      {/*Список выбранных остановок с селекторами для изменения порядка */}
       <div className="space-y-2">
         {Array.from({ length: MAX_POINTS }).map((_, index) => {
           const point = selectedPoints[index];
+          const letter = String.fromCharCode(67 + index); // C, D, E и т.д.
           return (
             <div key={index} className="flex flex-row gap-2">
               <select
-                value={index + 1} //отображаем номер от 1 до 5
+                value={index + 1}
                 onChange={(e) => {
                   const newIndex = Number(e.target.value) - 1;
                   if (newIndex !== index) {
@@ -126,7 +113,8 @@ const AdditionalPoints: React.FC<AdditionalPointsProps> = ({
                 ))}
               </select>
               <div className="w-full flex items-center justify-between p-2 border border-gray-300 rounded">
-                <div className="flex-1">
+                <div className="flex-1 flex items-center gap-2">
+                  <span className="font-semibold text-green-500">{letter}</span>
                   {point ? (
                     <span>{point.address}</span>
                   ) : (
@@ -140,7 +128,7 @@ const AdditionalPoints: React.FC<AdditionalPointsProps> = ({
                     className="ml-2 text-red-500 hover:text-red-700"
                     aria-label="Удалить остановку"
                   >
-                    &#10005;
+                    ✕
                   </button>
                 )}
               </div>
@@ -148,7 +136,6 @@ const AdditionalPoints: React.FC<AdditionalPointsProps> = ({
           );
         })}
       </div>
-      {/*Примечание под списком выбранных остановок */}
       <div className="mt-4 text-sm text-gray-500">
         Вы можете через селектор изменить порядок остановок.
       </div>

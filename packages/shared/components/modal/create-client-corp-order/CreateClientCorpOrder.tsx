@@ -1,15 +1,11 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { FormProvider } from 'react-hook-form';
 import { IButton } from '@shared/components/ui/buttons';
 import { CloseIcon } from '@shared/components/ui/icon';
 import AnimatedComponent from '@shared/components/animated/CommonAnimated/AnimatedComponent';
 import { Decimal } from 'decimal.js';
-
-//Типизация
 import { Point, ServiceLevels, VehicleType } from '@prisma/client';
 import { ExtendedTariff } from '@shared/prisma/interface/orders/interface';
-
-//Хуки
 import useTariffs from '@shared/components/modal/create-client-corp-order/hooks/tariff/useTariffs';
 import usePointSelector from '@shared/components/modal/create-client-corp-order/hooks/point/usePointSelector';
 import useCreateClientCorpOrderLogic, {
@@ -19,9 +15,6 @@ import useAdditionalServices from '@shared/components/modal/create-client-corp-o
 import useWaitTime from '@shared/components/modal/create-client-corp-order/hooks/wait/useWaitTime';
 import useTotalPrice from '@shared/components/modal/create-client-corp-order/hooks/price/useTotalPrice';
 import useSubmitOrder from '@shared/components/modal/create-client-corp-order/hooks/useSubmitOrder';
-import useClientNotifications from '@shared/components/modal/create-client-corp-order/hooks/notifications/useClientNotifications';
-
-//Компоненты
 import TariffCheckbox from '@shared/components/modal/create-client-corp-order/ui/TariffCheckbox';
 import PointSelector from '@shared/components/modal/create-client-corp-order/inputs/PointSelector';
 import AdditionalPoints from '@shared/components/modal/create-client-corp-order/ui/AdditionalPoints';
@@ -31,22 +24,43 @@ import usePointSelectionHandlers from '@shared/components/modal/create-client-co
 import WaitTimeSelector from '@shared/components/modal/create-client-corp-order/ui/WaitTimeSelector';
 import { showToast } from '@shared/components/toast/ToastManager';
 import { useRouter } from 'next/navigation';
+import RouteMap from '@shared/components/modal/create-client-corp-order/ui/RouteMap';
+import {
+  fetchPoints,
+  FetchPointsResponse,
+} from '@shared/components/modal/create-client-corp-order/api/useApi';
 
 interface CreateClientCorpOrderProps {
   onClose: () => void;
 }
 
+const transformPoint = (point: any): Point => {
+  return {
+    ...point,
+    pricePerKm: Number(point.pricePerKm),
+    latitude: Number(point.latitude),
+    longitude: Number(point.longitude),
+    terrainDifficulty: Number(point.terrainDifficulty),
+    airport: point.airport,
+    createdAt: new Date(point.createdAt),
+    updatedAt: new Date(point.updatedAt),
+  };
+};
+
 const CreateClientCorpOrder: React.FC<CreateClientCorpOrderProps> = ({ onClose }) => {
   const router = useRouter();
-
-  const [orderId, setOrderId] = useState<string>('');
-  const [ServiceLevel, setServiceLevel] = useState<ServiceLevels>();
-  const [VehicleType, setVehicleType] = useState<VehicleType>();
-
-  const tariffAndServices = useTariffs({
-    vehicleType: VehicleType,
-  });
+  const [_orderId, setOrderId] = useState<string>('');
+  const [ServiceLevel, _setServiceLevel] = useState<ServiceLevels>();
+  const [VehicleType, _setVehicleType] = useState<VehicleType>();
+  const [allPoints, setAllPoints] = useState<Point[]>([]);
+  const [routeDistance, setRouteDistance] = useState<number>(0);
+  const [routeDuration, setRouteDuration] = useState<string | null>(null);
+  const tariffAndServices = useTariffs({ vehicleType: VehicleType });
   const tariffs: ExtendedTariff[] = tariffAndServices.tariffs || [];
+
+  const handleDurationUpdate = useCallback((duration: string | null) => {
+    setRouteDuration(duration);
+  }, []);
 
   const {
     selectedServiceLevel,
@@ -57,7 +71,6 @@ const CreateClientCorpOrder: React.FC<CreateClientCorpOrderProps> = ({ onClose }
     formMethods,
   } = useCreateClientCorpOrderLogic(tariffs, ServiceLevel, VehicleType);
 
-  //Селектор для адреса подачи (departure)
   const {
     isOpen: isFromOpen,
     searchValue: fromSearchValue,
@@ -71,9 +84,8 @@ const CreateClientCorpOrder: React.FC<CreateClientCorpOrderProps> = ({ onClose }
     selectorRef: fromSelectorRef,
     observerRef: fromObserverRef,
     selectedPoint: departurePoint,
-  } = usePointSelector({ mode: 'single' });
+  } = usePointSelector({ mode: 'single', allPoints });
 
-  //Селектор для адреса прибытия (arrival)
   const {
     isOpen: isToOpen,
     searchValue: toSearchValue,
@@ -87,21 +99,18 @@ const CreateClientCorpOrder: React.FC<CreateClientCorpOrderProps> = ({ onClose }
     selectorRef: toSelectorRef,
     observerRef: toObserverRef,
     selectedPoint: arrivalPoint,
-  } = usePointSelector({ mode: 'single' });
+  } = usePointSelector({ mode: 'single', allPoints });
 
-  //Селектор для дополнительных остановок (multiple)
   const {
     isOpen: isAdditionalOpen,
     searchValue: additionalSearchValue,
     search: additionalSearch,
     filteredPoints: additionalFilteredPoints,
-    loading: additionalLoading,
     onOpenSelect: onAdditionalOpenSelect,
     onSearchValueChange: onAdditionalSearchValueChange,
     handleSearchChange: onAdditionalHandleSearchChange,
     onSelectPoint: onAdditionalSelectPoint,
     selectorRef: additionalSelectorRef,
-    observerRef: additionalObserverRef,
     selectedPoints: additionalPoints,
     onRemovePoint,
     onChangeOrder,
@@ -109,7 +118,7 @@ const CreateClientCorpOrder: React.FC<CreateClientCorpOrderProps> = ({ onClose }
   } = usePointSelector({
     mode: 'multiple',
     initialSelectedPoints: Array(5).fill(null),
-    additionalPointPrice: selectedTariff?.additionalPointPrice,
+    allPoints,
   });
 
   const {
@@ -123,7 +132,12 @@ const CreateClientCorpOrder: React.FC<CreateClientCorpOrderProps> = ({ onClose }
     departurePoint: departurePoint ?? undefined,
     arrivalPoint: arrivalPoint ?? undefined,
     additionalPoints: additionalPoints ?? [],
+    routeDistance,
   });
+
+  const handleDistanceUpdate = useCallback((distance: number) => {
+    setRouteDistance(distance);
+  }, []);
 
   const handleDepartureSelectPoint = useCallback(
     (point: Point) => {
@@ -158,10 +172,55 @@ const CreateClientCorpOrder: React.FC<CreateClientCorpOrderProps> = ({ onClose }
     [isPointAlreadySelected, onAdditionalSelectPoint],
   );
 
-  const { waitTime, additionalWaitTimeCost, adjustWaitTime, minWaitTime, maxWaitTime } =
-    useWaitTime({ selectedTariff, departurePoint });
+  const handlePointSelect = useCallback(
+    (point: Point, isSelected: boolean) => {
+      if (isSelected) {
+        // Если точка уже выбрана, "отжимаем" её
+        if (departurePoint?.uuid === point.uuid) {
+          onFromSelectPoint(null); // Сбрасываем точку отправления
+        } else if (arrivalPoint?.uuid === point.uuid) {
+          onToSelectPoint(null); // Сбрасываем точку прибытия
+        } else if (additionalPoints) {
+          const index = additionalPoints.findIndex((p) => p?.uuid === point.uuid);
+          if (index !== -1) {
+            onAdditionalSelectPoint(null, index); // Удаляем дополнительную точку
+          }
+        }
+      } else {
+        // Если точка не выбрана, добавляем её как обычно
+        if (!departurePoint) {
+          handleDepartureSelectPoint(point);
+        } else if (!arrivalPoint) {
+          handleArrivalSelectPoint(point);
+        } else if (additionalPoints) {
+          const freeIndex = additionalPoints.findIndex((p) => p === null);
+          if (freeIndex !== -1) {
+            handleAdditionalSelectPoint(point, freeIndex);
+          } else {
+            alert('Достигнут лимит точек маршрута');
+          }
+        }
+      }
+    },
+    [
+      departurePoint,
+      arrivalPoint,
+      additionalPoints,
+      handleDepartureSelectPoint,
+      handleArrivalSelectPoint,
+      handleAdditionalSelectPoint,
+      onFromSelectPoint,
+      onToSelectPoint,
+      onAdditionalSelectPoint,
+    ],
+  );
 
-  //Обновляем расчет стоимости, учитывая расстояние между точками
+  const { waitTime, additionalWaitTimeCost, adjustWaitTime, minWaitTime, maxWaitTime } =
+    useWaitTime({
+      selectedTariff,
+      departurePoint,
+    });
+
   const totalPrice = useTotalPrice({
     tariffPrice: selectedTariff?.price ? new Decimal(selectedTariff.price) : null,
     additionalServicesPrice: totalAdditionalServicesPrice
@@ -172,47 +231,66 @@ const CreateClientCorpOrder: React.FC<CreateClientCorpOrderProps> = ({ onClose }
     routeCost: routeCost ? new Decimal(routeCost) : null,
   });
 
-  const { handleOrderSuccess, handleOrderError } = useClientNotifications({
-    departurePoint,
-    arrivalPoint,
-  });
-
   const { submitOrder, isSubmitting, error } = useSubmitOrder();
 
-  const onSubmit = async (formData: CreateClientCorpOrderData) => {
-    try {
-      const result = await submitOrder({
-        selectedTariff,
-        departurePoint: departurePoint?.uuid ?? '',
-        arrivalPoint: arrivalPoint?.uuid ?? '',
-        additionalPoints: additionalPoints
-          ?.map((point) => point?.uuid)
-          .filter((uuid): uuid is string => Boolean(uuid)),
-        selectedServices,
-        totalPrice: totalPrice.toNumber(),
-        departureTime: formData.departureTime,
-        flightNumber: formData.flightNumber || '',
-        description: formData.description || '',
-        waitingTimeMinutes: waitTime,
-      });
+  const onSubmit = useCallback(
+    async (formData: CreateClientCorpOrderData) => {
+      try {
+        const result = await submitOrder({
+          selectedTariff,
+          departurePoint: departurePoint?.uuid ?? '',
+          arrivalPoint: arrivalPoint?.uuid ?? '',
+          additionalPoints: additionalPoints
+            ?.map((point) => point?.uuid)
+            .filter((uuid): uuid is string => Boolean(uuid)),
+          selectedServices,
+          totalPrice: totalPrice.toNumber(),
+          departureTime: formData.departureTime,
+          flightNumber: formData.flightNumber || '',
+          description: formData.description || '',
+          waitingTimeMinutes: waitTime,
+        });
 
-      if (result && result.uuid) {
-        setOrderId(result.uuid);
-        handleOrderSuccess(result);
-        showToast.success('Заказ создан успешно!');
-        router.push('/orders');
-        onClose();
-      } else {
-        throw new Error('Не удалось получить uuid заказа из ответа сервера');
+        if (result && result.uuid) {
+          setOrderId(result.uuid);
+          showToast.success('Заказ создан успешно!');
+          router.push('/orders');
+          onClose();
+        } else {
+          throw new Error('Не удалось получить uuid заказа из ответа сервера');
+        }
+      } catch (err) {
+        showToast.error(
+          'Ошибка при создании заказа: ' +
+            (err instanceof Error ? err.message : 'Неизвестная ошибка'),
+        );
       }
-    } catch (err) {
-      handleOrderError(err);
-      showToast.error(
-        'Ошибка при создании заказа: ' +
-          (err instanceof Error ? err.message : 'Неизвестная ошибка'),
-      );
-    }
-  };
+    },
+    [
+      selectedTariff,
+      departurePoint,
+      arrivalPoint,
+      additionalPoints,
+      selectedServices,
+      totalPrice,
+      waitTime,
+      setOrderId,
+      router,
+      onClose,
+      submitOrder,
+    ],
+  );
+
+  useEffect(() => {
+    fetchPoints('', '1', '1000', 'createdAt', 'asc')
+      .then((response: FetchPointsResponse) => {
+        const mappedPoints = response.points.map(transformPoint);
+        setAllPoints(mappedPoints);
+      })
+      .catch((error) => {
+        console.error('Ошибка при получении всех точек:', error);
+      });
+  }, []);
 
   if (tariffAndServices.isInitialMount) {
     return (
@@ -251,10 +329,8 @@ const CreateClientCorpOrder: React.FC<CreateClientCorpOrderProps> = ({ onClose }
             <CloseIcon />
           </IButton>
 
-          {/*Оборачиваем контент в форму и добавляем обработчик onSubmit */}
           <form className="flex flex-col gap-4" onSubmit={formMethods.handleSubmit(onSubmit)}>
             <h2 className="text-3xl font-semibold">Создание заказа</h2>
-
             <div className="flex border"></div>
 
             <h2 className="text-2xl font-semibold">
@@ -262,7 +338,6 @@ const CreateClientCorpOrder: React.FC<CreateClientCorpOrderProps> = ({ onClose }
               <br />
               (тип авто и уровень обслуживания)
             </h2>
-
             <TariffCheckbox
               tariffs={tariffs}
               selectedServiceLevel={selectedServiceLevel}
@@ -272,10 +347,9 @@ const CreateClientCorpOrder: React.FC<CreateClientCorpOrderProps> = ({ onClose }
               handleVehicleTypeChange={handleVehicleTypeChange}
               {...formMethods}
             />
-
             <div className="w-[50%] flex border"></div>
 
-            <h2 className="text-2xl font-semibold">2. Выберите адрес подачи</h2>
+            <h2 className="text-2xl font-semibold">2. Выберите маршрут</h2>
 
             <div className="flex flex-row gap-4">
               <div className="w-full flex flex-col gap-4 p-4 border-2 rounded-md">
@@ -289,19 +363,12 @@ const CreateClientCorpOrder: React.FC<CreateClientCorpOrderProps> = ({ onClose }
                   onSearchValueChange={onFromSearchValueChange}
                   search={fromSearch}
                   handleSearchChange={handleFromSearchChange}
-                  filteredPoints={fromFilteredPoints.map((point) => ({
-                    ...point,
-                    pricePerKm: new Decimal(point.pricePerKm),
-                  }))}
+                  filteredPoints={fromFilteredPoints}
                   loading={fromLoading}
                   onSelectPoint={handleDepartureSelectPoint}
                   selectorRef={fromSelectorRef}
                   observerRef={fromObserverRef}
-                  selectedPoint={
-                    departurePoint
-                      ? { ...departurePoint, pricePerKm: new Decimal(departurePoint.pricePerKm) }
-                      : null
-                  }
+                  selectedPoint={departurePoint}
                 />
                 <PointSelector
                   control={formMethods.control}
@@ -313,21 +380,75 @@ const CreateClientCorpOrder: React.FC<CreateClientCorpOrderProps> = ({ onClose }
                   onSearchValueChange={onToSearchValueChange}
                   search={toSearch}
                   handleSearchChange={handleToSearchChange}
-                  filteredPoints={toFilteredPoints.map((point) => ({
-                    ...point,
-                    pricePerKm: new Decimal(point.pricePerKm),
-                  }))}
+                  filteredPoints={toFilteredPoints}
                   loading={toLoading}
                   onSelectPoint={handleArrivalSelectPoint}
                   selectorRef={toSelectorRef}
                   observerRef={toObserverRef}
-                  selectedPoint={
-                    arrivalPoint
-                      ? { ...arrivalPoint, pricePerKm: new Decimal(arrivalPoint.pricePerKm) }
-                      : null
+                  selectedPoint={arrivalPoint}
+                  arrivalPointPrice={
+                    arrivalPoint?.pricePerKm ? Number(arrivalPoint.pricePerKm) : undefined
                   }
-                  arrivalPointPrice={arrivalPoint?.pricePerKm || undefined}
                 />
+                {/* Общая информация под селектами */}
+                <div className="text-sm bg-gray-50 rounded-md p-3 border">
+                  <div className="grid grid-cols-[20px_80px_1fr] gap-y-2 gap-x-4">
+                    {/* Точка отправления */}
+                    {departurePoint && (
+                      <>
+                        <span className="font-semibold text-blue-500">A</span>
+                        <span className="font-semibold">Откуда:</span>
+                        <span>{departurePoint.address}</span>
+                      </>
+                    )}
+                    {/* Точка прибытия */}
+                    {arrivalPoint && (
+                      <>
+                        <span className="font-semibold text-red-500">B</span>
+                        <span className="font-semibold">Куда:</span>
+                        <span>{arrivalPoint.address}</span>
+                      </>
+                    )}
+                    {/* Дополнительные точки */}
+                    {additionalPoints &&
+                      additionalPoints.some((point) => point !== null) &&
+                      additionalPoints
+                        .filter((point): point is Point => point !== null)
+                        .map((point, index) => (
+                          <React.Fragment key={point.uuid}>
+                            <span className="font-semibold text-green-500">
+                              {String.fromCharCode(67 + index)} {/* C, D, E и т.д. */}
+                            </span>
+                            <span className="font-semibold">Точка:</span>
+                            <span>{point.address}</span>
+                          </React.Fragment>
+                        ))}
+                    {/* Время в пути */}
+                    {routeDuration && (
+                      <>
+                        <span className="font-semibold text-purple-500">⏱</span>
+                        <span className="font-semibold">Время:</span>
+                        <span>{routeDuration}</span>
+                      </>
+                    )}
+                    {/* Расстояние в километрах */}
+                    {routeDistance > 0 && (
+                      <>
+                        <span className="font-semibold text-teal-500">📏</span>
+                        <span className="font-semibold">Км:</span>
+                        <span>{routeDistance.toFixed(2)} км</span>
+                      </>
+                    )}
+                    {/* Стоимость маршрута */}
+                    {routeCost && (
+                      <>
+                        <span className="font-semibold text-orange-500">💸</span>
+                        <span className="font-semibold">Стоимость маршрута:</span>
+                        <span>{routeCost.toFixed(2)} сом</span>
+                      </>
+                    )}
+                  </div>
+                </div>
               </div>
 
               <AdditionalPoints
@@ -337,23 +458,12 @@ const CreateClientCorpOrder: React.FC<CreateClientCorpOrderProps> = ({ onClose }
                 onOpenSelect={onAdditionalOpenSelect}
                 onSearchValueChange={onAdditionalSearchValueChange}
                 search={additionalSearch}
-                filteredPoints={additionalFilteredPoints.map((point) => ({
-                  ...point,
-                  pricePerKm: new Decimal(point.pricePerKm),
-                }))}
-                loading={additionalLoading}
+                filteredPoints={additionalFilteredPoints}
                 onSelectPoint={(point: Point, index?: number) =>
                   handleAdditionalSelectPoint(point, index ?? 0)
                 }
                 selectorRef={additionalSelectorRef}
-                observerRef={additionalObserverRef}
-                selectedPoints={
-                  additionalPoints
-                    ? additionalPoints.map((point) =>
-                        point ? { ...point, pricePerKm: new Decimal(point.pricePerKm) } : null,
-                      )
-                    : []
-                }
+                selectedPoints={additionalPoints ?? []}
                 onRemovePoint={onRemovePoint || (() => {})}
                 onChangeOrder={onChangeOrder}
                 handleSearchChange={onAdditionalHandleSearchChange}
@@ -362,6 +472,20 @@ const CreateClientCorpOrder: React.FC<CreateClientCorpOrderProps> = ({ onClose }
               />
             </div>
 
+            <h2 className="text-2xl font-semibold">2.1. Интерактивная карта</h2>
+
+            <RouteMap
+              allPoints={allPoints}
+              selectedPoints={[
+                departurePoint ?? null,
+                ...(additionalPoints?.filter((p): p is Point => p !== null) ?? []),
+                arrivalPoint ?? null,
+              ]}
+              onPointSelect={handlePointSelect}
+              onDistanceUpdate={handleDistanceUpdate}
+              onDurationUpdate={handleDurationUpdate}
+            />
+
             <div className="flex border"></div>
 
             <h2 className="text-2xl font-semibold">
@@ -369,7 +493,6 @@ const CreateClientCorpOrder: React.FC<CreateClientCorpOrderProps> = ({ onClose }
               <br />
               дополнительные опции
             </h2>
-
             <div className="flex flex-row gap-4">
               <div className="w-full flex flex-col gap-2">
                 <FlightDetails {...formMethods} />
@@ -401,7 +524,6 @@ const CreateClientCorpOrder: React.FC<CreateClientCorpOrderProps> = ({ onClose }
               </h3>
             </div>
 
-            {/*Кнопка для отправки формы */}
             <div className={'w-full flex justify-end'}>
               <IButton type="submit" disabled={isSubmitting}>
                 {isSubmitting ? 'Отправка...' : 'Создать заказ'}

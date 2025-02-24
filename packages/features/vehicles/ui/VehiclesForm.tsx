@@ -58,7 +58,7 @@ const VehiclesForm: React.FC<VehiclesFormProps> = ({ mode, vehicleData }) => {
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
         {/*Заголовок формы */}
         {mode === 'edit' ? (
-          <div className="flex items-center gap-4">
+          <div className="flex justify-between items-center gap-4">
             <h1 className="text-2xl font-bold">
               Редактирование автомобиля {vehicleData?.brand} {vehicleData?.model}
             </h1>
@@ -66,7 +66,7 @@ const VehiclesForm: React.FC<VehiclesFormProps> = ({ mode, vehicleData }) => {
               value={formMethods.watch('isAvailable') ? 'true' : 'false'}
               onChange={handleAvailabilityChange}
               disabled={updatingAvailability}
-              className="p-2 border rounded"
+              className="bg-[#2A3037] rounded-lg text-white p-4"
             >
               {availabilityOptions.map((option) => (
                 <option key={option.label} value={option.value.toString()}>

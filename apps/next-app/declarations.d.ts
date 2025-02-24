@@ -11,6 +11,7 @@ declare namespace NodeJS {
     REDIS_HOST: string;
     REDIS_PORT: string;
     DATABASE_URL: string;
+    NEXT_PUBLIC_YANDEX_MAPS_API_KEY: string;
   }
 
   interface Process {

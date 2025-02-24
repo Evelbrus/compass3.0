@@ -11,6 +11,7 @@ import CreateClientCorpOrder from '@shared/components/modal/create-client-corp-o
 import ChangePasswordModal from '@shared/components/modal/change-password-modal/ChangePasswordModal';
 import CreateAdditionalServiceModal from '@shared/components/modal/create-additional-service-modal/CreateAdditionalServiceModal';
 import CreatePointModal from '@shared/components/modal/create-point-modal/CreatePointModal';
+import VehicleDetailModal from '@shared/components/modal/vehicle-detail-modal/VehicleDetailModal';
 
 interface ModalManagerComponentProps {
   role: UserRole;
@@ -26,6 +27,7 @@ const ModalManagerComponent: React.FC<ModalManagerComponentProps> = ({ role }) =
           <CreateUserModal role={role} onClose={closeModal} />
         )}
       {modalType === 'orderDetailDriver' && <OrderDetailDriverModal />}
+      {modalType === 'vehicleDetail' && <VehicleDetailModal />}
       {modalType === 'deleteModal' && (role === UserRole.Operator || role === UserRole.Admin) && (
         <DeleteModal onClose={closeModal} />
       )}

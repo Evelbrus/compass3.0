@@ -5,7 +5,8 @@ import {
   Action,
   AdditionalService,
   DriverAcceptanceStatus,
-  Notification, OrderStatus,
+  Notification,
+  OrderStatus,
   TariffOnService,
   UserRole,
 } from '@prisma/client';
@@ -15,6 +16,7 @@ import {
   markNotificationAsRead,
 } from '@features/notifications/api/apiNotifications';
 import { debounce } from '@shared/utils/hooks/useDebounce';
+import { triggerUpdate } from '@shared/lib/effector/state/state';
 
 export const stages: Record<DriverAcceptanceStatus, string> = {
   PENDING: 'Ожидание принятия заказа',
@@ -40,7 +42,6 @@ export interface OrderDetail {
   assignedDriverId?: string;
 }
 
-// Исключаем только 'info' из Action
 type ModalAction = Omit<Action, 'info'>;
 
 export interface NotificationIslandProps {
@@ -52,6 +53,7 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeNotification, setActiveNotification] = useState<Notification | null>(null);
+  const [newNotificationReceived, setNewNotificationReceived] = useState(false); // Флаг для нового уведомления
 
   const openModal = useCallback((notification: Notification) => {
     setActiveNotification(notification);
@@ -81,6 +83,8 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
 
         console.log(`Открываем модалку для уведомления ${notification.uuid}`);
         openModal(notification);
+
+        setNewNotificationReceived(true); // Устанавливаем флаг, что пришло новое уведомление
 
         return updatedNotifications;
       });
@@ -153,9 +157,7 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
       setIsLoading(true);
       setError(null);
       try {
-        console.log(`Загружаем уведомления для userId: ${userSession.uuid}, role: ${userSession.role}`);
         const data = await fetchNotifications(userSession.uuid);
-        console.log('Полученные уведомления:', data);
         setNotifications(data);
         const unreadNotification = data.find(
           (n) =>
@@ -166,10 +168,8 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
               n.action === Action.cancelled),
         );
         if (unreadNotification) {
-          console.log(`Найдено непрочитанное уведомление:`, unreadNotification);
           openModal(unreadNotification);
         } else {
-          console.log('Непрочитанных уведомлений для открытия модалки нет');
         }
       } catch (err) {
         console.error('Ошибка при загрузке уведомлений:', err);
@@ -208,7 +208,6 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
 
     if (socket.connected) {
       socket.emit('register', { userId: userSession.uuid, role: userSession.role });
-      console.log(`Клиент зарегистрирован (немедленно): userId: ${userSession.uuid}, role: ${userSession.role}`);
     }
 
     return () => {
@@ -217,6 +216,15 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
       socket.off('disconnect');
     };
   }, [userSession, socket, openModal]);
+
+  // Триггер обновления только при новом уведомлении через сокет
+  useEffect(() => {
+    if (newNotificationReceived) {
+      console.log('Триггерим обновление заказов при новом уведомлении');
+      triggerUpdate();
+      setNewNotificationReceived(false); // Сбрасываем флаг после триггера
+    }
+  }, [newNotificationReceived]);
 
   const unreadCount = useMemo(() => notifications.filter((n) => !n.read).length, [notifications]);
 
@@ -259,9 +267,6 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
 
     return false;
   }, [activeNotification, userSession]);
-
-  console.log('Все уведомления:', notifications);
-  console.log('Уведомления клиента:', clientNotifications);
 
   return {
     notifications,

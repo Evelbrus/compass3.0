@@ -1,57 +1,129 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useUnit } from 'effector-react';
 import { IButton } from '@shared/components/ui/buttons';
 import { TextInput } from '@shared/components/ui/inputs';
 import AnimatedComponent from '@shared/components/animated/CommonAnimated/AnimatedComponent';
 import { CloseIcon } from 'next/dist/client/components/react-dev-overlay/internal/icons/CloseIcon';
-import { useUnit } from 'effector-react';
-import { $pointUuid, setPointUuid } from '@shared/lib/effector/state/state';
+import { $pointUuid, setPointUuid, triggerUpdate } from '@shared/lib/effector/state/state';
+import { showToast } from '@shared/components/toast/ToastManager';
+import { YMaps, Map, Placemark, useYMaps } from '@pbe/react-yandex-maps';
 
 interface CreatePointModalProps {
   onClose: () => void;
 }
 
+const DEFAULT_CENTER = [42.856219, 74.603967];
+const DEFAULT_ZOOM = 10;
+
+const MapComponent: React.FC<{
+  coordinates: [number, number] | null;
+  setCoordinates: (coords: [number, number]) => void;
+  setAddress: (address: string) => void;
+}> = ({ coordinates, setCoordinates, setAddress }) => {
+  const mapRef = useRef<any>(null);
+  const ymaps = useYMaps(['geocode']);
+
+  const handleMapClick = (event: any) => {
+    const coords = event.get('coords');
+
+    if (coords && coords.length === 2 && !isNaN(coords[0]) && !isNaN(coords[1])) {
+      const lat = parseFloat(coords[0].toFixed(6));
+      const lon = parseFloat(coords[1].toFixed(6));
+      const validCoords: [number, number] = [lat, lon];
+      setCoordinates(validCoords);
+
+      if (ymaps) {
+        ymaps
+          .geocode(validCoords)
+          .then((result) => {
+            const firstGeoObject = result.geoObjects.get(0);
+            if (firstGeoObject) {
+              const location = String((firstGeoObject.properties.get as (key: string, defaultValue?: any) => any)('description') || '');
+              const route = String((firstGeoObject.properties.get as (key: string, defaultValue?: any) => any)('name') || '');
+              const fullAddress = `${location}${location && route ? ', ' : ''}${route}`.trim();
+              console.log('Полученный адрес:', fullAddress);
+              setAddress(fullAddress);
+            } else {
+              console.warn('Геокодирование не вернуло объектов');
+              setAddress('Адрес не найден');
+            }
+          })
+          .catch((err) => {
+            console.error('Ошибка геокодирования:', err);
+            setAddress('Ошибка получения адреса');
+          });
+      } else {
+        console.warn('YMaps не загружен');
+        setAddress('Ошибка: карта не инициализирована');
+      }
+    } else {
+      console.warn('Некорректные координаты:', coords);
+      showToast.error('Ошибка: некорректные координаты');
+    }
+  };
+
+  const handleMapLoad = (ymapsInstance: any) => {
+    if (mapRef.current) {
+      mapRef.current.events.add('click', handleMapClick);
+    }
+  };
+
+  return (
+    <Map
+      defaultState={{ center: DEFAULT_CENTER, zoom: DEFAULT_ZOOM }}
+      width="100%"
+      height="500px"
+      onClick={handleMapClick}
+      options={{
+        suppressMapOpenBlock: true,
+        suppressObsoleteBrowserNotifier: true,
+        yandexMapDisablePoiInteractivity: true,
+      }}
+      style={{ width: '100%', height: '500px', minHeight: '500px', overflow: 'hidden' }}
+      instanceRef={mapRef}
+      onLoad={handleMapLoad}
+    >
+      {coordinates && <Placemark geometry={coordinates} />}
+    </Map>
+  );
+};
+
 const CreatePointModal: React.FC<CreatePointModalProps> = ({ onClose }) => {
   const uuid = useUnit($pointUuid);
 
   const [address, setAddress] = useState('');
-  const [pricePerKm, setPricePerKm] = useState<string | ''>('');
-  const [terrainDifficulty, setTerrainDifficulty] = useState<string>('1.0');
-  const [latitude, setLatitude] = useState<string | ''>('');
-  const [longitude, setLongitude] = useState<string | ''>('');
+  const [pricePerKm, setPricePerKm] = useState('');
+  const [terrainDifficulty, setTerrainDifficulty] = useState('1.0');
+  const [latitude, setLatitude] = useState<string>('42.856219');
+  const [longitude, setLongitude] = useState<string>('74.603967');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
 
-  //Если это редактирование, загружаем данные точки
   useEffect(() => {
     if (uuid) {
       const fetchPoint = async () => {
         setLoading(true);
         try {
-          const response = await fetch(`/api/points/${uuid}`);
-          if (!response.ok) throw new Error(`Ошибка загрузки точки: ${response.status}`);
-
+          const response = await fetch(`/api/points/${uuid}`, { credentials: 'include' });
+          if (!response.ok) throw new Error(`Ошибка загрузки: ${response.status}`);
           const data = await response.json();
-          console.log('Полученные данные точки:', data);
+          const point = data.data?.point;
+          if (!point) throw new Error('Данные точки отсутствуют');
 
-          if (!data.data || !data.data.point) throw new Error('Данные точки отсутствуют в ответе');
-
-          const point = data.data.point;
           setAddress(point.address);
           setPricePerKm(point.pricePerKm.toString());
           setTerrainDifficulty(point.terrainDifficulty.toString());
           setLatitude(point.latitude.toString());
           setLongitude(point.longitude.toString());
         } catch (err) {
-          console.error('Ошибка запроса:', err);
+          console.error('Ошибка загрузки точки:', err);
           setError('Ошибка загрузки данных');
         } finally {
           setLoading(false);
         }
       };
-
       fetchPoint();
     }
   }, [uuid]);
@@ -59,14 +131,12 @@ const CreatePointModal: React.FC<CreatePointModalProps> = ({ onClose }) => {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
-    setSuccess(null);
 
-    if (!address || pricePerKm === '' || terrainDifficulty === '' || !latitude || !longitude) {
+    if (!address || !pricePerKm || !terrainDifficulty || !latitude || !longitude) {
       setError('Все поля обязательны');
       return;
     }
 
-    //Преобразуем строки в числа, проверяя на наличие десятичной точки
     const parsedPricePerKm = parseFloat(pricePerKm);
     const parsedTerrainDifficulty = parseFloat(terrainDifficulty);
     const parsedLatitude = parseFloat(latitude);
@@ -78,7 +148,7 @@ const CreatePointModal: React.FC<CreatePointModalProps> = ({ onClose }) => {
       isNaN(parsedLatitude) ||
       isNaN(parsedLongitude)
     ) {
-      setError('Некоторые числовые поля содержат некорректные значения');
+      setError('Некорректные числовые значения');
       return;
     }
 
@@ -87,49 +157,58 @@ const CreatePointModal: React.FC<CreatePointModalProps> = ({ onClose }) => {
     try {
       const method = uuid ? 'PUT' : 'POST';
       const url = uuid ? `/api/points/${uuid}` : '/api/points';
+      const body = JSON.stringify({
+        address,
+        pricePerKm: parsedPricePerKm,
+        terrainDifficulty: parsedTerrainDifficulty,
+        airport: false,
+        latitude: parsedLatitude,
+        longitude: parsedLongitude,
+      });
 
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          address,
-          pricePerKm: parsedPricePerKm,
-          terrainDifficulty: parsedTerrainDifficulty,
-          airport: false,
-          latitude: parsedLatitude,
-          longitude: parsedLongitude,
-        }),
+        credentials: 'include',
+        body,
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.message || `Ошибка ${uuid ? 'обновления' : 'создания'} точки`);
-      } else {
-        setSuccess(`Точка успешно ${uuid ? 'обновлена' : 'добавлена'}`);
-        setTimeout(() => {
-          setPointUuid(null);
-          onClose();
-        }, 1500);
+        throw new Error(data.message || `Ошибка ${uuid ? 'обновления' : 'создания'} точки`);
       }
+
+      showToast.success(`Точка успешно ${uuid ? 'обновлена' : 'создана'}`);
+      triggerUpdate();
+      setPointUuid(null);
+      setTimeout(onClose, 1500);
     } catch (err) {
-      setError('Ошибка сервера');
+      console.error('Ошибка операции:', err);
+      showToast.error(err instanceof Error ? err.message : 'Ошибка сервера');
+      setError(err instanceof Error ? err.message : 'Ошибка сервера');
     } finally {
       setLoading(false);
     }
   };
 
+  const handleClose = () => {
+    setPointUuid(null);
+    onClose();
+  };
+
+  const handleMapCoordinatesChange = (coords: [number, number]) => {
+    setLatitude(coords[0].toString());
+    setLongitude(coords[1].toString());
+  };
+
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50 p-4">
-      <AnimatedComponent duration={500} className="w-[580px] max-h[600px] flex justify-center">
-        <div className="bg-white rounded-3xl p-8 relative w-full">
-          {/*Кнопка закрытия */}
+      <AnimatedComponent duration={500} className="w-[580px] max-h-[800px] flex justify-center">
+        <div className="bg-white rounded-3xl p-8 relative w-full overflow-y-auto">
           <IButton
             variant="close"
-            onClick={() => {
-              setPointUuid(null);
-              onClose();
-            }}
+            onClick={handleClose}
             aria-label="Закрыть модальное окно"
             className="absolute top-4 right-4 border border-gray-200 hover:shadow-[0px_0px_5px_rgba(0,0,0,0.15)] hover:bg-blue-100 rounded-full p-2"
           >
@@ -146,6 +225,7 @@ const CreatePointModal: React.FC<CreatePointModalProps> = ({ onClose }) => {
               value={address}
               onChange={(value) => setAddress(value as string)}
               required
+              disabled={loading}
             />
 
             <TextInput
@@ -155,16 +235,38 @@ const CreatePointModal: React.FC<CreatePointModalProps> = ({ onClose }) => {
               onChange={(value) => setPricePerKm(value as string)}
               required
               step="0.01"
+              disabled={loading}
             />
 
-            <TextInput
-              label="Коэффициент сложности местности:"
-              type="number"
-              value={terrainDifficulty}
-              onChange={(value) => setTerrainDifficulty(value as string)}
-              required
-              step="0.1"
-            />
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium">Коэффициент сложности местности: {terrainDifficulty}</label>
+              <input
+                type="range"
+                min="0.0"
+                max="3.0"
+                step="0.1"
+                value={terrainDifficulty}
+                onChange={(e) => setTerrainDifficulty(e.target.value)}
+                disabled={loading}
+                className="w-full"
+              />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium">Выберите точку на карте:</label>
+              <YMaps
+                query={{
+                  apikey: process.env.NEXT_PUBLIC_YANDEX_MAPS_API_KEY,
+                  load: 'Map,Placemark,geocode',
+                }}
+              >
+                <MapComponent
+                  coordinates={latitude && longitude ? [parseFloat(latitude), parseFloat(longitude)] : null}
+                  setCoordinates={handleMapCoordinatesChange}
+                  setAddress={setAddress}
+                />
+              </YMaps>
+            </div>
 
             <TextInput
               label="Широта (Latitude):"
@@ -173,6 +275,7 @@ const CreatePointModal: React.FC<CreatePointModalProps> = ({ onClose }) => {
               onChange={(value) => setLatitude(value as string)}
               required
               step="0.000001"
+              disabled={loading}
             />
 
             <TextInput
@@ -182,18 +285,16 @@ const CreatePointModal: React.FC<CreatePointModalProps> = ({ onClose }) => {
               onChange={(value) => setLongitude(value as string)}
               required
               step="0.000001"
+              disabled={loading}
             />
 
             {error && <p className="text-red-600">{error}</p>}
-            {success && <p className="text-green-600">{success}</p>}
 
-            <div className={'w-full flex flex-row justify-end'}>
+            <div className="w-full flex flex-row justify-end">
               <IButton
                 type="submit"
                 disabled={loading}
-                className="w-[205px] p-4 bg-[color:var(--button-secondary)]
-                text-[color:var(--text-white)] rounded-lg hover:bg-[color:var(--button-secondary-hover)]
-                transition"
+                className="w-[205px] p-4 bg-[color:var(--button-secondary)] text-[color:var(--text-white)] rounded-lg hover:bg-[color:var(--button-secondary-hover)] transition"
               >
                 {loading ? 'Сохранение...' : uuid ? 'Обновить' : 'Создать'}
               </IButton>

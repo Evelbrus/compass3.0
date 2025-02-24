@@ -5,13 +5,9 @@ import { prisma } from '@shared/prisma/prisma-client';
 import { ACCESS_TOKEN_COOKIE } from '@shared/utils/cookie';
 import { authConfig } from '@shared/utils/cookie/get-cookie/auth';
 import { verifyJWT } from '@shared/utils/parse-jwt/parseJwt';
+import { JwtPayload } from '@next-app/src/utils/authenticate/authenticateRequest';
 
 const log = debug('app:drivers/orders');
-
-interface JwtPayload {
-  uuid: string;
-  [key: string]: string;
-}
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -42,8 +38,11 @@ export async function GET(req: NextRequest) {
     page: parseInt(searchParams.get('page') || '1', 10),
     per_page: parseInt(searchParams.get('per_page') || '10', 10),
     status: searchParams.get('status') as OrderStatus | null,
+    // Меняем sort_by на departureTime по умолчанию
     sort_by:
-      (searchParams.get('sort_by') as 'createdAt' | 'updatedAt' | 'finalPrice') || 'createdAt',
+      (searchParams.get('sort_by') as 'createdAt' | 'updatedAt' | 'finalPrice' | 'departureTime') ||
+      'departureTime',
+    // Меняем sort_order на asc по умолчанию
     sort_order: (searchParams.get('sort_order') as 'asc' | 'desc') || 'asc',
   };
 

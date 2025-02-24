@@ -139,10 +139,8 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({
             required={required}
             disabled={disabled}
             readOnly={readOnly}
-            errorBorder={error}
             message={message}
             error={error}
-            className="w-full"
           />
         </div>
       </div>

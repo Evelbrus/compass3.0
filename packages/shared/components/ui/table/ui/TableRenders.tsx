@@ -7,6 +7,7 @@ import { handleDelete } from '@shared/components/ui/table/handlers/handleDelete'
 import { handleDetail } from '@shared/components/ui/table/handlers/handleDetail';
 import { handleOrderDriverDetail } from '@shared/components/ui/table/handlers/drivers/handleOrderDriverDetail';
 import { ModalType } from '@shared/lib/effector';
+import { handleVehicleDetail } from '@shared/components/ui/table/handlers/drivers/handleVehicleDetail';
 
 interface RenderActionsProps {
   entity?: 'users' | 'orders' | 'vehicles' | 'additional-services' | 'points';
@@ -125,6 +126,22 @@ export const renderOrderDriverActions = ({ entity, uuid }: RenderOrderDriverActi
     <div
       className="p-2 hover:bg-blue-100 rounded-full flex justify-center items-center cursor-pointer transition-colors duration-300"
       onClick={() => handleOrderDriverDetail(entity, uuid)}
+    >
+      <Icon name="view" alt="Просмотр" className="w-6 h-6 text-blue-500 hover:text-blue-700" />
+    </div>
+  </div>
+);
+
+interface RenderVehicleActionsProps {
+  entity: 'vehicles';
+  uuid: string;
+}
+
+export const renderVehicleActions = ({ entity, uuid }: RenderVehicleActionsProps) => (
+  <div className="flex">
+    <div
+      className="p-2 hover:bg-blue-100 rounded-full flex justify-center items-center cursor-pointer transition-colors duration-300"
+      onClick={() => handleVehicleDetail(entity, uuid)}
     >
       <Icon name="view" alt="Просмотр" className="w-6 h-6 text-blue-500 hover:text-blue-700" />
     </div>

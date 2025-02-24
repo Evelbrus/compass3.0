@@ -223,8 +223,11 @@ export async function GET(req: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1', 10);
     const perPage = parseInt(searchParams.get('per_page') || '10', 10);
     const status = searchParams.get('status') as OrderStatus | null;
+    // Меняем sortBy по умолчанию на departureTime
     const sortBy =
-      (searchParams.get('sort_by') as 'createdAt' | 'updatedAt' | 'finalPrice') || 'createdAt';
+      (searchParams.get('sort_by') as 'createdAt' | 'updatedAt' | 'finalPrice' | 'departureTime') ||
+      'departureTime';
+    // Меняем sortOrder по умолчанию на asc
     const sortOrder = (searchParams.get('sort_order') as 'asc' | 'desc') || 'asc';
 
     log(

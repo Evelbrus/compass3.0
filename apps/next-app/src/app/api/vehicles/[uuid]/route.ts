@@ -1,13 +1,78 @@
 import { NextRequest, NextResponse } from 'next/server';
 import debug from 'debug';
-import { v4 as uuidv4 } from 'uuid';
 import { prisma } from '@shared/prisma/prisma-client';
 import { VehicleData } from '@features/vehicles/hooks/useVehiclesCreateForm';
+import { authenticateRequest, JwtPayload } from '@next-app/src/utils/authenticate/authenticateRequest';
+import { Params } from '@next-app/src/interface/interface';
 
 const log = debug('app:vehicles:uuid');
 
-interface Params {
-  uuid: string;
+export async function GET(req: NextRequest, { params }: { params: Promise<Params> }) {
+  try {
+    const { uuid } = await params;
+
+    // Проверяем токен с помощью authenticateRequest
+    const token: JwtPayload = await authenticateRequest(req);
+
+    // Запрос данных автомобиля по UUID
+    const vehicle = await prisma.vehicle.findUnique({
+      where: { uuid },
+      select: {
+        uuid: true,
+        vehicleType: true,
+        brand: true,
+        model: true,
+        year: true,
+        color: true,
+        plateNumber: true,
+        isAvailable: true,
+        photoPath: true,
+        serviceLevels: true,
+        createdAt: true,
+        updatedAt: true,
+        vehicleDrivers: {
+          select: {
+            driver: {
+              select: {
+                uuid: true,
+                fullName: true,
+                phone: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // Если автомобиль не найден
+    if (!vehicle) {
+      return NextResponse.json({ status: 'error', message: 'Vehicle not found' }, { status: 404 });
+    }
+
+    // Формируем поле drivers для удобства
+    const response = {
+      ...vehicle,
+      drivers: vehicle.vehicleDrivers.map((vd) => ({
+        userUuid: vd.driver.uuid,
+        fullName: vd.driver.fullName,
+        phone: vd.driver.phone,
+      })),
+    };
+
+    // Успешный ответ
+    return NextResponse.json({
+      status: 'success',
+      data: response,
+    });
+  } catch (error) {
+    console.error('Error fetching vehicle details:', error);
+    // Если ошибка связана с аутентификацией, возвращаем 401
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ status: 'error', message: 'Unauthorized' }, { status: 401 });
+    }
+    // Для остальных ошибок возвращаем 500
+    return NextResponse.json({ status: 'error', message: 'Internal Server Error' }, { status: 500 });
+  }
 }
 
 /**

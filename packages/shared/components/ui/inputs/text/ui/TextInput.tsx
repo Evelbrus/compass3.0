@@ -1,10 +1,9 @@
+// TextInput.tsx
 'use client';
 
 import React, { useRef, useState } from 'react';
-import { TextInputProps } from '@shared/components/ui/inputs/text/types/types';
 import { cn } from '@shared/lib';
 
-//Функция форматирования даты в "YYYY-MM-DD" (для отображения в input type="date")
 const formatDateForInput = (value: unknown): string => {
   if (!value) return '';
   if (typeof value === 'string') return value.split('T')[0] ?? '';
@@ -12,10 +11,28 @@ const formatDateForInput = (value: unknown): string => {
   return '';
 };
 
-//Функция форматирования даты в "YYYY-MM-DDT00:00:00.000Z" (для сохранения на бэкенд)
 const formatDateForBackend = (value: string): string => {
   return new Date(value).toISOString();
 };
+
+export interface TextInputProps {
+  label?: string;
+  placeholder?: string;
+  value: string | number | bigint | null;
+  onChange: (value: string | number | null) => void;
+  required?: boolean;
+  disabled?: boolean;
+  readOnly?: boolean;
+  type?: React.HTMLInputTypeAttribute | 'textarea' | 'number';
+  error?: boolean;
+  message?: string;
+  minLength?: number;
+  maxLength?: number;
+  onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
+  classNameLabel?: string;
+  inputClass?: string;
+  step?: string | number;
+}
 
 export const TextInput: React.FC<TextInputProps> = ({
   label,
@@ -31,7 +48,6 @@ export const TextInput: React.FC<TextInputProps> = ({
   minLength,
   maxLength,
   onKeyDown,
-  rows = 3,
   classNameLabel = 'block text-4 font-medium text-gray-500 mb-2',
   inputClass = cn(
     'w-full rounded p-2 focus:outline-none focus:ring',
@@ -40,15 +56,27 @@ export const TextInput: React.FC<TextInputProps> = ({
   step,
 }) => {
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
-  //Состояние для переключения видимости пароля
   const [showPassword, setShowPassword] = useState(false);
 
-  /**Приведение значения к строке */
   const getFormattedValue = (): string => {
-    if (type === 'date') return formatDateForInput(value) ?? '';
+    if (value == null) return '';
+    if (type === 'date') return formatDateForInput(value);
     if (typeof value === 'number') return value.toString();
     if (typeof value === 'string') return value;
-    return '';
+    return String(value);
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let newValue: string | number | null = e.target.value;
+
+    if (type === 'number') {
+      newValue = e.target.value === '' ? '' : parseFloat(e.target.value);
+      if (isNaN(newValue as number)) newValue = '';
+    } else if (type === 'date') {
+      newValue = formatDateForBackend(e.target.value);
+    }
+
+    onChange(newValue);
   };
 
   return (
@@ -58,24 +86,12 @@ export const TextInput: React.FC<TextInputProps> = ({
           {label} {required && <span className="text-red-500">*</span>}
         </label>
       )}
-
       <div className={cn('flex flex-row justify-between', inputClass)}>
         <input
           ref={inputRef as React.RefObject<HTMLInputElement>}
-          //Если тип "password", меняем тип в зависимости от showPassword
           type={type === 'password' ? (showPassword ? 'text' : 'password') : type}
-          value={getFormattedValue() ?? ''}
-          onChange={(e) => {
-            let newValue: string | number | null = e.target.value ?? '';
-
-            if (type === 'number') {
-              newValue = e.target.value;
-            } else if (type === 'date') {
-              newValue = formatDateForBackend(e.target.value);
-            }
-
-            onChange(newValue);
-          }}
+          value={getFormattedValue()}
+          onChange={handleChange}
           required={required}
           disabled={disabled}
           readOnly={readOnly}
@@ -84,19 +100,16 @@ export const TextInput: React.FC<TextInputProps> = ({
           maxLength={maxLength}
           onKeyDown={onKeyDown}
           aria-invalid={error}
-          step={type === 'number' ? (step ? step.toString() : 'any') : undefined}
-          className={'w-full'}
+          step={type === 'number' ? (step ? String(step) : 'any') : undefined}
+          className="w-full"
         />
-
         {type === 'password' && (
           <button
             type="button"
             onClick={() => setShowPassword((prev) => !prev)}
-            //Кнопка расположена внутри инпута: абсолютное позиционирование по правому краю и по всей высоте, с центровкой содержимого
             className="relative px-2 flex items-center text-gray-500 hover:text-gray-700 focus:outline-none"
           >
             {showPassword ? (
-              //Иконка закрытого глаза (скрытый пароль)
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 className="h-5 w-5"
@@ -112,7 +125,6 @@ export const TextInput: React.FC<TextInputProps> = ({
                 />
               </svg>
             ) : (
-              //Иконка открытого глаза (видимый пароль)
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 className="h-5 w-5"
@@ -137,7 +149,6 @@ export const TextInput: React.FC<TextInputProps> = ({
           </button>
         )}
       </div>
-
       {error && message && <p className="text-red-500 text-sm mt-1">{message}</p>}
     </div>
   );

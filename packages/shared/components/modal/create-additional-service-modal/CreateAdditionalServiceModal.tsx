@@ -1,12 +1,11 @@
-'use client';
-
 import React, { useState, useEffect } from 'react';
+import { useUnit } from 'effector-react';
 import { IButton } from '@shared/components/ui/buttons';
 import { TextInput } from '@shared/components/ui/inputs';
 import AnimatedComponent from '@shared/components/animated/CommonAnimated/AnimatedComponent';
 import { CloseIcon } from 'next/dist/client/components/react-dev-overlay/internal/icons/CloseIcon';
-import { useUnit } from 'effector-react';
-import { $additionalServiceUuid, setAdditionalServiceUuid } from '@shared/lib/effector/state/state';
+import { $additionalServiceUuid, setAdditionalServiceUuid, triggerUpdate } from '@shared/lib/effector/state/state';
+import { showToast } from '@shared/components/toast/ToastManager';
 
 interface CreateAdditionalServiceModalProps {
   onClose: () => void;
@@ -18,19 +17,21 @@ const CreateAdditionalServiceModal: React.FC<CreateAdditionalServiceModalProps> 
   const [serviceName, setServiceName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
 
-  //Если это редактирование, получаем данные услуги
+  // Загрузка данных услуги при редактировании
   useEffect(() => {
     if (uuid) {
       const fetchService = async () => {
         setLoading(true);
         try {
-          const response = await fetch(`/api/additional-services/${uuid}`);
+          const response = await fetch(`/api/additional-services/${uuid}`, {
+            credentials: 'include',
+          });
           if (!response.ok) throw new Error('Ошибка загрузки услуги');
           const data = await response.json();
-          setServiceName(data.name);
+          setServiceName(data.name || '');
         } catch (err) {
+          console.error('Ошибка загрузки услуги:', err);
           setError('Ошибка загрузки данных');
         } finally {
           setLoading(false);
@@ -44,7 +45,6 @@ const CreateAdditionalServiceModal: React.FC<CreateAdditionalServiceModalProps> 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
-    setSuccess(null);
 
     if (!serviceName) {
       setError('Название услуги обязательно');
@@ -56,42 +56,46 @@ const CreateAdditionalServiceModal: React.FC<CreateAdditionalServiceModalProps> 
     try {
       const method = uuid ? 'PUT' : 'POST';
       const url = uuid ? `/api/additional-services/${uuid}` : '/api/additional-services';
+      const body = JSON.stringify({ name: serviceName });
 
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: serviceName }),
+        credentials: 'include',
+        body,
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.message || `Ошибка ${uuid ? 'обновления' : 'создания'} услуги`);
-      } else {
-        setSuccess(`Услуга успешно ${uuid ? 'обновлена' : 'добавлена'}`);
-        setTimeout(() => {
-          setAdditionalServiceUuid(null);
-          onClose();
-        }, 1500);
+        throw new Error(data.message || `Ошибка ${uuid ? 'обновления' : 'создания'} услуги`);
       }
+
+      showToast.success(`Услуга успешно ${uuid ? 'обновлена' : 'создана'}`);
+      triggerUpdate(); // Добавляем триггер обновления
+      setAdditionalServiceUuid(null);
+      setTimeout(onClose, 1500);
     } catch (err) {
-      setError('Ошибка сервера');
+      console.error('Ошибка операции:', err);
+      showToast.error(err instanceof Error ? err.message : 'Ошибка сервера');
+      setError(err instanceof Error ? err.message : 'Ошибка сервера');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleClose = () => {
+    setAdditionalServiceUuid(null);
+    onClose();
   };
 
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50 p-4">
       <AnimatedComponent duration={500} className="w-[580px] max-h-[600px] flex justify-center">
         <div className="bg-white rounded-3xl p-8 relative w-full">
-          {/*Кнопка закрытия */}
           <IButton
             variant="close"
-            onClick={() => {
-              setAdditionalServiceUuid(null);
-              onClose();
-            }}
+            onClick={handleClose}
             aria-label="Закрыть модальное окно"
             className="absolute top-4 right-4 border border-gray-200 hover:shadow-[0px_0px_5px_rgba(0,0,0,0.15)] hover:bg-blue-100 rounded-full p-2"
           >
@@ -108,18 +112,16 @@ const CreateAdditionalServiceModal: React.FC<CreateAdditionalServiceModalProps> 
               value={serviceName}
               onChange={(value) => setServiceName(value as string)}
               required
+              disabled={loading}
             />
 
             {error && <p className="text-red-600">{error}</p>}
-            {success && <p className="text-green-600">{success}</p>}
 
-            <div className={'w-full flex flex-row justify-end'}>
+            <div className="w-full flex flex-row justify-end">
               <IButton
                 type="submit"
                 disabled={loading}
-                className="w-[205px] p-4 bg-[color:var(--button-secondary)]
-                text-[color:var(--text-white)] rounded-lg hover:bg-[color:var(--button-secondary-hover)]
-                transition"
+                className="w-[205px] p-4 bg-[color:var(--button-secondary)] text-[color:var(--text-white)] rounded-lg hover:bg-[color:var(--button-secondary-hover)] transition"
               >
                 {loading ? 'Сохранение...' : uuid ? 'Обновить' : 'Создать'}
               </IButton>
