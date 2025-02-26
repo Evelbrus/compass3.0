@@ -5,8 +5,8 @@ import { PointWithoutTimestamps } from '@features/orders/create/hooks/points/use
 
 interface RouteMapProps {
   allPoints: PointWithoutTimestamps[];
-  selectedPoints: (PointWithoutTimestamps | null)[]; // Изменяем тип здесь
-  onPointSelect: (point: PointWithoutTimestamps, isSelected: boolean) => void; // И здесь
+  selectedPoints: (PointWithoutTimestamps | null)[];
+  onPointSelect: (point: PointWithoutTimestamps, isSelected: boolean) => void;
   onDistanceUpdate?: (distance: number) => void;
   onDurationUpdate?: (duration: string | null) => void;
 }
@@ -14,6 +14,20 @@ interface RouteMapProps {
 interface RouteMapInnerProps extends RouteMapProps {
   ymaps?: any;
 }
+
+// Define point icons for different roles
+const POINT_ICONS = {
+  departure: 'islands#blueStretchyIcon',
+  arrival: 'islands#redStretchyIcon',
+  additional: [
+    'islands#greenStretchyIcon',
+    'islands#violetStretchyIcon',
+    'islands#orangeStretchyIcon',
+    'islands#darkBlueStretchyIcon',
+    'islands#pinkStretchyIcon',
+  ],
+  unselected: 'islands#lightBlueCircleIcon',
+};
 
 const RouteMapInner: React.FC<RouteMapInnerProps> = ({
   ymaps,
@@ -25,19 +39,56 @@ const RouteMapInner: React.FC<RouteMapInnerProps> = ({
 }) => {
   const mapRef = useRef<any>(null);
   const [routeDuration, setRouteDuration] = useState<string | null>(null);
-  const initialBoundsRef = useRef<any>(null); // Сохраняем начальные границы в рефе
+  const initialBoundsRef = useRef<any>(null);
+  const [hoveredPoint, setHoveredPoint] = useState<PointWithoutTimestamps | null>(null);
 
-  // Устанавливаем начальные границы только один раз
+  // Track point letters to maintain them when points are removed
+  const [pointLetters, setPointLetters] = useState<{ [key: string]: string }>({});
+
+  // Update point letters whenever selectedPoints changes
+  useEffect(() => {
+    const newPointLetters = { ...pointLetters };
+
+    // First, assign letters to points that don't have them yet
+    selectedPoints.forEach((point, index) => {
+      if (!point) return;
+
+      // If this point doesn't have a letter yet, assign one based on position
+      if (!newPointLetters[point.uuid]) {
+        if (index === 0) {
+          newPointLetters[point.uuid] = 'A';
+        } else if (index === selectedPoints.filter((p) => p !== null).length - 1) {
+          newPointLetters[point.uuid] = 'B';
+        } else {
+          // Find the next available letter for intermediate points
+          const letter = String.fromCharCode(67 + (index - 1)); // C, D, E, etc.
+          newPointLetters[point.uuid] = letter;
+        }
+      }
+    });
+
+    // Remove letters for points that are no longer selected
+    Object.keys(newPointLetters).forEach((uuid) => {
+      const pointExists = selectedPoints.some((point) => point?.uuid === uuid);
+      if (!pointExists) {
+        delete newPointLetters[uuid];
+      }
+    });
+
+    setPointLetters(newPointLetters);
+  }, [selectedPoints]);
+
+  // Set initial map bounds
   useEffect(() => {
     if (!ymaps || !allPoints.length || !mapRef.current || initialBoundsRef.current) return;
 
     const coordinates = allPoints.map((point) => [point.latitude, point.longitude]);
     const newBounds = ymaps.util.bounds.fromPoints(coordinates);
     initialBoundsRef.current = newBounds;
-    mapRef.current.setBounds(newBounds); // Устанавливаем границы вручную
+    mapRef.current.setBounds(newBounds);
   }, [ymaps, allPoints]);
 
-  // Обновление маршрута без изменения центра карты
+  // Update route when selected points change
   useEffect(() => {
     if (!ymaps || !mapRef.current) return;
 
@@ -73,7 +124,9 @@ const RouteMapInner: React.FC<RouteMapInnerProps> = ({
         },
       },
       {
-        boundsAutoApply: false, // Отключаем авто-подстройку
+        boundsAutoApply: false,
+        wayPointVisible: false,
+        pinVisible: false,
       },
     );
 
@@ -123,56 +176,175 @@ const RouteMapInner: React.FC<RouteMapInnerProps> = ({
     [selectedPoints, onPointSelect],
   );
 
+  // Handle mouse enter on placemark
+  const handleMouseEnter = useCallback((point: PointWithoutTimestamps) => {
+    setHoveredPoint(point);
+  }, []);
+
+  // Handle mouse leave on placemark
+  const handleMouseLeave = useCallback(() => {
+    setHoveredPoint(null);
+  }, []);
+
+  // Get icon and label for a point
+  const getPointStyle = useCallback(
+    (point: PointWithoutTimestamps) => {
+      const pointIndex = selectedPoints.findIndex((p) => p?.uuid === point.uuid);
+
+      if (pointIndex === -1) {
+        return {
+          preset: POINT_ICONS.unselected,
+          iconContent: '',
+          hintContent: point.address || 'Адрес неизвестен',
+        };
+      }
+
+      const letter = pointLetters[point.uuid] || '';
+      let preset: string;
+
+      if (pointIndex === 0) {
+        preset = POINT_ICONS.departure;
+      } else if (pointIndex === selectedPoints.filter((p) => p !== null).length - 1) {
+        preset = POINT_ICONS.arrival;
+      } else {
+        const additionalIndex = letter.charCodeAt(0) - 67;
+        const colorIndex = Math.min(
+          Math.max(0, additionalIndex),
+          POINT_ICONS.additional.length - 1,
+        );
+        preset = POINT_ICONS.additional[colorIndex];
+      }
+
+      return {
+        preset,
+        iconContent: letter,
+        hintContent: point.address || 'Адрес неизвестен',
+      };
+    },
+    [selectedPoints, pointLetters],
+  );
+
+  // Get info about hovered point
+  const getHoveredPointInfo = useCallback(() => {
+    if (!hoveredPoint) return null;
+
+    const pointIndex = selectedPoints.findIndex((p) => p?.uuid === hoveredPoint.uuid);
+    let pointType = '';
+    let letter = '';
+
+    if (pointIndex === -1) {
+      pointType = 'Доступная точка';
+    } else {
+      letter = pointLetters[hoveredPoint.uuid] || '';
+
+      if (pointIndex === 0) {
+        pointType = 'Точка отправления';
+      } else if (pointIndex === selectedPoints.filter((p) => p !== null).length - 1) {
+        pointType = 'Точка прибытия';
+      } else {
+        pointType = 'Промежуточная точка';
+      }
+    }
+
+    return {
+      letter,
+      pointType,
+      address: hoveredPoint.address,
+      airport: hoveredPoint.airport,
+    };
+  }, [hoveredPoint, selectedPoints, pointLetters]);
+
+  const hoveredPointInfo = getHoveredPointInfo();
+
   return (
-    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+    <div className="relative w-full h-full rounded-xl overflow-hidden shadow-lg border border-gray-200">
       <Map
         instanceRef={mapRef}
         defaultState={{
           center:
             allPoints.length && allPoints[0]
               ? [allPoints[0].latitude, allPoints[0].longitude]
-              : [55.75, 37.57], // Центр по умолчанию (Москва)
-          zoom: 7, // Начальный зум
+              : [55.75, 37.57],
+          zoom: 7,
+        }}
+        options={{
+          suppressMapOpenBlock: true,
         }}
         width="100%"
-        height="650px"
+        height="100%"
       >
-        {allPoints.map((point) => (
-          <Placemark
-            key={point.uuid}
-            geometry={[point.latitude, point.longitude]}
-            properties={{
-              // Убираем hintContent и balloonContent, чтобы ничего не всплывало
-              type: 'point',
-            }}
-            options={{
-              preset: selectedPoints.some((p) => p?.uuid === point.uuid)
-                ? 'islands#redDotIcon'
-                : 'islands#blueDotIcon',
-              cursor: 'pointer',
-              // Отключаем открытие балуна и подсказки
-              balloonCloseButton: false,
-              hideIconOnBalloonOpen: false,
-              openBalloonOnClick: false, // Отключаем всплывание балуна при клике
-              openHintOnHover: false, // Отключаем подсказку при наведении
-            }}
-            onClick={() => handlePointClick(point)}
-          />
-        ))}
+        {allPoints.map((point) => {
+          const { preset, iconContent, hintContent } = getPointStyle(point);
+          return (
+            <Placemark
+              key={point.uuid}
+              geometry={[point.latitude, point.longitude]}
+              properties={{
+                iconContent,
+                hintContent: '',
+                type: 'point',
+              }}
+              options={{
+                preset,
+                cursor: 'pointer',
+                openHintOnHover: false,
+                iconOffset: [0, 0],
+              }}
+              onClick={() => handlePointClick(point)}
+              onMouseEnter={() => handleMouseEnter(point)}
+              onMouseLeave={handleMouseLeave}
+            />
+          );
+        })}
       </Map>
-      {routeDuration && (
-        <div
-          style={{
-            position: 'absolute',
-            bottom: '10px',
-            left: '10px',
-            background: 'white',
-            padding: '5px',
-            borderRadius: '5px',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
-          }}
-        >
-          Время в пути: {routeDuration}
+
+      {/* Tooltip in top-right corner that shows hovered point info */}
+      {hoveredPointInfo && (
+        <div className="absolute top-4 left-4 bg-white p-3 rounded-lg shadow-lg border border-gray-200 z-10 min-w-[250px] max-w-[350px]">
+          <div className="flex items-center mb-2">
+            {hoveredPointInfo.letter && (
+              <div
+                className={`
+                w-6 h-6 rounded-full flex items-center justify-center font-bold mr-2 text-white
+                ${
+                  hoveredPointInfo.letter === 'A'
+                    ? 'bg-blue-500'
+                    : hoveredPointInfo.letter === 'B'
+                      ? 'bg-red-500'
+                      : hoveredPointInfo.letter === 'C'
+                        ? 'bg-green-500'
+                        : hoveredPointInfo.letter === 'D'
+                          ? 'bg-purple-500'
+                          : hoveredPointInfo.letter === 'E'
+                            ? 'bg-orange-500'
+                            : hoveredPointInfo.letter === 'F'
+                              ? 'bg-cyan-500'
+                              : 'bg-pink-500'
+                }
+              `}
+              >
+                {hoveredPointInfo.letter}
+              </div>
+            )}
+            <div className="font-semibold text-gray-800">{hoveredPointInfo.pointType}</div>
+          </div>
+
+          <div className="text-gray-500 text-sm mb-1">Адрес:</div>
+          <div className="text-gray-900 mb-2">{hoveredPointInfo.address}</div>
+
+          {hoveredPointInfo.airport && (
+            <div className="flex items-center text-blue-600 text-sm">
+              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+                />
+              </svg>
+              Аэропорт
+            </div>
+          )}
         </div>
       )}
     </div>

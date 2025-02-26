@@ -4,8 +4,15 @@ import { IButton } from '@shared/components/ui/buttons';
 import { CloseIcon } from '@shared/components/ui/icon';
 import AnimatedComponent from '@shared/components/animated/CommonAnimated/AnimatedComponent';
 import { Decimal } from 'decimal.js';
-import { Point, ServiceLevels, VehicleType } from '@prisma/client';
-import { ExtendedTariff } from '@shared/prisma/interface/orders/interface';
+import {
+  AdditionalService,
+  OrderOnTariffAdditionalService,
+  Point,
+  ServiceLevels,
+  Tariff,
+  TariffOnService,
+  VehicleType,
+} from '@prisma/client';
 import useTariffs from '@shared/components/modal/create-client-corp-order/hooks/tariff/useTariffs';
 import usePointSelector from '@shared/components/modal/create-client-corp-order/hooks/point/usePointSelector';
 import useCreateClientCorpOrderLogic, {
@@ -34,6 +41,13 @@ interface CreateClientCorpOrderProps {
   onClose: () => void;
 }
 
+export type TariffWithServices = Tariff & {
+  tariffAdditionalServices: (TariffOnService & {
+    service: AdditionalService;
+    orderTariffAdditionalServices: OrderOnTariffAdditionalService[];
+  })[];
+};
+
 const transformPoint = (point: any): Point => {
   return {
     ...point,
@@ -56,7 +70,7 @@ const CreateClientCorpOrder: React.FC<CreateClientCorpOrderProps> = ({ onClose }
   const [routeDistance, setRouteDistance] = useState<number>(0);
   const [routeDuration, setRouteDuration] = useState<string | null>(null);
   const tariffAndServices = useTariffs({ vehicleType: VehicleType });
-  const tariffs: ExtendedTariff[] = tariffAndServices.tariffs || [];
+  const tariffs: TariffWithServices[] = tariffAndServices.tariffs || [];
 
   const handleDurationUpdate = useCallback((duration: string | null) => {
     setRouteDuration(duration);

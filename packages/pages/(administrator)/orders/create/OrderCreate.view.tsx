@@ -10,7 +10,7 @@ import {
   TariffOnService,
   OrderOnTariffAdditionalService,
 } from '@prisma/client';
-import useTariffs from '@shared/components/modal/create-client-corp-order/hooks/tariff/useTariffs';
+import useTariffs from '@features/orders/create/hooks/tariffs/useTariffs';
 import useCreateAdminOrderLogic from '@features/orders/create/hooks/useCreateAdminOrderLogic';
 import { useRouter } from 'next/navigation';
 import { useOrderCreateDrivers } from '@features/orders/create/hooks/driver/useOrderCreateDrivers';
@@ -422,6 +422,30 @@ const OrderCreateView: FC<OrderProps> = ({ mode, orderData }) => {
                   departurePoint={departurePoint}
                   freeWaitTime={selectedTariff?.freeWaitTimeAirport ?? 0}
                 />
+                {/* Добавленный блок с дополнительной информацией о тарифах */}
+                <div className="mt-6 bg-blue-50 rounded-lg p-4 text-sm text-gray-700">
+                  <div className="flex items-center mb-2">
+                    <svg
+                      className="w-5 h-5 mr-2 text-blue-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                    <span className="font-semibold">Важная информация о тарифах</span>
+                  </div>
+                  <p>
+                    При выборе тарифа учитывайте особенности вашей поездки. Некоторые тарифы могут
+                    включать дополнительные услуги или предлагать специальные условия.
+                  </p>
+                </div>
               </div>
               <div className={'w-full flex flex-col gap-4 p-8'}>
                 <AdditionalServicesList
@@ -448,17 +472,19 @@ const OrderCreateView: FC<OrderProps> = ({ mode, orderData }) => {
 
             <div className="flex flex-row gap-4 p-4">
               <div className="w-full flex flex-row gap-4 rounded-md">
-                <RouteMap
-                  allPoints={allPoints}
-                  selectedPoints={[
-                    departurePoint,
-                    ...(additionalPoints?.filter((p): p is Point => p !== null) ?? []),
-                    arrivalPoint,
-                  ].filter((p): p is Point => p !== null)}
-                  onPointSelect={handlePointSelect}
-                  onDistanceUpdate={handleDistanceUpdate}
-                  onDurationUpdate={handleDurationUpdate}
-                />
+                <div className={'w-full flex'}>
+                  <RouteMap
+                    allPoints={allPoints}
+                    selectedPoints={[
+                      departurePoint,
+                      ...(additionalPoints?.filter((p): p is Point => p !== null) ?? []),
+                      arrivalPoint,
+                    ].filter((p): p is Point => p !== null)}
+                    onPointSelect={handlePointSelect}
+                    onDistanceUpdate={handleDistanceUpdate}
+                    onDurationUpdate={handleDurationUpdate}
+                  />
+                </div>
                 <div className={'w-full flex flex-row gap-4'}>
                   <div className={'w-full flex flex-col gap-4'}>
                     <PointSelector
@@ -503,32 +529,38 @@ const OrderCreateView: FC<OrderProps> = ({ mode, orderData }) => {
                       name="intermediatePoints"
                       label="Дополнительные остановки"
                       isOpen={isAdditionalOpen}
-                      searchValue={additionalSearchValue}
                       onOpenSelect={onAdditionalOpenSelect}
-                      onSearchValueChange={onAdditionalSearchValueChange}
                       search={additionalSearch}
                       handleSearchChange={handleAdditionalHandleSearchChange}
                       filteredPoints={additionalFilteredPoints}
                       onSelectPoint={(point, index) =>
                         handleSelectPoint(point, 'additional', index)
-                      } // Обновлено
+                      }
                       selectorRef={additionalSelectorRef}
                       selectedPoints={additionalPoints ?? []}
                       onRemovePoint={onRemovePoint || (() => {})}
                       onChangeOrder={onChangeOrder}
                     />
                   </div>
-                  <RouteInfo
-                    departurePoint={departurePoint}
-                    additionalPoints={additionalPoints ?? []}
-                    arrivalPoint={arrivalPoint}
-                    routeDuration={routeDuration}
-                    routeDistance={routeDistance}
-                  />
                 </div>
               </div>
             </div>
           </section>
+          <div className="bg-gradient-to-r from-indigo-50 to-blue-50 px-6 py-4 border-b border-blue-100">
+            <h2 className="text-xl font-semibold text-gray-800 flex items-center">
+              <span className="mr-2 p-2 bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center">
+                5
+              </span>
+              Информация о маршруте
+            </h2>
+          </div>
+          <RouteInfo
+            departurePoint={departurePoint}
+            additionalPoints={additionalPoints ?? []}
+            arrivalPoint={arrivalPoint}
+            routeDuration={routeDuration}
+            routeDistance={routeDistance}
+          />
           <h2 className="text-2xl font-semibold">Общая цена</h2>
           <div>
             <h3>

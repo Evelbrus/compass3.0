@@ -101,3 +101,13 @@ export const fetchAdditionalServices = async () => {
   return data.data.additionalServices || [];
 };
 
+export const fetchTariffs = async (serviceLevel?: string, vehicleType?: string) => {
+  let url = '/api/tariffs';
+  const params = new URLSearchParams();
+  if (serviceLevel) params.append('serviceLevel', serviceLevel);
+  if (vehicleType) params.append('vehicleType', vehicleType);
+  if (params.toString()) url += `?${params.toString()}`;
+
+  const data = await fetchData(url);
+  return data.data.tariffs || [];
+};

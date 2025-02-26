@@ -16,12 +16,12 @@ interface RouteInfoProps {
 }
 
 const RouteInfo: FC<RouteInfoProps> = ({
-                                         departurePoint,
-                                         additionalPoints,
-                                         arrivalPoint,
-                                         routeDuration,
-                                         routeDistance,
-                                       }) => {
+  departurePoint,
+  additionalPoints,
+  arrivalPoint,
+  routeDuration,
+  routeDistance,
+}) => {
   return (
     <div className="relative w-full rounded-lg border">
       <div className="bg-gradient-to-b from-blue-900/10 to-transparent p-5 rounded-lg">
@@ -128,6 +128,25 @@ const RouteInfo: FC<RouteInfoProps> = ({
             <div className="text-xs text-gray-500">Расстояние</div>
             <div className="font-medium">
               {routeDistance > 0 ? `${routeDistance.toFixed(2)} км` : 'Рассчитывается...'}
+            </div>
+          </div>
+        </div>
+
+        {/* Количество точек */}
+        <div className="flex items-center gap-2">
+          <div className="p-2 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center w-10 h-10">
+            <span className="text-lg">📍</span>
+          </div>
+          <div>
+            <div className="text-xs text-gray-500">Количество точек</div>
+            <div className="font-medium">
+              {
+                [
+                  departurePoint,
+                  ...(additionalPoints?.filter((p) => p !== null) || []),
+                  arrivalPoint,
+                ].filter(Boolean).length
+              }
             </div>
           </div>
         </div>

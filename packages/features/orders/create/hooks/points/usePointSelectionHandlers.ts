@@ -11,7 +11,7 @@ interface PointSelectionHandlersProps {
   onSelectDeparture: (point: PointWithoutTimestamps | null) => void; // Обновление точки отправления
   onSelectArrival: (point: PointWithoutTimestamps | null) => void; // Обновление точки прибытия
   onSelectAdditional: (point: PointWithoutTimestamps | null, index: number) => void; // Обновление доп. точки
-  setFormValue: (name: string, value: any) => void; // Функция для обновления формы (например, из react-hook-form)
+  setFormValue: (name: string, value: any) => void; // Функция для обновления формы
 }
 
 // Хук usePointSelectionHandlers
@@ -65,7 +65,7 @@ const usePointSelectionHandlers = ({
       selectorType: 'departure' | 'arrival' | 'additional',
       index?: number,
     ) => {
-      // Проверка на дубликаты
+      // Проверка на дубликаты (только если point не null)
       if (point && isPointAlreadySelected(point, selectorType, index)) {
         showToast.error('Этот город уже выбран в другом селекторе');
         return;
@@ -74,15 +74,15 @@ const usePointSelectionHandlers = ({
       // Обработка выбора в зависимости от типа селектора
       if (selectorType === 'departure') {
         onSelectDeparture(point);
-        setFormValue('departurePoint', point || ({} as PointWithoutTimestamps));
+        setFormValue('departurePoint', point); // Передаем point или null
       } else if (selectorType === 'arrival') {
         onSelectArrival(point);
-        setFormValue('arrivalPoint', point || ({} as PointWithoutTimestamps));
+        setFormValue('arrivalPoint', point); // Передаем point или null
       } else if (selectorType === 'additional' && index !== undefined) {
         onSelectAdditional(point, index);
         const currentPoints = additionalPoints || Array(5).fill(null);
         const updatedPoints = [...currentPoints];
-        updatedPoints[index] = point ? { uuid: point.uuid } : null;
+        updatedPoints[index] = point; // Передаем point или null
         setFormValue('intermediatePoints', updatedPoints);
       }
     },
