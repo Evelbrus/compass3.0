@@ -175,8 +175,6 @@ const Page = async ({ params }: PageProps): Promise<JSX.Element> => {
         terrainDifficulty: Number(point.terrainDifficulty),
       })),
     };
-
-    console.log('orderData перед передачей:', orderData);
   } catch (error) {
     console.error('Ошибка при загрузке данных заказа:', error);
     return <Loading />;

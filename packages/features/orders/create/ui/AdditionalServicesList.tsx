@@ -1,11 +1,12 @@
 import React from 'react';
 import { CheckboxInput } from '@shared/components/ui/inputs';
 import { cn } from '@shared/lib';
+import { AdditionalService } from '@prisma/client';
 
 interface AdditionalServicesListProps {
   label: string;
   availableServices: {
-    service: any; // AdditionalService
+    service: AdditionalService;
     price: number;
     isAvailable: boolean;
     tariffOnServiceUuid: string | null;
@@ -22,18 +23,6 @@ const AdditionalServicesList: React.FC<AdditionalServicesListProps> = ({
   selectedServices,
   totalAdditionalServicesPrice,
 }) => {
-  // Отладочный лог
-  console.log('AdditionalServicesList Render:');
-  console.log(
-    'Available services:',
-    availableServices.map((s) => ({
-      name: s.service.name,
-      uuid: s.service.uuid,
-      tariffUuid: s.tariffOnServiceUuid,
-    })),
-  );
-  console.log('Selected services:', selectedServices);
-
   const selectedCount = selectedServices.length;
 
   return (

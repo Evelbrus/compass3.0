@@ -1,11 +1,6 @@
 // usePointSelector.tsx
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Point } from '@prisma/client';
-
-type PointWithoutTimestamps = Pick<
-  Point,
-  'uuid' | 'address' | 'pricePerKm' | 'airport' | 'latitude' | 'longitude' | 'terrainDifficulty'
->;
+import { PointWithoutTimestamps } from '@features/orders/create/hooks/points/useAllPoints';
 
 export interface UsePointSelectorProps {
   allPoints?: PointWithoutTimestamps[];

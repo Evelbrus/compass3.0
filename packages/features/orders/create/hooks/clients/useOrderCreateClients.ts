@@ -3,12 +3,18 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { useClients } from '@features/orders/create/hooks/clients/useClients';
 import { useDebounce } from '@shared/utils/hooks/useDebounce';
 import { User } from '@prisma/client';
+import { UseFormSetValue } from 'react-hook-form';
+import { FormOrderValues } from '@features/orders/create/hooks/useCreateAdminOrderLogic';
 
 interface UseOrderCreateClientsProps {
   assignedClientId?: string | null;
+  setValue: UseFormSetValue<FormOrderValues>;
 }
 
-export const useOrderCreateClients = ({ assignedClientId }: UseOrderCreateClientsProps) => {
+export const useOrderCreateClients = ({
+  assignedClientId,
+  setValue,
+}: UseOrderCreateClientsProps) => {
   const [searchClient, setSearchClient] = useState('');
   const [selectedClientInfo, setSelectedClientInfo] = useState<Pick<
     User,
@@ -54,6 +60,13 @@ export const useOrderCreateClients = ({ assignedClientId }: UseOrderCreateClient
     setSearchClient(value);
   }, []);
 
+  const handleClientSelection = (
+    client: Pick<User, 'uuid' | 'fullName' | 'email' | 'phone' | 'role'>,
+  ) => {
+    setSelectedClientInfo(client);
+    setValue('createdBy', client);
+  };
+
   return {
     clients: clients,
     selectedClientInfo,
@@ -63,5 +76,6 @@ export const useOrderCreateClients = ({ assignedClientId }: UseOrderCreateClient
     loadMore,
     total,
     currentPage,
+    handleClientSelection,
   };
 };

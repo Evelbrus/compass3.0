@@ -1,6 +1,6 @@
 'use client';
 
-import React, { FC, useState, useCallback, useEffect } from 'react';
+import React, { FC, useState, useCallback } from 'react';
 import { FormProvider } from 'react-hook-form';
 import { Decimal } from 'decimal.js';
 import {
@@ -21,10 +21,6 @@ import AdditionalPoints from '@features/orders/create/inputs/AdditionalPoints';
 import usePointSelector from '@features/orders/create/hooks/points/usePointSelector';
 import useAdditionalServices from '@features/orders/create/hooks/additional-services/useAdditionalServices';
 import { showToast } from '@shared/components/toast/ToastManager';
-import {
-  fetchPoints,
-  FetchPointsResponse,
-} from '@shared/components/modal/create-client-corp-order/api/useApi';
 import useWaitTime from '@features/orders/create/hooks/wait/useWaitTime';
 import usePointSelectionHandlers from '@features/orders/create/hooks/points/usePointSelectionHandlers';
 import useTotalPrice from '@features/orders/create/hooks/price/useTotalPrice';
@@ -35,11 +31,8 @@ import WaitTimeSelector from '@features/orders/create/ui/WaitTimeSelector';
 import RouteInfo from '@features/orders/create/ui/RouteInfo';
 import ClientSelector from '@features/orders/create/ui/ClientSelector';
 import { useOrderCreateClients } from '@features/orders/create/hooks/clients/useOrderCreateClients';
-
-type PointWithoutTimestamps = Pick<
-  Point,
-  'uuid' | 'address' | 'pricePerKm' | 'airport' | 'latitude' | 'longitude' | 'terrainDifficulty'
->;
+import useAllPoints from '@features/orders/create/hooks/points/useAllPoints';
+import useAllAdditionalServices from '@features/orders/create/hooks/points/useAllAdditionalServices';
 
 export type TariffWithServices = Tariff & {
   tariffAdditionalServices: (TariffOnService & {
@@ -81,31 +74,15 @@ interface OrderProps {
 }
 
 const OrderCreateView: FC<OrderProps> = ({ mode, orderData }) => {
-  console.log('orderData', orderData);
-
   const router = useRouter();
 
   const tariffAndServices = useTariffs();
+  const { allPoints } = useAllPoints();
+  const { allServices } = useAllAdditionalServices();
+
   const tariffs = tariffAndServices.tariffs as TariffWithServices[];
-  const [allPoints, setAllPoints] = useState<Point[]>([]);
   const [routeDistance, setRouteDistance] = useState<number>(0);
   const [routeDuration, setRouteDuration] = useState<string | null>(null);
-
-  // Добавляем хук для выбора клиентов
-  const {
-    clients,
-    selectedClientInfo,
-    searchClient,
-    setSelectedClientInfo,
-    handleSearchChange,
-    loadMore,
-  } = useOrderCreateClients({
-    assignedClientId: orderData?.createdBy?.uuid ?? null,
-  });
-
-  const handleDurationUpdate = useCallback((duration: string | null) => {
-    setRouteDuration(duration);
-  }, []);
 
   const {
     selectedServiceLevel,
@@ -117,6 +94,22 @@ const OrderCreateView: FC<OrderProps> = ({ mode, orderData }) => {
   } = useCreateAdminOrderLogic(tariffs, orderData);
 
   const { handleSubmit, control, setValue } = formMethods;
+
+  const {
+    clients,
+    selectedClientInfo,
+    searchClient,
+    handleSearchChange,
+    loadMore,
+    handleClientSelection,
+  } = useOrderCreateClients({
+    assignedClientId: orderData?.createdBy?.uuid ?? null,
+    setValue,
+  });
+
+  const handleDurationUpdate = useCallback((duration: string | null) => {
+    setRouteDuration(duration);
+  }, []);
 
   const {
     drivers,
@@ -206,7 +199,7 @@ const OrderCreateView: FC<OrderProps> = ({ mode, orderData }) => {
     handleServiceSelection,
     selectedServices,
     totalAdditionalServicesPrice,
-  } = useAdditionalServices(selectedTariff, orderData);
+  } = useAdditionalServices(selectedTariff, allServices, orderData);
 
   const { waitTime, additionalWaitTimeCost, adjustWaitTime, minWaitTime, maxWaitTime } =
     useWaitTime({
@@ -214,11 +207,15 @@ const OrderCreateView: FC<OrderProps> = ({ mode, orderData }) => {
       departurePoint,
     });
 
-  const { isPointAlreadySelected, routeCost } = usePointSelectionHandlers({
+  const { routeCost, handleSelectPoint } = usePointSelectionHandlers({
     departurePoint: departurePoint ?? undefined,
     arrivalPoint: arrivalPoint ?? undefined,
     additionalPoints: additionalPoints ?? [],
     routeDistance,
+    onSelectDeparture: onFromSelectPoint,
+    onSelectArrival: onToSelectPoint,
+    onSelectAdditional: onAdditionalSelectPoint,
+    setFormValue: setValue,
   });
 
   const totalPrice = useTotalPrice({
@@ -234,115 +231,38 @@ const OrderCreateView: FC<OrderProps> = ({ mode, orderData }) => {
     setRouteDistance(distance);
   }, []);
 
-  const handleDepartureSelectPoint = useCallback(
-    (point: Point | null) => {
-      if (point && isPointAlreadySelected(point, 'departure')) {
-        showToast.error('Этот город уже выбран в другом селекторе');
-        return;
-      }
-      onFromSelectPoint(point);
-      setValue('departurePoint', point || ({} as Point));
-    },
-    [isPointAlreadySelected, onFromSelectPoint, setValue],
-  );
-
-  const handleArrivalSelectPoint = useCallback(
-    (point: Point) => {
-      if (isPointAlreadySelected(point, 'arrival')) {
-        showToast.error('Этот город уже выбран в другом селекторе');
-        return;
-      }
-      onToSelectPoint(point);
-      setValue('arrivalPoint', point);
-    },
-    [isPointAlreadySelected, onToSelectPoint, setValue],
-  );
-
-  const handleAdditionalSelectPoint = (point: PointWithoutTimestamps | null, index: number) => {
-    console.log('handleAdditionalSelectPoint called:', { point: point?.address, index }); // Отладка
-    if (point && isPointAlreadySelected(point, 'additional', index)) {
-      showToast.error('Этот город уже выбран в другом селекторе');
-      return;
-    }
-    onAdditionalSelectPoint(point, index); // Обновляем состояние в usePointSelector
-    const currentPoints = formMethods.getValues('intermediatePoints') || Array(5).fill(null);
-    const updatedPoints = [...currentPoints];
-    updatedPoints[index] = point ? { uuid: point.uuid } : null;
-    formMethods.setValue('intermediatePoints', updatedPoints, { shouldDirty: true });
-    console.log('Updated intermediatePoints:', updatedPoints); // Отладка
-  };
-
   const handlePointSelect = useCallback(
     (point: Point, isSelected: boolean) => {
       if (isSelected) {
+        // Удаление точки
         if (departurePoint?.uuid === point.uuid) {
-          onFromSelectPoint(null);
-          setValue('departurePoint', null);
+          handleSelectPoint(null, 'departure');
         } else if (arrivalPoint?.uuid === point.uuid) {
-          onToSelectPoint(null);
-          setValue('arrivalPoint', null);
+          handleSelectPoint(null, 'arrival');
         } else if (additionalPoints) {
           const index = additionalPoints.findIndex((p) => p?.uuid === point.uuid);
           if (index !== -1) {
-            onAdditionalSelectPoint(null, index);
+            handleSelectPoint(null, 'additional', index);
           }
         }
       } else {
+        // Добавление точки
         if (!departurePoint) {
-          handleDepartureSelectPoint(point);
+          handleSelectPoint(point, 'departure');
         } else if (!arrivalPoint) {
-          handleArrivalSelectPoint(point);
+          handleSelectPoint(point, 'arrival');
         } else if (additionalPoints) {
           const freeIndex = additionalPoints.findIndex((p) => p === null);
           if (freeIndex !== -1) {
-            handleAdditionalSelectPoint(point, freeIndex);
+            handleSelectPoint(point, 'additional', freeIndex);
           } else {
             showToast.error('Достигнут лимит точек маршрута');
           }
         }
       }
     },
-    [
-      departurePoint,
-      arrivalPoint,
-      additionalPoints,
-      handleDepartureSelectPoint,
-      handleArrivalSelectPoint,
-      handleAdditionalSelectPoint,
-      onFromSelectPoint,
-      onToSelectPoint,
-      onAdditionalSelectPoint,
-      setValue,
-    ],
+    [departurePoint, arrivalPoint, additionalPoints, handleSelectPoint],
   );
-
-  useEffect(() => {
-    if (allPoints.length > 0) {
-      return;
-    }
-
-    fetchPoints('', '1', '1000', 'createdAt', 'asc')
-      .then((response: FetchPointsResponse) => {
-        if (!response.points || !Array.isArray(response.points)) {
-          console.error('API вернул неправильный формат данных:', response);
-          return;
-        }
-
-        const mappedPoints = response.points;
-        setAllPoints(mappedPoints);
-      })
-      .catch((error) => {
-        console.error('Ошибка при получении всех точек:', error);
-        setAllPoints([]);
-      });
-  }, []);
-
-  const handleClientSelection = (
-    client: Pick<User, 'uuid' | 'fullName' | 'email' | 'phone' | 'role'>,
-  ) => {
-    setSelectedClientInfo(client);
-    setValue('createdBy', client);
-  };
 
   const onSubmit = async (data: any) => {
     const isNewClientMode = !!data.fullName && !!data.phone;
@@ -553,7 +473,7 @@ const OrderCreateView: FC<OrderProps> = ({ mode, orderData }) => {
                       handleSearchChange={handleFromSearchChange}
                       filteredPoints={fromFilteredPoints}
                       loading={fromLoading}
-                      onSelectPoint={handleDepartureSelectPoint}
+                      onSelectPoint={(point) => handleSelectPoint(point, 'departure')} // Обновлено
                       selectorRef={fromSelectorRef}
                       observerRef={fromObserverRef}
                       selectedPoint={departurePoint}
@@ -570,7 +490,7 @@ const OrderCreateView: FC<OrderProps> = ({ mode, orderData }) => {
                       handleSearchChange={handleToSearchChange}
                       filteredPoints={toFilteredPoints}
                       loading={toLoading}
-                      onSelectPoint={handleArrivalSelectPoint}
+                      onSelectPoint={(point) => handleSelectPoint(point, 'arrival')} // Обновлено
                       selectorRef={toSelectorRef}
                       observerRef={toObserverRef}
                       selectedPoint={arrivalPoint}
@@ -589,7 +509,9 @@ const OrderCreateView: FC<OrderProps> = ({ mode, orderData }) => {
                       search={additionalSearch}
                       handleSearchChange={handleAdditionalHandleSearchChange}
                       filteredPoints={additionalFilteredPoints}
-                      onSelectPoint={handleAdditionalSelectPoint}
+                      onSelectPoint={(point, index) =>
+                        handleSelectPoint(point, 'additional', index)
+                      } // Обновлено
                       selectorRef={additionalSelectorRef}
                       selectedPoints={additionalPoints ?? []}
                       onRemovePoint={onRemovePoint || (() => {})}

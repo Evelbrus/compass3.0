@@ -1,11 +1,12 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { YMaps, Map, Placemark, withYMaps } from '@pbe/react-yandex-maps';
 import { Point } from '@prisma/client';
+import { PointWithoutTimestamps } from '@features/orders/create/hooks/points/useAllPoints';
 
 interface RouteMapProps {
-  allPoints: Point[];
-  selectedPoints: (Point | null)[];
-  onPointSelect: (point: Point, isSelected: boolean) => void;
+  allPoints: PointWithoutTimestamps[];
+  selectedPoints: (PointWithoutTimestamps | null)[]; // Изменяем тип здесь
+  onPointSelect: (point: PointWithoutTimestamps, isSelected: boolean) => void; // И здесь
   onDistanceUpdate?: (distance: number) => void;
   onDurationUpdate?: (duration: string | null) => void;
 }
@@ -15,13 +16,13 @@ interface RouteMapInnerProps extends RouteMapProps {
 }
 
 const RouteMapInner: React.FC<RouteMapInnerProps> = ({
-                                                       ymaps,
-                                                       allPoints,
-                                                       selectedPoints,
-                                                       onPointSelect,
-                                                       onDistanceUpdate,
-                                                       onDurationUpdate,
-                                                     }) => {
+  ymaps,
+  allPoints,
+  selectedPoints,
+  onPointSelect,
+  onDistanceUpdate,
+  onDurationUpdate,
+}) => {
   const mapRef = useRef<any>(null);
   const [routeDuration, setRouteDuration] = useState<string | null>(null);
   const initialBoundsRef = useRef<any>(null); // Сохраняем начальные границы в рефе
@@ -115,7 +116,7 @@ const RouteMapInner: React.FC<RouteMapInnerProps> = ({
   }, [ymaps, selectedPoints, onDistanceUpdate, onDurationUpdate]);
 
   const handlePointClick = useCallback(
-    (point: Point) => {
+    (point: PointWithoutTimestamps) => {
       const isAlreadySelected = selectedPoints.some((p) => p?.uuid === point.uuid);
       onPointSelect(point, isAlreadySelected);
     },
@@ -181,12 +182,12 @@ const RouteMapInner: React.FC<RouteMapInnerProps> = ({
 const ConnectedRouteMap = withYMaps(RouteMapInner, true, ['multiRouter.MultiRoute', 'util.bounds']);
 
 const RouteMap: React.FC<RouteMapProps> = ({
-                                             allPoints,
-                                             selectedPoints,
-                                             onPointSelect,
-                                             onDistanceUpdate,
-                                             onDurationUpdate,
-                                           }) => {
+  allPoints,
+  selectedPoints,
+  onPointSelect,
+  onDistanceUpdate,
+  onDurationUpdate,
+}) => {
   return (
     <YMaps
       query={{

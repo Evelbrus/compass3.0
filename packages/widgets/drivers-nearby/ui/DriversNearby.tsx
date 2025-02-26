@@ -54,8 +54,9 @@ const DriversNearby: React.FC<DriversNearbyProps> = ({
             console.warn('TextInput вернул число или bigint. Ожидалась строка для поиска по ФИО.');
           }
         }}
+        classNameLabel={'bg-white'}
       />
-      <AnimatedComponent className="w-full h-full bg-transparent rounded-lg border">
+      <AnimatedComponent className="w-full h-full bg-white rounded-lg border">
         {isDriversLoading ? (
           <div className="text-center text-gray-500">Загрузка...</div>
         ) : !drivers || drivers.length === 0 ? (

@@ -1,46 +1,50 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Point } from '@prisma/client';
+import { showToast } from '@shared/components/toast/ToastManager';
+import { PointWithoutTimestamps } from '@features/orders/create/hooks/points/useAllPoints';
 
-// Определяем тип PointWithoutTimestamps, как в usePointSelector
-type PointWithoutTimestamps = Pick<
-  Point,
-  'uuid' | 'address' | 'pricePerKm' | 'airport' | 'latitude' | 'longitude' | 'terrainDifficulty'
->;
-
+// Интерфейс параметров хука
 interface PointSelectionHandlersProps {
-  departurePoint?: PointWithoutTimestamps; // Обновили тип
-  arrivalPoint?: PointWithoutTimestamps;   // Обновили тип
-  additionalPoints: (PointWithoutTimestamps | null)[]; // Обновили тип
-  routeDistance: number;
+  departurePoint?: PointWithoutTimestamps | null; // Точка отправления
+  arrivalPoint?: PointWithoutTimestamps | null; // Точка прибытия
+  additionalPoints: (PointWithoutTimestamps | null)[]; // Массив дополнительных точек
+  routeDistance: number; // Общая дистанция маршрута
+  onSelectDeparture: (point: PointWithoutTimestamps | null) => void; // Обновление точки отправления
+  onSelectArrival: (point: PointWithoutTimestamps | null) => void; // Обновление точки прибытия
+  onSelectAdditional: (point: PointWithoutTimestamps | null, index: number) => void; // Обновление доп. точки
+  setFormValue: (name: string, value: any) => void; // Функция для обновления формы (например, из react-hook-form)
 }
 
+// Хук usePointSelectionHandlers
 const usePointSelectionHandlers = ({
-                                     departurePoint,
-                                     arrivalPoint,
-                                     additionalPoints,
-                                     routeDistance,
-                                   }: PointSelectionHandlersProps) => {
+  departurePoint,
+  arrivalPoint,
+  additionalPoints,
+  routeDistance,
+  onSelectDeparture,
+  onSelectArrival,
+  onSelectAdditional,
+  setFormValue,
+}: PointSelectionHandlersProps) => {
   const [routeCost, setRouteCost] = useState<number>(0);
 
+  // Проверка, выбрана ли точка в другом селекторе
   const isPointAlreadySelected = useCallback(
     (
-      point: PointWithoutTimestamps, // Обновили тип
+      point: PointWithoutTimestamps,
       currentSelector: 'departure' | 'arrival' | 'additional',
       additionalIndex?: number,
     ) => {
       if (!point) return false;
 
-      // Проверка на совпадение с точкой отправления
+      // Проверка точки отправления
       if (departurePoint?.uuid === point.uuid && currentSelector !== 'departure') {
         return true;
       }
-
-      // Проверка на совпадение с точкой прибытия
+      // Проверка точки прибытия
       if (arrivalPoint?.uuid === point.uuid && currentSelector !== 'arrival') {
         return true;
       }
-
-      // Проверка на наличие точки в дополнительных точках
+      // Проверка дополнительных точек
       if (additionalPoints && additionalPoints.length > 0) {
         return additionalPoints.some(
           (p, index) =>
@@ -49,34 +53,68 @@ const usePointSelectionHandlers = ({
             (currentSelector !== 'additional' || index !== additionalIndex),
         );
       }
-
       return false;
     },
     [departurePoint, arrivalPoint, additionalPoints],
   );
 
+  // Обобщённый обработчик выбора точек
+  const handleSelectPoint = useCallback(
+    (
+      point: PointWithoutTimestamps | null,
+      selectorType: 'departure' | 'arrival' | 'additional',
+      index?: number,
+    ) => {
+      // Проверка на дубликаты
+      if (point && isPointAlreadySelected(point, selectorType, index)) {
+        showToast.error('Этот город уже выбран в другом селекторе');
+        return;
+      }
+
+      // Обработка выбора в зависимости от типа селектора
+      if (selectorType === 'departure') {
+        onSelectDeparture(point);
+        setFormValue('departurePoint', point || ({} as PointWithoutTimestamps));
+      } else if (selectorType === 'arrival') {
+        onSelectArrival(point);
+        setFormValue('arrivalPoint', point || ({} as PointWithoutTimestamps));
+      } else if (selectorType === 'additional' && index !== undefined) {
+        onSelectAdditional(point, index);
+        const currentPoints = additionalPoints || Array(5).fill(null);
+        const updatedPoints = [...currentPoints];
+        updatedPoints[index] = point ? { uuid: point.uuid } : null;
+        setFormValue('intermediatePoints', updatedPoints);
+      }
+    },
+    [
+      isPointAlreadySelected,
+      onSelectDeparture,
+      onSelectArrival,
+      onSelectAdditional,
+      setFormValue,
+      additionalPoints,
+    ],
+  );
+
+  // Расчёт стоимости маршрута
   const calculateRouteCost = useCallback(() => {
     if (!departurePoint || !arrivalPoint || routeDistance === 0) {
       setRouteCost(0);
       return;
     }
 
-    // Формируем маршрут: отправление → дополнительные точки → прибытие
+    // Фильтрация дополнительных точек (удаляем null)
     const filteredAdditionalPoints = additionalPoints.filter(
-      (p): p is PointWithoutTimestamps => p !== null, // Уточняем тип с помощью type guard
+      (p): p is PointWithoutTimestamps => p !== null,
     );
-    const allPointsInRoute = [
-      departurePoint, // Начало: точка отправления
-      ...filteredAdditionalPoints, // Середина: дополнительные точки в порядке выбора
-      arrivalPoint, // Конец: точка прибытия
-    ];
+    const allPointsInRoute = [departurePoint, ...filteredAdditionalPoints, arrivalPoint];
 
     if (allPointsInRoute.length < 2) {
       setRouteCost(0);
       return;
     }
 
-    const segmentCount = allPointsInRoute.length - 1; // Количество сегментов
+    const segmentCount = allPointsInRoute.length - 1;
     const avgDistancePerSegment = routeDistance / segmentCount;
 
     let totalCost = 0;
@@ -97,13 +135,16 @@ const usePointSelectionHandlers = ({
     setRouteCost(totalCost);
   }, [departurePoint, arrivalPoint, additionalPoints, routeDistance]);
 
+  // Пересчёт стоимости при изменении точек или дистанции
   useEffect(() => {
     calculateRouteCost();
   }, [calculateRouteCost]);
 
+  // Возвращаемые значения хука
   return {
-    isPointAlreadySelected,
-    routeCost,
+    isPointAlreadySelected, // Функция проверки дубликатов
+    routeCost, // Стоимость маршрута
+    handleSelectPoint, // Обработчик выбора точек
   };
 };
 
