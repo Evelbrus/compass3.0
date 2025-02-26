@@ -12,8 +12,50 @@ const fetchData = async (url: string) => {
   }
 };
 
+interface FetchClientsResponse {
+  users: Pick<User, 'uuid' | 'fullName' | 'email' | 'phone' | 'role'>[] | null;
+  total: number;
+  page: number;
+  perPage: number;
+}
+
+export const fetchClients = async (
+  search: string = '',
+  page: string = '1',
+  per_page: string = '10',
+  sort_by: 'address' | 'basePrice' | 'createdAt' | 'updatedAt' = 'createdAt',
+  sort_order: 'asc' | 'desc' = 'asc',
+): Promise<FetchClientsResponse> => {
+  const params = new URLSearchParams();
+
+  ['Client', 'ClientCorp'].forEach((role) => params.append('role', role));
+  if (search) params.append('search', search);
+  if (page) params.append('page', page);
+  if (per_page) params.append('per_page', per_page);
+  params.append('sort_by', sort_by);
+  params.append('sort_order', sort_order);
+
+  const url = `/api/orders/clients?${params}`;
+  const data = await fetchData(url);
+  return data.data as FetchClientsResponse;
+};
+
+//Функция для получения клиента по UUID (не изменилась)
+export const fetchClientByUuid = async (
+  uuid: string,
+): Promise<Pick<User, 'uuid' | 'fullName' | 'email' | 'phone' | 'role'> | null> => {
+  const url = `/api/orders/clients/${uuid}`;
+  try {
+    const response = await fetchData(url);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching client by UUID:', error);
+    return null;
+  }
+};
+
 interface FetchDriversResponse {
-  drivers: User[];
+  drivers: Pick<User, 'uuid' | 'fullName' | 'email' | 'phone' | 'role'>[] | null;
   serverTime: Date | null;
   assignedDriverId: string | null;
   serviceLevels: string[];
@@ -44,11 +86,13 @@ export const fetchDrivers = async (
 };
 
 //Запрос назначенного водителя
-export const fetchAssignedDriver = async (assignedDriverId: string): Promise<User> => {
+export const fetchAssignedDriver = async (
+  assignedDriverId: string,
+): Promise<Pick<User, 'uuid' | 'fullName' | 'email' | 'phone' | 'role'>> => {
   const params = new URLSearchParams({ assignedDriverId });
   const response = await fetch(`/api/orders/drivers?${params}`);
   const data = await response.json();
-  return data.data.driver as User;
+  return data.data.driver as Pick<User, 'uuid' | 'fullName' | 'email' | 'phone' | 'role'>;
 };
 
 export const fetchAdditionalServices = async () => {
@@ -56,3 +100,4 @@ export const fetchAdditionalServices = async () => {
   const data = await fetchData(url);
   return data.data.additionalServices || [];
 };
+

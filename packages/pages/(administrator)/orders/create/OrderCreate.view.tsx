@@ -1,18 +1,15 @@
 'use client';
 
 import React, { FC, useState, useCallback, useEffect } from 'react';
-import { FormProvider, Controller } from 'react-hook-form';
-import { IButton } from '@shared/components/ui/buttons';
+import { FormProvider } from 'react-hook-form';
 import { Decimal } from 'decimal.js';
 import {
   Point,
   Tariff,
   User,
-  UserRole,
   TariffOnService,
   OrderOnTariffAdditionalService,
 } from '@prisma/client';
-import HeaderOrder from '@widgets/orders/header-order/HeaderOrder';
 import useTariffs from '@shared/components/modal/create-client-corp-order/hooks/tariff/useTariffs';
 import useCreateAdminOrderLogic from '@features/orders/create/hooks/useCreateAdminOrderLogic';
 import { useRouter } from 'next/navigation';
@@ -21,20 +18,28 @@ import DriversNearby from '@widgets/drivers-nearby/ui/DriversNearby';
 import MapDriver from '@widgets/map/ui/MapDriver';
 import PointSelector from '@features/orders/create/inputs/PointSelector';
 import AdditionalPoints from '@features/orders/create/inputs/AdditionalPoints';
-import RouteMap from '@shared/components/modal/create-client-corp-order/ui/RouteMap';
 import usePointSelector from '@features/orders/create/hooks/points/usePointSelector';
 import useAdditionalServices from '@features/orders/create/hooks/additional-services/useAdditionalServices';
-import usePointSelectionHandlers from '@shared/components/modal/create-client-corp-order/hooks/point/usePointSelectionHandlers';
-import useWaitTime from '@shared/components/modal/create-client-corp-order/hooks/wait/useWaitTime';
-import useTotalPrice from '@shared/components/modal/create-client-corp-order/hooks/price/useTotalPrice';
-import AdditionalServicesList from '@shared/components/modal/create-client-corp-order/ui/AdditionalServicesList';
-import WaitTimeSelector from '@shared/components/modal/create-client-corp-order/ui/WaitTimeSelector';
-import TariffCheckbox from '@shared/components/modal/create-client-corp-order/ui/TariffCheckbox'; // Добавлен импорт
 import { showToast } from '@shared/components/toast/ToastManager';
 import {
   fetchPoints,
   FetchPointsResponse,
 } from '@shared/components/modal/create-client-corp-order/api/useApi';
+import useWaitTime from '@features/orders/create/hooks/wait/useWaitTime';
+import usePointSelectionHandlers from '@features/orders/create/hooks/points/usePointSelectionHandlers';
+import useTotalPrice from '@features/orders/create/hooks/price/useTotalPrice';
+import TariffCheckbox from '@features/orders/create/ui/TariffCheckbox';
+import AdditionalServicesList from '@features/orders/create/ui/AdditionalServicesList';
+import RouteMap from '@features/orders/create/ui/RouteMap';
+import WaitTimeSelector from '@features/orders/create/ui/WaitTimeSelector';
+import RouteInfo from '@features/orders/create/ui/RouteInfo';
+import ClientSelector from '@features/orders/create/ui/ClientSelector';
+import { useOrderCreateClients } from '@features/orders/create/hooks/clients/useOrderCreateClients';
+
+type PointWithoutTimestamps = Pick<
+  Point,
+  'uuid' | 'address' | 'pricePerKm' | 'airport' | 'latitude' | 'longitude' | 'terrainDifficulty'
+>;
 
 export type TariffWithServices = Tariff & {
   tariffAdditionalServices: (TariffOnService & {
@@ -42,11 +47,9 @@ export type TariffWithServices = Tariff & {
   })[];
 };
 
-type SafeUser = Pick<User, 'uuid' | 'fullName' | 'email' | 'phone'>;
-
-type OrderData = {
+export type OrderData = {
   uuid: string;
-  createdBy: SafeUser;
+  createdBy: Pick<User, 'uuid' | 'fullName' | 'email' | 'phone' | 'role'>;
   tariff: Pick<Tariff, 'uuid' | 'name' | 'serviceLevel' | 'vehicleType'> & {
     tariffAdditionalServices: (TariffOnService & {
       orderTariffAdditionalServices: OrderOnTariffAdditionalService[];
@@ -54,49 +57,51 @@ type OrderData = {
   };
   departurePoint: Pick<
     Point,
-    'uuid' | 'address' | 'airport' | 'latitude' | 'longitude' | 'terrainDifficulty'
-  > & {
-    pricePerKm: number;
-  };
+    'uuid' | 'address' | 'pricePerKm' | 'airport' | 'latitude' | 'longitude' | 'terrainDifficulty'
+  > | null;
   arrivalPoint: Pick<
     Point,
-    'uuid' | 'address' | 'airport' | 'latitude' | 'longitude' | 'terrainDifficulty'
-  > & {
-    pricePerKm: number;
-  };
-  assignedDriver?: SafeUser;
+    'uuid' | 'address' | 'pricePerKm' | 'airport' | 'latitude' | 'longitude' | 'terrainDifficulty'
+  > | null;
+  assignedDriver?: Pick<User, 'uuid' | 'fullName' | 'email' | 'phone' | 'role'>;
   departureTime: string;
   selectedServices: string[];
+  intermediatePoints: Array<
+    Pick<Point, 'uuid' | 'address' | 'airport' | 'latitude' | 'longitude' | 'terrainDifficulty'> & {
+      pricePerKm: number;
+    }
+  >;
+  description: string | null;
+  flightNumber: string | null;
 };
 
 interface OrderProps {
-  role: UserRole;
   mode: 'create' | 'edit';
   orderData?: OrderData | null;
 }
 
-const transformPoint = (point: any): Point => {
-  return {
-    ...point,
-    pricePerKm: Number(point.pricePerKm),
-    latitude: Number(point.latitude),
-    longitude: Number(point.longitude),
-    terrainDifficulty: Number(point.terrainDifficulty),
-    airport: point.airport,
-    createdAt: new Date(point.createdAt),
-    updatedAt: new Date(point.updatedAt),
-  };
-};
+const OrderCreateView: FC<OrderProps> = ({ mode, orderData }) => {
+  console.log('orderData', orderData);
 
-const OrderCreateView: FC<OrderProps> = ({ role, mode, orderData }) => {
   const router = useRouter();
-  const tariffAndServices = useTariffs({
-    vehicleType: orderData?.tariff.vehicleType,
-  });
+
+  const tariffAndServices = useTariffs();
   const tariffs = tariffAndServices.tariffs as TariffWithServices[];
   const [allPoints, setAllPoints] = useState<Point[]>([]);
   const [routeDistance, setRouteDistance] = useState<number>(0);
   const [routeDuration, setRouteDuration] = useState<string | null>(null);
+
+  // Добавляем хук для выбора клиентов
+  const {
+    clients,
+    selectedClientInfo,
+    searchClient,
+    setSelectedClientInfo,
+    handleSearchChange,
+    loadMore,
+  } = useOrderCreateClients({
+    assignedClientId: orderData?.createdBy?.uuid ?? null,
+  });
 
   const handleDurationUpdate = useCallback((duration: string | null) => {
     setRouteDuration(duration);
@@ -109,19 +114,9 @@ const OrderCreateView: FC<OrderProps> = ({ role, mode, orderData }) => {
     handleServiceLevelChange,
     handleVehicleTypeChange,
     formMethods,
-  } = useCreateAdminOrderLogic(
-    tariffs,
-    orderData?.tariff.serviceLevel,
-    orderData?.tariff.vehicleType,
-    orderData,
-  );
+  } = useCreateAdminOrderLogic(tariffs, orderData);
 
-  const {
-    handleSubmit,
-    control,
-    setValue,
-    formState: { errors },
-  } = formMethods;
+  const { handleSubmit, control, setValue } = formMethods;
 
   const {
     drivers,
@@ -138,6 +133,10 @@ const OrderCreateView: FC<OrderProps> = ({ role, mode, orderData }) => {
   } = useOrderCreateDrivers({
     assignedDriverId: orderData?.assignedDriver?.uuid ?? null,
     setValue,
+    selectedVehicleType,
+    selectedServiceLevel,
+    setSelectedVehicleType: handleVehicleTypeChange,
+    setSelectedServiceLevel: handleServiceLevelChange,
   });
 
   const {
@@ -153,7 +152,11 @@ const OrderCreateView: FC<OrderProps> = ({ role, mode, orderData }) => {
     selectorRef: fromSelectorRef,
     observerRef: fromObserverRef,
     selectedPoint: departurePoint,
-  } = usePointSelector({ mode: 'single', allPoints });
+  } = usePointSelector({
+    mode: 'single',
+    allPoints,
+    initialSelectedPoint: orderData?.departurePoint,
+  });
 
   const {
     isOpen: isToOpen,
@@ -168,7 +171,11 @@ const OrderCreateView: FC<OrderProps> = ({ role, mode, orderData }) => {
     selectorRef: toSelectorRef,
     observerRef: toObserverRef,
     selectedPoint: arrivalPoint,
-  } = usePointSelector({ mode: 'single', allPoints });
+  } = usePointSelector({
+    mode: 'single',
+    allPoints,
+    initialSelectedPoint: orderData?.arrivalPoint,
+  });
 
   const {
     isOpen: isAdditionalOpen,
@@ -183,11 +190,15 @@ const OrderCreateView: FC<OrderProps> = ({ role, mode, orderData }) => {
     selectedPoints: additionalPoints,
     onRemovePoint,
     onChangeOrder,
-    totalAdditionalPrice,
   } = usePointSelector({
     mode: 'multiple',
-    initialSelectedPoints: Array(5).fill(null),
     allPoints,
+    initialSelectedPoints: orderData?.intermediatePoints
+      ? [
+          ...orderData.intermediatePoints,
+          ...Array(5 - orderData.intermediatePoints.length).fill(null),
+        ]
+      : Array(5).fill(null),
   });
 
   const {
@@ -195,7 +206,7 @@ const OrderCreateView: FC<OrderProps> = ({ role, mode, orderData }) => {
     handleServiceSelection,
     selectedServices,
     totalAdditionalServicesPrice,
-  } = useAdditionalServices(selectedTariff);
+  } = useAdditionalServices(selectedTariff, orderData);
 
   const { waitTime, additionalWaitTimeCost, adjustWaitTime, minWaitTime, maxWaitTime } =
     useWaitTime({
@@ -215,7 +226,6 @@ const OrderCreateView: FC<OrderProps> = ({ role, mode, orderData }) => {
     additionalServicesPrice: totalAdditionalServicesPrice
       ? new Decimal(totalAdditionalServicesPrice)
       : null,
-    additionalPointsPrice: totalAdditionalPrice ? new Decimal(totalAdditionalPrice) : null,
     waitTimeCost: additionalWaitTimeCost ? new Decimal(additionalWaitTimeCost) : null,
     routeCost: routeCost ? new Decimal(routeCost) : null,
   });
@@ -225,45 +235,52 @@ const OrderCreateView: FC<OrderProps> = ({ role, mode, orderData }) => {
   }, []);
 
   const handleDepartureSelectPoint = useCallback(
-    (point: Point) => {
-      if (isPointAlreadySelected(point, 'departure')) {
-        alert('Этот город уже выбран в другом селекторе');
+    (point: Point | null) => {
+      if (point && isPointAlreadySelected(point, 'departure')) {
+        showToast.error('Этот город уже выбран в другом селекторе');
         return;
       }
       onFromSelectPoint(point);
+      setValue('departurePoint', point || ({} as Point));
     },
-    [isPointAlreadySelected, onFromSelectPoint],
+    [isPointAlreadySelected, onFromSelectPoint, setValue],
   );
 
   const handleArrivalSelectPoint = useCallback(
     (point: Point) => {
       if (isPointAlreadySelected(point, 'arrival')) {
-        alert('Этот город уже выбран в другом селекторе');
+        showToast.error('Этот город уже выбран в другом селекторе');
         return;
       }
       onToSelectPoint(point);
+      setValue('arrivalPoint', point);
     },
-    [isPointAlreadySelected, onToSelectPoint],
+    [isPointAlreadySelected, onToSelectPoint, setValue],
   );
 
-  const handleAdditionalSelectPoint = useCallback(
-    (point: Point, index: number) => {
-      if (isPointAlreadySelected(point, 'additional', index)) {
-        alert('Этот город уже выбран в другом селекторе');
-        return;
-      }
-      onAdditionalSelectPoint(point, index);
-    },
-    [isPointAlreadySelected, onAdditionalSelectPoint],
-  );
+  const handleAdditionalSelectPoint = (point: PointWithoutTimestamps | null, index: number) => {
+    console.log('handleAdditionalSelectPoint called:', { point: point?.address, index }); // Отладка
+    if (point && isPointAlreadySelected(point, 'additional', index)) {
+      showToast.error('Этот город уже выбран в другом селекторе');
+      return;
+    }
+    onAdditionalSelectPoint(point, index); // Обновляем состояние в usePointSelector
+    const currentPoints = formMethods.getValues('intermediatePoints') || Array(5).fill(null);
+    const updatedPoints = [...currentPoints];
+    updatedPoints[index] = point ? { uuid: point.uuid } : null;
+    formMethods.setValue('intermediatePoints', updatedPoints, { shouldDirty: true });
+    console.log('Updated intermediatePoints:', updatedPoints); // Отладка
+  };
 
   const handlePointSelect = useCallback(
     (point: Point, isSelected: boolean) => {
       if (isSelected) {
         if (departurePoint?.uuid === point.uuid) {
           onFromSelectPoint(null);
+          setValue('departurePoint', null);
         } else if (arrivalPoint?.uuid === point.uuid) {
           onToSelectPoint(null);
+          setValue('arrivalPoint', null);
         } else if (additionalPoints) {
           const index = additionalPoints.findIndex((p) => p?.uuid === point.uuid);
           if (index !== -1) {
@@ -280,7 +297,7 @@ const OrderCreateView: FC<OrderProps> = ({ role, mode, orderData }) => {
           if (freeIndex !== -1) {
             handleAdditionalSelectPoint(point, freeIndex);
           } else {
-            alert('Достигнут лимит точек маршрута');
+            showToast.error('Достигнут лимит точек маршрута');
           }
         }
       }
@@ -295,37 +312,59 @@ const OrderCreateView: FC<OrderProps> = ({ role, mode, orderData }) => {
       onFromSelectPoint,
       onToSelectPoint,
       onAdditionalSelectPoint,
+      setValue,
     ],
   );
 
   useEffect(() => {
+    if (allPoints.length > 0) {
+      return;
+    }
+
     fetchPoints('', '1', '1000', 'createdAt', 'asc')
       .then((response: FetchPointsResponse) => {
-        const mappedPoints = response.points.map(transformPoint);
+        if (!response.points || !Array.isArray(response.points)) {
+          console.error('API вернул неправильный формат данных:', response);
+          return;
+        }
+
+        const mappedPoints = response.points;
         setAllPoints(mappedPoints);
       })
       .catch((error) => {
         console.error('Ошибка при получении всех точек:', error);
+        setAllPoints([]);
       });
   }, []);
 
+  const handleClientSelection = (
+    client: Pick<User, 'uuid' | 'fullName' | 'email' | 'phone' | 'role'>,
+  ) => {
+    setSelectedClientInfo(client);
+    setValue('createdBy', client);
+  };
+
   const onSubmit = async (data: any) => {
+    const isNewClientMode = !!data.fullName && !!data.phone;
+
     const payload = {
-      createdBy: orderData?.createdBy.uuid || data.createdBy,
-      tariffUuid: selectedTariff?.uuid || orderData?.tariff.uuid,
-      departureTime: data.departureTime,
-      departurePoint: departurePoint?.uuid || data.departurePoint,
-      arrivalPoint: arrivalPoint?.uuid || data.arrivalPoint,
+      createdBy: isNewClientMode ? undefined : orderData?.createdBy?.uuid || data.createdBy?.uuid,
+      tariffUuid: selectedTariff?.uuid || orderData?.tariff?.uuid,
+      departureTime: data.departureTime?.departureTime || new Date(),
+      departurePoint: departurePoint?.uuid || data.departurePoint?.uuid,
+      arrivalPoint: arrivalPoint?.uuid || data.arrivalPoint?.uuid,
       intermediatePoints:
-        additionalPoints
+        data.intermediatePoints
           ?.map((point) => point?.uuid)
           .filter((uuid): uuid is string => Boolean(uuid)) || [],
       basePrice: data.basePrice ? Number(data.basePrice) : totalPrice.toNumber(),
       selectedServices: selectedServices || orderData?.selectedServices || [],
-      assignedDriverId: selectedDriverInfo?.uuid || data.assignedDriverId || null,
-      description: data.description || '',
-      flightNumber: data.flightNumber || '',
+      assignedDriverId: selectedDriverInfo?.uuid || data.assignedDriverId?.assignedDriverId || null,
+      description: data.description?.description || data.description || '',
+      flightNumber: data.flightNumber?.flightNumber || data.flightNumber || '',
       waitingTimeMinutes: waitTime || 0,
+      fullName: data.fullName || undefined,
+      phone: data.phone || undefined,
     };
 
     try {
@@ -342,12 +381,14 @@ const OrderCreateView: FC<OrderProps> = ({ role, mode, orderData }) => {
               body: JSON.stringify(payload),
             });
 
+      const responseData = await response.json();
+      console.log('Server response:', responseData); // Отладка
+
       if (response.ok) {
         showToast.success(mode === 'create' ? 'Заказ создан успешно!' : 'Заказ обновлен успешно!');
         router.push('/orders');
       } else {
-        const errorData = await response.json();
-        showToast.error('Ошибка при сохранении заказа: ' + JSON.stringify(errorData));
+        showToast.error('Ошибка при сохранении заказа: ' + JSON.stringify(responseData));
       }
     } catch (error) {
       showToast.error(
@@ -358,210 +399,239 @@ const OrderCreateView: FC<OrderProps> = ({ role, mode, orderData }) => {
 
   return (
     <FormProvider {...formMethods}>
-      <div className="flex flex-col gap-4 p-8 bg-white rounded-3xl">
-        <form className="flex flex-col gap-4" onSubmit={handleSubmit(onSubmit)}>
-          <h2 className="text-3xl font-semibold">
-            {mode === 'create' ? 'Создание заказа' : 'Редактирование заказа'}
-          </h2>
-
-          <div className="w-full h-[500px] flex flex-row gap-4">
-            <div className="hidden lg:flex flex-1 flex-shrink-0 basis-[calc(65%-1.5rem)] h-auto bg-white rounded-xl border">
-              <MapDriver
-                selectedDriverInfo={selectedDriverInfo}
-                serverTime={serverTime || new Date()}
-              />
-            </div>
-            <div className="flex-1 flex-shrink-0 basis-[calc(35%-1.5rem)] h-auto flex flex-col justify-between gap-4">
-              <DriversNearby
-                drivers={drivers}
-                isDriversLoading={isDriversLoading}
-                searchDriver={searchDriver}
-                handleSearchDriverChange={handleSearchDriverChange}
-                selectedDriverInfo={selectedDriverInfo}
-                handleDriverClick={handleDriverClick}
-                page={parseInt(page)}
-                perPage={parseInt(perPage)}
-                currentTotal={total}
-                handlePageChange={(newPage) => handlePageChange(String(newPage))}
-                serverTime={serverTime || new Date()}
-              />
-            </div>
+      <div className="flex flex-col">
+        <form className="flex flex-col" onSubmit={handleSubmit(onSubmit)}>
+          <div className="bg-gradient-to-r from-blue-600 to-indigo-700 px-8 py-6 text-white">
+            <h1 className="text-3xl font-bold">
+              {mode === 'create' ? 'Создание нового заказа' : 'Редактирование заказа'}
+            </h1>
+            <p className="text-blue-100 mt-2">
+              Заполните информацию о маршруте, выберите услуги и водителя
+            </p>
           </div>
-
-          {/* Секция выбора тарифа */}
-          <div className={'flex flex-row gap-4'}>
-            <div className="hidden lg:flex flex-1 flex-shrink-0 basis-[calc(65%-1.5rem)] h-auto bg-white rounded-xl p-8 flex-col">
-              <TariffCheckbox
-                tariffs={tariffs}
-                selectedServiceLevel={selectedServiceLevel}
-                selectedVehicleType={selectedVehicleType}
-                selectedTariffUuid={selectedTariff?.uuid || null}
-                handleServiceLevelChange={handleServiceLevelChange}
-                handleVehicleTypeChange={handleVehicleTypeChange}
-                {...formMethods}
-              />
-              <WaitTimeSelector
-                waitTime={waitTime}
-                additionalWaitTimeCost={additionalWaitTimeCost}
-                adjustWaitTime={adjustWaitTime}
-                minWaitTime={minWaitTime}
-                maxWaitTime={maxWaitTime}
-                departurePoint={departurePoint}
-                freeWaitTime={selectedTariff?.freeWaitTimeAirport ?? 0}
-              />
+          {/* Секция с водителями */}
+          <section className="overflow-hidden">
+            <div className="bg-gradient-to-r from-indigo-50 to-blue-50 px-6 py-4 border-b border-blue-100">
+              <h2 className="text-xl font-semibold text-gray-800 flex items-center">
+                <span className="mr-2 p-2 bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center">
+                  1
+                </span>
+                Выбор водителя
+              </h2>
             </div>
-            <div className={'w-full flex flex-col gap-4 p-4'}>
-              <AdditionalServicesList
-                label="Дополнительные опции"
-                availableServices={availableServices}
-                handleServiceSelection={handleServiceSelection}
-                selectedServices={selectedServices}
-                totalAdditionalServicesPrice={totalAdditionalServicesPrice}
-              />
-            </div>
-          </div>
 
-          <div className="flex flex-row gap-4">
-            <RouteMap
-              allPoints={allPoints}
-              selectedPoints={[
-                departurePoint ?? null,
-                ...(additionalPoints?.filter((p): p is Point => p !== null) ?? []),
-                arrivalPoint ?? null,
-              ]}
-              onPointSelect={handlePointSelect}
-              onDistanceUpdate={handleDistanceUpdate}
-              onDurationUpdate={handleDurationUpdate}
-            />
-            <div className="w-full flex flex-row gap-4 p-4 rounded-md">
-              <div className={'w-full flex flex-col gap-4'}>
-                <PointSelector
-                  control={control}
-                  name="departurePoint"
-                  label="Адрес подачи"
-                  isOpen={isFromOpen}
-                  searchValue={fromSearchValue}
-                  onOpenSelect={onFromOpenSelect}
-                  onSearchValueChange={onFromSearchValueChange}
-                  search={fromSearch}
-                  handleSearchChange={handleFromSearchChange}
-                  filteredPoints={fromFilteredPoints}
-                  loading={fromLoading}
-                  onSelectPoint={handleDepartureSelectPoint}
-                  selectorRef={fromSelectorRef}
-                  observerRef={fromObserverRef}
-                  selectedPoint={departurePoint}
-                />
-                <PointSelector
-                  control={control}
-                  name="arrivalPoint"
-                  label="Адрес прибытия"
-                  isOpen={isToOpen}
-                  searchValue={toSearchValue}
-                  onOpenSelect={onToOpenSelect}
-                  onSearchValueChange={onToSearchValueChange}
-                  search={toSearch}
-                  handleSearchChange={handleToSearchChange}
-                  filteredPoints={toFilteredPoints}
-                  loading={toLoading}
-                  onSelectPoint={handleArrivalSelectPoint}
-                  selectorRef={toSelectorRef}
-                  observerRef={toObserverRef}
-                  selectedPoint={arrivalPoint}
-                  arrivalPointPrice={
-                    arrivalPoint?.pricePerKm ? Number(arrivalPoint.pricePerKm) : undefined
-                  }
-                />
-                <div className="text-sm bg-gray-50 rounded-md p-3 border">
-                  <div className="grid grid-cols-[20px_80px_1fr] gap-y-2 gap-x-4">
-                    {departurePoint && (
-                      <>
-                        <span className="font-semibold text-blue-500">A</span>
-                        <span className="font-semibold">Откуда:</span>
-                        <span>{departurePoint.address}</span>
-                      </>
-                    )}
-                    {arrivalPoint && (
-                      <>
-                        <span className="font-semibold text-red-500">B</span>
-                        <span className="font-semibold">Куда:</span>
-                        <span>{arrivalPoint.address}</span>
-                      </>
-                    )}
-                    {additionalPoints &&
-                      additionalPoints.some((point) => point !== null) &&
-                      additionalPoints
-                        .filter((point): point is Point => point !== null)
-                        .map((point, index) => (
-                          <React.Fragment key={point.uuid}>
-                            <span className="font-semibold text-green-500">
-                              {String.fromCharCode(67 + index)}
-                            </span>
-                            <span className="font-semibold">Точка:</span>
-                            <span>{point.address}</span>
-                          </React.Fragment>
-                        ))}
-                    {routeDuration && (
-                      <>
-                        <span className="font-semibold text-purple-500">⏱</span>
-                        <span className="font-semibold">Время:</span>
-                        <span>{routeDuration}</span>
-                      </>
-                    )}
-                    {routeDistance > 0 && (
-                      <>
-                        <span className="font-semibold text-teal-500">📏</span>
-                        <span className="font-semibold">Км:</span>
-                        <span>{routeDistance.toFixed(2)} км</span>
-                      </>
-                    )}
-                    {routeCost && (
-                      <>
-                        <span className="font-semibold text-orange-500">💸</span>
-                        <span className="font-semibold">Стоимость маршрута:</span>
-                        <span>{routeCost.toFixed(2)} сом</span>
-                      </>
-                    )}
-                  </div>
+            <div className="p-4">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2 bg-gray-50 rounded-xl overflow-hidden h-[500px] border border-gray-200">
+                  <MapDriver
+                    selectedDriverInfo={selectedDriverInfo}
+                    serverTime={serverTime || new Date()}
+                  />
+                </div>
+                <div className="h-full overflow-y-auto rounded-xl border-gray-200 shadow-sm">
+                  <DriversNearby
+                    drivers={drivers}
+                    isDriversLoading={isDriversLoading}
+                    searchDriver={searchDriver}
+                    handleSearchDriverChange={handleSearchDriverChange}
+                    selectedDriverInfo={selectedDriverInfo}
+                    handleDriverClick={handleDriverClick}
+                    page={parseInt(page)}
+                    perPage={parseInt(perPage)}
+                    currentTotal={total}
+                    handlePageChange={(newPage) => handlePageChange(String(newPage))}
+                    serverTime={serverTime || new Date()}
+                  />
                 </div>
               </div>
-              <AdditionalPoints
-                label="Дополнительные остановки"
-                isOpen={isAdditionalOpen}
-                searchValue={additionalSearchValue}
-                onOpenSelect={onAdditionalOpenSelect}
-                onSearchValueChange={onAdditionalSearchValueChange}
-                search={additionalSearch}
-                handleSearchChange={handleAdditionalHandleSearchChange}
-                filteredPoints={additionalFilteredPoints}
-                onSelectPoint={(point: Point, index?: number) =>
-                  handleAdditionalSelectPoint(point, index ?? 0)
-                }
-                selectorRef={additionalSelectorRef}
-                selectedPoints={additionalPoints ?? []}
-                onRemovePoint={onRemovePoint || (() => {})}
-                onChangeOrder={onChangeOrder}
-                onMaxLimitReached={() => alert('Достигнут лимит дополнительных остановок')}
-                totalAdditionalPrice={totalAdditionalPrice}
+            </div>
+          </section>
+
+          {/* Секция с клиентами */}
+          <section className="overflow-hidden">
+            <div className="bg-gradient-to-r from-indigo-50 to-blue-50 px-6 py-4 border-b border-blue-100">
+              <h2 className="text-xl font-semibold text-gray-800 flex items-center">
+                <span className="mr-2 p-2 bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center">
+                  2
+                </span>
+                Выбор клиента
+              </h2>
+            </div>
+            <div className="p-4">
+              <ClientSelector
+                control={control}
+                clients={clients}
+                selectedClientInfo={selectedClientInfo}
+                searchClient={searchClient}
+                handleSearchChange={handleSearchChange}
+                handleClientSelection={handleClientSelection}
+                loadMore={loadMore}
+                total={total}
+                initialClient={orderData?.createdBy}
               />
             </div>
-          </div>
+          </section>
 
-          {/* Секция дополнительных опций */}
-          <div className="flex border"></div>
+          {/* Секция с тарифом и доп. услугами */}
+          <section className="overflow-hidden">
+            <div className="bg-gradient-to-r from-indigo-50 to-blue-50 px-6 py-4 border-b border-blue-100">
+              <h2 className="text-xl font-semibold text-gray-800 flex items-center">
+                <span className="mr-2 p-2 bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center">
+                  3
+                </span>
+                Тариф и дополнительные услуги
+              </h2>
+            </div>
+            <div className={'flex flex-row gap-4'}>
+              <div className="flex flex-1 flex-shrink-0 basis-[calc(65%-1.5rem)] h-auto rounded-xl p-8 flex-col">
+                <TariffCheckbox
+                  tariffs={tariffs}
+                  selectedServiceLevel={selectedServiceLevel}
+                  selectedVehicleType={selectedVehicleType}
+                  selectedTariffUuid={selectedTariff?.uuid || null}
+                  handleServiceLevelChange={handleServiceLevelChange}
+                  handleVehicleTypeChange={handleVehicleTypeChange}
+                  {...formMethods}
+                />
+                <WaitTimeSelector
+                  waitTime={waitTime}
+                  additionalWaitTimeCost={additionalWaitTimeCost}
+                  adjustWaitTime={adjustWaitTime}
+                  minWaitTime={minWaitTime}
+                  maxWaitTime={maxWaitTime}
+                  departurePoint={departurePoint}
+                  freeWaitTime={selectedTariff?.freeWaitTimeAirport ?? 0}
+                />
+              </div>
+              <div className={'w-full flex flex-col gap-4 p-8'}>
+                <AdditionalServicesList
+                  label="Дополнительные опции"
+                  availableServices={availableServices}
+                  handleServiceSelection={handleServiceSelection}
+                  selectedServices={selectedServices}
+                  totalAdditionalServicesPrice={totalAdditionalServicesPrice}
+                />
+              </div>
+            </div>
+          </section>
 
-          {/* Секция общей цены */}
+          {/* Секция с маршрутом */}
+          <section className="overflow-hidden">
+            <div className="bg-gradient-to-r from-indigo-50 to-blue-50 px-6 py-4 border-b border-blue-100">
+              <h2 className="text-xl font-semibold text-gray-800 flex items-center">
+                <span className="mr-2 p-2 bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center">
+                  4
+                </span>
+                Настройка маршрута
+              </h2>
+            </div>
+
+            <div className="flex flex-row gap-4 p-4">
+              <div className="w-full flex flex-row gap-4 rounded-md">
+                <RouteMap
+                  allPoints={allPoints}
+                  selectedPoints={[
+                    departurePoint,
+                    ...(additionalPoints?.filter((p): p is Point => p !== null) ?? []),
+                    arrivalPoint,
+                  ].filter((p): p is Point => p !== null)}
+                  onPointSelect={handlePointSelect}
+                  onDistanceUpdate={handleDistanceUpdate}
+                  onDurationUpdate={handleDurationUpdate}
+                />
+                <div className={'w-full flex flex-row gap-4'}>
+                  <div className={'w-full flex flex-col gap-4'}>
+                    <PointSelector
+                      control={control}
+                      name="departurePoint"
+                      label="Адрес подачи (A)"
+                      isOpen={isFromOpen}
+                      searchValue={fromSearchValue}
+                      onOpenSelect={onFromOpenSelect}
+                      onSearchValueChange={onFromSearchValueChange}
+                      search={fromSearch}
+                      handleSearchChange={handleFromSearchChange}
+                      filteredPoints={fromFilteredPoints}
+                      loading={fromLoading}
+                      onSelectPoint={handleDepartureSelectPoint}
+                      selectorRef={fromSelectorRef}
+                      observerRef={fromObserverRef}
+                      selectedPoint={departurePoint}
+                    />
+                    <PointSelector
+                      control={control}
+                      name="arrivalPoint"
+                      label="Адрес прибытия (B)"
+                      isOpen={isToOpen}
+                      searchValue={toSearchValue}
+                      onOpenSelect={onToOpenSelect}
+                      onSearchValueChange={onToSearchValueChange}
+                      search={toSearch}
+                      handleSearchChange={handleToSearchChange}
+                      filteredPoints={toFilteredPoints}
+                      loading={toLoading}
+                      onSelectPoint={handleArrivalSelectPoint}
+                      selectorRef={toSelectorRef}
+                      observerRef={toObserverRef}
+                      selectedPoint={arrivalPoint}
+                      arrivalPointPrice={
+                        arrivalPoint?.pricePerKm ? Number(arrivalPoint.pricePerKm) : undefined
+                      }
+                    />
+                    <AdditionalPoints
+                      control={control}
+                      name="intermediatePoints"
+                      label="Дополнительные остановки"
+                      isOpen={isAdditionalOpen}
+                      searchValue={additionalSearchValue}
+                      onOpenSelect={onAdditionalOpenSelect}
+                      onSearchValueChange={onAdditionalSearchValueChange}
+                      search={additionalSearch}
+                      handleSearchChange={handleAdditionalHandleSearchChange}
+                      filteredPoints={additionalFilteredPoints}
+                      onSelectPoint={handleAdditionalSelectPoint}
+                      selectorRef={additionalSelectorRef}
+                      selectedPoints={additionalPoints ?? []}
+                      onRemovePoint={onRemovePoint || (() => {})}
+                      onChangeOrder={onChangeOrder}
+                    />
+                  </div>
+                  <RouteInfo
+                    departurePoint={departurePoint}
+                    additionalPoints={additionalPoints ?? []}
+                    arrivalPoint={arrivalPoint}
+                    routeDuration={routeDuration}
+                    routeDistance={routeDistance}
+                  />
+                </div>
+              </div>
+            </div>
+          </section>
           <h2 className="text-2xl font-semibold">Общая цена</h2>
           <div>
             <h3>
               Общая сумма заказа: <span className={'font-bold'}>{totalPrice.toNumber()} сом</span>
             </h3>
           </div>
-
-          <div className="w-full flex justify-end">
-            <IButton type="submit">
+          <div className="flex justify-end mt-6">
+            <button
+              type="submit"
+              className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200"
+            >
               {mode === 'create' ? 'Создать заказ' : 'Сохранить изменения'}
-            </IButton>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5 ml-2"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            </button>
           </div>
         </form>
       </div>

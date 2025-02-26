@@ -1,69 +1,58 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useForm, UseFormReturn } from 'react-hook-form';
+import { ServiceLevels, VehicleType, Tariff, TariffOnService, Point, Order } from '@prisma/client';
 import {
-  ServiceLevels,
-  VehicleType,
-  Tariff,
-  TariffOnService,
-  OrderOnTariffAdditionalService,
-  User,
-} from '@prisma/client';
-import { TariffWithServices } from '@pages/(administrator)/orders/create/OrderCreate.view';
+  OrderData,
+  TariffWithServices,
+} from '@pages/(administrator)/orders/create/OrderCreate.view';
 
 export interface FormOrderValues {
-  createdBy: string;
-  tariffUuid: string;
-  departurePoint: string;
-  arrivalPoint: string;
+  createdBy: Pick<Order, 'uuid'>;
+  tariffUuid: Pick<Tariff, 'uuid'> | null;
+  departurePoint: Pick<Point, 'uuid'> | null;
+  arrivalPoint: Pick<Point, 'uuid'> | null;
   serviceLevel: ServiceLevels;
   vehicleType: VehicleType;
-  flightNumber: string;
-  description: string;
-  intermediatePoints: string[];
-  selectedServices: string[];
-  departureTime: string;
-  basePrice: number;
-  waitingTimeMinutes: number;
-  assignedDriverId: string;
+  flightNumber: Pick<Order, 'flightNumber'>;
+  description: Pick<Order, 'description'>;
+  intermediatePoints: (Pick<Point, 'uuid'> | null)[];
+  selectedServices: TariffOnService[];
+  departureTime: Date | undefined;
+  basePrice: Pick<Order, 'basePrice'>;
+  waitingTimeMinutes: Pick<Order, 'waitingTimeMinutes'>;
+  assignedDriverId: Pick<Order, 'assignedDriverId'>;
+  fullName?: string;
+  phone?: string;
 }
 
-type SafeUser = Pick<User, 'uuid' | 'fullName' | 'email' | 'phone'>;
+const useCreateAdminOrderLogic = (tariffs: TariffWithServices[], orderData?: OrderData | null) => {
+  const initialServiceLevel = orderData?.tariff?.serviceLevel || ServiceLevels.Basic;
+  const initialVehicleType = orderData?.tariff?.vehicleType || VehicleType.Sedan;
 
-interface OrderData {
-  uuid: string;
-  createdBy: SafeUser;
-  tariff: Pick<Tariff, 'uuid' | 'name' | 'serviceLevel' | 'vehicleType'> & {
-    tariffAdditionalServices: (TariffOnService & {
-      orderTariffAdditionalServices: OrderOnTariffAdditionalService[];
-    })[];
-  };
-  departurePoint: { address: string };
-  arrivalPoint: { address: string };
-  departureTime?: string;
-}
-
-const useCreateAdminOrderLogic = (
-  tariffs: TariffWithServices[],
-  initialServiceLevel: ServiceLevels | undefined,
-  initialVehicleType: VehicleType | undefined,
-  orderData?: OrderData | null,
-) => {
   const formMethods: UseFormReturn<FormOrderValues> = useForm<FormOrderValues>({
     mode: 'onBlur',
     defaultValues: {
-      createdBy: orderData?.createdBy?.uuid || '',
-      tariffUuid: orderData?.tariff.uuid || '',
-      departurePoint: orderData?.departurePoint.address || '',
-      arrivalPoint: orderData?.arrivalPoint.address || '',
-      serviceLevel: initialServiceLevel || ServiceLevels.Basic,
-      vehicleType: initialVehicleType || VehicleType.Sedan,
-      flightNumber: '',
-      description: '',
-      intermediatePoints: [],
-      selectedServices: orderData?.tariff.tariffAdditionalServices.map((s) => s.uuid) || [],
-      departureTime: orderData?.departureTime || new Date().toISOString().slice(0, 16),
-      basePrice: 0,
-      waitingTimeMinutes: 0,
+      createdBy: orderData?.createdBy ? { uuid: orderData.createdBy.uuid } : undefined,
+      tariffUuid: orderData?.tariff ? { uuid: orderData.tariff.uuid } : null,
+      departurePoint: orderData?.departurePoint || null,
+      arrivalPoint: orderData?.arrivalPoint || null,
+      intermediatePoints: orderData?.intermediatePoints
+        ? [
+            ...orderData.intermediatePoints,
+            ...Array(5 - (orderData.intermediatePoints.length || 0)).fill(null),
+          ]
+        : Array(5).fill(null),
+      serviceLevel: initialServiceLevel,
+      vehicleType: initialVehicleType,
+      departureTime: orderData?.departureTime ? new Date(orderData.departureTime) : undefined,
+      description: orderData?.description
+        ? { description: orderData.description }
+        : { description: null },
+      flightNumber: orderData?.flightNumber
+        ? { flightNumber: orderData.flightNumber }
+        : { flightNumber: null },
+      fullName: '',
+      phone: '',
     },
   });
 
@@ -74,6 +63,14 @@ const useCreateAdminOrderLogic = (
 
   const [selectedTariff, setSelectedTariff] = useState<TariffWithServices | null>(null);
   const serviceLevelMapRef = useRef<Partial<Record<VehicleType, ServiceLevels>>>({});
+  const initializedRef = useRef(false);
+
+  useEffect(() => {
+    if (!initializedRef.current && initialVehicleType && initialServiceLevel) {
+      serviceLevelMapRef.current[initialVehicleType] = initialServiceLevel;
+      initializedRef.current = true;
+    }
+  }, [initialVehicleType, initialServiceLevel]);
 
   useEffect(() => {
     if (selectedServiceLevel && selectedVehicleType && tariffs.length > 0) {
@@ -84,12 +81,28 @@ const useCreateAdminOrderLogic = (
       );
       setSelectedTariff(matchingTariff || null);
       if (matchingTariff) {
-        setValue('tariffUuid', matchingTariff.uuid);
+        setValue('tariffUuid', { uuid: matchingTariff.uuid });
       }
     } else {
       setSelectedTariff(null);
     }
   }, [selectedServiceLevel, selectedVehicleType, tariffs, setValue]);
+
+  useEffect(() => {
+    if (tariffs.length > 0 && orderData?.tariff && !initializedRef.current) {
+      initializedRef.current = true;
+      const initialTariff = tariffs.find((t) => t.uuid === orderData.tariff.uuid);
+      if (initialTariff) {
+        setValue('serviceLevel', initialTariff.serviceLevel);
+        setValue('vehicleType', initialTariff.vehicleType);
+        setValue('tariffUuid', { uuid: initialTariff.uuid });
+        setSelectedTariff(initialTariff);
+        serviceLevelMapRef.current[initialTariff.vehicleType] = initialTariff.serviceLevel;
+      } else {
+        console.log('Не найден тариф с UUID:', orderData.tariff.uuid);
+      }
+    }
+  }, [tariffs, orderData, setValue]);
 
   const handleServiceLevelChange = useCallback(
     (level: ServiceLevels) => {
@@ -102,18 +115,39 @@ const useCreateAdminOrderLogic = (
     [setValue, getValues],
   );
 
+  const getAvailableTariffsForVehicleType = useCallback(
+    (vehicleType: VehicleType) => {
+      return tariffs.filter((tariff) => tariff.vehicleType === vehicleType);
+    },
+    [tariffs],
+  );
+
   const handleVehicleTypeChange = useCallback(
     (newType: VehicleType) => {
       const currentVehicleType = getValues('vehicleType');
       const currentServiceLevel = getValues('serviceLevel');
+
       if (currentVehicleType && currentServiceLevel) {
         serviceLevelMapRef.current[currentVehicleType] = currentServiceLevel;
       }
+
       setValue('vehicleType', newType);
-      const savedServiceLevel = serviceLevelMapRef.current[newType];
-      setValue('serviceLevel', savedServiceLevel ?? ServiceLevels.Basic);
+
+      const availableTariffs = getAvailableTariffsForVehicleType(newType);
+      if (availableTariffs.length > 0 && availableTariffs[0]) {
+        const firstAvailableTariff = availableTariffs[0];
+        const newServiceLevel = firstAvailableTariff.serviceLevel;
+        setValue('serviceLevel', newServiceLevel);
+        serviceLevelMapRef.current[newType] = newServiceLevel;
+        setValue('tariffUuid', { uuid: firstAvailableTariff.uuid });
+      } else {
+        const savedServiceLevel = serviceLevelMapRef.current[newType];
+        if (savedServiceLevel) {
+          setValue('serviceLevel', savedServiceLevel);
+        }
+      }
     },
-    [setValue, getValues],
+    [setValue, getValues, getAvailableTariffsForVehicleType],
   );
 
   return {

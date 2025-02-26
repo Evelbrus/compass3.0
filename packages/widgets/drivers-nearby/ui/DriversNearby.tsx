@@ -36,7 +36,6 @@ const DriversNearby: React.FC<DriversNearbyProps> = ({
   handlePageChange,
   serverTime,
 }) => {
-  // Теперь serverTime гарантированно является объектом Date
   const serverTimeISO = serverTime.toISOString();
 
   return (

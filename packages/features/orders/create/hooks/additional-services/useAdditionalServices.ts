@@ -1,19 +1,25 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { fetchAdditionalServices } from '@features/orders/create/api/orders.api';
-import {
-  AdditionalService,
-} from '@prisma/client';
+import { AdditionalService } from '@prisma/client';
 import { TariffWithServices } from '@pages/(administrator)/orders/create/OrderCreate.view';
 
-const useAdditionalServices = (selectedTariff: TariffWithServices | null) => {
+const useAdditionalServices = (selectedTariff: TariffWithServices | null, orderData?: any) => {
+  // Инициализация selectedServices из orderData с самого начала
+  const initialSelectedServices =
+    orderData?.selectedServices?.length > 0 ? [...orderData.selectedServices] : [];
+
   const [allServices, setAllServices] = useState<AdditionalService[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedServices, setSelectedServices] = useState<string[]>([]);
+  const [selectedServices, setSelectedServices] = useState<string[]>(initialSelectedServices);
   const [selectedServicesMap, setSelectedServicesMap] = useState<Record<string, string[]>>({});
-  const prevTariffRef = useRef<TariffWithServices | null>(null);
-  const prevSelectedServicesRef = useRef<string[]>(selectedServices);
 
+  const prevTariffRef = useRef<string | null>(null);
+  const prevSelectedServicesRef = useRef<string[]>(initialSelectedServices);
+  const initializedRef = useRef<boolean>(initialSelectedServices.length > 0);
+  const updatesCountRef = useRef<number>(0);
+
+  // Загрузка всех дополнительных услуг
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -33,31 +39,79 @@ const useAdditionalServices = (selectedTariff: TariffWithServices | null) => {
     fetchData();
   }, []);
 
+  // Сохраняем выбранные услуги при их изменении
   useEffect(() => {
     prevSelectedServicesRef.current = selectedServices;
   }, [selectedServices]);
 
+  // Обработка изменения тарифа - с защитой от слишком частых обновлений
   useEffect(() => {
-    if (prevTariffRef.current && prevTariffRef.current.uuid) {
-      const prevUuid = prevTariffRef.current.uuid;
-      const newUuid = selectedTariff?.uuid ?? null;
-      if (prevUuid !== newUuid) {
-        setSelectedServicesMap((prevMap) => ({
-          ...prevMap,
-          [prevUuid]: prevSelectedServicesRef.current,
-        }));
-      }
-    }
-    prevTariffRef.current = selectedTariff;
+    const currentTariffUuid = selectedTariff?.uuid || null;
+    const prevTariffUuid = prevTariffRef.current;
 
-    if (selectedTariff && selectedTariff.uuid) {
-      const newUuid = selectedTariff.uuid;
-      setSelectedServices(selectedServicesMap[newUuid] || []);
-    } else {
+    // Проверяем, изменился ли тариф
+    const isTariffChanged = currentTariffUuid !== prevTariffUuid;
+
+    // Если ничего не изменилось, выходим
+    if (!isTariffChanged) {
+      return;
+    }
+
+    // Если слишком много обновлений в одном рендере, пропускаем
+    updatesCountRef.current += 1;
+    if (updatesCountRef.current > 5) {
+      console.warn('Слишком много обновлений тарифа, пропускаем', updatesCountRef.current);
+      prevTariffRef.current = currentTariffUuid;
+      return;
+    }
+
+    // Сохраняем выбранные услуги для предыдущего тарифа
+    if (prevTariffUuid && prevSelectedServicesRef.current.length > 0) {
+      setSelectedServicesMap((prev) => ({
+        ...prev,
+        [prevTariffUuid]: [...prevSelectedServicesRef.current],
+      }));
+    }
+
+    // Обновляем ссылку на текущий тариф
+    prevTariffRef.current = currentTariffUuid;
+
+    // Если тариф стал null, очищаем выбранные услуги
+    if (!currentTariffUuid) {
+      setSelectedServices([]);
+      return;
+    }
+
+    // Если мы в режиме редактирования и это первая инициализация
+    if (
+      orderData &&
+      orderData.selectedServices &&
+      orderData.selectedServices.length > 0 &&
+      orderData.tariff?.uuid === currentTariffUuid &&
+      !initializedRef.current
+    ) {
+      setSelectedServices(orderData.selectedServices);
+      initializedRef.current = true;
+    }
+    // Если у нас есть сохраненные услуги для этого тарифа
+    else if (
+      selectedServicesMap[currentTariffUuid] &&
+      selectedServicesMap[currentTariffUuid].length > 0
+    ) {
+      setSelectedServices(selectedServicesMap[currentTariffUuid]);
+    }
+    // Если нет сохраненных услуг - сбрасываем выбор
+    else {
       setSelectedServices([]);
     }
-  }, [selectedTariff, selectedServicesMap]);
 
+    // Планируем сброс счетчика обновлений
+    setTimeout(() => {
+      updatesCountRef.current = 0;
+    }, 500);
+  }, [selectedTariff, orderData]);
+
+  // Подготавливаем доступные услуги для отображения
   const availableServices = useMemo(() => {
     if (!selectedTariff) {
       return allServices.map((service) => ({
@@ -72,6 +126,7 @@ const useAdditionalServices = (selectedTariff: TariffWithServices | null) => {
       string,
       { price: number; isAvailable: boolean; uuid: string }
     >();
+
     selectedTariff.tariffAdditionalServices?.forEach((ts) => {
       tariffServiceMap.set(ts.serviceUuid, {
         price: ts.price,
@@ -91,12 +146,14 @@ const useAdditionalServices = (selectedTariff: TariffWithServices | null) => {
     });
   }, [allServices, selectedTariff]);
 
+  // Обработка выбора/отмены выбора услуги
   const handleServiceSelection = (serviceUuid: string, price: number, isAvailable: boolean) => {
     if (!isAvailable || !selectedTariff) return;
 
     const tariffService = selectedTariff.tariffAdditionalServices?.find(
       (service) => service.serviceUuid === serviceUuid,
     );
+
     if (!tariffService) return;
 
     setSelectedServices((prev) => {
@@ -109,6 +166,7 @@ const useAdditionalServices = (selectedTariff: TariffWithServices | null) => {
     });
   };
 
+  // Расчет общей стоимости выбранных дополнительных услуг
   const totalAdditionalServicesPrice = useMemo(() => {
     return selectedServices.reduce((total, uuid) => {
       const info = availableServices.find((item) => item.tariffOnServiceUuid === uuid);

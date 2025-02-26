@@ -3,7 +3,7 @@ model Point {
   address           String   @unique @map("address")
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
-  pricePerKm        Decimal  @map("price_per_km")
+  pricePerKm        Int      @map("price_per_km")
   airport           Boolean? @map("airport")
   latitude          Float    @map("latitude")
   longitude         Float    @map("longitude")

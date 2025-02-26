@@ -2,17 +2,9 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { UseFormSetValue } from 'react-hook-form';
 import { ServiceLevels, User, VehicleType } from '@prisma/client';
 import { showToast } from '@shared/components/toast/ToastManager';
-import { useUnit } from 'effector-react';
-import {
-  $selectedServiceLevel,
-  $selectedVehicleType,
-  $areValuesFromProps,
-  setSelectedVehicleType,
-  setSelectedServiceLevel,
-} from '@shared/lib/effector/orders/stateStore';
 import { useDebounce } from '@shared/utils/hooks/useDebounce';
-import { FormOrderValues } from '@features/orders/create/hooks/useCreateAdminOrderLogic';
 import { useDrivers } from '@features/orders/create/hooks/driver/useDrivers';
+import { FormOrderValues } from '@features/orders/create/hooks/useCreateAdminOrderLogic';
 
 export interface ExtendedDriver extends User {
   vehicleDriver?: {
@@ -26,17 +18,26 @@ export interface ExtendedDriver extends User {
 interface UseOrderCreateDriversProps {
   setValue: UseFormSetValue<FormOrderValues>;
   assignedDriverId?: string | null;
+  selectedVehicleType: string | null;
+  selectedServiceLevel: string | null;
+  setSelectedVehicleType: (type: VehicleType) => void;
+  setSelectedServiceLevel: (level: ServiceLevels) => void;
+}
+
+interface DriverHistoryItem {
+  vehicleType: VehicleType;
+  serviceLevel: ServiceLevels;
+  driver: ExtendedDriver;
 }
 
 export const useOrderCreateDrivers = ({
   setValue,
   assignedDriverId,
+  selectedVehicleType,
+  selectedServiceLevel,
+  setSelectedVehicleType,
+  setSelectedServiceLevel,
 }: UseOrderCreateDriversProps) => {
-  // Берём данные из Effector
-  const selectedVehicleType = useUnit($selectedVehicleType);
-  const selectedServiceLevel = useUnit($selectedServiceLevel);
-  const areValuesFromProps = useUnit($areValuesFromProps);
-
   const [searchDriver, setSearchDriver] = useState('');
   const [selectedDriverInfo, setSelectedDriverInfo] = useState<ExtendedDriver | null>(null);
   const debouncedSearchDriver = useDebounce(searchDriver, 500);
@@ -44,6 +45,10 @@ export const useOrderCreateDrivers = ({
   const isInitialMount = useRef(true);
   const cancelledToastShownRef = useRef(false);
   const [currentTotal, setCurrentTotal] = useState(0);
+  const lastVehicleTypeRef = useRef<VehicleType | undefined>(undefined);
+  const lastServiceLevelRef = useRef<ServiceLevels | undefined>(undefined);
+
+  const driverHistoryRef = useRef<DriverHistoryItem[]>([]);
 
   const {
     drivers: rawDrivers,
@@ -57,7 +62,7 @@ export const useOrderCreateDrivers = ({
     total,
     serverTime,
   } = useDrivers({
-    vehicleType: selectedVehicleType ?? undefined,
+    vehicleType: selectedVehicleType,
     serviceLevel: selectedServiceLevel,
   });
 
@@ -73,62 +78,227 @@ export const useOrderCreateDrivers = ({
     }
   }, [assignedDriverId, fetchAssignedDriverData]);
 
+  const getAvailableServiceLevelsForVehicleType = useCallback(
+    (vehicleType: VehicleType | undefined) => {
+      if (!vehicleType) return [];
+      const availableServiceLevels = drivers
+        ?.filter((driver) => driver.vehicleDriver?.vehicle?.vehicleType === vehicleType)
+        .map((driver) => driver.vehicleDriver?.vehicle?.serviceLevels as ServiceLevels)
+        .filter(Boolean);
+      return [...new Set(availableServiceLevels)];
+    },
+    [drivers],
+  );
+
   const validateDriverCompatibility = useCallback(
     (driver: ExtendedDriver): boolean => {
       if (!driver.vehicleDriver?.vehicle) return false;
       const { vehicle } = driver.vehicleDriver;
 
-      // Если areValuesFromProps === false, не проверяем совместимость
-      if (!areValuesFromProps) return true;
+      console.log('Проверка совместимости водителя:');
+      console.log('Водитель:', driver.fullName);
+      console.log('Транспорт водителя:', vehicle.vehicleType);
+      console.log('Уровень водителя:', vehicle.serviceLevels);
+      console.log('Выбранный транспорт:', selectedVehicleType);
+      console.log('Выбранный уровень:', selectedServiceLevel);
 
-      return (
+      if (!selectedVehicleType || !selectedServiceLevel) {
+        console.log('Начальная загрузка, считаем водителя совместимым');
+        return true;
+      }
+
+      const isCompatible =
         vehicle.vehicleType === selectedVehicleType &&
-        (!selectedServiceLevel || vehicle.serviceLevels === selectedServiceLevel)
-      );
+        vehicle.serviceLevels === selectedServiceLevel;
+
+      console.log('Совместим:', isCompatible);
+      return isCompatible;
     },
-    [selectedVehicleType, selectedServiceLevel, areValuesFromProps],
+    [selectedVehicleType, selectedServiceLevel],
   );
 
+  const saveDriverToHistory = useCallback((driver: ExtendedDriver) => {
+    if (!driver.vehicleDriver?.vehicle) return;
+    const vehicleType = driver.vehicleDriver.vehicle.vehicleType as VehicleType;
+    const serviceLevel = driver.vehicleDriver.vehicle.serviceLevels as ServiceLevels;
+    const existingIndex = driverHistoryRef.current.findIndex(
+      (item) => item.vehicleType === vehicleType && item.serviceLevel === serviceLevel,
+    );
+    if (existingIndex !== -1) {
+      driverHistoryRef.current[existingIndex] = { vehicleType, serviceLevel, driver };
+    } else {
+      driverHistoryRef.current.push({ vehicleType, serviceLevel, driver });
+    }
+  }, []);
+
+  const findDriverInHistory = useCallback(() => {
+    if (!selectedVehicleType || !selectedServiceLevel) return null;
+    return (
+      driverHistoryRef.current.find(
+        (item) =>
+          item.vehicleType === selectedVehicleType && item.serviceLevel === selectedServiceLevel,
+      )?.driver || null
+    );
+  }, [selectedVehicleType, selectedServiceLevel]);
+
   useEffect(() => {
-    if (selectedDriverInfo && !validateDriverCompatibility(selectedDriverInfo)) {
-      if (!cancelledToastShownRef.current) {
-        showToast.info('Водитель отменён');
-        cancelledToastShownRef.current = true;
+    if (
+      selectedVehicleType !== lastVehicleTypeRef.current ||
+      selectedServiceLevel !== lastServiceLevelRef.current
+    ) {
+      lastVehicleTypeRef.current = selectedVehicleType as VehicleType;
+      lastServiceLevelRef.current = selectedServiceLevel as ServiceLevels;
+
+      if (selectedDriverInfo) {
+        if (
+          selectedDriverInfo.vehicleDriver?.vehicle?.vehicleType === selectedVehicleType &&
+          selectedDriverInfo.vehicleDriver?.vehicle?.serviceLevels === selectedServiceLevel
+        ) {
+          saveDriverToHistory(selectedDriverInfo);
+        }
       }
-      setSelectedDriverInfo(null);
-      setValue('assignedDriverId', '');
+
+      if (selectedDriverInfo && !validateDriverCompatibility(selectedDriverInfo)) {
+        if (!cancelledToastShownRef.current) {
+          showToast.info('Водитель отменён из-за изменения параметров');
+          cancelledToastShownRef.current = true;
+        }
+        setSelectedDriverInfo(null);
+        setValue('assignedDriverId', { assignedDriverId: '' }); // Исправлено: объект вместо строки
+
+        const historyDriver = findDriverInHistory();
+        if (historyDriver) {
+          setSelectedDriverInfo(historyDriver);
+          setValue('assignedDriverId', { assignedDriverId: historyDriver.uuid }); // Исправлено: объект вместо строки
+          showToast.success('Водитель восстановлен из истории');
+          cancelledToastShownRef.current = false;
+        }
+      } else if (!selectedDriverInfo) {
+        const historyDriver = findDriverInHistory();
+        if (historyDriver) {
+          setSelectedDriverInfo(historyDriver);
+          setValue('assignedDriverId', { assignedDriverId: historyDriver.uuid }); // Исправлено: объект вместо строки
+          showToast.success('Водитель восстановлен из истории');
+          cancelledToastShownRef.current = false;
+        }
+      }
+
+      if (selectedVehicleType) {
+        // Исправлено: приведение типов и проверка на undefined
+        const vehicleTypeValue = selectedVehicleType as VehicleType;
+        const serviceLevelValue = selectedServiceLevel as ServiceLevels | undefined;
+
+        refetchDrivers('', vehicleTypeValue, serviceLevelValue);
+      }
     }
   }, [
-    selectedDriverInfo,
     selectedVehicleType,
     selectedServiceLevel,
-    setValue,
+    selectedDriverInfo,
     validateDriverCompatibility,
+    setValue,
+    findDriverInHistory,
+    saveDriverToHistory,
+    refetchDrivers,
+  ]);
+
+  useEffect(() => {
+    if (selectedVehicleType && drivers && drivers.length > 0) {
+      const availableServiceLevels = getAvailableServiceLevelsForVehicleType(
+        selectedVehicleType as VehicleType,
+      );
+      if (
+        availableServiceLevels.length > 0 &&
+        (!selectedServiceLevel ||
+          !availableServiceLevels.includes(selectedServiceLevel as ServiceLevels))
+      ) {
+        const firstServiceLevel = availableServiceLevels[0];
+        if (firstServiceLevel) {
+          // Исправлено: проверка на null/undefined
+          setSelectedServiceLevel(firstServiceLevel);
+          setValue('serviceLevel', firstServiceLevel);
+        }
+      }
+    }
+  }, [
+    selectedVehicleType,
+    drivers,
+    selectedServiceLevel,
+    setValue,
+    setSelectedServiceLevel,
+    getAvailableServiceLevelsForVehicleType,
   ]);
 
   useEffect(() => {
     if (assignedDriverId && assignedDriver) {
-      if (validateDriverCompatibility(assignedDriver as ExtendedDriver)) {
-        setSelectedDriverInfo(assignedDriver as ExtendedDriver);
-        setValue('assignedDriverId', assignedDriver.uuid);
-        cancelledToastShownRef.current = false;
+      console.log(
+        'Проверка совместимости назначенного водителя:',
+        (assignedDriver as ExtendedDriver).fullName,
+      );
+      console.log('Текущий тип транспорта:', selectedVehicleType);
+      console.log('Текущий уровень услуг:', selectedServiceLevel);
+
+      const driver = assignedDriver as ExtendedDriver;
+      const isCompatible = validateDriverCompatibility(driver);
+
+      if (isCompatible) {
+        setSelectedDriverInfo(driver);
+        setValue('assignedDriverId', { assignedDriverId: driver.uuid }); // Исправлено: объект вместо строки
+
+        if (driver.vehicleDriver?.vehicle) {
+          const vehicleType = driver.vehicleDriver.vehicle.vehicleType as VehicleType;
+          const serviceLevel = driver.vehicleDriver.vehicle.serviceLevels as ServiceLevels;
+
+          console.log(
+            'Устанавливаем тип транспорта и уровень услуг от водителя:',
+            vehicleType,
+            serviceLevel,
+          );
+
+          if (vehicleType) {
+            // Исправлено: проверка на null/undefined
+            setSelectedVehicleType(vehicleType);
+            setValue('vehicleType', vehicleType);
+          }
+
+          if (serviceLevel) {
+            // Исправлено: проверка на null/undefined
+            setSelectedServiceLevel(serviceLevel);
+            setValue('serviceLevel', serviceLevel);
+          }
+
+          saveDriverToHistory(driver);
+        }
       } else {
         if (!cancelledToastShownRef.current) {
-          showToast.info('Водитель отменён');
+          showToast.info('Водитель отменён из-за несовместимости с выбранными параметрами');
           cancelledToastShownRef.current = true;
         }
         setSelectedDriverInfo(null);
-        setValue('assignedDriverId', '');
+        setValue('assignedDriverId', { assignedDriverId: '' }); // Исправлено: объект вместо строки
       }
     }
-  }, [assignedDriverId, assignedDriver, setValue, validateDriverCompatibility]);
+  }, [
+    assignedDriverId,
+    assignedDriver,
+    setValue,
+    validateDriverCompatibility,
+    saveDriverToHistory,
+    setSelectedVehicleType,
+    setSelectedServiceLevel,
+  ]);
 
   useEffect(() => {
     if (isInitialMount.current && !searchDriver) {
       isInitialMount.current = false;
       return;
     }
-    refetchDrivers(debouncedSearchDriver, selectedVehicleType ?? undefined, selectedServiceLevel);
+
+    // Исправлено: приведение типов для аргументов функции
+    const vehicleTypeValue = selectedVehicleType as VehicleType | undefined;
+    const serviceLevelValue = selectedServiceLevel as ServiceLevels | undefined;
+
+    refetchDrivers(debouncedSearchDriver, vehicleTypeValue, serviceLevelValue);
   }, [
     debouncedSearchDriver,
     page,
@@ -155,7 +325,7 @@ export const useOrderCreateDrivers = ({
     (driver: ExtendedDriver) => {
       if (!driver.vehicleDriver?.vehicle) {
         setSelectedDriverInfo(null);
-        setValue('assignedDriverId', '');
+        setValue('assignedDriverId', { assignedDriverId: '' }); // Исправлено: объект вместо строки
         return;
       }
 
@@ -165,21 +335,33 @@ export const useOrderCreateDrivers = ({
         vehicle.vehicleType !== selectedVehicleType ||
         vehicle.serviceLevels !== selectedServiceLevel
       ) {
-        setSelectedVehicleType(vehicle.vehicleType as VehicleType);
-        setSelectedServiceLevel(vehicle.serviceLevels as ServiceLevels);
-        setValue('vehicleType', vehicle.vehicleType as VehicleType);
-        setValue('serviceLevel', vehicle.serviceLevels as ServiceLevels);
+        const vehicleType = vehicle.vehicleType as VehicleType;
+        const serviceLevel = vehicle.serviceLevels as ServiceLevels;
+
+        if (vehicleType) {
+          // Исправлено: проверка на null/undefined
+          setSelectedVehicleType(vehicleType);
+          setValue('vehicleType', vehicleType);
+        }
+
+        if (serviceLevel) {
+          // Исправлено: проверка на null/undefined
+          setSelectedServiceLevel(serviceLevel);
+          setValue('serviceLevel', serviceLevel);
+        }
       }
 
       if (!validateDriverCompatibility(driver)) {
         setSelectedDriverInfo(null);
-        setValue('assignedDriverId', '');
+        setValue('assignedDriverId', { assignedDriverId: '' }); // Исправлено: объект вместо строки
         return;
       }
+
       cancelledToastShownRef.current = false;
       setSelectedDriverInfo(driver);
-      setValue('assignedDriverId', driver.uuid);
+      setValue('assignedDriverId', { assignedDriverId: driver.uuid }); // Исправлено: объект вместо строки
       showToast.success('Водитель выбран');
+      saveDriverToHistory(driver);
     },
     [
       setValue,
@@ -188,14 +370,25 @@ export const useOrderCreateDrivers = ({
       setSelectedServiceLevel,
       selectedVehicleType,
       selectedServiceLevel,
+      saveDriverToHistory,
     ],
   );
 
   const handleDriverDeselect = useCallback(() => {
     setSelectedDriverInfo(null);
-    setValue('assignedDriverId', '');
+    setValue('assignedDriverId', { assignedDriverId: '' }); // Исправлено: объект вместо строки
     showToast.info('Водитель отменён');
-  }, [setValue]);
+
+    if (selectedVehicleType && selectedServiceLevel) {
+      const index = driverHistoryRef.current.findIndex(
+        (item) =>
+          item.vehicleType === selectedVehicleType && item.serviceLevel === selectedServiceLevel,
+      );
+      if (index !== -1) {
+        driverHistoryRef.current.splice(index, 1);
+      }
+    }
+  }, [setValue, selectedVehicleType, selectedServiceLevel]);
 
   const handleDriverClick = useCallback(
     (driverId: string) => {
@@ -233,5 +426,6 @@ export const useOrderCreateDrivers = ({
     handleDriverDeselect,
     handleDriverClick,
     handlePageChange,
+    refetchDrivers,
   };
 };

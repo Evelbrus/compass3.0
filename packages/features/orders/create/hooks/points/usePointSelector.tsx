@@ -1,29 +1,49 @@
-import React from 'react';
-import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
+// usePointSelector.tsx
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Point } from '@prisma/client';
 
+type PointWithoutTimestamps = Pick<
+  Point,
+  'uuid' | 'address' | 'pricePerKm' | 'airport' | 'latitude' | 'longitude' | 'terrainDifficulty'
+>;
+
 export interface UsePointSelectorProps {
-  initialPoints?: Point[];
-  allPoints?: Point[];
-  selectedPoint?: Point | null;
+  allPoints?: PointWithoutTimestamps[];
   mode?: 'single' | 'multiple';
-  initialSelectedPoints?: (Point | null)[];
+  initialSelectedPoints?: (PointWithoutTimestamps | null)[];
+  initialSelectedPoint?: PointWithoutTimestamps | null;
 }
 
 const usePointSelector = ({
-  initialPoints = [],
   allPoints = [],
-  selectedPoint: initialSelectedPoint = null,
   mode = 'single',
   initialSelectedPoints = [],
+  initialSelectedPoint = null,
 }: UsePointSelectorProps = {}) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [searchValue, setSearchValue] = useState('');
+  const [searchValue, setSearchValue] = useState(
+    initialSelectedPoint ? initialSelectedPoint.address : '',
+  );
   const [search, setSearch] = useState('');
-  const [_points, setPoints] = useState<Point[]>(initialPoints);
-  const [filteredPoints, setFilteredPoints] = useState<Point[]>(initialPoints);
-  const [selectedPoint, setSelectedPoint] = useState<Point | null>(initialSelectedPoint);
-  const [selectedPoints, setSelectedPoints] = useState<(Point | null)[]>(initialSelectedPoints);
+  const [_points, setPoints] = useState<PointWithoutTimestamps[]>(allPoints);
+  const [filteredPoints, setFilteredPoints] = useState<PointWithoutTimestamps[]>(allPoints);
+  const [selectedPoint, setSelectedPoint] = useState<PointWithoutTimestamps | null>(
+    initialSelectedPoint,
+  );
+  const [selectedPoints, setSelectedPoints] =
+    useState<(PointWithoutTimestamps | null)[]>(initialSelectedPoints);
+
+  useEffect(() => {
+    if (initialSelectedPoint) {
+      setSelectedPoint(initialSelectedPoint);
+      setSearchValue(initialSelectedPoint.address);
+    }
+  }, [initialSelectedPoint]);
+
+  useEffect(() => {
+    setPoints(allPoints);
+    setFilteredPoints(allPoints);
+  }, [allPoints]);
 
   const selectorRef = useRef<HTMLDivElement>(null);
   const observerRef = useRef<HTMLDivElement>(null);
@@ -32,18 +52,31 @@ const usePointSelector = ({
     setSearch('');
     setSearchValue('');
     setIsOpen(true);
-  }, []);
+    setFilteredPoints(allPoints);
+  }, [allPoints]);
 
   const onSearchValueChange = useCallback((value: string) => {
     setSearchValue(value);
   }, []);
 
-  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearch(e.target.value);
-  }, []);
+  const handleSearchChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const newSearch = e.target.value;
+      setSearch(newSearch);
+      if (allPoints.length) {
+        const filtered = allPoints.filter((point) =>
+          point.address.toLowerCase().includes(newSearch.toLowerCase()),
+        );
+        setFilteredPoints(filtered);
+      }
+    },
+    [allPoints],
+  );
 
   const onSelectPoint = useCallback(
-    (point: Point | null, index?: number) => {
+    (point: PointWithoutTimestamps | null, index?: number) => {
+      // Изменён тип
+      console.log('usePointSelector onSelectPoint called:', { point: point?.address, index });
       if (mode === 'single') {
         setSelectedPoint(point);
         setSearchValue(point ? point.address : '');
@@ -52,6 +85,7 @@ const usePointSelector = ({
         setSelectedPoints((prev) => {
           const newPoints = [...prev];
           newPoints[index] = point;
+          console.log('Updated selectedPoints in usePointSelector:', newPoints);
           return newPoints;
         });
         setIsOpen(false);
@@ -72,16 +106,6 @@ const usePointSelector = ({
     },
     [mode],
   );
-
-  useEffect(() => {
-    if (!isOpen || !allPoints.length) return;
-
-    const filtered = allPoints.filter((point) =>
-      point.address.toLowerCase().includes(search.toLowerCase()),
-    );
-    setPoints(allPoints); // обновляем общий список точек
-    setFilteredPoints(filtered);
-  }, [allPoints, search, isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -106,8 +130,6 @@ const usePointSelector = ({
     });
   }, []);
 
-  const totalAdditionalPrice = useMemo(() => 0, []);
-
   return {
     isOpen,
     searchValue,
@@ -121,10 +143,9 @@ const usePointSelector = ({
     selectorRef,
     observerRef,
     onChangeOrder,
-    selectedPoint: mode === 'single' ? selectedPoint : undefined,
+    selectedPoint: mode === 'single' ? selectedPoint : null,
     selectedPoints: mode === 'multiple' ? selectedPoints : undefined,
     onRemovePoint: mode === 'multiple' ? onRemovePoint : undefined,
-    totalAdditionalPrice,
   };
 };
 

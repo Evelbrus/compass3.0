@@ -1,14 +1,8 @@
-//useTariffs.ts
 import { useState, useEffect, useRef } from 'react';
 import { fetchTariffs } from '@shared/components/modal/create-client-corp-order/api/useApi';
-import { ServiceLevels, Tariff, VehicleType } from '@prisma/client';
+import { Tariff } from '@prisma/client';
 
-interface UseTariffsProps {
-  serviceLevel?: ServiceLevels;
-  vehicleType?: VehicleType;
-}
-
-const useTariffs = ({ serviceLevel, vehicleType }: UseTariffsProps = {}) => {
+const useTariffs = () => {
   const [tariffs, setTariffs] = useState<Tariff[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -19,7 +13,8 @@ const useTariffs = ({ serviceLevel, vehicleType }: UseTariffsProps = {}) => {
     const loadTariffs = async () => {
       try {
         setLoading(true);
-        const data = await fetchTariffs(undefined, vehicleType);
+        // Всегда загружаем все тарифы, без фильтрации по vehicleType
+        const data = await fetchTariffs(undefined, undefined);
         setTariffs(data);
         setError(null);
       } catch (error) {
@@ -30,13 +25,13 @@ const useTariffs = ({ serviceLevel, vehicleType }: UseTariffsProps = {}) => {
         setLoading(false);
       }
     };
+
+    // Загружаем тарифы только при первой монтировке компонента
     if (initialMount.current) {
       loadTariffs();
       initialMount.current = false;
-    } else if (vehicleType) {
-      loadTariffs();
     }
-  }, [serviceLevel, vehicleType]);
+  }, []); // Пустой массив зависимостей - загрузка только при монтировании
 
   return { tariffs, loading, error, isInitialMount };
 };
