@@ -284,6 +284,18 @@ export async function GET(req: Request) {
       },
       include: {
         createdBy: true,
+        assignedDriver: {
+          include: {
+            vehicleDriver: {
+              include: {
+                // Исправляем синтаксис для вложенного include
+                vehicle: {
+                  select: { plateNumber: true }, // Указываем конкретное поле
+                },
+              },
+            },
+          },
+        },
         tariff: true,
         departurePoint: true,
         arrivalPoint: true,
@@ -317,6 +329,13 @@ export async function GET(req: Request) {
           fullName: order.createdBy.fullName,
           email: order.createdBy.email,
           phone: order.createdBy.phone,
+        },
+
+        assignedDriver: {
+          uuid: order.assignedDriver?.uuid || null,
+          fullName: order.assignedDriver?.fullName || null,
+          phone: order.assignedDriver?.phone || null,
+          plateNumber: order.assignedDriver?.vehicleDriver?.vehicle?.plateNumber || null,
         },
         tariff: {
           uuid: order.tariff.uuid,

@@ -109,7 +109,7 @@ export const SelectSingle = <T extends string | number>({
 
   //Классы кнопки
   const buttonClass = cn(
-    'w-full rounded p-2 focus:outline-none focus:ring flex justify-between items-center',
+    'w-full rounded p-3 focus:outline-none focus:ring flex justify-between items-center',
     error ? 'border-2 border-red-400' : 'border border-gray-300 focus:border-blue-300',
   );
 

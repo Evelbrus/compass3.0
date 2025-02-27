@@ -6,7 +6,10 @@ import { Decimal } from 'decimal.js';
 import { v4 as uuidv4 } from 'uuid';
 import { orderQueue } from '@next-app/src/lib/queues/orderQueue';
 import { Action, DriverAcceptanceStatus, Gender, OrderStatus, UserRole } from '@prisma/client';
-import { authenticateRequest, JwtPayload } from '@next-app/src/utils/authenticate/authenticateRequest';
+import {
+  authenticateRequest,
+  JwtPayload,
+} from '@next-app/src/utils/authenticate/authenticateRequest';
 import { processNotification } from '@next-app/src/utils/notifications/notifications';
 
 const log = debug('app:orders');
@@ -144,6 +147,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<Params
       waitingTimeMinutes,
       fullName,
       phone,
+      status: requestedStatus,
     } = data;
 
     const corpClientId = data.createdBy;
@@ -165,7 +169,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<Params
     }
 
     // Определяем статус заказа
-    const orderStatus = assignedDriverId ? OrderStatus.PLANNED : OrderStatus.PENDING;
+    const orderStatus = requestedStatus
+      ? requestedStatus
+      : assignedDriverId
+        ? OrderStatus.PLANNED
+        : OrderStatus.PENDING;
 
     // Обновляем заказ в транзакции
     const updatedOrder = await prisma.$transaction(async (prismaTx) => {
@@ -248,7 +256,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<Params
           departurePointId: departurePoint,
           arrivalPointId: arrivalPoint,
           basePrice: basePrice !== undefined ? new Decimal(basePrice) : undefined,
-          status: orderStatus,
+          status: orderStatus, // Используется скорректированный orderStatus
           assignedDriverId: assignedDriverId || null,
           intermediatePoints: (intermediatePoints || []).filter(Boolean),
           description: description || null,

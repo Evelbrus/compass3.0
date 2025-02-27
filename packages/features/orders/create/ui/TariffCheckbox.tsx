@@ -9,6 +9,7 @@ import {
   serviceLevelOptions,
   vehicleTypeOptions,
 } from '@shared/lib/effector/vehicles/optionsTranslation/optionsTranslationVehicle';
+import { debounce } from '@shared/utils/hooks/useDebounce';
 
 interface TariffCheckboxProps {
   control: Control<FormOrderValues>;
@@ -25,6 +26,18 @@ interface TariffCheckboxProps {
     serviceLevel?: ServiceLevels,
   ) => void;
 }
+
+// Стили для разных полей
+const FIELD_STYLES = {
+  card: {
+    active: 'border-cyan-400 shadow-md shadow-cyan-100',
+    focus: 'focus:ring-2 focus:ring-cyan-400 focus:border-cyan-500',
+    hover: 'hover:border-cyan-300 hover:shadow-sm hover:shadow-cyan-50',
+  },
+  input: {
+    focus: 'focus:ring-2 focus:ring-cyan-400 focus:border-cyan-500',
+  },
+};
 
 const TariffCheckbox: React.FC<TariffCheckboxProps> = ({
   control,
@@ -57,8 +70,8 @@ const TariffCheckbox: React.FC<TariffCheckboxProps> = ({
     [tariffs],
   );
 
-  const handleVehicleTypeChangeWithDrivers = useCallback(
-    (type: VehicleType) => {
+  const debouncedVehicleTypeChange = useCallback(
+    debounce((type: VehicleType) => {
       handleVehicleTypeChange(type);
 
       const firstAvailableServiceLevel = serviceLevelOptions
@@ -74,7 +87,7 @@ const TariffCheckbox: React.FC<TariffCheckboxProps> = ({
       } else if (refetchDrivers) {
         refetchDrivers('', type, serviceLevelValue);
       }
-    },
+    }, 300),
     [
       handleVehicleTypeChange,
       serviceLevelValue,
@@ -84,13 +97,13 @@ const TariffCheckbox: React.FC<TariffCheckboxProps> = ({
     ],
   );
 
-  const handleServiceLevelChangeWithDrivers = useCallback(
-    (level: ServiceLevels) => {
+  const debouncedServiceLevelChange = useCallback(
+    debounce((level: ServiceLevels) => {
       handleServiceLevelChange(level);
       if (refetchDrivers) {
         refetchDrivers('', vehicleTypeValue, level);
       }
-    },
+    }, 300),
     [handleServiceLevelChange, vehicleTypeValue, refetchDrivers],
   );
 
@@ -99,11 +112,22 @@ const TariffCheckbox: React.FC<TariffCheckboxProps> = ({
       <div className={'flex-1 flex flex-col gap-4'}>
         <div className={'flex flex-row flex-wrap gap-4'}>
           <div className={'flex-1 flex flex-col gap-4'}>
-            <label className="block text-gray-700 text-[20px] font-bold">Транспорт:</label>
+            <label className="block text-gray-700 text-[20px] font-bold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-cyan-700 to-blue-700">
+              Транспорт:
+              <div className="h-1 w-32 bg-gradient-to-r from-cyan-500 to-transparent rounded-full mt-1"></div>
+            </label>
+
             {vehicleTypeOptions
               .filter((option) => option.value !== 'None')
               .map((typeOption) => (
-                <div key={typeOption.value} className="mb-2">
+                <div
+                  key={typeOption.value}
+                  className={cn(
+                    'mb-2 p-3 rounded-lg border border-gray-200 transition-all duration-200',
+                    vehicleTypeValue === typeOption.value ? FIELD_STYLES.card.active : '',
+                    FIELD_STYLES.card.hover,
+                  )}
+                >
                   <Controller
                     name="vehicleType"
                     control={control}
@@ -111,15 +135,20 @@ const TariffCheckbox: React.FC<TariffCheckboxProps> = ({
                       <CheckboxInput
                         label={typeOption.label}
                         checked={field.value === typeOption.value}
-                        onChange={() => handleVehicleTypeChangeWithDrivers(typeOption.value)}
+                        onChange={() => debouncedVehicleTypeChange(typeOption.value)}
                       />
                     )}
                   />
                 </div>
               ))}
           </div>
+
           <div className={'flex-1 flex flex-col gap-4'}>
-            <label className="block text-gray-700 text-[20px] font-bold">Класс:</label>
+            <label className="block text-gray-700 text-[20px] font-bold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-cyan-700 to-blue-700">
+              Класс:
+              <div className="h-1 w-32 bg-gradient-to-r from-cyan-500 to-transparent rounded-full mt-1"></div>
+            </label>
+
             {serviceLevelOptions
               .filter((option) => option.value !== 'None')
               .map((levelOption) => {
@@ -127,7 +156,16 @@ const TariffCheckbox: React.FC<TariffCheckboxProps> = ({
                   ? isServiceLevelAvailable(levelOption.value, vehicleTypeValue)
                   : true;
                 return (
-                  <div key={levelOption.value} className="mb-2">
+                  <div
+                    key={levelOption.value}
+                    className={cn(
+                      'mb-2 p-3 rounded-lg border border-gray-200 transition-all duration-200',
+                      serviceLevelValue === levelOption.value && isAvailable
+                        ? FIELD_STYLES.card.active
+                        : '',
+                      !isAvailable ? 'opacity-50' : FIELD_STYLES.card.hover,
+                    )}
+                  >
                     <Controller
                       name="serviceLevel"
                       control={control}
@@ -135,9 +173,9 @@ const TariffCheckbox: React.FC<TariffCheckboxProps> = ({
                         <CheckboxInput
                           label={levelOption.label}
                           checked={field.value === levelOption.value}
-                          onChange={() => handleServiceLevelChangeWithDrivers(levelOption.value)}
+                          onChange={() => debouncedServiceLevelChange(levelOption.value)}
                           disabled={!isAvailable}
-                          className={!isAvailable ? 'opacity-50 line-through' : ''}
+                          className={!isAvailable ? 'line-through' : ''}
                         />
                       )}
                     />
@@ -147,55 +185,6 @@ const TariffCheckbox: React.FC<TariffCheckboxProps> = ({
               })}
           </div>
         </div>
-
-        <Controller
-          name="departureTime"
-          control={control}
-          render={({ field }) => {
-            const formatDateForInput = (date: any): string => {
-              if (!date) return '';
-              const d = date instanceof Date ? date : new Date(date);
-              if (isNaN(d.getTime())) return '';
-              const pad = (num: number) => num.toString().padStart(2, '0');
-              const year = d.getFullYear();
-              const month = pad(d.getMonth() + 1);
-              const day = pad(d.getDate());
-              const hours = pad(d.getHours());
-              const minutes = pad(d.getMinutes());
-              return `${year}-${month}-${day}T${hours}:${minutes}`;
-            };
-
-            return (
-              <div className="mb-4">
-                <label className="block text-gray-700 text-[20px] font-bold mb-2">
-                  Время подачи:
-                </label>
-                <input
-                  type="datetime-local"
-                  value={formatDateForInput(field.value)}
-                  onChange={(e) => {
-                    if (e.target.value) {
-                      const date = new Date(e.target.value);
-                      if (!isNaN(date.getTime())) {
-                        field.onChange(date);
-                      } else {
-                        // Обработка недопустимой даты, например, сброс поля или вывод ошибки
-                        console.error('Недопустимая дата');
-                        field.onChange(null);
-                      }
-                    } else {
-                      field.onChange(null);
-                    }
-                  }}
-                  onBlur={field.onBlur}
-                  name={field.name}
-                  ref={field.ref}
-                  className="p-2 border rounded w-full"
-                />
-              </div>
-            );
-          }}
-        />
       </div>
 
       <div>
@@ -204,6 +193,7 @@ const TariffCheckbox: React.FC<TariffCheckboxProps> = ({
           selectedVehicleType={vehicleTypeValue}
           translatedVehicleType={translatedVehicleType}
           selectedServiceLevel={serviceLevelValue}
+          fieldStyles={FIELD_STYLES}
         />
       </div>
     </div>
@@ -215,6 +205,7 @@ interface TariffCardProps {
   selectedVehicleType: VehicleType | undefined;
   translatedVehicleType: string;
   selectedServiceLevel: ServiceLevels | undefined;
+  fieldStyles: any;
 }
 
 const TariffCard: React.FC<TariffCardProps> = ({
@@ -222,6 +213,7 @@ const TariffCard: React.FC<TariffCardProps> = ({
   selectedVehicleType,
   translatedVehicleType,
   selectedServiceLevel,
+  fieldStyles,
 }) => {
   const translatedServiceLevel = useMemo(() => {
     const selectedOption = serviceLevelOptions.find(
@@ -248,7 +240,9 @@ const TariffCard: React.FC<TariffCardProps> = ({
   return (
     <div
       className={cn(
-        'flex flex-col relative rounded-xl p-4 gap-4 cursor-pointer bg-white transition-all duration-75 border-2',
+        'flex flex-col relative rounded-xl p-4 gap-4 cursor-pointer transition-all duration-200 transform',
+        'bg-gradient-to-br from-cyan-50 to-white shadow-lg',
+        'border-2',
       )}
     >
       <LazyImage
@@ -265,14 +259,14 @@ const TariffCard: React.FC<TariffCardProps> = ({
               </h1>
             </div>
             <div className="flex flex-col gap-2">
-              <p className="p-[9px] flex items-center justify-center bg-[#989898] border border-gray-200 rounded-lg font-normal text-22px text-white">
+              <p className="p-[9px] flex items-center justify-center bg-gradient-to-r from-cyan-500 to-blue-500 border border-cyan-200 rounded-lg font-normal text-22px text-white">
                 {translatedServiceLevel}
               </p>
-              <p className="p-[10px] flex items-center justify-center border border-gray-200 rounded-lg font-normal text-base">
+              <p className="p-[10px] flex items-center justify-center border border-gray-200 rounded-lg font-normal text-base transition-all hover:border-cyan-200">
                 {translatedVehicleType}
               </p>
               {seatInfo && (
-                <p className="p-[10px] flex items-center justify-center border border-gray-200 rounded-lg font-normal text-base">
+                <p className="p-[10px] flex items-center justify-center border border-gray-200 rounded-lg font-normal text-base transition-all hover:border-cyan-200">
                   {seatInfo}
                 </p>
               )}

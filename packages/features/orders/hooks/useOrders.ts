@@ -54,6 +54,7 @@ const useOrders = () => {
       const data = await response.json();
       setOrders(data.orders);
       setTotal(data.total);
+      console.log('data', data)
 
       const statusesCountData: Record<string, number> = {};
       data.statusesCount.forEach((item: { status: OrderStatus; _count: { status: number } }) => {

@@ -38,7 +38,7 @@ const RouteMapInner: React.FC<RouteMapInnerProps> = ({
   onDurationUpdate,
 }) => {
   const mapRef = useRef<any>(null);
-  const [routeDuration, setRouteDuration] = useState<string | null>(null);
+  const [_routeDuration, setRouteDuration] = useState<string | null>(null);
   const initialBoundsRef = useRef<any>(null);
   const [hoveredPoint, setHoveredPoint] = useState<PointWithoutTimestamps | null>(null);
 
@@ -208,11 +208,8 @@ const RouteMapInner: React.FC<RouteMapInnerProps> = ({
         preset = POINT_ICONS.arrival;
       } else {
         const additionalIndex = letter.charCodeAt(0) - 67;
-        const colorIndex = Math.min(
-          Math.max(0, additionalIndex),
-          POINT_ICONS.additional.length - 1,
-        );
-        preset = POINT_ICONS.additional[colorIndex];
+        const colorIndex = Math.min(additionalIndex, POINT_ICONS.additional.length - 1);
+        preset = POINT_ICONS.additional[Math.max(0, colorIndex)] ?? 'islands#lightBlueCircleIcon';
       }
 
       return {

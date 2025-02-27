@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Notification,
   OrderStatus,
@@ -9,8 +9,11 @@ import {
 import { useRouter } from 'next/navigation';
 import { CloseIcon } from '@shared/components/ui/icon';
 import { IButton } from '@shared/components/ui/buttons';
+import { showToast } from '@shared/components/toast/ToastManager';
 import { OrderDetail, stages } from '@features/notifications/lib/useNotifications';
 import { fetchOrderDetails } from '@widgets/orders/modal/order-management/api/apiOrder';
+import WarningStage from '@widgets/orders/modal/order-management/admin/stage/WarningStage';
+import CancelledStage from '@widgets/orders/modal/order-management/admin/stage/CancelledStage';
 
 interface WarningModalProps {
   isOpen: boolean;
@@ -28,41 +31,44 @@ const WarningAdminModal: React.FC<WarningModalProps> = ({
   userRole,
 }) => {
   const router = useRouter();
-  const [orderData, setOrderData] = useState<OrderDetail | null>(null); // Используем полный интерфейс OrderDetail
+  const [orderData, setOrderData] = useState<OrderDetail | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showAdditionalServices, setShowAdditionalServices] = useState(false); // Добавляем состояние для дополнительных услуг
+  const [showAdditionalServices, setShowAdditionalServices] = useState(false);
 
-  // Начальная загрузка данных заказа
-  useEffect(() => {
+  const loadOrderDetails = async () => {
     if (
       !isOpen ||
       !notification.orderId ||
       (userRole !== UserRole.Admin && userRole !== UserRole.Operator)
     )
       return;
+
     setIsLoading(true);
     setError(null);
-    fetchOrderDetails(notification.orderId)
-      .then((data) => {
-        setOrderData(data);
-        if (
-          data.status === OrderStatus.COMPLETED ||
-          (data.status === OrderStatus.CANCELLED && notification.action !== Action.cancelled) ||
-          (data.driverAcceptanceStatus === DriverAcceptanceStatus.ACCEPTED &&
-            notification.action === Action.warning)
-        ) {
-          onClose();
-        }
-      })
-      .catch((err) => {
-        console.error('Ошибка загрузки данных заказа:', err);
-        setError('Не удалось загрузить данные заказа');
-      })
-      .finally(() => setIsLoading(false));
+    try {
+      const data = await fetchOrderDetails(notification.orderId);
+      setOrderData(data);
+      if (
+        data.status === OrderStatus.COMPLETED ||
+        (data.status === OrderStatus.CANCELLED && notification.action !== Action.cancelled) ||
+        (data.driverAcceptanceStatus === DriverAcceptanceStatus.ACCEPTED &&
+          notification.action === Action.warning)
+      ) {
+        onClose();
+      }
+    } catch (err) {
+      console.error('Ошибка загрузки данных заказа:', err);
+      setError('Не удалось загрузить данные заказа');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadOrderDetails();
   }, [isOpen, notification.orderId, notification.action, onClose, userRole]);
 
-  // Подписка на уведомления
   useEffect(() => {
     if (
       !isOpen ||
@@ -81,7 +87,6 @@ const WarningAdminModal: React.FC<WarningModalProps> = ({
     );
 
     if (latestNotification) {
-      // Закрываем модалку, если action изменился на что-то кроме warning или cancelled
       if (
         latestNotification.action !== Action.warning &&
         latestNotification.action !== Action.cancelled
@@ -90,24 +95,7 @@ const WarningAdminModal: React.FC<WarningModalProps> = ({
         onClose();
         return;
       }
-
-      fetchOrderDetails(notification.orderId)
-        .then((data) => {
-          setOrderData(data);
-          if (
-            data.status === OrderStatus.COMPLETED ||
-            (data.status === OrderStatus.CANCELLED &&
-              latestNotification.action !== Action.cancelled) ||
-            (data.driverAcceptanceStatus === DriverAcceptanceStatus.ACCEPTED &&
-              latestNotification.action === Action.warning)
-          ) {
-            onClose();
-          }
-        })
-        .catch((err) => {
-          console.error('Ошибка при обновлении данных заказа:', err);
-          setError('Не удалось обновить статус заказа');
-        });
+      loadOrderDetails();
     }
   }, [
     isOpen,
@@ -122,27 +110,17 @@ const WarningAdminModal: React.FC<WarningModalProps> = ({
 
   const markNotificationAsRead = async () => {
     if (notification.read) {
-      console.log(`Уведомление ${notification.uuid} уже прочитано, запрос не отправляется`);
+      console.log(`Уведомление ${notification.uuid} уже прочитано`);
       return;
     }
 
     try {
       const response = await fetch(`/api/notifications/${notification.uuid}`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ read: true }),
       });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        if (response.status === 404) {
-          console.log(`Уведомление ${notification.uuid} не найдено на сервере`);
-          return;
-        }
-        throw new Error(`Ошибка при обновлении уведомления: ${errorText}`);
-      }
+      if (!response.ok) throw new Error('Ошибка при обновлении уведомления');
     } catch (error) {
       console.error('Не удалось отметить уведомление как прочитанное:', error);
       throw error;
@@ -151,18 +129,44 @@ const WarningAdminModal: React.FC<WarningModalProps> = ({
 
   const handleRedirect = async () => {
     if (userRole !== UserRole.Admin && userRole !== UserRole.Operator) return;
-    await markNotificationAsRead();
-    router.push(`/order/edit/${notification.orderId}`);
-    onClose();
+    try {
+      await markNotificationAsRead();
+      router.push(`/order/edit/${notification.orderId}`);
+      onClose();
+    } catch (error) {
+      showToast.error('Не удалось отметить уведомление как прочитанное', {
+        position: 'top-right',
+        autoClose: 3000,
+      });
+    }
   };
 
   const handleClose = async () => {
     if (userRole !== UserRole.Admin && userRole !== UserRole.Operator) return;
-    await markNotificationAsRead();
-    onClose();
+    try {
+      await markNotificationAsRead();
+      onClose();
+    } catch (error) {
+      showToast.error('Не удалось отметить уведомление как прочитанное', {
+        position: 'top-right',
+        autoClose: 3000,
+      });
+    }
   };
 
+  const getActions = useMemo(() => {
+    if (notification.action === Action.warning) {
+      return <WarningStage onRedirect={handleRedirect} />;
+    } else if (notification.action === Action.cancelled) {
+      return <CancelledStage onClose={handleClose} />;
+    }
+    return null;
+  }, [notification.action, handleRedirect, handleClose]);
+
   if (!isOpen || (userRole !== UserRole.Admin && userRole !== UserRole.Operator)) return null;
+
+  const getTitle = () =>
+    notification.action === Action.warning ? 'Просроченный заказ' : 'Отменённый заказ';
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
@@ -175,11 +179,9 @@ const WarningAdminModal: React.FC<WarningModalProps> = ({
         >
           <CloseIcon />
         </IButton>
-        <h2 className="text-xl font-semibold mb-4">
-          {notification.action === Action.warning ? 'Просроченный заказ' : 'Отменённый заказ'}
-        </h2>
+        <h2 className="text-xl font-semibold mb-4">{getTitle()}</h2>
         {isLoading ? (
-          <div className="flex justify-center">
+          <div className="flex justify-center min-h-[50px]">
             <div className="w-5 h-5 border-4 border-gray-200 border-t-blue-500 rounded-full animate-spin" />
           </div>
         ) : error ? (
@@ -217,7 +219,6 @@ const WarningAdminModal: React.FC<WarningModalProps> = ({
                 </p>
               )}
             </div>
-
             {orderData.additionalServices && orderData.additionalServices.length > 0 && (
               <div>
                 <button
@@ -237,23 +238,13 @@ const WarningAdminModal: React.FC<WarningModalProps> = ({
                 )}
               </div>
             )}
-
             {orderData.status && orderData.driverAcceptanceStatus && (
               <p className="text-sm text-gray-600">
                 Статус: {orderData.status} | Этап водителя:{' '}
                 {stages[orderData.driverAcceptanceStatus]}
               </p>
             )}
-            {notification.action === Action.cancelled && (
-              <div className="mt-4 flex justify-center">
-                <button
-                  className="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
-                  onClick={handleClose}
-                >
-                  Закрыть
-                </button>
-              </div>
-            )}
+            {getActions}
           </div>
         ) : (
           <p className="text-red-500">Данные заказа недоступны</p>

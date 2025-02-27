@@ -1,4 +1,3 @@
-// usePointSelector.tsx
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { PointWithoutTimestamps } from '@features/orders/create/hooks/points/useAllPoints';
 
@@ -7,6 +6,7 @@ export interface UsePointSelectorProps {
   mode?: 'single' | 'multiple';
   initialSelectedPoints?: (PointWithoutTimestamps | null)[];
   initialSelectedPoint?: PointWithoutTimestamps | null;
+  selectedServices?: string[]; // Добавляем выбранные услуги
 }
 
 const usePointSelector = ({
@@ -14,6 +14,7 @@ const usePointSelector = ({
   mode = 'single',
   initialSelectedPoints = [],
   initialSelectedPoint = null,
+  selectedServices = [],
 }: UsePointSelectorProps = {}) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchValue, setSearchValue] = useState(
@@ -70,7 +71,6 @@ const usePointSelector = ({
 
   const onSelectPoint = useCallback(
     (point: PointWithoutTimestamps | null, index?: number) => {
-      // Изменён тип
       console.log('usePointSelector onSelectPoint called:', { point: point?.address, index });
       if (mode === 'single') {
         setSelectedPoint(point);
@@ -141,6 +141,7 @@ const usePointSelector = ({
     selectedPoint: mode === 'single' ? selectedPoint : null,
     selectedPoints: mode === 'multiple' ? selectedPoints : undefined,
     onRemovePoint: mode === 'multiple' ? onRemovePoint : undefined,
+    selectedServices, // Возвращаем услуги для использования в компоненте
   };
 };
 

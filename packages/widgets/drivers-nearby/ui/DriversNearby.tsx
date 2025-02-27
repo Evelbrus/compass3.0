@@ -7,7 +7,7 @@ import { LazyImage } from '@shared/components/ui/images';
 import { isDriverOnline } from '@widgets/drivers-nearby/fucntions/isDriverOnline';
 import { User } from '@prisma/client';
 
-type SafeUser = Pick<User, 'uuid' | 'fullName' | 'email' | 'phone'>;
+type SafeUser = Pick<User, 'uuid' | 'fullName' | 'email' | 'phone' | 'profilePhotoPath'>;
 
 interface DriversNearbyProps {
   drivers: User[];
@@ -42,7 +42,7 @@ const DriversNearby: React.FC<DriversNearbyProps> = ({
     <div className="w-full h-full flex flex-col gap-4 ">
       <h1 className="text-2xl font-extrabold leading-9">Водители поблизости</h1>
       <TextInput
-        inputClass="text-base font-light leading-5 p-5 rounded-3xl shadow-3xl border"
+        inputClass="text-base font-light leading-5 p-5 rounded-lg shadow-md border"
         placeholder="Поиск по ФИО"
         value={searchDriver}
         onChange={(value) => {
@@ -56,7 +56,7 @@ const DriversNearby: React.FC<DriversNearbyProps> = ({
         }}
         classNameLabel={'bg-white'}
       />
-      <AnimatedComponent className="w-full h-full bg-white rounded-lg border">
+      <AnimatedComponent className="w-full h-full bg-white rounded-lg border shadow-lg">
         {isDriversLoading ? (
           <div className="text-center text-gray-500">Загрузка...</div>
         ) : !drivers || drivers.length === 0 ? (
@@ -68,6 +68,10 @@ const DriversNearby: React.FC<DriversNearbyProps> = ({
                 {drivers.map((driver) => {
                   const isSelected = selectedDriverInfo?.uuid === driver.uuid;
                   const isOnline = isDriverOnline(driver.lastActive, serverTimeISO);
+                  const userImageSrc = driver.profilePhotoPath
+                    ? `/api/images/${driver.profilePhotoPath.split('/').pop()}?type=avatar`
+                    : null;
+
                   return (
                     <tr
                       key={driver.uuid}
@@ -79,7 +83,7 @@ const DriversNearby: React.FC<DriversNearbyProps> = ({
                       <td className="flex justify-center">
                         <div className="relative w-[50px] h-[50px]">
                           <LazyImage
-                            src={driver.profilePhotoPath || '/icons/user-driver.svg'}
+                            src={userImageSrc || '/icons/user-driver.svg'}
                             alt="Driver Avatar"
                             className="w-[50px] h-[50px] rounded-full object-cover bg-white border"
                           />
@@ -129,14 +133,13 @@ const DriversNearby: React.FC<DriversNearbyProps> = ({
           </div>
         )}
       </AnimatedComponent>
-      {currentTotal > perPage && (
-        <Pagination
-          pageNumber={page}
-          pageSize={perPage}
-          totalCount={currentTotal}
-          setPageNumber={handlePageChange}
-        />
-      )}
+
+      <Pagination
+        pageNumber={page}
+        pageSize={perPage}
+        totalCount={currentTotal}
+        setPageNumber={handlePageChange}
+      />
     </div>
   );
 };

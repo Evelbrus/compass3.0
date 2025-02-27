@@ -9,6 +9,7 @@ import {
   User,
   TariffOnService,
   OrderOnTariffAdditionalService,
+  OrderStatus,
 } from '@prisma/client';
 import useTariffs from '@features/orders/create/hooks/tariffs/useTariffs';
 import useCreateAdminOrderLogic from '@features/orders/create/hooks/useCreateAdminOrderLogic';
@@ -43,7 +44,7 @@ export type TariffWithServices = Tariff & {
 export type OrderData = {
   uuid: string;
   createdBy: Pick<User, 'uuid' | 'fullName' | 'email' | 'phone' | 'role'>;
-  tariff: Pick<Tariff, 'uuid' | 'name' | 'serviceLevel' | 'vehicleType'> & {
+  tariff: Pick<Tariff, 'uuid' | 'name' | 'serviceLevel' | 'vehicleType' | 'description'> & {
     tariffAdditionalServices: (TariffOnService & {
       orderTariffAdditionalServices: OrderOnTariffAdditionalService[];
     })[];
@@ -56,7 +57,10 @@ export type OrderData = {
     Point,
     'uuid' | 'address' | 'pricePerKm' | 'airport' | 'latitude' | 'longitude' | 'terrainDifficulty'
   > | null;
-  assignedDriver?: Pick<User, 'uuid' | 'fullName' | 'email' | 'phone' | 'role'>;
+  assignedDriver?: Pick<
+    User,
+    'uuid' | 'fullName' | 'email' | 'phone' | 'role' | 'profilePhotoPath'
+  >;
   departureTime: string;
   selectedServices: string[];
   intermediatePoints: Array<
@@ -66,6 +70,8 @@ export type OrderData = {
   >;
   description: string | null;
   flightNumber: string | null;
+  status: OrderStatus;
+  basePrice: number;
 };
 
 interface OrderProps {
@@ -76,13 +82,24 @@ interface OrderProps {
 const OrderCreateView: FC<OrderProps> = ({ mode, orderData }) => {
   const router = useRouter();
 
+  console.log('orderData', orderData);
+
   const tariffAndServices = useTariffs();
   const { allPoints } = useAllPoints();
   const { allServices } = useAllAdditionalServices();
 
   const tariffs = tariffAndServices.tariffs as TariffWithServices[];
+
   const [routeDistance, setRouteDistance] = useState<number>(0);
+  const handleDistanceUpdate = useCallback((distance: number) => {
+    setRouteDistance(distance);
+  }, []);
   const [routeDuration, setRouteDuration] = useState<string | null>(null);
+
+  const [_orderStatus, setOrderStatus] = useState<OrderStatus>(orderData?.status || 'PENDING');
+  const handleStatusChange = useCallback((newStatus: OrderStatus) => {
+    setOrderStatus(newStatus);
+  }, []);
 
   const {
     selectedServiceLevel,
@@ -98,12 +115,14 @@ const OrderCreateView: FC<OrderProps> = ({ mode, orderData }) => {
   const {
     clients,
     selectedClientInfo,
+    savedClientInfo,
     searchClient,
     handleSearchChange,
-    loadMore,
     handleClientSelection,
+    loadMore,
+    total: clientsTotal,
   } = useOrderCreateClients({
-    assignedClientId: orderData?.createdBy?.uuid ?? null,
+    assignedClientId: orderData?.createdBy?.uuid || null,
     setValue,
   });
 
@@ -172,11 +191,9 @@ const OrderCreateView: FC<OrderProps> = ({ mode, orderData }) => {
 
   const {
     isOpen: isAdditionalOpen,
-    searchValue: additionalSearchValue,
     search: additionalSearch,
     filteredPoints: additionalFilteredPoints,
     onOpenSelect: onAdditionalOpenSelect,
-    onSearchValueChange: onAdditionalSearchValueChange,
     handleSearchChange: handleAdditionalHandleSearchChange,
     onSelectPoint: onAdditionalSelectPoint,
     selectorRef: additionalSelectorRef,
@@ -218,7 +235,7 @@ const OrderCreateView: FC<OrderProps> = ({ mode, orderData }) => {
     setFormValue: setValue,
   });
 
-  const totalPrice = useTotalPrice({
+  const { totalPrice, handleEditPrice, resetPrice, priceComponents } = useTotalPrice({
     tariffPrice: selectedTariff?.price ? new Decimal(selectedTariff.price) : null,
     additionalServicesPrice: totalAdditionalServicesPrice
       ? new Decimal(totalAdditionalServicesPrice)
@@ -227,14 +244,9 @@ const OrderCreateView: FC<OrderProps> = ({ mode, orderData }) => {
     routeCost: routeCost ? new Decimal(routeCost) : null,
   });
 
-  const handleDistanceUpdate = useCallback((distance: number) => {
-    setRouteDistance(distance);
-  }, []);
-
   const handlePointSelect = useCallback(
     (point: Point, isSelected: boolean) => {
       if (isSelected) {
-        // Удаление точки
         if (departurePoint?.uuid === point.uuid) {
           handleSelectPoint(null, 'departure');
         } else if (arrivalPoint?.uuid === point.uuid) {
@@ -246,7 +258,6 @@ const OrderCreateView: FC<OrderProps> = ({ mode, orderData }) => {
           }
         }
       } else {
-        // Добавление точки
         if (!departurePoint) {
           handleSelectPoint(point, 'departure');
         } else if (!arrivalPoint) {
@@ -285,7 +296,10 @@ const OrderCreateView: FC<OrderProps> = ({ mode, orderData }) => {
       waitingTimeMinutes: waitTime || 0,
       fullName: data.fullName || undefined,
       phone: data.phone || undefined,
+      status: data.status as OrderStatus,
     };
+
+    console.log('payload', payload);
 
     try {
       const response =
@@ -321,7 +335,7 @@ const OrderCreateView: FC<OrderProps> = ({ mode, orderData }) => {
     <FormProvider {...formMethods}>
       <div className="flex flex-col">
         <form className="flex flex-col" onSubmit={handleSubmit(onSubmit)}>
-          <div className="bg-gradient-to-r from-blue-600 to-indigo-700 px-8 py-6 text-white">
+          <div className="bg-blue-600 px-8 py-6 text-white">
             <h1 className="text-3xl font-bold">
               {mode === 'create' ? 'Создание нового заказа' : 'Редактирование заказа'}
             </h1>
@@ -340,15 +354,15 @@ const OrderCreateView: FC<OrderProps> = ({ mode, orderData }) => {
               </h2>
             </div>
 
-            <div className="p-4">
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2 bg-gray-50 rounded-xl overflow-hidden h-[500px] border border-gray-200">
+            <div className="p-4 bg-gradient-to-bl from-cyan-50 to-white">
+              <div className="grid grid-cols-1 lg:grid-cols-[7fr_3fr] gap-6">
+                <div className="bg-gray-50 rounded-xl overflow-hidden h-full border border-gray-200 shadow-lg">
                   <MapDriver
                     selectedDriverInfo={selectedDriverInfo}
                     serverTime={serverTime || new Date()}
                   />
                 </div>
-                <div className="h-full overflow-y-auto rounded-xl border-gray-200 shadow-sm">
+                <div className="h-[646px]  overflow-y-auto rounded-xl">
                   <DriversNearby
                     drivers={drivers}
                     isDriversLoading={isDriversLoading}
@@ -369,7 +383,7 @@ const OrderCreateView: FC<OrderProps> = ({ mode, orderData }) => {
 
           {/* Секция с клиентами */}
           <section className="overflow-hidden">
-            <div className="bg-gradient-to-r from-indigo-50 to-blue-50 px-6 py-4 border-b border-blue-100">
+            <div className="bg-gradient-to-bl from-indigo-50 to-blue-50 px-6 py-4 border-b border-blue-100">
               <h2 className="text-xl font-semibold text-gray-800 flex items-center">
                 <span className="mr-2 p-2 bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center">
                   2
@@ -377,17 +391,18 @@ const OrderCreateView: FC<OrderProps> = ({ mode, orderData }) => {
                 Выбор клиента
               </h2>
             </div>
-            <div className="p-4">
+            <div className="p-4 bg-gradient-to-tl from-cyan-50 to-white">
               <ClientSelector
-                control={control}
+                control={formMethods.control}
                 clients={clients}
                 selectedClientInfo={selectedClientInfo}
+                savedClientInfo={savedClientInfo}
                 searchClient={searchClient}
                 handleSearchChange={handleSearchChange}
                 handleClientSelection={handleClientSelection}
                 loadMore={loadMore}
-                total={total}
-                initialClient={orderData?.createdBy}
+                total={clientsTotal}
+                initialClient={orderData?.createdBy as any}
               />
             </div>
           </section>
@@ -402,65 +417,78 @@ const OrderCreateView: FC<OrderProps> = ({ mode, orderData }) => {
                 Тариф и дополнительные услуги
               </h2>
             </div>
-            <div className={'flex flex-row gap-4'}>
-              <div className="flex flex-1 flex-shrink-0 basis-[calc(65%-1.5rem)] h-auto rounded-xl p-8 flex-col">
-                <TariffCheckbox
-                  tariffs={tariffs}
-                  selectedServiceLevel={selectedServiceLevel}
-                  selectedVehicleType={selectedVehicleType}
-                  selectedTariffUuid={selectedTariff?.uuid || null}
-                  handleServiceLevelChange={handleServiceLevelChange}
-                  handleVehicleTypeChange={handleVehicleTypeChange}
-                  {...formMethods}
-                />
-                <WaitTimeSelector
-                  waitTime={waitTime}
-                  additionalWaitTimeCost={additionalWaitTimeCost}
-                  adjustWaitTime={adjustWaitTime}
-                  minWaitTime={minWaitTime}
-                  maxWaitTime={maxWaitTime}
-                  departurePoint={departurePoint}
-                  freeWaitTime={selectedTariff?.freeWaitTimeAirport ?? 0}
-                />
-                {/* Добавленный блок с дополнительной информацией о тарифах */}
-                <div className="mt-6 bg-blue-50 rounded-lg p-4 text-sm text-gray-700">
-                  <div className="flex items-center mb-2">
-                    <svg
-                      className="w-5 h-5 mr-2 text-blue-600"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                      />
-                    </svg>
-                    <span className="font-semibold">Важная информация о тарифах</span>
+            <div className="p-4 bg-gradient-to-br from-cyan-50 to-white shadow-lg'">
+              <div className={'grid grid-cols-1 lg:grid-cols-[7fr_3fr] gap-6'}>
+                <div className="relative w-full flex flex-col justify-between rounded-lg p-6">
+                  <TariffCheckbox
+                    tariffs={tariffs}
+                    selectedServiceLevel={selectedServiceLevel}
+                    selectedVehicleType={selectedVehicleType}
+                    selectedTariffUuid={selectedTariff?.uuid || null}
+                    handleServiceLevelChange={handleServiceLevelChange}
+                    handleVehicleTypeChange={handleVehicleTypeChange}
+                    {...formMethods}
+                  />
+                  <div className={'flex flex-col gap-2'}>
+                    <label className="block text-gray-700 text-[20px] font-bold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-cyan-700 to-blue-700">
+                      Описание тарифа
+                      <div className="h-1 w-32 bg-gradient-to-r from-cyan-500 to-transparent rounded-full mt-1"></div>
+                    </label>
+                    <div className="flex flex-col gap-2">
+                      <h2 className="font-helvetica-neue text-4 leading-4 font-light truncate">
+                        <strong>{selectedTariff?.description}</strong>
+                      </h2>
+                    </div>
                   </div>
-                  <p>
-                    При выборе тарифа учитывайте особенности вашей поездки. Некоторые тарифы могут
-                    включать дополнительные услуги или предлагать специальные условия.
-                  </p>
+                  {/* Добавленный блок с дополнительной информацией о тарифах */}
+                  <div className="mt-6 bg-blue-50 rounded-lg p-4 text-sm text-gray-700">
+                    <div className="flex items-center mb-2">
+                      <svg
+                        className="w-5 h-5 mr-2 text-blue-600"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
+                      </svg>
+                      <span className="font-semibold">Важная информация о тарифах</span>
+                    </div>
+                    <p>
+                      При выборе тарифа учитывайте особенности вашей поездки. Некоторые тарифы могут
+                      включать дополнительные услуги или предлагать специальные условия.
+                    </p>
+                  </div>
                 </div>
-              </div>
-              <div className={'w-full flex flex-col gap-4 p-8'}>
-                <AdditionalServicesList
-                  label="Дополнительные опции"
-                  availableServices={availableServices}
-                  handleServiceSelection={handleServiceSelection}
-                  selectedServices={selectedServices}
-                  totalAdditionalServicesPrice={totalAdditionalServicesPrice}
-                />
+                <div className={'flex flex-col gap-4'}>
+                  <WaitTimeSelector
+                    waitTime={waitTime}
+                    additionalWaitTimeCost={additionalWaitTimeCost}
+                    adjustWaitTime={adjustWaitTime}
+                    minWaitTime={minWaitTime}
+                    maxWaitTime={maxWaitTime}
+                    departurePoint={departurePoint}
+                    freeWaitTime={selectedTariff?.freeWaitTimeAirport ?? 0}
+                  />
+                  <AdditionalServicesList
+                    label="Дополнительные опции"
+                    availableServices={availableServices}
+                    handleServiceSelection={handleServiceSelection}
+                    selectedServices={selectedServices}
+                    totalAdditionalServicesPrice={totalAdditionalServicesPrice}
+                  />
+                </div>
               </div>
             </div>
           </section>
 
           {/* Секция с маршрутом */}
-          <section className="overflow-hidden">
+          <section className="overflow-hidden bg-gradient-to-tr from-cyan-50 to-white">
             <div className="bg-gradient-to-r from-indigo-50 to-blue-50 px-6 py-4 border-b border-blue-100">
               <h2 className="text-xl font-semibold text-gray-800 flex items-center">
                 <span className="mr-2 p-2 bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center">
@@ -471,7 +499,7 @@ const OrderCreateView: FC<OrderProps> = ({ mode, orderData }) => {
             </div>
 
             <div className="flex flex-row gap-4 p-4">
-              <div className="w-full flex flex-row gap-4 rounded-md">
+              <div className={'grid grid-cols-1 lg:grid-cols-[7fr_3fr] gap-6'}>
                 <div className={'w-full flex'}>
                   <RouteMap
                     allPoints={allPoints}
@@ -485,7 +513,7 @@ const OrderCreateView: FC<OrderProps> = ({ mode, orderData }) => {
                     onDurationUpdate={handleDurationUpdate}
                   />
                 </div>
-                <div className={'w-full flex flex-row gap-4'}>
+                <div className={'w-full flex flex-row gap-4 '}>
                   <div className={'w-full flex flex-col gap-4'}>
                     <PointSelector
                       control={control}
@@ -499,10 +527,16 @@ const OrderCreateView: FC<OrderProps> = ({ mode, orderData }) => {
                       handleSearchChange={handleFromSearchChange}
                       filteredPoints={fromFilteredPoints}
                       loading={fromLoading}
-                      onSelectPoint={(point) => handleSelectPoint(point, 'departure')} // Обновлено
+                      onSelectPoint={(point) => handleSelectPoint(point, 'departure')}
                       selectorRef={fromSelectorRef}
                       observerRef={fromObserverRef}
                       selectedPoint={departurePoint}
+                      departurePoint={departurePoint}
+                      arrivalPoint={arrivalPoint}
+                      additionalPoints={additionalPoints || []}
+                      currentSelectorType="departurePoint"
+                      selectedServices={selectedServices}
+                      availableServices={availableServices}
                     />
                     <PointSelector
                       control={control}
@@ -516,13 +550,19 @@ const OrderCreateView: FC<OrderProps> = ({ mode, orderData }) => {
                       handleSearchChange={handleToSearchChange}
                       filteredPoints={toFilteredPoints}
                       loading={toLoading}
-                      onSelectPoint={(point) => handleSelectPoint(point, 'arrival')} // Обновлено
+                      onSelectPoint={(point) => handleSelectPoint(point, 'arrival')}
                       selectorRef={toSelectorRef}
                       observerRef={toObserverRef}
                       selectedPoint={arrivalPoint}
                       arrivalPointPrice={
                         arrivalPoint?.pricePerKm ? Number(arrivalPoint.pricePerKm) : undefined
                       }
+                      departurePoint={departurePoint}
+                      arrivalPoint={arrivalPoint}
+                      additionalPoints={additionalPoints || []}
+                      currentSelectorType="arrivalPoint"
+                      selectedServices={selectedServices}
+                      availableServices={availableServices}
                     />
                     <AdditionalPoints
                       control={control}
@@ -540,6 +580,12 @@ const OrderCreateView: FC<OrderProps> = ({ mode, orderData }) => {
                       selectedPoints={additionalPoints ?? []}
                       onRemovePoint={onRemovePoint || (() => {})}
                       onChangeOrder={onChangeOrder}
+                      departurePoint={departurePoint}
+                      arrivalPoint={arrivalPoint}
+                      additionalPoints={additionalPoints || []}
+                      currentSelectorType="additionalPoints"
+                      selectedServices={selectedServices}
+                      availableServices={availableServices}
                     />
                   </div>
                 </div>
@@ -555,18 +601,24 @@ const OrderCreateView: FC<OrderProps> = ({ mode, orderData }) => {
             </h2>
           </div>
           <RouteInfo
+            control={formMethods.control}
             departurePoint={departurePoint}
             additionalPoints={additionalPoints ?? []}
             arrivalPoint={arrivalPoint}
             routeDuration={routeDuration}
             routeDistance={routeDistance}
+            totalPrice={totalPrice}
+            mode={mode}
+            onStatusChange={handleStatusChange}
+            selectedDriverInfo={selectedDriverInfo}
+            handleEditPrice={handleEditPrice}
+            resetPrice={resetPrice}
+            tariffPrice={priceComponents.tariffPrice}
+            additionalServicesPrice={priceComponents.additionalServicesPrice}
+            basePrice={orderData?.basePrice ? new Decimal(orderData.basePrice) : null}
+            waitTimeCost={priceComponents.waitTimeCost}
+            routeCost={priceComponents.routeCost}
           />
-          <h2 className="text-2xl font-semibold">Общая цена</h2>
-          <div>
-            <h3>
-              Общая сумма заказа: <span className={'font-bold'}>{totalPrice.toNumber()} сом</span>
-            </h3>
-          </div>
           <div className="flex justify-end mt-6">
             <button
               type="submit"

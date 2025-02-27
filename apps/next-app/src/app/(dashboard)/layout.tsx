@@ -18,7 +18,11 @@ const BaseLayout = async ({ children }: RootLayoutProps): Promise<JSX.Element> =
       <SocketProvider>
         <div className="flex flex-row min-h-screen max-w-[1920px] mx-auto">
           <Sidebar role={role} />
-          <div className={'relative w-full flex flex-col overflow-x-auto'}>
+          <div className={'relative w-full flex flex-col overflow-x-auto md:rounded-l-3xl lg:rounded-l-3xl border border-gray-300'}
+               style={{
+                 boxShadow: '-5px 0 40px -5px rgba(0, 0, 0, 0.2)',
+               }}
+          >
             <GradientBackground />
             <div className={'w-full flex flex-col z-50'}>
               <Header userSession={userSession} />

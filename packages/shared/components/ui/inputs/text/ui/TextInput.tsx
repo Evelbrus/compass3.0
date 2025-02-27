@@ -50,7 +50,7 @@ export const TextInput: React.FC<TextInputProps> = ({
   onKeyDown,
   classNameLabel = 'block text-4 font-medium text-gray-500 mb-2',
   inputClass = cn(
-    'w-full rounded p-2 focus:outline-none focus:ring',
+    'w-full rounded p-3 focus:outline-none focus:ring',
     error ? 'border-2 border-red-400' : 'border border-gray-300 focus:border-blue-300',
   ),
   step,

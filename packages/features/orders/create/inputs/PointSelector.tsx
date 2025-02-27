@@ -1,21 +1,35 @@
-import React from 'react';
-import { Control, Controller } from 'react-hook-form';
-import { Point } from '@prisma/client';
+import React, { useEffect } from 'react';
+import { Controller } from 'react-hook-form';
 import { cn } from '@shared/lib';
-import { FormOrderValues } from '@features/orders/create/hooks/useCreateAdminOrderLogic';
+import { Point } from '@prisma/client';
 
-// Определяем тип PointWithoutTimestamps, как в других местах
 type PointWithoutTimestamps = Pick<
   Point,
   'uuid' | 'address' | 'pricePerKm' | 'airport' | 'latitude' | 'longitude' | 'terrainDifficulty'
 >;
 
-// Уточним тип name, чтобы это было только поле типа PointWithoutTimestamps | null
-type PointFieldName = Extract<keyof FormOrderValues, 'departurePoint' | 'arrivalPoint'>;
+// Стили для разных типов точек
+const STYLES = {
+  departurePoint: {
+    bgColor: 'bg-blue-600',
+    borderColor: 'border-blue-300',
+    shadowColor: 'shadow-blue-100',
+    textColor: 'text-white',
+    icon: 'A',
+  },
+  arrivalPoint: {
+    bgColor: 'bg-cyan-600',
+    borderColor: 'border-cyan-300',
+    shadowColor: 'shadow-cyan-100',
+    textColor: 'text-white',
+    icon: 'B',
+  },
+  // Стили для других типов точек могут быть добавлены по необходимости
+};
 
 interface PointSelectorProps {
-  control: Control<FormOrderValues>;
-  name: PointFieldName;
+  control: any;
+  name: string;
   label: string;
   isOpen: boolean;
   searchValue: string;
@@ -23,13 +37,25 @@ interface PointSelectorProps {
   onSearchValueChange: (value: string) => void;
   search: string;
   handleSearchChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  filteredPoints: PointWithoutTimestamps[]; // Обновили тип
+  filteredPoints: PointWithoutTimestamps[];
   loading: boolean;
-  onSelectPoint: (point: PointWithoutTimestamps | null) => void; // Обновили тип
+  onSelectPoint: (point: PointWithoutTimestamps | null) => void;
   selectorRef: React.RefObject<HTMLDivElement | null>;
-  observerRef: React.RefObject<HTMLDivElement | null>;
-  selectedPoint: PointWithoutTimestamps | null | undefined; // Обновили тип
+  observerRef?: React.RefObject<HTMLDivElement | null>;
+  selectedPoint: PointWithoutTimestamps | null;
   arrivalPointPrice?: number;
+  selectedServices?: string[];
+  availableServices?: Array<{
+    service: any;
+    price: number;
+    isAvailable: boolean;
+    tariffOnServiceUuid: string | null;
+  }>;
+  // Добавленные props для проверки дубликатов
+  departurePoint: PointWithoutTimestamps | null;
+  arrivalPoint: PointWithoutTimestamps | null;
+  additionalPoints: (PointWithoutTimestamps | null)[];
+  currentSelectorType: string;
 }
 
 const PointSelector: React.FC<PointSelectorProps> = ({
@@ -49,31 +75,85 @@ const PointSelector: React.FC<PointSelectorProps> = ({
   observerRef,
   selectedPoint,
   arrivalPointPrice,
+  selectedServices = [],
+  availableServices = [],
+  // Добавленные props
+  departurePoint,
+  arrivalPoint,
+  additionalPoints,
+  currentSelectorType,
 }) => {
+  // Функция для проверки, выбрана ли точка в других селекторах
+  const isPointAlreadySelected = (point: PointWithoutTimestamps) => {
+    if (!point) return false;
+
+    // Проверка точки отправления (если текущий селектор не для точки отправления)
+    if (currentSelectorType !== 'departurePoint' && departurePoint?.uuid === point.uuid) {
+      return true;
+    }
+
+    // Проверка точки прибытия (если текущий селектор не для точки прибытия)
+    if (currentSelectorType !== 'arrivalPoint' && arrivalPoint?.uuid === point.uuid) {
+      return true;
+    }
+
+    // Проверка дополнительных точек (если текущий селектор не для доп. точек)
+    if (
+      currentSelectorType !== 'additionalPoints' &&
+      additionalPoints &&
+      additionalPoints.length > 0
+    ) {
+      return additionalPoints.some((p) => p !== null && p.uuid === point.uuid);
+    }
+
+    return false;
+  };
+
+  // Добавляем обработчик клика вне селектора для закрытия
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (selectorRef.current && !selectorRef.current.contains(event.target as Node)) {
+        // Закрыть селектор
+        onSearchValueChange(selectedPoint?.address || '');
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen, onSearchValueChange, selectedPoint, selectorRef]);
+
   return (
     <Controller
       control={control}
       name={name}
       render={({ field, fieldState }) => {
-        // Мы точно знаем, что field.value типа PointWithoutTimestamps | null
         const pointValue = field.value as PointWithoutTimestamps | null;
+        const { bgColor, borderColor, shadowColor, textColor, icon } =
+          STYLES[name] || STYLES.departurePoint;
 
-        // Определяем букву и цвета в зависимости от типа точки
-        const letter = name === 'departurePoint' ? 'A' : 'B';
-        const bgColor = name === 'departurePoint' ? 'bg-blue-100' : 'bg-red-100';
-        const textColor = name === 'departurePoint' ? 'text-blue-600' : 'text-red-600';
+        // Проверяем, требуются ли аэропортовые услуги
+        const requiresAirportService = selectedServices.some((uuid) =>
+          availableServices
+            ?.find((s) => s.tariffOnServiceUuid === uuid)
+            ?.service.name.toLowerCase()
+            .includes('аэропорт'),
+        );
 
         return (
-          <div ref={selectorRef} className="relative">
-            <div className="flex items-center gap-2 mb-2">
-              {/* Круговой фон для буквы */}
+          <div className="relative">
+            <div className="flex items-center gap-3 mb-4">
               <div
-                className={`flex items-center justify-center w-8 h-8 rounded-full ${bgColor} ${textColor} font-bold`}
+                className={`flex items-center justify-center w-8 h-8 rounded-full ${bgColor} ${textColor} font-bold shadow-md`}
               >
-                {letter}
+                {icon}
               </div>
-
-              <label className="block text-sm font-medium text-gray-500">{label}</label>
+              <div
+                className={`font-semibold text-transparent bg-clip-text bg-gradient-to-r from-cyan-700 to-blue-700`}
+              >
+                {label}
+              </div>
             </div>
 
             <div className="relative">
@@ -86,23 +166,27 @@ const PointSelector: React.FC<PointSelectorProps> = ({
                 onFocus={onOpenSelect}
                 placeholder="Введите адрес..."
                 className={cn(
-                  'w-full rounded p-2 focus:outline-none focus:ring border',
-                  fieldState.error ? 'border-red-500' : 'border-gray-300 focus:border-blue-300',
-                  'text-gray-900 placeholder-gray-400',
+                  'w-full p-3 border-2 rounded-md cursor-pointer bg-white',
+                  borderColor,
+                  shadowColor,
+                  fieldState.error ? 'border-red-500' : '',
+                  'focus:ring-2 focus:ring-cyan-400 focus:border-cyan-500',
                 )}
               />
-
               {pointValue && (
                 <button
                   type="button"
-                  onClick={() => {
-                    onSelectPoint(null);
-                  }}
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-red-500 hover:text-red-700"
+                  onClick={() => onSelectPoint(null)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-red-500 hover:text-red-700 bg-white rounded-full w-6 h-6 flex items-center justify-center shadow-sm transition duration-200 hover:shadow-md"
                   aria-label="Очистить"
                 >
                   ✕
                 </button>
+              )}
+              {pointValue?.airport && (
+                <div className="absolute left-3 -bottom-5 text-xs bg-cyan-50 text-cyan-600 px-2 py-0.5 rounded-full">
+                  Аэропорт
+                </div>
               )}
             </div>
 
@@ -112,73 +196,131 @@ const PointSelector: React.FC<PointSelectorProps> = ({
 
             {isOpen && (
               <div
+                ref={selectorRef}
                 className={cn(
-                  'absolute bg-white rounded-md z-50 max-h-60 overflow-auto mt-2 border border-gray-300',
-                  'w-full',
+                  'absolute z-[9999] w-full bg-white border-2 rounded-lg mt-2 shadow-lg max-h-[250px] overflow-y-auto',
+                  borderColor,
                 )}
               >
-                {/* Добавляем поле поиска внутри выпадающего списка */}
-                <div className="sticky top-0 bg-white p-2 border-b">
+                <div className="sticky top-0 bg-white p-3 border-b border-gray-200">
                   <input
                     type="text"
                     autoFocus
                     value={search}
                     onChange={handleSearchChange}
                     placeholder="Поиск..."
-                    className="p-2 w-full border rounded"
+                    className="p-2 w-full border border-gray-300 rounded-md bg-gray-50 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-cyan-500"
                     onClick={(e) => e.stopPropagation()}
                   />
                 </div>
 
-                <div className="max-h-[200px] overflow-y-auto">
+                <div>
                   {loading ? (
-                    <div className="p-2 text-gray-500">Загрузка...</div>
+                    <div className="p-4 text-center text-gray-500">
+                      <svg
+                        className="w-6 h-6 text-gray-400 mx-auto mb-2 animate-spin"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M4 12a8 8 0 018-8v8h8a8 8 0 11-16 0z"
+                        />
+                      </svg>
+                      Загрузка...
+                    </div>
                   ) : filteredPoints.length > 0 ? (
                     filteredPoints.map((point) => {
-                      const isAlreadySelected =
-                        (name === 'departurePoint' &&
-                          selectedPoint?.uuid !== point.uuid &&
-                          (document.querySelector('[name="arrivalPoint"]') as any)?.value?.uuid ===
-                            point.uuid) ||
-                        (name === 'arrivalPoint' &&
-                          selectedPoint?.uuid !== point.uuid &&
-                          (document.querySelector('[name="departurePoint"]') as any)?.value
-                            ?.uuid === point.uuid);
+                      // Используем нашу новую функцию для проверки
+                      const isAlreadySelected = isPointAlreadySelected(point);
+
+                      // Получаем цену за км для этой точки
+                      const pointPrice = point.pricePerKm ? Number(point.pricePerKm) : 0;
+                      const terrainDifficulty = point.terrainDifficulty || 1;
 
                       return (
                         <div
                           key={point.uuid}
                           onClick={() => {
-                            if (isAlreadySelected) {
-                              return; // Не даем выбрать уже выбранную точку
-                            }
+                            if (isAlreadySelected) return;
                             onSelectPoint(point);
                           }}
                           className={cn(
-                            'px-4 py-2 hover:bg-gray-100 cursor-pointer',
-                            pointValue?.uuid === point.uuid ? 'bg-blue-50 font-semibold' : '',
-                            isAlreadySelected ? 'text-gray-400 bg-gray-50' : '',
+                            'p-3 cursor-pointer hover:bg-cyan-50 border-b border-gray-200 last:border-b-0 transition duration-150',
+                            pointValue?.uuid === point.uuid ? 'bg-cyan-100 font-semibold' : '',
+                            isAlreadySelected ? 'text-gray-400 bg-gray-50 cursor-not-allowed' : '',
                           )}
                         >
                           <div className="flex justify-between">
-                            <span>{point.address}</span>
+                            <span>
+                              {point.address}{' '}
+                              {requiresAirportService && !point.airport && (
+                                <span className="text-xs text-gray-500">
+                                  (Требуется аэропорт для услуг)
+                                </span>
+                              )}
+                            </span>
                             {isAlreadySelected && (
-                              <span className="text-xs text-red-500">Уже выбрана</span>
+                              <span className="text-xs text-red-500 bg-red-50 px-2 py-0.5 rounded-full">
+                                Уже выбрана
+                              </span>
                             )}
                           </div>
-                          {arrivalPointPrice && name === 'arrivalPoint' && (
-                            <span className="text-gray-500 text-sm block">
-                              Цена: {arrivalPointPrice} сом/км
-                            </span>
-                          )}
+                          <div className="flex justify-between items-center mt-1">
+                            {point.airport && (
+                              <div className="flex items-center text-xs text-cyan-600">
+                                <svg
+                                  className="w-4 h-4 mr-1"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M5 13l4 4L19 7"
+                                  />
+                                </svg>
+                                Аэропорт
+                              </div>
+                            )}
+                            {/* Показываем цену за км и коэффициент сложности для каждой точки */}
+                            <div className="text-gray-500 text-sm flex items-center gap-2">
+                              <span>{pointPrice} сом/км</span>
+                              {terrainDifficulty !== 1 && (
+                                <span className="bg-orange-50 text-orange-600 rounded-full px-2 py-0.5 text-xs">
+                                  Коэф. сложности: {terrainDifficulty}
+                                </span>
+                              )}
+                            </div>
+                          </div>
                         </div>
                       );
                     })
                   ) : (
-                    <div className="p-2 text-gray-500 text-center">Нет доступных точек</div>
+                    <div className="p-4 text-center text-gray-500">
+                      <svg
+                        className="w-6 h-6 text-gray-400 mx-auto mb-2"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
+                      </svg>
+                      Нет доступных точек
+                    </div>
                   )}
                 </div>
-                <div ref={observerRef} />
+                {observerRef && <div ref={observerRef} />}
               </div>
             )}
           </div>

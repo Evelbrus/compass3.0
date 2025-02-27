@@ -48,4 +48,5 @@ export interface DetailOrderData extends Order {
   tariff: ExtendedTariff;
   departurePoint: Point;
   arrivalPoint: Point;
+  assignedDriver: User & { plateNumber: true };
 }
