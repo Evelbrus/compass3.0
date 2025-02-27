@@ -1,11 +1,22 @@
 import React, { FC, useState, useEffect, useRef } from 'react';
-import { Control, Controller, useWatch } from 'react-hook-form';
+import { Control, Controller } from 'react-hook-form';
 import { User } from '@prisma/client';
 import { FormOrderValues } from '@features/orders/create/hooks/useCreateAdminOrderLogic';
 import { PhoneInput } from '@shared/components/ui/inputs';
 import { cn } from '@shared/lib';
 
 export type PartialUser = Pick<User, 'uuid' | 'fullName' | 'email' | 'phone' | 'role'>;
+
+// Тип для стилей полей
+type FieldStyle = {
+  bgColor: string;
+  textGradient: string;
+  borderColor: string;
+  shadowColor: string;
+  textColor: string;
+  icon: string;
+  name: string;
+};
 
 interface ClientSelectorProps {
   control: Control<FormOrderValues>;
@@ -84,9 +95,10 @@ const FIELD_STYLES = {
     icon: 'М',
     name: 'Минуты',
   },
-};
+} as const; // Используем `as const`, чтобы ключи были строго типизированы
 
-const FieldHeader = ({ style }) => (
+// Указываем, что FieldHeader принимает только существующие ключи из FIELD_STYLES
+const FieldHeader: FC<{ style: FieldStyle }> = ({ style }) => (
   <div className="flex items-center gap-3 mb-4">
     <div
       className={`flex items-center justify-center w-8 h-8 rounded-full ${style.bgColor} ${style.textColor} font-bold shadow-md`}
@@ -99,15 +111,18 @@ const FieldHeader = ({ style }) => (
   </div>
 );
 
-const TimeSlider = ({ value, onChange, min, max, label, unit, style }) => {
-  const handleChange = (e) => {
+// Аналогично для TimeSlider
+const TimeSlider: FC<{
+  value: number;
+  onChange: (value: number) => void;
+  min: number;
+  max: number;
+  label: string;
+  unit: string;
+  style: FieldStyle;
+}> = ({ value, onChange, min, max, label, unit }) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onChange(parseInt(e.target.value, 10));
-  };
-
-  const getBackgroundSize = () => {
-    return {
-      backgroundSize: `${((value - min) * 100) / (max - min)}% 100%`,
-    };
   };
 
   return (
@@ -157,13 +172,6 @@ const ClientSelector: FC<ClientSelectorProps> = ({
   const [isNewClientMode, setIsNewClientMode] = useState(false);
   const selectorRef = useRef<HTMLDivElement>(null);
 
-  const currentPhone = useWatch({
-    control,
-    name: 'phone',
-    defaultValue: '',
-  });
-
-  // Закрытие селектора при клике вне его
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (selectorRef.current && !selectorRef.current.contains(event.target as Node)) {
@@ -292,7 +300,6 @@ const ClientSelector: FC<ClientSelectorProps> = ({
                               FIELD_STYLES.client.borderColor,
                               FIELD_STYLES.client.shadowColor,
                               fieldState.error ? 'border-red-500' : '',
-                              // Убрана подсветка при фокусе
                             )}
                           />
                           {selectedClientInfo && (
@@ -342,7 +349,6 @@ const ClientSelector: FC<ClientSelectorProps> = ({
                                       }}
                                       className={cn(
                                         'p-3 cursor-pointer hover:bg-gray-50 border-b last:border-b-0 transition duration-150',
-                                        // Убрана подсветка выбранного элемента
                                       )}
                                     >
                                       <span>
@@ -473,7 +479,7 @@ const ClientSelector: FC<ClientSelectorProps> = ({
         </div>
       </div>
 
-      <div className="relative w-full flex flex-col justify-around rounded-lg p-6 bg-white shadow-lg border border-gray-100">
+      <div className="relative w-full flex flex-col justify-around rounded-lg p-6 bg-white border">
         <h3 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-700 to-blue-700 mb-6 pb-3 border-b border-gray-200">
           Дата и время отправления
           <div className="h-1 w-32 bg-gradient-to-r from-cyan-500 to-transparent rounded-full mt-1"></div>
@@ -539,7 +545,7 @@ const ClientSelector: FC<ClientSelectorProps> = ({
             };
 
             return (
-              <div className="rounded-lg p-4 bg-white shadow-sm border border-gray-100">
+              <div className="shadow-sm">
                 <div className="flex justify-between items-center mb-4">
                   <button
                     type="button"

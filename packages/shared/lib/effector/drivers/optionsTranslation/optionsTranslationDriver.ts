@@ -19,7 +19,7 @@ export const identityDocumentOptions = [
 export const changingDriverOptions = [
   { label: 'Дневная', value: 'Day' as ChangingDriver },
   { label: 'Ночная', value: 'Night' as ChangingDriver },
-  { label: 'Обо', value: 'Both' as ChangingDriver },
+  { label: 'Дневная/Ночная', value: 'Both' as ChangingDriver },
 ];
 
 export const partnerOptions = [

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef } from 'react';
+import React from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 import { TextInput } from '@shared/components/ui/inputs';
 import { validateEmail, validatePassword } from '@shared/utils/validations';
@@ -10,9 +10,9 @@ const FIELD_EMAIL = 'email';
 const FIELD_PASSWORD = 'password';
 const FIELD_CONFIRM_PASSWORD = 'confirmPassword';
 
+// Удаляем проп firstInputRef, так как мы не можем его использовать
 const RegisterStepOne: React.FC = () => {
   const { control, clearErrors, getValues } = useFormContext<UserRegisterCard>();
-  const firstInputRef = useRef<HTMLInputElement>(null);
 
   return (
     <div>
@@ -31,13 +31,13 @@ const RegisterStepOne: React.FC = () => {
               label="Email:"
               type="email"
               value={typeof field.value === 'string' ? field.value : ''}
-              ref={firstInputRef}
               placeholder="Введите email"
               error={!!fieldState.error}
               onChange={(val: string | number | bigint | null) => {
                 clearErrors(FIELD_EMAIL);
                 field.onChange(val === null ? '' : val);
               }}
+              // Удаляем inputRef, поскольку TextInput его не поддерживает
             />
             {fieldState.error && <p className="text-red-500 text-sm">{fieldState.error.message}</p>}
           </div>

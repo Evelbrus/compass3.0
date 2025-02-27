@@ -8,12 +8,12 @@ type PointWithoutTimestamps = Pick<
   'uuid' | 'address' | 'pricePerKm' | 'airport' | 'latitude' | 'longitude' | 'terrainDifficulty'
 >;
 
-// Стили для разных типов точек
+// Стили для разных типов точек с оригинальными цветами фона
 const STYLES = {
   departurePoint: {
     bgColor: 'bg-blue-600',
-    borderColor: 'border-blue-300',
-    shadowColor: 'shadow-blue-100',
+    borderColor: 'border-cyan-300',
+    shadowColor: 'shadow-cyan-100',
     textColor: 'text-white',
     icon: 'A',
   },
@@ -24,12 +24,12 @@ const STYLES = {
     textColor: 'text-white',
     icon: 'B',
   },
-  // Стили для других типов точек могут быть добавлены по необходимости
+  // Оставляем оригинальные цвета фона
 };
 
 interface PointSelectorProps {
   control: any;
-  name: string;
+  name: keyof typeof STYLES; // Ограничиваем name ключами STYLES
   label: string;
   isOpen: boolean;
   searchValue: string;
@@ -43,7 +43,6 @@ interface PointSelectorProps {
   selectorRef: React.RefObject<HTMLDivElement | null>;
   observerRef?: React.RefObject<HTMLDivElement | null>;
   selectedPoint: PointWithoutTimestamps | null;
-  arrivalPointPrice?: number;
   selectedServices?: string[];
   availableServices?: Array<{
     service: any;
@@ -59,30 +58,28 @@ interface PointSelectorProps {
 }
 
 const PointSelector: React.FC<PointSelectorProps> = ({
-  control,
-  name,
-  label,
-  isOpen,
-  searchValue,
-  onOpenSelect,
-  onSearchValueChange,
-  search,
-  handleSearchChange,
-  filteredPoints,
-  loading,
-  onSelectPoint,
-  selectorRef,
-  observerRef,
-  selectedPoint,
-  arrivalPointPrice,
-  selectedServices = [],
-  availableServices = [],
-  // Добавленные props
-  departurePoint,
-  arrivalPoint,
-  additionalPoints,
-  currentSelectorType,
-}) => {
+                                                       control,
+                                                       name,
+                                                       label,
+                                                       isOpen,
+                                                       searchValue,
+                                                       onOpenSelect,
+                                                       onSearchValueChange,
+                                                       search,
+                                                       handleSearchChange,
+                                                       filteredPoints,
+                                                       loading,
+                                                       onSelectPoint,
+                                                       selectorRef,
+                                                       observerRef,
+                                                       selectedPoint,
+                                                       selectedServices = [],
+                                                       availableServices = [],
+                                                       departurePoint,
+                                                       arrivalPoint,
+                                                       additionalPoints,
+                                                       currentSelectorType,
+                                                     }) => {
   // Функция для проверки, выбрана ли точка в других селекторах
   const isPointAlreadySelected = (point: PointWithoutTimestamps) => {
     if (!point) return false;
@@ -130,8 +127,7 @@ const PointSelector: React.FC<PointSelectorProps> = ({
       name={name}
       render={({ field, fieldState }) => {
         const pointValue = field.value as PointWithoutTimestamps | null;
-        const { bgColor, borderColor, shadowColor, textColor, icon } =
-          STYLES[name] || STYLES.departurePoint;
+        const { bgColor, borderColor, shadowColor, textColor, icon } = STYLES[name];
 
         // Проверяем, требуются ли аэропортовые услуги
         const requiresAirportService = selectedServices.some((uuid) =>
@@ -150,9 +146,10 @@ const PointSelector: React.FC<PointSelectorProps> = ({
                 {icon}
               </div>
               <div
-                className={`font-semibold text-transparent bg-clip-text bg-gradient-to-r from-cyan-700 to-blue-700`}
+                className="font-semibold text-transparent bg-clip-text bg-gradient-to-r from-cyan-700 to-blue-700"
               >
                 {label}
+                <div className="h-1 w-32 bg-gradient-to-r from-cyan-500 to-transparent rounded-full mt-1"></div>
               </div>
             </div>
 
@@ -166,18 +163,18 @@ const PointSelector: React.FC<PointSelectorProps> = ({
                 onFocus={onOpenSelect}
                 placeholder="Введите адрес..."
                 className={cn(
-                  'w-full p-3 border-2 rounded-md cursor-pointer bg-white',
-                  borderColor,
-                  shadowColor,
+                  'w-full p-3 border-2 rounded-md cursor-pointer bg-white transition-all duration-200',
+                  'border-cyan-200 shadow-sm shadow-cyan-100',
                   fieldState.error ? 'border-red-500' : '',
                   'focus:ring-2 focus:ring-cyan-400 focus:border-cyan-500',
+                  'hover:border-cyan-300 hover:shadow-md hover:shadow-cyan-50'
                 )}
               />
               {pointValue && (
                 <button
                   type="button"
                   onClick={() => onSelectPoint(null)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-red-500 hover:text-red-700 bg-white rounded-full w-6 h-6 flex items-center justify-center shadow-sm transition duration-200 hover:shadow-md"
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-red-500 hover:text-red-700 bg-white rounded-full w-6 h-6 flex items-center justify-center shadow-lg transition duration-200 hover:shadow-md"
                   aria-label="Очистить"
                 >
                   ✕
@@ -199,7 +196,7 @@ const PointSelector: React.FC<PointSelectorProps> = ({
                 ref={selectorRef}
                 className={cn(
                   'absolute z-[9999] w-full bg-white border-2 rounded-lg mt-2 shadow-lg max-h-[250px] overflow-y-auto',
-                  borderColor,
+                  'border-cyan-200'
                 )}
               >
                 <div className="sticky top-0 bg-white p-3 border-b border-gray-200">
@@ -218,7 +215,7 @@ const PointSelector: React.FC<PointSelectorProps> = ({
                   {loading ? (
                     <div className="p-4 text-center text-gray-500">
                       <svg
-                        className="w-6 h-6 text-gray-400 mx-auto mb-2 animate-spin"
+                        className="w-6 h-6 text-cyan-400 mx-auto mb-2 animate-spin"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -250,7 +247,7 @@ const PointSelector: React.FC<PointSelectorProps> = ({
                           }}
                           className={cn(
                             'p-3 cursor-pointer hover:bg-cyan-50 border-b border-gray-200 last:border-b-0 transition duration-150',
-                            pointValue?.uuid === point.uuid ? 'bg-cyan-100 font-semibold' : '',
+                            pointValue?.uuid === point.uuid ? 'bg-gradient-to-r from-cyan-50 to-blue-50 font-semibold' : '',
                             isAlreadySelected ? 'text-gray-400 bg-gray-50 cursor-not-allowed' : '',
                           )}
                         >
@@ -304,7 +301,7 @@ const PointSelector: React.FC<PointSelectorProps> = ({
                   ) : (
                     <div className="p-4 text-center text-gray-500">
                       <svg
-                        className="w-6 h-6 text-gray-400 mx-auto mb-2"
+                        className="w-6 h-6 text-cyan-400 mx-auto mb-2"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"

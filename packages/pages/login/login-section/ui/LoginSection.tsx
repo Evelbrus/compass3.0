@@ -109,7 +109,6 @@ const LoginSection: React.FC = () => {
               <div className="flex flex-col">
                 <TextInput
                   {...field}
-                  className="rounded-lg p-4"
                   error={!!errors.username}
                   disabled={loading}
                   placeholder="Введите email"
@@ -133,7 +132,6 @@ const LoginSection: React.FC = () => {
               <div className="flex flex-col">
                 <TextInput
                   {...field}
-                  className="rounded-lg p-4"
                   type="password"
                   error={!!errors.password}
                   disabled={loading}

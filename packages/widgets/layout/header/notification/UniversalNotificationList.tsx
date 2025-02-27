@@ -1,16 +1,18 @@
 import React, { useEffect, useRef, useCallback, useState } from 'react';
-import Image from 'next/image'; // Import Next.js Image
-import { Notification, Action } from '@prisma/client';
+import { Notification, Action, UserRole } from '@prisma/client';
 import { cn } from '@shared/lib';
 
-interface NotificationListProps {
+interface UniversalNotificationListProps {
+  userSession: { role?: UserRole } | null | undefined; // Добавляем undefined
   notifications: Notification[];
+  driverNotifications: Notification[];
+  clientNotifications: Notification[];
   onClose: () => void;
-  onClear: () => void;
-  markAsRead: (notificationId: string) => void;
+  onClear?: () => void;
+  markAsRead?: (notificationId: string) => void;
+  openModal?: (notification: Notification) => void;
 }
 
-// Встроенные SVG-иконки для разных типов уведомлений
 const NOTIFICATION_ICONS = {
   [Action.info]: (
     <svg
@@ -94,7 +96,6 @@ const NOTIFICATION_ICONS = {
   ),
 };
 
-// Цветовая схема для разных типов уведомлений
 const NOTIFICATION_COLORS = {
   [Action.info]: 'from-blue-50 to-blue-100 border-blue-200',
   [Action.warning]: 'from-orange-50 to-orange-100 border-orange-200',
@@ -104,7 +105,6 @@ const NOTIFICATION_COLORS = {
   [Action.cancelled]: 'from-red-50 to-red-100 border-red-200',
 };
 
-// Заголовки для разных типов уведомлений
 const NOTIFICATION_TITLES = {
   [Action.info]: 'Информация',
   [Action.warning]: 'Внимание',
@@ -114,32 +114,68 @@ const NOTIFICATION_TITLES = {
   [Action.cancelled]: 'Отменено',
 };
 
-const NotificationList: React.FC<NotificationListProps> = ({
-                                                             notifications,
-                                                             onClose,
-                                                             onClear,
-                                                             markAsRead,
-                                                           }) => {
-  const notificationRefs = useRef<(HTMLLIElement | null)[]>([]); // Allow null in ref array
+const DRIVER_STATUS_TEXT = {
+  [Action.info]: 'Информация о поездке',
+  [Action.warning]: 'Требуется внимание',
+  [Action.success]: 'Поездка успешно завершена',
+  [Action.noted]: 'Заказ принят к сведению',
+  [Action.inProgress]: 'Поездка началась',
+  [Action.cancelled]: 'Поездка отменена',
+};
+
+const CLIENT_STATUS_TEXT = {
+  [Action.info]: 'Информация о заказе',
+  [Action.warning]: 'Проблема с заказом',
+  [Action.success]: 'Заказ выполнен',
+  [Action.noted]: 'Заказ подтвержден',
+  [Action.inProgress]: 'Заказ в процессе',
+  [Action.cancelled]: 'Заказ отменен',
+};
+
+const UniversalNotificationList: React.FC<UniversalNotificationListProps> = ({
+  userSession,
+  notifications,
+  driverNotifications,
+  clientNotifications,
+  onClose,
+  onClear,
+  markAsRead,
+  openModal,
+}) => {
+  const notificationRefs = useRef<(HTMLLIElement | null)[]>([]);
   const observer = useRef<IntersectionObserver | null>(null);
-  const [open, setOpen] = useState<Record<string, boolean>>(
-    notifications.reduce(
-      (acc, notification) => {
-        acc[notification.uuid] = false; // Начально все закрыты
-        return acc;
-      },
-      {} as Record<string, boolean>,
-    ),
-  );
+  const [open, setOpen] = useState<Record<string, boolean>>({});
+
+  const getActiveNotifications = () => {
+    switch (userSession?.role) {
+      case UserRole.Driver:
+        return driverNotifications;
+      case UserRole.ClientCorp:
+        return clientNotifications;
+      default:
+        return notifications;
+    }
+  };
+
+  const getTitle = () => {
+    switch (userSession?.role) {
+      case UserRole.Driver:
+        return 'Уведомления водителя';
+      case UserRole.ClientCorp:
+        return 'Уведомления клиента';
+      default:
+        return 'Уведомления';
+    }
+  };
 
   const handleIntersection = useCallback(
     (entries: IntersectionObserverEntry[]) => {
+      if (!markAsRead) return;
       entries.forEach((entry) => {
         const target = entry.target as HTMLElement;
         const uuid = target.dataset.uuid;
-
         if (uuid) {
-          const notification = notifications.find((n) => n.uuid === uuid);
+          const notification = getActiveNotifications().find((n) => n.uuid === uuid);
           if (entry.isIntersecting && notification && !notification.read) {
             markAsRead(uuid);
             observer.current?.unobserve(target);
@@ -147,38 +183,30 @@ const NotificationList: React.FC<NotificationListProps> = ({
         }
       });
     },
-    [markAsRead, notifications],
+    [markAsRead, getActiveNotifications],
   );
 
   useEffect(() => {
-    observer.current = new IntersectionObserver(handleIntersection, {
-      threshold: 0.5,
-    });
-
-    notificationRefs.current.forEach((ref) => {
-      if (ref) {
-        observer.current?.observe(ref);
-      }
-    });
-
-    return () => {
-      observer.current?.disconnect();
-    };
-  }, [handleIntersection, notifications]);
+    if (
+      markAsRead &&
+      (userSession?.role === UserRole.Admin || userSession?.role === UserRole.Operator)
+    ) {
+      observer.current = new IntersectionObserver(handleIntersection, { threshold: 0.5 });
+      notificationRefs.current.forEach((ref) => {
+        if (ref) observer.current?.observe(ref);
+      });
+      return () => observer.current?.disconnect();
+    }
+  }, [handleIntersection, userSession?.role]);
 
   const toggleOpen = (uuid: string) => {
-    setOpen((prev) => ({
-      ...prev,
-      [uuid]: !prev[uuid],
-    }));
+    setOpen((prev) => ({ ...prev, [uuid]: !prev[uuid] || false }));
   };
 
-  const groupedNotifications = notifications.reduce(
+  const groupedNotifications = getActiveNotifications().reduce(
     (groups, notification) => {
       const date = new Date(notification.createdAt).toLocaleDateString();
-      if (!groups[date]) {
-        groups[date] = [];
-      }
+      if (!groups[date]) groups[date] = [];
       groups[date].push(notification);
       return groups;
     },
@@ -189,34 +217,47 @@ const NotificationList: React.FC<NotificationListProps> = ({
     (a, b) => new Date(b).getTime() - new Date(a).getTime(),
   );
 
+  const getStatusText = (action: Action) => {
+    if (userSession?.role === UserRole.Driver)
+      return DRIVER_STATUS_TEXT[action] || NOTIFICATION_TITLES[action];
+    if (userSession?.role === UserRole.ClientCorp)
+      return CLIENT_STATUS_TEXT[action] || NOTIFICATION_TITLES[action];
+    return NOTIFICATION_TITLES[action];
+  };
+
+  const isModalSupported =
+    userSession?.role === UserRole.Driver || userSession?.role === UserRole.ClientCorp;
+
   return (
     <div className="absolute w-[400px] max-h-[600px] right-0 top-10 z-50 bg-gradient-to-br from-white to-gray-50 p-4 flex flex-col gap-2 rounded-lg shadow-xl border border-gray-200 overflow-hidden">
       <div className="flex justify-between items-center mb-2 sticky top-0 bg-white z-10 pb-2 border-b border-gray-100">
         <h1 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-700 to-blue-700">
-          Уведомления
+          {getTitle()}
           <div className="h-1 w-24 bg-gradient-to-r from-cyan-500 to-transparent rounded-full mt-1"></div>
         </h1>
         <div className="flex gap-2">
-          {notifications.length > 0 && (
-            <button
-              onClick={onClear}
-              className="text-sm text-gray-500 hover:text-blue-600 transition-colors flex items-center gap-1 bg-gray-50 hover:bg-blue-50 px-2 py-1 rounded-md"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-4 w-4"
-                viewBox="0 0 20 20"
-                fill="currentColor"
+          {onClear &&
+            (userSession?.role === UserRole.Admin || userSession?.role === UserRole.Operator) &&
+            getActiveNotifications().length > 0 && (
+              <button
+                onClick={onClear}
+                className="text-sm text-gray-500 hover:text-blue-600 transition-colors flex items-center gap-1 bg-gray-50 hover:bg-blue-50 px-2 py-1 rounded-md"
               >
-                <path
-                  fillRule="evenodd"
-                  d="M4 2a1 1 0 011-1h10a1 1 0 011 1v1h1a1 1 0 110 2H2a1 1 0 010-2h1V2a1 1 0 011-1zm1 4h10v10a2 2 0 01-2 2H7a2 2 0 01-2-2V6z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              Очистить
-            </button>
-          )}
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-4 w-4"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M4 2a1 1 0 011-1h10a1 1 0 011 1v1h1a1 1 0 110 2H2a1 1 0 010-2h1V2a1 1 0 011-1zm1 4h10v10a2 2 0 01-2 2H7a2 2 0 01-2-2V6z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                Очистить
+              </button>
+            )}
           <button
             onClick={onClose}
             className="text-gray-500 hover:text-blue-600 transition-colors p-1 rounded-full hover:bg-blue-50"
@@ -238,7 +279,7 @@ const NotificationList: React.FC<NotificationListProps> = ({
         </div>
       </div>
 
-      {notifications.length === 0 ? (
+      {getActiveNotifications().length === 0 ? (
         <div className="flex flex-col items-center justify-center h-40 text-gray-400">
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -268,30 +309,38 @@ const NotificationList: React.FC<NotificationListProps> = ({
                 })}
               </div>
               <ul className="space-y-2">
-                {groupedNotifications[date].map((notification, index) => {
+                {groupedNotifications[date]?.map((notification, index) => {
                   const actionType = notification.action as Action;
                   const colorClass =
                     NOTIFICATION_COLORS[actionType] || NOTIFICATION_COLORS[Action.info];
                   const icon = NOTIFICATION_ICONS[actionType] || NOTIFICATION_ICONS[Action.info];
-                  const customTitle = notification.title || NOTIFICATION_TITLES[actionType];
+                  const customTitle = notification.title || getStatusText(actionType);
 
                   return (
                     <li
                       key={notification.uuid}
                       ref={(el) => {
-                        notificationRefs.current[index] = el;
+                        if (
+                          markAsRead &&
+                          (userSession?.role === UserRole.Admin ||
+                            userSession?.role === UserRole.Operator)
+                        ) {
+                          notificationRefs.current[index] = el;
+                        }
                       }}
                       data-uuid={notification.uuid}
                       className={cn(
-                        'p-3 border rounded-lg transition-all duration-200 cursor-pointer',
+                        'p-3 border rounded-lg transition-all duration-200',
                         'bg-gradient-to-r',
                         colorClass,
                         !notification.read && 'border-l-4 shadow-md',
                       )}
-                      onClick={() => toggleOpen(notification.uuid)}
                     >
                       <div className="flex justify-between items-start">
-                        <div className="flex items-start gap-2">
+                        <div
+                          className="flex items-start gap-2 cursor-pointer"
+                          onClick={() => toggleOpen(notification.uuid)}
+                        >
                           <div
                             className={cn(
                               'p-2 rounded-full',
@@ -328,26 +377,49 @@ const NotificationList: React.FC<NotificationListProps> = ({
                           </div>
                         </div>
 
-                        <button
-                          className={cn(
-                            'w-5 h-5 rounded-full flex items-center justify-center',
-                            'transition-transform duration-300',
-                            open[notification.uuid] ? 'rotate-180' : '',
+                        <div className="flex space-x-1">
+                          {openModal && isModalSupported && (
+                            <button
+                              onClick={() => openModal(notification)}
+                              className="p-1 bg-white bg-opacity-70 rounded-full text-cyan-600 hover:text-blue-700 hover:bg-blue-50 transition-colors"
+                              title="Перейти к заказу"
+                            >
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className="h-4 w-4"
+                                viewBox="0 0 20 20"
+                                fill="currentColor"
+                              >
+                                <path
+                                  fillRule="evenodd"
+                                  d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z"
+                                  clipRule="evenodd"
+                                />
+                              </svg>
+                            </button>
                           )}
-                        >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="h-4 w-4 text-gray-500"
-                            viewBox="0 0 20 20"
-                            fill="currentColor"
+                          <button
+                            onClick={() => toggleOpen(notification.uuid)}
+                            className={cn(
+                              'p-1 bg-white bg-opacity-70 rounded-full text-gray-500 hover:text-blue-600 hover:bg-blue-50',
+                              'transition-transform duration-300',
+                              open[notification.uuid] ? 'rotate-180' : '',
+                            )}
                           >
-                            <path
-                              fillRule="evenodd"
-                              d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                              clipRule="evenodd"
-                            />
-                          </svg>
-                        </button>
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-4 w-4"
+                              viewBox="0 0 20 20"
+                              fill="currentColor"
+                            >
+                              <path
+                                fillRule="evenodd"
+                                d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                          </button>
+                        </div>
                       </div>
 
                       <div
@@ -358,6 +430,16 @@ const NotificationList: React.FC<NotificationListProps> = ({
                       >
                         <div className="text-sm text-gray-700 bg-white bg-opacity-60 p-3 rounded-md border border-gray-100">
                           {notification.message}
+                          {openModal && isModalSupported && (
+                            <div className="mt-2 pt-2 border-t border-gray-100 flex justify-end">
+                              <button
+                                onClick={() => openModal(notification)}
+                                className="px-3 py-1 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-md text-xs shadow-sm hover:shadow-md transition-all duration-200"
+                              >
+                                Просмотреть заказ
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
 
@@ -372,28 +454,8 @@ const NotificationList: React.FC<NotificationListProps> = ({
           ))}
         </div>
       )}
-
-      <style jsx global>{`
-          .custom-scrollbar::-webkit-scrollbar {
-              width: 4px;
-          }
-
-          .custom-scrollbar::-webkit-scrollbar-track {
-              background: #f1f1f1;
-              border-radius: 10px;
-          }
-
-          .custom-scrollbar::-webkit-scrollbar-thumb {
-              background: linear-gradient(to bottom, #0891b2, #1e40af);
-              border-radius: 10px;
-          }
-
-          .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-              background: linear-gradient(to bottom, #0e7490, #1e3a8a);
-          }
-      `}</style>
     </div>
   );
 };
 
-export default NotificationList;
+export default UniversalNotificationList;

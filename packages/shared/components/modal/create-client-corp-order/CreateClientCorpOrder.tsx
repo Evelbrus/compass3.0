@@ -154,7 +154,14 @@ const CreateClientCorpOrder: React.FC<CreateClientCorpOrderProps> = ({ onClose }
   }, []);
 
   const handleDepartureSelectPoint = useCallback(
-    (point: Point) => {
+    (point: Point | null) => {
+      // Если передан null, просто передаем в handler
+      if (point === null) {
+        onFromSelectPoint(null);
+        return;
+      }
+
+      // Проверка на дубликаты
       if (isPointAlreadySelected(point, 'departure')) {
         alert('Этот город уже выбран в другом селекторе');
         return;
@@ -164,8 +171,16 @@ const CreateClientCorpOrder: React.FC<CreateClientCorpOrderProps> = ({ onClose }
     [isPointAlreadySelected, onFromSelectPoint],
   );
 
+  // Исправленный handleArrivalSelectPoint
   const handleArrivalSelectPoint = useCallback(
-    (point: Point) => {
+    (point: Point | null) => {
+      // Если передан null, просто передаем в handler
+      if (point === null) {
+        onToSelectPoint(null);
+        return;
+      }
+
+      // Проверка на дубликаты
       if (isPointAlreadySelected(point, 'arrival')) {
         alert('Этот город уже выбран в другом селекторе');
         return;
@@ -176,7 +191,14 @@ const CreateClientCorpOrder: React.FC<CreateClientCorpOrderProps> = ({ onClose }
   );
 
   const handleAdditionalSelectPoint = useCallback(
-    (point: Point, index: number) => {
+    (point: Point | null, index: number) => {
+      // Если передан null, просто передаем в handler
+      if (point === null) {
+        onAdditionalSelectPoint(null, index);
+        return;
+      }
+
+      // Проверка на дубликаты
       if (isPointAlreadySelected(point, 'additional', index)) {
         alert('Этот город уже выбран в другом селекторе');
         return;
@@ -473,9 +495,7 @@ const CreateClientCorpOrder: React.FC<CreateClientCorpOrderProps> = ({ onClose }
                 onSearchValueChange={onAdditionalSearchValueChange}
                 search={additionalSearch}
                 filteredPoints={additionalFilteredPoints}
-                onSelectPoint={(point: Point, index?: number) =>
-                  handleAdditionalSelectPoint(point, index ?? 0)
-                }
+                onSelectPoint={handleAdditionalSelectPoint}
                 selectorRef={additionalSelectorRef}
                 selectedPoints={additionalPoints ?? []}
                 onRemovePoint={onRemovePoint || (() => {})}

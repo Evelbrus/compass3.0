@@ -1,17 +1,19 @@
 import { useState, useCallback, useEffect } from 'react';
 import { showToast } from '@shared/components/toast/ToastManager';
 import { PointWithoutTimestamps } from '@features/orders/create/hooks/points/useAllPoints';
+import { UseFormSetValue } from 'react-hook-form';
+import { FormOrderValues } from '@features/orders/create/hooks/useCreateAdminOrderLogic';
 
-// Интерфейс параметров хука
+// Интерфейс параметров хука с правильной типизацией для setValue
 interface PointSelectionHandlersProps {
-  departurePoint?: PointWithoutTimestamps | null; // Точка отправления
-  arrivalPoint?: PointWithoutTimestamps | null; // Точка прибытия
-  additionalPoints: (PointWithoutTimestamps | null)[]; // Массив дополнительных точек
-  routeDistance: number; // Общая дистанция маршрута
-  onSelectDeparture: (point: PointWithoutTimestamps | null) => void; // Обновление точки отправления
-  onSelectArrival: (point: PointWithoutTimestamps | null) => void; // Обновление точки прибытия
-  onSelectAdditional: (point: PointWithoutTimestamps | null, index: number) => void; // Обновление доп. точки
-  setFormValue: (name: string, value: any) => void; // Функция для обновления формы
+  departurePoint?: PointWithoutTimestamps | null;
+  arrivalPoint?: PointWithoutTimestamps | null;
+  additionalPoints: (PointWithoutTimestamps | null)[];
+  routeDistance: number;
+  onSelectDeparture: (point: PointWithoutTimestamps | null) => void;
+  onSelectArrival: (point: PointWithoutTimestamps | null) => void;
+  onSelectAdditional: (point: PointWithoutTimestamps | null, index: number) => void;
+  setFormValue: UseFormSetValue<FormOrderValues>;
 }
 
 // Хук usePointSelectionHandlers
@@ -74,16 +76,16 @@ const usePointSelectionHandlers = ({
       // Обработка выбора в зависимости от типа селектора
       if (selectorType === 'departure') {
         onSelectDeparture(point);
-        setFormValue('departurePoint', point); // Передаем point или null
+        setFormValue('departurePoint', point); // Теперь типизировано корректно
       } else if (selectorType === 'arrival') {
         onSelectArrival(point);
-        setFormValue('arrivalPoint', point); // Передаем point или null
+        setFormValue('arrivalPoint', point); // Теперь типизировано корректно
       } else if (selectorType === 'additional' && index !== undefined) {
         onSelectAdditional(point, index);
         const currentPoints = additionalPoints || Array(5).fill(null);
         const updatedPoints = [...currentPoints];
-        updatedPoints[index] = point; // Передаем point или null
-        setFormValue('intermediatePoints', updatedPoints);
+        updatedPoints[index] = point;
+        setFormValue('intermediatePoints', updatedPoints); // Теперь типизировано корректно
       }
     },
     [

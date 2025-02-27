@@ -32,7 +32,9 @@ import WaitTimeSelector from '@features/orders/create/ui/WaitTimeSelector';
 import RouteInfo from '@features/orders/create/ui/RouteInfo';
 import ClientSelector from '@features/orders/create/ui/ClientSelector';
 import { useOrderCreateClients } from '@features/orders/create/hooks/clients/useOrderCreateClients';
-import useAllPoints from '@features/orders/create/hooks/points/useAllPoints';
+import useAllPoints, {
+  PointWithoutTimestamps,
+} from '@features/orders/create/hooks/points/useAllPoints';
 import useAllAdditionalServices from '@features/orders/create/hooks/points/useAllAdditionalServices';
 
 export type TariffWithServices = Tariff & {
@@ -72,6 +74,7 @@ export type OrderData = {
   flightNumber: string | null;
   status: OrderStatus;
   basePrice: number;
+  waitingTimeMinutes: number;
 };
 
 interface OrderProps {
@@ -222,6 +225,7 @@ const OrderCreateView: FC<OrderProps> = ({ mode, orderData }) => {
     useWaitTime({
       selectedTariff,
       departurePoint,
+      initialWaitTime: orderData?.waitingTimeMinutes || 0,
     });
 
   const { routeCost, handleSelectPoint } = usePointSelectionHandlers({
@@ -235,17 +239,19 @@ const OrderCreateView: FC<OrderProps> = ({ mode, orderData }) => {
     setFormValue: setValue,
   });
 
-  const { totalPrice, handleEditPrice, resetPrice, priceComponents } = useTotalPrice({
-    tariffPrice: selectedTariff?.price ? new Decimal(selectedTariff.price) : null,
-    additionalServicesPrice: totalAdditionalServicesPrice
-      ? new Decimal(totalAdditionalServicesPrice)
-      : null,
-    waitTimeCost: additionalWaitTimeCost ? new Decimal(additionalWaitTimeCost) : null,
-    routeCost: routeCost ? new Decimal(routeCost) : null,
-  });
+  const { totalPrice, handleEditPrice, resetPrice, priceComponents, priceMode, isPriceEdited } =
+    useTotalPrice({
+      tariffPrice: selectedTariff?.price ? new Decimal(selectedTariff.price) : null,
+      additionalServicesPrice: totalAdditionalServicesPrice
+        ? new Decimal(totalAdditionalServicesPrice)
+        : null,
+      waitTimeCost: additionalWaitTimeCost ? new Decimal(additionalWaitTimeCost) : null,
+      routeCost: routeCost ? new Decimal(routeCost) : null,
+      initialBasePrice: orderData?.basePrice ? new Decimal(orderData.basePrice) : null,
+    });
 
   const handlePointSelect = useCallback(
-    (point: Point, isSelected: boolean) => {
+    (point: PointWithoutTimestamps, isSelected: boolean) => {
       if (isSelected) {
         if (departurePoint?.uuid === point.uuid) {
           handleSelectPoint(null, 'departure');
@@ -286,8 +292,8 @@ const OrderCreateView: FC<OrderProps> = ({ mode, orderData }) => {
       arrivalPoint: arrivalPoint?.uuid || data.arrivalPoint?.uuid,
       intermediatePoints:
         data.intermediatePoints
-          ?.map((point) => point?.uuid)
-          .filter((uuid): uuid is string => Boolean(uuid)) || [],
+          ?.map((point: Pick<Point, 'uuid'> | null) => point?.uuid)
+          .filter((uuid: unknown): uuid is string => Boolean(uuid)) || [],
       basePrice: data.basePrice ? Number(data.basePrice) : totalPrice.toNumber(),
       selectedServices: selectedServices || orderData?.selectedServices || [],
       assignedDriverId: selectedDriverInfo?.uuid || data.assignedDriverId?.assignedDriverId || null,
@@ -488,7 +494,7 @@ const OrderCreateView: FC<OrderProps> = ({ mode, orderData }) => {
           </section>
 
           {/* Секция с маршрутом */}
-          <section className="overflow-hidden bg-gradient-to-tr from-cyan-50 to-white">
+          <section className="overflow-hidden bg-gradient-to-br from-cyan-50 to-white">
             <div className="bg-gradient-to-r from-indigo-50 to-blue-50 px-6 py-4 border-b border-blue-100">
               <h2 className="text-xl font-semibold text-gray-800 flex items-center">
                 <span className="mr-2 p-2 bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center">
@@ -554,9 +560,6 @@ const OrderCreateView: FC<OrderProps> = ({ mode, orderData }) => {
                       selectorRef={toSelectorRef}
                       observerRef={toObserverRef}
                       selectedPoint={arrivalPoint}
-                      arrivalPointPrice={
-                        arrivalPoint?.pricePerKm ? Number(arrivalPoint.pricePerKm) : undefined
-                      }
                       departurePoint={departurePoint}
                       arrivalPoint={arrivalPoint}
                       additionalPoints={additionalPoints || []}
@@ -600,45 +603,48 @@ const OrderCreateView: FC<OrderProps> = ({ mode, orderData }) => {
               Информация о маршруте
             </h2>
           </div>
-          <RouteInfo
-            control={formMethods.control}
-            departurePoint={departurePoint}
-            additionalPoints={additionalPoints ?? []}
-            arrivalPoint={arrivalPoint}
-            routeDuration={routeDuration}
-            routeDistance={routeDistance}
-            totalPrice={totalPrice}
-            mode={mode}
-            onStatusChange={handleStatusChange}
-            selectedDriverInfo={selectedDriverInfo}
-            handleEditPrice={handleEditPrice}
-            resetPrice={resetPrice}
-            tariffPrice={priceComponents.tariffPrice}
-            additionalServicesPrice={priceComponents.additionalServicesPrice}
-            basePrice={orderData?.basePrice ? new Decimal(orderData.basePrice) : null}
-            waitTimeCost={priceComponents.waitTimeCost}
-            routeCost={priceComponents.routeCost}
-          />
-          <div className="flex justify-end mt-6">
-            <button
-              type="submit"
-              className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200"
-            >
-              {mode === 'create' ? 'Создать заказ' : 'Сохранить изменения'}
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5 ml-2"
-                viewBox="0 0 20 20"
-                fill="currentColor"
+          <section className="overflow-hidden bg-gradient-to-tr from-cyan-50 to-white">
+            <RouteInfo
+              control={formMethods.control}
+              departurePoint={departurePoint}
+              additionalPoints={additionalPoints ?? []}
+              arrivalPoint={arrivalPoint}
+              routeDuration={routeDuration}
+              routeDistance={routeDistance}
+              totalPrice={totalPrice}
+              mode={mode}
+              onStatusChange={handleStatusChange}
+              selectedDriverInfo={selectedDriverInfo}
+              handleEditPrice={handleEditPrice}
+              resetPrice={resetPrice}
+              tariffPrice={priceComponents.tariffPrice}
+              additionalServicesPrice={priceComponents.additionalServicesPrice}
+              waitTimeCost={priceComponents.waitTimeCost}
+              routeCost={priceComponents.routeCost}
+              priceMode={priceMode}
+              isPriceEdited={isPriceEdited}
+            />
+            <div className="flex justify-end p-8">
+              <button
+                type="submit"
+                className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200"
               >
-                <path
-                  fillRule="evenodd"
-                  d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            </button>
-          </div>
+                {mode === 'create' ? 'Создать заказ' : 'Сохранить изменения'}
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-5 w-5 ml-2"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </button>
+            </div>
+          </section>
         </form>
       </div>
     </FormProvider>

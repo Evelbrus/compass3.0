@@ -20,7 +20,12 @@
     "./apps/next-app/src/lib/queues/dashboard-bull.ts",
     "./apps/next-app/src/lib/websocket/websocket-server.ts",
     "./apps/next-app/src/lib/queues/orderQueue.ts",
-    "./apps/next-app/src/utils/notifications/notifications.ts"
+    "./apps/next-app/src/utils/notifications/notifications.ts",
+    "./packages/shared/prisma/seed/additional-service/additionalServiceSeed.ts",
+    "./packages/shared/prisma/seed/point/pointSeed.ts",
+    "./packages/shared/prisma/seed/user/userSeed.ts",
+    "./packages/shared/prisma/seed/vehicle/vehicleSeed.ts",
+    "./packages/shared/prisma/seed/seed.ts",
   ],
   "exclude": ["node_modules"]
 }

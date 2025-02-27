@@ -40,6 +40,7 @@ interface AdditionalPointsProps {
 
 const MAX_POINTS = 5;
 
+// Оставляем оригинальные цвета для букв
 const BACKGROUND_COLORS = [
   'bg-green-500',
   'bg-purple-500',
@@ -49,41 +50,41 @@ const BACKGROUND_COLORS = [
 ];
 
 const BORDER_COLORS = [
-  'border-green-200',
-  'border-purple-200',
-  'border-orange-200',
-  'border-cyan-200',
-  'border-pink-200',
+  'border-cyan-300',
+  'border-cyan-300',
+  'border-cyan-300',
+  'border-cyan-300',
+  'border-cyan-300',
 ];
 
 const SHADOW_COLORS = [
-  'shadow-green-100',
-  'shadow-purple-100',
-  'shadow-orange-100',
   'shadow-cyan-100',
-  'shadow-pink-100',
+  'shadow-cyan-100',
+  'shadow-cyan-100',
+  'shadow-cyan-100',
+  'shadow-cyan-100',
 ];
 
 const AdditionalPoints: React.FC<AdditionalPointsProps> = ({
-  control,
-  name,
-  label,
-  isOpen,
-  onOpenSelect,
-  search,
-  handleSearchChange,
-  filteredPoints,
-  onSelectPoint,
-  selectorRef,
-  selectedPoints,
-  onRemovePoint,
-  onChangeOrder,
-  departurePoint,
-  arrivalPoint,
-  additionalPoints,
-  selectedServices = [],
-  availableServices = [],
-}) => {
+                                                             control,
+                                                             name,
+                                                             label,
+                                                             isOpen,
+                                                             onOpenSelect,
+                                                             search,
+                                                             handleSearchChange,
+                                                             filteredPoints,
+                                                             onSelectPoint,
+                                                             selectorRef,
+                                                             selectedPoints,
+                                                             onRemovePoint,
+                                                             onChangeOrder,
+                                                             departurePoint,
+                                                             arrivalPoint,
+                                                             additionalPoints,
+                                                             selectedServices = [],
+                                                             availableServices = [],
+                                                           }) => {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   // Создаем массив ссылок на DOM-элементы для каждого инпута
   const inputRefs = useRef<Array<HTMLDivElement | null>>([]);
@@ -182,7 +183,7 @@ const AdditionalPoints: React.FC<AdditionalPointsProps> = ({
       render={({ field }) => (
         <div className="w-full relative">
           <div className="flex items-center gap-3 mb-4">
-            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-indigo-500 to-blue-500 text-white font-bold shadow-md">
+            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-cyan-600 to-blue-600 text-white font-bold shadow-md">
               <svg
                 className="w-4 h-4"
                 fill="none"
@@ -198,8 +199,9 @@ const AdditionalPoints: React.FC<AdditionalPointsProps> = ({
                 />
               </svg>
             </div>
-            <div className="font-semibold bg-gradient-to-r from-indigo-400 to-blue-600 bg-clip-text text-transparent">
+            <div className="font-semibold text-transparent bg-clip-text bg-gradient-to-r from-cyan-700 to-blue-700">
               {label}
+              <div className="h-1 w-32 bg-gradient-to-r from-cyan-500 to-transparent rounded-full mt-1"></div>
             </div>
           </div>
 
@@ -233,7 +235,7 @@ const AdditionalPoints: React.FC<AdditionalPointsProps> = ({
                           field.onChange(updatedPoints);
                         }
                       }}
-                      className={`p-2 border-2 ${borderColor} rounded-md w-16 text-center shadow-sm ${shadowColor} bg-white focus:outline-none focus:ring-2 focus:ring-blue-300`}
+                      className={`p-2 border-2 ${borderColor} rounded-md w-16 text-center shadow-sm ${shadowColor} bg-white focus:outline-none focus:ring-2 focus:ring-cyan-400 transition-all duration-200 hover:border-cyan-300 hover:shadow-md hover:shadow-cyan-50`}
                     >
                       {Array.from({ length: MAX_POINTS }, (_, i) => (
                         <option key={i} value={i + 1}>
@@ -252,7 +254,7 @@ const AdditionalPoints: React.FC<AdditionalPointsProps> = ({
                           value={point ? point.address : ''}
                           onClick={() => handleOpenSelect(index)}
                           placeholder={`Выберите точку ${index + 1}`}
-                          className={`w-full p-3 border-2 ${borderColor} rounded-md cursor-pointer shadow-sm ${shadowColor} bg-white focus:outline-none`}
+                          className={`w-full p-3 border-2 ${borderColor} rounded-md cursor-pointer shadow-sm ${shadowColor} bg-white focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-cyan-500 transition-all duration-200 hover:border-cyan-300 hover:shadow-md hover:shadow-cyan-50`}
                           readOnly
                         />
 
@@ -265,16 +267,16 @@ const AdditionalPoints: React.FC<AdditionalPointsProps> = ({
                               updatedPoints[index] = null;
                               field.onChange(updatedPoints);
                             }}
-                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-red-500 hover:text-red-700 bg-white rounded-full w-6 h-6 flex items-center justify-center shadow-sm transition duration-200 hover:shadow-md"
+                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-red-500 hover:text-red-700 bg-white rounded-full w-6 h-6 flex items-center justify-center shadow-lg transition duration-200 hover:shadow-md"
                           >
                             ✕
                           </button>
                         )}
 
                         {point && (
-                          <div className="flex gap-2 absolute">
+                          <div className="flex gap-2 absolute left-3 -bottom-5">
                             {point.airport && (
-                              <div className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">
+                              <div className="text-xs bg-cyan-50 text-cyan-600 px-2 py-0.5 rounded-full">
                                 Аэропорт
                               </div>
                             )}
@@ -293,7 +295,7 @@ const AdditionalPoints: React.FC<AdditionalPointsProps> = ({
                       {isOpen && activeIndex === index && (
                         <div
                           className={cn(
-                            'absolute z-50 w-full bg-white border-2 border-blue-200 rounded-lg shadow-lg max-h-[250px] overflow-y-auto',
+                            'absolute z-50 w-full bg-white border-2 border-cyan-200 rounded-lg shadow-lg max-h-[250px] overflow-y-auto',
                             dropDirection === 'up'
                               ? 'bottom-full mb-2' // Если направление вверх, показываем над инпутом
                               : 'top-full mt-2', // Если направление вниз, показываем под инпутом
@@ -307,7 +309,7 @@ const AdditionalPoints: React.FC<AdditionalPointsProps> = ({
                               value={search}
                               onChange={handleSearchChange}
                               placeholder="Поиск..."
-                              className="p-2 w-full border rounded-md bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                              className="p-2 w-full border rounded-md bg-gray-50 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-cyan-500"
                             />
                           </div>
 
@@ -330,7 +332,7 @@ const AdditionalPoints: React.FC<AdditionalPointsProps> = ({
                                   <div
                                     key={pointOption.uuid}
                                     className={cn(
-                                      'p-3 cursor-pointer hover:bg-gray-50 border-b last:border-b-0 transition duration-150',
+                                      'p-3 cursor-pointer hover:bg-cyan-50 border-b last:border-b-0 transition duration-150',
                                       isAlreadySelected
                                         ? 'text-gray-400 bg-gray-50 cursor-not-allowed'
                                         : '',
@@ -365,7 +367,7 @@ const AdditionalPoints: React.FC<AdditionalPointsProps> = ({
                                     </div>
                                     <div className="flex justify-between items-center mt-1">
                                       {pointOption.airport && (
-                                        <div className="flex items-center text-xs text-blue-600">
+                                        <div className="flex items-center text-xs text-cyan-600">
                                           <svg
                                             className="w-4 h-4 mr-1"
                                             fill="none"
@@ -398,7 +400,7 @@ const AdditionalPoints: React.FC<AdditionalPointsProps> = ({
                             ) : (
                               <div className="p-4 text-center text-gray-500">
                                 <svg
-                                  className="w-6 h-6 text-gray-400 mx-auto mb-2"
+                                  className="w-6 h-6 text-cyan-400 mx-auto mb-2"
                                   fill="none"
                                   stroke="currentColor"
                                   viewBox="0 0 24 24"
@@ -422,9 +424,9 @@ const AdditionalPoints: React.FC<AdditionalPointsProps> = ({
               })}
             </div>
 
-            <div className="mt-6 bg-gradient-to-r from-blue-50 to-indigo-50 p-3 rounded-lg text-sm text-gray-600 flex items-start">
+            <div className="mt-6 bg-blue-50 p-3 rounded-lg text-sm text-gray-600 flex items-start">
               <svg
-                className="w-5 h-5 text-blue-500 mr-2 flex-shrink-0 mt-0.5"
+                className="w-5 h-5 text-cyan-500 mr-2 flex-shrink-0 mt-0.5"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"

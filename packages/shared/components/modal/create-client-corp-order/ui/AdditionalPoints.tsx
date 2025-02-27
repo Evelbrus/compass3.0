@@ -10,7 +10,7 @@ interface AdditionalPointsProps {
   search: string;
   handleSearchChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   filteredPoints: Point[];
-  onSelectPoint: (point: Point, index?: number) => void;
+  onSelectPoint: (point: Point | null, index: number) => void;
   selectorRef: React.RefObject<HTMLDivElement | null>;
   selectedPoints: (Point | null)[];
   onRemovePoint: (index: number) => void;
@@ -22,22 +22,22 @@ interface AdditionalPointsProps {
 const MAX_POINTS = 5;
 
 const AdditionalPoints: React.FC<AdditionalPointsProps> = ({
-                                                             label,
-                                                             isOpen,
-                                                             searchValue,
-                                                             onOpenSelect,
-                                                             onSearchValueChange,
-                                                             search,
-                                                             handleSearchChange,
-                                                             filteredPoints,
-                                                             onSelectPoint,
-                                                             selectorRef,
-                                                             selectedPoints,
-                                                             onRemovePoint,
-                                                             onChangeOrder,
-                                                             onMaxLimitReached,
-                                                             totalAdditionalPrice,
-                                                           }) => {
+  label,
+  isOpen,
+  searchValue,
+  onOpenSelect,
+  onSearchValueChange,
+  search,
+  handleSearchChange,
+  filteredPoints,
+  onSelectPoint,
+  selectorRef,
+  selectedPoints,
+  onRemovePoint,
+  onChangeOrder,
+  onMaxLimitReached,
+  totalAdditionalPrice,
+}) => {
   const selectedCount = selectedPoints.filter(Boolean).length;
 
   return (

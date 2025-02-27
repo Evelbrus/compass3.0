@@ -53,7 +53,7 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeNotification, setActiveNotification] = useState<Notification | null>(null);
-  const [newNotificationReceived, setNewNotificationReceived] = useState(false); // Флаг для нового уведомления
+  const [newNotificationReceived, setNewNotificationReceived] = useState(false);
 
   const openModal = useCallback((notification: Notification) => {
     setActiveNotification(notification);
@@ -64,7 +64,7 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
   }, []);
 
   const handleNotification = useCallback(
-    debounce((notification: Notification) => {
+    (notification: Notification) => {
       console.log('📩 Получено уведомление через сокет:', notification);
       setNotifications((prev) => {
         const existingIndex = prev.findIndex((n) => n.uuid === notification.uuid);
@@ -74,28 +74,39 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
           console.log(`Обновляем уведомление ${notification.uuid}, read: ${notification.read}`);
           updatedNotifications[existingIndex] = notification;
         } else {
-          console.log(`Добавляем новое уведомление ${notification.uuid}, read: ${notification.read}`);
+          console.log(
+            `Добавляем новое уведомление ${notification.uuid}, read: ${notification.read}`,
+          );
           updatedNotifications.unshift(notification);
         }
 
         console.log(`Текущая роль userSession: ${userSession?.role}, userId: ${userSession?.uuid}`);
-        console.log(`Проверка для админа/оператора: action=${notification.action}, read=${notification.read}`);
+        console.log(
+          `Проверка для админа/оператора: action=${notification.action}, read=${notification.read}`,
+        );
 
-        // Не открываем модалку, если уведомление с action: "noted" и read: true
         if (!(notification.action === Action.noted && notification.read)) {
           console.log(`Открываем модалку для уведомления ${notification.uuid}`);
           openModal(notification);
         } else {
-          console.log(`Модалка не открывается для уведомления ${notification.uuid} (noted и read: true)`);
+          console.log(
+            `Модалка не открывается для уведомления ${notification.uuid} (noted и read: true)`,
+          );
         }
 
         setNewNotificationReceived(true);
-
         return updatedNotifications;
       });
-    }, 300),
+    },
     [openModal, userSession],
   );
+
+  // Убираем явное указание типа, TypeScript выведет его автоматически
+  const debouncedHandleNotification = useCallback(debounce(handleNotification, 300), [
+    handleNotification,
+  ]);
+
+  const socket = useSocket<Notification>('notification', debouncedHandleNotification);
 
   const getDriverNotifications = useCallback(
     (driverId: string) => {
@@ -110,8 +121,6 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
     },
     [notifications],
   );
-
-  const socket = useSocket('notification', handleNotification);
 
   const clearNotifications = useCallback(async () => {
     setIsLoading(true);
@@ -174,7 +183,6 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
         );
         if (unreadNotification) {
           openModal(unreadNotification);
-        } else {
         }
       } catch (err) {
         console.error('Ошибка при загрузке уведомлений:', err);
@@ -222,12 +230,11 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
     };
   }, [userSession, socket, openModal]);
 
-  // Триггер обновления только при новом уведомлении через сокет
   useEffect(() => {
     if (newNotificationReceived) {
       console.log('Триггерим обновление заказов при новом уведомлении');
       triggerUpdate();
-      setNewNotificationReceived(false); // Сбрасываем флаг после триггера
+      setNewNotificationReceived(false);
     }
   }, [newNotificationReceived]);
 
@@ -235,7 +242,7 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
 
   const driverNotifications = useMemo(
     () => (userSession?.role === UserRole.Driver ? getDriverNotifications(userSession.uuid) : []),
-    [notifications, userSession],
+    [notifications, userSession, getDriverNotifications],
   );
   const driverUnreadCount = useMemo(
     () => driverNotifications.filter((n) => !n.read).length,
@@ -243,8 +250,9 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
   );
 
   const clientNotifications = useMemo(
-    () => (userSession?.role === UserRole.ClientCorp ? getClientNotifications(userSession.uuid) : []),
-    [notifications, userSession],
+    () =>
+      userSession?.role === UserRole.ClientCorp ? getClientNotifications(userSession.uuid) : [],
+    [notifications, userSession, getClientNotifications],
   );
   const clientUnreadCount = useMemo(
     () => clientNotifications.filter((n) => !n.read).length,
@@ -267,7 +275,10 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
     }
 
     if (userSession.role === UserRole.Admin || userSession.role === UserRole.Operator) {
-      return activeNotification.action === Action.warning || activeNotification.action === Action.cancelled;
+      return (
+        activeNotification.action === Action.warning ||
+        activeNotification.action === Action.cancelled
+      );
     }
 
     return false;

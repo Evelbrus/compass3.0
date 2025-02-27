@@ -166,6 +166,7 @@ const Page = async ({ params }: PageProps): Promise<JSX.Element> => {
       description: order.description,
       flightNumber: order.flightNumber,
       basePrice: Number(order.basePrice),
+      waitingTimeMinutes: Number(order.waitingTimeMinutes),
       selectedServices: order.tariff.tariffAdditionalServices
         .filter((service) => service.orderTariffAdditionalServices.length > 0)
         .map((service) => service.uuid),

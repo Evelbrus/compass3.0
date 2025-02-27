@@ -1,4 +1,5 @@
 import { Column, TableVehicleRow } from '@shared/components/ui/table';
+import { renderCustomerPhone, renderDateTime } from '@shared/components/ui/table/ui/TableRenders';
 import {
   colorOptions,
   serviceLevelOptions,
@@ -11,25 +12,6 @@ export const vehicleColumns: Column<TableVehicleRow, keyof TableVehicleRow>[] = 
     header: '№',
     sortable: false,
     className: 'w-[100px] text-center',
-  },
-  {
-    accessor: 'vehicleInfo',
-    header: 'Информация о транспортном средстве',
-    render: (row: TableVehicleRow) => {
-      const vehicleTypeLabel =
-        vehicleTypeOptions.find((option) => option.value === row.vehicleInfo?.vehicleType)?.label ||
-        'Не указано';
-      const serviceLevelLabel =
-        serviceLevelOptions.find((option) => option.value === row.vehicleInfo?.serviceLevels)?.label ||
-        'Не указано';
-      return (
-        <span className="text-gray-800">
-          {vehicleTypeLabel} - {serviceLevelLabel}
-        </span>
-      );
-    },
-    sortable: false,
-    className: 'w-[300px]',
   },
   {
     accessor: 'brand',
@@ -83,7 +65,59 @@ export const vehicleColumns: Column<TableVehicleRow, keyof TableVehicleRow>[] = 
       </span>
     ),
     sortable: true,
-    className: 'flex-grow',
+    className: 'w-[150px] text-center',
+  },
+  {
+    accessor: 'vehicleInfo',
+    header: 'Информация о ТС',
+    render: (row: TableVehicleRow) => {
+      const vehicleTypeLabel =
+        vehicleTypeOptions.find((option) => option.value === row.vehicleInfo?.vehicleType)?.label ||
+        'Не указано';
+      const serviceLevelLabel =
+        serviceLevelOptions.find((option) => option.value === row.vehicleInfo?.serviceLevels)
+          ?.label || 'Не указано';
+      return (
+        <span className="text-gray-800">
+          {vehicleTypeLabel} - {serviceLevelLabel}
+        </span>
+      );
+    },
+    sortable: true,
+    className: 'w-[200px]',
+  },
+  {
+    accessor: 'driverInfo',
+    header: 'Телефон и ФИО',
+    render: (row: TableVehicleRow) => {
+      if (row.driverInfo === null) {
+        return 'Не указано';
+      }
+      return (
+        <>
+          {renderCustomerPhone(
+            row.driverInfo.phone || 'Не указано',
+            row.driverInfo.fullName || 'Не указано',
+          )}
+        </>
+      );
+    },
+    sortable: false,
+    className: 'w-[350px]',
+  },
+  {
+    accessor: 'createdAt',
+    header: 'Дата создания',
+    render: (row: TableVehicleRow) => renderDateTime(row.createdAt),
+    sortable: true,
+    className: 'w-[200px]',
+  },
+  {
+    accessor: 'updatedAt',
+    header: 'Дата обновления',
+    render: (row: TableVehicleRow) => renderDateTime(row.updatedAt),
+    sortable: true,
+    className: 'flex-grow text-center',
   },
   {
     accessor: 'actions',

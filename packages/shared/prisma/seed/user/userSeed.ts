@@ -15,13 +15,14 @@ async function main() {
   try {
     await down();
 
-    const passwordHash = await bcrypt.hash('Qwerty56', 10);
+    const regularPasswordHash = await bcrypt.hash('Qwerty56', 10);
+    const adminPasswordHash = await bcrypt.hash('String3!', 10);
 
     const usersData = [
       {
         uuid: uuidv4(),
         email: 'admin@gmail.com',
-        password: passwordHash,
+        password: regularPasswordHash,
         role: UserRole.Admin,
         driverStatus: DriverStatus.FREE,
         driverProfileId: null,
@@ -36,7 +37,7 @@ async function main() {
       {
         uuid: uuidv4(),
         email: 'client@example.com',
-        password: passwordHash,
+        password: regularPasswordHash,
         role: UserRole.Client,
         driverStatus: DriverStatus.FREE,
         driverProfileId: null,
@@ -51,7 +52,7 @@ async function main() {
       {
         uuid: uuidv4(),
         email: 'driver@example.com',
-        password: passwordHash,
+        password: regularPasswordHash,
         role: UserRole.Driver,
         driverStatus: DriverStatus.FREE,
         driverProfileId: null,
@@ -66,7 +67,7 @@ async function main() {
       {
         uuid: uuidv4(),
         email: 'operator@example.com',
-        password: passwordHash,
+        password: regularPasswordHash,
         role: UserRole.Operator,
         driverStatus: DriverStatus.FREE,
         driverProfileId: null,
@@ -81,7 +82,7 @@ async function main() {
       {
         uuid: uuidv4(),
         email: 'clientcorp@example.com',
-        password: passwordHash,
+        password: regularPasswordHash,
         role: UserRole.ClientCorp,
         driverStatus: DriverStatus.FREE,
         driverProfileId: null,
@@ -96,7 +97,7 @@ async function main() {
       {
         uuid: uuidv4(),
         email: 'none@example.com',
-        password: passwordHash,
+        password: regularPasswordHash,
         role: UserRole.None,
         driverStatus: DriverStatus.FREE,
         driverProfileId: null,
@@ -105,6 +106,67 @@ async function main() {
         phone: '4445556677',
         gender: Gender.None,
         address: '333 Unknown Path',
+        profilePhotoPath: null,
+        availability: false,
+      },
+      // Новые админы с паролем String3!
+      {
+        uuid: uuidv4(),
+        email: 'admincompass@gmail.com',
+        password: adminPasswordHash,
+        role: UserRole.Admin,
+        driverStatus: DriverStatus.FREE,
+        driverProfileId: null,
+        companyProfileId: null,
+        fullName: 'Compass Admin',
+        phone: '1001002000',
+        gender: Gender.Male,
+        address: 'Compass Main Office',
+        profilePhotoPath: null,
+        availability: false,
+      },
+      {
+        uuid: uuidv4(),
+        email: 'admincompass1@gmail.com',
+        password: adminPasswordHash,
+        role: UserRole.Admin,
+        driverStatus: DriverStatus.FREE,
+        driverProfileId: null,
+        companyProfileId: null,
+        fullName: 'Compass Admin 1',
+        phone: '1001002001',
+        gender: Gender.Male,
+        address: 'Compass Office 1',
+        profilePhotoPath: null,
+        availability: false,
+      },
+      {
+        uuid: uuidv4(),
+        email: 'admincompass2@gmail.com',
+        password: adminPasswordHash,
+        role: UserRole.Admin,
+        driverStatus: DriverStatus.FREE,
+        driverProfileId: null,
+        companyProfileId: null,
+        fullName: 'Compass Admin 2',
+        phone: '1001002002',
+        gender: Gender.Male,
+        address: 'Compass Office 2',
+        profilePhotoPath: null,
+        availability: false,
+      },
+      {
+        uuid: uuidv4(),
+        email: 'admincompass3@gmail.com',
+        password: adminPasswordHash,
+        role: UserRole.Admin,
+        driverStatus: DriverStatus.FREE,
+        driverProfileId: null,
+        companyProfileId: null,
+        fullName: 'Compass Admin 3',
+        phone: '1001002003',
+        gender: Gender.Male,
+        address: 'Compass Office 3',
         profilePhotoPath: null,
         availability: false,
       },
