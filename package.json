@@ -29,7 +29,7 @@
     "prisma:push:dev": "dotenv -e apps/next-app/.env.development -- prisma db push",
     "prisma:seed:dev": "dotenv -e apps/next-app/.env.development -- prisma db seed",
     "prisma:migrate:prod": "dotenv -e apps/next-app/.env.production -- prisma migrate deploy",
-    "prisma:migrate:force": "dotenv -e apps/next-app/.env.production -- psql $DATABASE_URL -f reset-db.sql && dotenv -e apps/next-app/.env.production -- prisma migrate deploy",
+    "prisma:migrate:force": "dotenv -e apps/next-app/.env.production -- prisma db execute --file reset-db.sql --schema packages/shared/prisma/schema.prisma && dotenv -e apps/next-app/.env.production -- prisma migrate deploy",
     "prisma:push:prod": "dotenv -e apps/next-app/.env.production -- prisma db push",
     "prisma:seed:prod": "dotenv -e apps/next-app/.env.production -- prisma db seed"
   },
