@@ -30,13 +30,13 @@ const POINT_ICONS = {
 };
 
 const RouteMapInner: React.FC<RouteMapInnerProps> = ({
-  ymaps,
-  allPoints,
-  selectedPoints,
-  onPointSelect,
-  onDistanceUpdate,
-  onDurationUpdate,
-}) => {
+                                                       ymaps,
+                                                       allPoints,
+                                                       selectedPoints,
+                                                       onPointSelect,
+                                                       onDistanceUpdate,
+                                                       onDurationUpdate,
+                                                     }) => {
   const mapRef = useRef<any>(null);
   const [_routeDuration, setRouteDuration] = useState<string | null>(null);
   const initialBoundsRef = useRef<any>(null);
@@ -108,7 +108,7 @@ const RouteMapInner: React.FC<RouteMapInnerProps> = ({
     }
 
     // Remove all existing multiRouter.MultiRoute instances
-    geoObjects.each((geoObject) => {
+    geoObjects.each((geoObject: any) => { // Явно указываем тип параметра geoObject
       if (geoObject instanceof ymaps.multiRouter.MultiRoute) {
         geoObjects.remove(geoObject);
         console.log('Removed existing MultiRoute instance.');
@@ -378,12 +378,12 @@ const RouteMapInner: React.FC<RouteMapInnerProps> = ({
 const ConnectedRouteMap = withYMaps(RouteMapInner, true, ['multiRouter.MultiRoute', 'util.bounds']);
 
 const RouteMap: React.FC<RouteMapProps> = ({
-  allPoints,
-  selectedPoints,
-  onPointSelect,
-  onDistanceUpdate,
-  onDurationUpdate,
-}) => {
+                                             allPoints,
+                                             selectedPoints,
+                                             onPointSelect,
+                                             onDistanceUpdate,
+                                             onDurationUpdate,
+                                           }) => {
   return (
     <YMaps
       query={{
