@@ -30,13 +30,13 @@ const POINT_ICONS = {
 };
 
 const RouteMapInner: React.FC<RouteMapInnerProps> = ({
-  ymaps,
-  allPoints,
-  selectedPoints,
-  onPointSelect,
-  onDistanceUpdate,
-  onDurationUpdate,
-}) => {
+                                                       ymaps,
+                                                       allPoints,
+                                                       selectedPoints,
+                                                       onPointSelect,
+                                                       onDistanceUpdate,
+                                                       onDurationUpdate,
+                                                     }) => {
   const mapRef = useRef<any>(null);
   const [_routeDuration, setRouteDuration] = useState<string | null>(null);
   const initialBoundsRef = useRef<any>(null);
@@ -108,8 +108,7 @@ const RouteMapInner: React.FC<RouteMapInnerProps> = ({
     }
 
     // Remove all existing multiRouter.MultiRoute instances
-    geoObjects.each((geoObject: any) => {
-      // Явно указываем тип параметра geoObject
+    geoObjects.each((geoObject: any) => { // Явно указываем тип параметра geoObject
       if (geoObject instanceof ymaps.multiRouter.MultiRoute) {
         geoObjects.remove(geoObject);
         console.log('Removed existing MultiRoute instance.');
@@ -185,15 +184,14 @@ const RouteMapInner: React.FC<RouteMapInnerProps> = ({
   useEffect(() => {
     console.log('Selected points changed:', selectedPoints);
 
-    if (ymaps && mapRef.current) {
-      // Add mapRef.current check
-      console.log('ymaps and mapRef.current are available, calling ymaps.ready.');
+    if (ymaps) {
+      console.log('ymaps is available, calling ymaps.ready.');
       ymaps.ready(() => {
         console.log('ymaps.ready callback triggered, building route.');
         buildRoute();
       });
     } else {
-      console.log('ymaps or mapRef.current is not yet available.');
+      console.log('ymaps is not yet available.');
     }
   }, [ymaps, selectedPoints, buildRoute]);
 
@@ -298,6 +296,10 @@ const RouteMapInner: React.FC<RouteMapInnerProps> = ({
         }}
         width="100%"
         height="100%"
+        onLoad={() => { // Call buildRoute when the map is loaded
+          console.log('Map loaded, calling buildRoute.');
+          buildRoute();
+        }}
       >
         {allPoints.map((point) => {
           const { preset, iconContent, hintContent } = getPointStyle(point);
@@ -380,12 +382,12 @@ const RouteMapInner: React.FC<RouteMapInnerProps> = ({
 const ConnectedRouteMap = withYMaps(RouteMapInner, true, ['multiRouter.MultiRoute', 'util.bounds']);
 
 const RouteMap: React.FC<RouteMapProps> = ({
-  allPoints,
-  selectedPoints,
-  onPointSelect,
-  onDistanceUpdate,
-  onDurationUpdate,
-}) => {
+                                             allPoints,
+                                             selectedPoints,
+                                             onPointSelect,
+                                             onDistanceUpdate,
+                                             onDurationUpdate,
+                                           }) => {
   return (
     <YMaps
       query={{
