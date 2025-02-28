@@ -521,6 +521,12 @@ const OrderCreateView: FC<OrderProps> = ({ mode, orderData }) => {
                 </div>
                 <div className={'w-full flex flex-row gap-4 '}>
                   <div className={'w-full flex flex-col gap-4'}>
+                    <div className="flex items-center gap-3">
+                      <div className="text-8 font-semibold text-transparent bg-clip-text bg-gradient-to-r from-cyan-700 to-blue-700">
+                        Основной путь
+                        <div className="h-1 w-32 bg-gradient-to-r from-cyan-500 to-transparent rounded-full mt-1"></div>
+                      </div>
+                    </div>
                     <PointSelector
                       control={control}
                       name="departurePoint"

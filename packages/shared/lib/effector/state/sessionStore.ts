@@ -2,7 +2,7 @@ import { createStore, createEvent, sample, createEffect } from 'effector';
 import { parseJwt } from '@shared/utils/parse-jwt/parseJwt';
 
 //====================
-//Типы и хранилища
+// Типы и хранилища
 //====================
 
 type TokenType = 'access';
@@ -16,7 +16,7 @@ export const setRefreshToken = createEvent<string>();
 export const resetRefreshToken = createEvent();
 
 //====================
-//Таймеры для access-токена
+// Таймеры для access-токена
 //====================
 
 const tokenTimers = new Map<TokenType, NodeJS.Timeout>();
@@ -31,7 +31,7 @@ const clearTokenTimer = (type: TokenType) => {
 
 const scheduleTokenRefresh = (type: TokenType, expiresIn: number) => {
   clearTokenTimer(type);
-  const bufferTime = 60000;
+  const bufferTime = 60000; // 1 минута до истечения
   let actualTime = expiresIn - bufferTime;
   if (actualTime < 1000) actualTime = 1000;
 
@@ -43,11 +43,11 @@ const scheduleTokenRefresh = (type: TokenType, expiresIn: number) => {
 };
 
 //====================
-//Обработка истечения refresh-токена
+// Обработка истечения refresh-токена
 //====================
 
 export const handleRefreshTokenExpiration = async () => {
-  console.warn('[SESSION] Refresh токен истек, выполняем logout');
+  console.warn('[SESSION] Refresh-токен истек, выполняем logout');
   await fetch('/api/auth/logout', { method: 'POST' });
   resetRefreshToken();
   resetAccessToken();
@@ -55,7 +55,7 @@ export const handleRefreshTokenExpiration = async () => {
 };
 
 //====================
-//Синхронизация между вкладками
+// Синхронизация между вкладками
 //====================
 
 let isRefreshing = false;
@@ -75,57 +75,63 @@ tokenChannel.onmessage = (event) => {
 };
 
 //====================
-//Эффект обновления access-токена
+// Эффект обновления access-токена (refresh)
 //====================
 
 export const refreshAccessTokenFx = createEffect(async () => {
   try {
     const refreshTokenValue = $refreshToken.getState();
     if (!refreshTokenValue) {
-      console.error('[ERROR] Refresh токен отсутствует');
+      console.error('[REFRESH] Ошибка: refresh-токен отсутствует в сторе');
       resetRefreshToken();
       return false;
     }
+    console.log('[REFRESH] Используем refresh-токен:', refreshTokenValue);
 
-    const loginAttemptId = getLoginAttemptId();
+    // Формируем тело запроса. loginAttemptId больше не передаём.
+    const requestBody = { refreshToken: refreshTokenValue };
+    console.log('[REFRESH] Отправляем запрос на обновление токенов с телом:', requestBody);
+
     const response = await fetch('/api/auth/refresh', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refreshToken: refreshTokenValue, loginAttemptId }),
+      body: JSON.stringify(requestBody),
     });
+    console.log('[REFRESH] HTTP статус ответа:', response.status);
 
     if (response.status === 401) {
-      console.warn('[AUTH] Refresh-токен недействителен. Выполняем logout');
+      console.warn('[AUTH] Refresh-токен недействителен. Выполняется logout');
       window.location.href = '/login';
       return false;
     }
-
     if (!response.ok) {
-      console.error(`[ERROR] HTTP статус: ${response.status}`);
+      console.error(`[REFRESH] Ошибка: HTTP статус ${response.status}`);
       window.location.href = '/login';
       throw new Error('Ошибка обновления токена');
     }
 
     const data = await response.json();
+    console.log('[REFRESH] Ответ от сервера:', data);
 
     if (data.accessToken) {
       setAccessToken(data.accessToken);
       const decoded = parseJwt(data.accessToken);
       scheduleTokenRefresh('access', decoded.exp * 1000 - Date.now());
+      console.log('[REFRESH] Новый access-токен установлен');
     }
-
     if (data.refreshToken) {
       setRefreshToken(data.refreshToken);
+      console.log('[REFRESH] Новый refresh-токен установлен');
     }
     return true;
   } catch (error) {
-    console.error('Ошибка в refreshAccessTokenFx:', error);
+    console.error('[REFRESH] Ошибка в refreshAccessTokenFx:', error);
     return false;
   }
 });
 
 //====================
-//Обработчики токенов
+// Обработчики токенов
 //====================
 
 const handleAccessToken = (token: string) => {
@@ -175,23 +181,14 @@ sample({
 });
 
 //====================
-//Вспомогательные функции
+// Вспомогательные функции
 //====================
 
 export const getAccessToken = () => $accessToken.getState();
 export const getRefreshToken = () => $refreshToken.getState();
 
-function getLoginAttemptId(): string {
-  const refreshTokenValue = $refreshToken.getState();
-  if (!refreshTokenValue) throw new Error('Отсутствует refresh токен');
-
-  const decoded = parseJwt(refreshTokenValue);
-  if (!decoded.loginAttemptId) throw new Error('loginAttemptId отсутствует');
-  return decoded.loginAttemptId;
-}
-
 //====================
-//Функция обновления токена (для планового обновления)
+// Функция обновления токена (для планового обновления)
 //====================
 
 export async function refreshToken() {

@@ -183,22 +183,6 @@ const AdditionalPoints: React.FC<AdditionalPointsProps> = ({
       render={({ field }) => (
         <div className="w-full relative">
           <div className="flex items-center gap-3 mb-4">
-            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-cyan-600 to-blue-600 text-white font-bold shadow-md">
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M17 14v6m-3-3h6M6 10h2a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v2a2 2 0 002 2zm10 0h2a2 2 0 002-2V6a2 2 0 00-2-2h-2a2 2 0 00-2 2v2a2 2 0 002 2zM6 20h2a2 2 0 002-2v-2a2 2 0 00-2-2H6a2 2 0 00-2 2v2a2 2 0 002 2z"
-                />
-              </svg>
-            </div>
             <div className="font-semibold text-transparent bg-clip-text bg-gradient-to-r from-cyan-700 to-blue-700">
               {label}
               <div className="h-1 w-32 bg-gradient-to-r from-cyan-500 to-transparent rounded-full mt-1"></div>

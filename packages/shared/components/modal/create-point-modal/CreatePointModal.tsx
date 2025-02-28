@@ -14,8 +14,41 @@ interface CreatePointModalProps {
   onClose: () => void;
 }
 
-const DEFAULT_CENTER = [42.856219, 74.603967];
+const DEFAULT_CENTER = [42.856219, 74.603967]; // Центр Кыргызстана (Бишкек)
 const DEFAULT_ZOOM = 10;
+const KYRGYZSTAN_BOUNDS = [
+  [39.0, 69.0],
+  [43.5, 81.0],
+]; // Примерные границы Кыргызстана
+
+// Функция для проверки, находится ли адрес в Кыргызстане
+const isAddressInKyrgyzstan = (address: string): boolean => {
+  if (!address) return false;
+
+  // Проверяем наличие ключевых слов, указывающих на Кыргызстан
+  const kyrgyzstanKeywords = [
+    'Кыргызстан',
+    'Киргизия',
+    'Киргизская Республика',
+    'Бишкек',
+    'Ош',
+    'Джалал-Абад',
+    'Каракол',
+    'Талас',
+    'Нарын',
+    'Баткен',
+    'Чуйская область',
+    'Иссык-Кульская область',
+    'Нарынская область',
+    'Таласская область',
+    'Ошская область',
+    'Баткенская область',
+    'Джалал-Абадская область',
+  ];
+
+  const addressLower = address.toLowerCase();
+  return kyrgyzstanKeywords.some((keyword) => addressLower.includes(keyword.toLowerCase()));
+};
 
 // Функция для прямого HTTP-запроса геокодирования через Яндекс API
 const getAddressByCoordinates = async (
@@ -24,7 +57,7 @@ const getAddressByCoordinates = async (
   apiKey: string,
 ): Promise<string> => {
   try {
-    // Важно: используем lon,lat (а не lat,lon) для Яндекс HTTP API геокодера
+    // Используем lon,lat (а не lat,lon) для Яндекс HTTP API геокодера
     const url = `https://geocode-maps.yandex.ru/1.x/?apikey=${apiKey}&format=json&geocode=${lon},${lat}&lang=ru_RU`;
     console.log('Запрос геокодирования:', url);
 
@@ -51,13 +84,38 @@ const getAddressByCoordinates = async (
   }
 };
 
+// Компонент всплывающего окна с информацией о точке
+const PointInfoTooltip: React.FC<{
+  address: string;
+  pricePerKm: string;
+  terrainDifficulty: string;
+}> = ({ address, pricePerKm, terrainDifficulty }) => {
+  return (
+    <div className="p-3 bg-white rounded-lg shadow-md max-w-xs">
+      <h3 className="font-medium text-sm mb-1 text-gray-800">Информация о точке</h3>
+      <p className="text-xs mb-1 truncate">
+        <span className="font-medium">Адрес:</span> {address}
+      </p>
+      <p className="text-xs mb-1">
+        <span className="font-medium">Цена за км:</span> {pricePerKm} сом
+      </p>
+      <p className="text-xs">
+        <span className="font-medium">Сложность:</span> {terrainDifficulty}
+      </p>
+    </div>
+  );
+};
+
 const MapComponent: React.FC<{
   coordinates: [number, number] | null;
   setCoordinates: (coords: [number, number]) => void;
   setAddress: (address: string) => void;
-}> = ({ coordinates, setCoordinates, setAddress }) => {
+  address: string;
+  pricePerKm: string;
+  terrainDifficulty: string;
+}> = ({ coordinates, setCoordinates, setAddress, address, pricePerKm, terrainDifficulty }) => {
   const mapRef = useRef<any>(null);
-  const ymaps = useYMaps(['geocode']);
+  const ymaps = useYMaps(['geocode', 'Map']);
   const [isMapLoaded, setIsMapLoaded] = useState(false);
   const apiKey = process.env.NEXT_PUBLIC_YANDEX_MAPS_API_KEY || '';
 
@@ -77,12 +135,20 @@ const MapComponent: React.FC<{
       const validCoords: [number, number] = [lat, lon];
 
       console.log('Выбраны координаты:', validCoords);
-      setCoordinates(validCoords);
 
       try {
-        // Используем HTTP API вместо JS API для геокодирования
+        // Получаем адрес по координатам
         const address = await getAddressByCoordinates(lat, lon, apiKey);
         console.log('Полученный адрес:', address);
+
+        // Проверяем, находится ли адрес в Кыргызстане
+        if (!isAddressInKyrgyzstan(address)) {
+          showToast.error('Выбранное место находится за пределами Кыргызстана');
+          return;
+        }
+
+        // Устанавливаем координаты и адрес
+        setCoordinates(validCoords);
         setAddress(address);
       } catch (error) {
         console.error('Ошибка получения адреса:', error);
@@ -96,8 +162,32 @@ const MapComponent: React.FC<{
 
   const handleMapLoad = (ymapsInstance: any) => {
     console.log('Карта загружена');
-    if (mapRef.current) {
+    if (mapRef.current && ymaps) {
+      // Добавляем обработчик клика
       mapRef.current.events.add('click', handleMapClick);
+
+      // Центрируем карту на Кыргызстане
+      try {
+        mapRef.current.setCenter(DEFAULT_CENTER, DEFAULT_ZOOM);
+
+        // Устанавливаем опцию для ограничения области просмотра
+        mapRef.current.options.set('restrictMapArea', KYRGYZSTAN_BOUNDS);
+
+        // Настраиваем поисковые контролы если они доступны
+        if (mapRef.current.controls) {
+          const searchControl = mapRef.current.controls.get('searchControl');
+          if (searchControl) {
+            searchControl.options.set({
+              provider: 'yandex#search',
+              // Устанавливаем предпочтительную область поиска
+              boundedBy: KYRGYZSTAN_BOUNDS,
+              strictBounds: true,
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Ошибка при настройке карты:', error);
+      }
     }
   };
 
@@ -113,7 +203,11 @@ const MapComponent: React.FC<{
       )}
 
       <Map
-        defaultState={{ center: DEFAULT_CENTER, zoom: DEFAULT_ZOOM }}
+        defaultState={{
+          center: DEFAULT_CENTER,
+          zoom: DEFAULT_ZOOM,
+          controls: ['zoomControl', 'searchControl', 'fullscreenControl'],
+        }}
         width="100%"
         height="500px"
         onClick={handleMapClick}
@@ -121,13 +215,57 @@ const MapComponent: React.FC<{
           suppressMapOpenBlock: true,
           suppressObsoleteBrowserNotifier: true,
           yandexMapDisablePoiInteractivity: true,
+          restrictMapArea: KYRGYZSTAN_BOUNDS,
         }}
-        style={{ width: '100%', height: '500px', minHeight: '500px', overflow: 'hidden' }}
+        modules={[
+          'Map',
+          'Placemark',
+          'control.ZoomControl',
+          'control.SearchControl',
+          'control.FullscreenControl',
+        ]}
+        style={{
+          width: '100%',
+          height: '500px',
+          minHeight: '500px',
+          overflow: 'hidden',
+          backgroundColor: '#f5f9fe',
+        }}
         instanceRef={mapRef}
         onLoad={handleMapLoad}
       >
-        {coordinates && <Placemark geometry={coordinates} />}
+        {coordinates && (
+          <Placemark
+            geometry={coordinates}
+            options={{
+              preset: 'islands#blueIcon',
+              hideIconOnBalloonOpen: false,
+              balloonOffset: [0, -35],
+            }}
+            properties={{
+              balloonContentBody: `
+                  <div style="padding: 10px; max-width: 250px;">
+                    <h3 style="font-weight: 500; margin-bottom: 8px; font-size: 14px;">Информация о точке</h3>
+                    <p style="font-size: 12px; margin-bottom: 4px;"><b>Адрес:</b> ${address}</p>
+                    <p style="font-size: 12px; margin-bottom: 4px;"><b>Цена за км:</b> ${pricePerKm} сом</p>
+                    <p style="font-size: 12px;"><b>Сложность местности:</b> ${terrainDifficulty}</p>
+                  </div>
+                `,
+              balloonAutoPan: true,
+            }}
+          />
+        )}
       </Map>
+
+      {coordinates && (
+        <div className="absolute bottom-4 right-4 z-10">
+          <PointInfoTooltip
+            address={address}
+            pricePerKm={pricePerKm}
+            terrainDifficulty={terrainDifficulty}
+          />
+        </div>
+      )}
     </div>
   );
 };
@@ -321,7 +459,7 @@ const CreatePointModal: React.FC<CreatePointModalProps> = ({ onClose }) => {
                 <YMaps
                   query={{
                     apikey: process.env.NEXT_PUBLIC_YANDEX_MAPS_API_KEY,
-                    load: 'Map,Placemark,geocode',
+                    load: 'package.full',
                     lang: 'ru_RU',
                     mode: 'release',
                   }}
@@ -332,6 +470,9 @@ const CreatePointModal: React.FC<CreatePointModalProps> = ({ onClose }) => {
                     }
                     setCoordinates={handleMapCoordinatesChange}
                     setAddress={setAddress}
+                    address={address}
+                    pricePerKm={pricePerKm}
+                    terrainDifficulty={terrainDifficulty}
                   />
                 </YMaps>
               ) : (
@@ -344,25 +485,9 @@ const CreatePointModal: React.FC<CreatePointModalProps> = ({ onClose }) => {
               )}
             </div>
 
-            <TextInput
-              label="Широта (Latitude):"
-              type="number"
-              value={latitude}
-              onChange={(value) => setLatitude(value as string)}
-              required
-              step="0.000001"
-              disabled={loading}
-            />
-
-            <TextInput
-              label="Долгота (Longitude):"
-              type="number"
-              value={longitude}
-              onChange={(value) => setLongitude(value as string)}
-              required
-              step="0.000001"
-              disabled={loading}
-            />
+            {/* Скрытые поля для широты и долготы, которые не видны пользователю, но отправляются в форме */}
+            <input type="hidden" name="latitude" value={latitude} />
+            <input type="hidden" name="longitude" value={longitude} />
 
             {error && <p className="text-red-600">{error}</p>}
 

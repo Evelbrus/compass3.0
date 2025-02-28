@@ -39,43 +39,45 @@ const AdditionalServicesList: React.FC<AdditionalServicesListProps> = ({
           <span className="font-bold text-cyan-600">{totalAdditionalServicesPrice}с</span>
         </p>
 
-        {availableServices.map(({ service, price, isAvailable, tariffOnServiceUuid }) => {
-          const isSelected =
-            tariffOnServiceUuid !== null && selectedServices.includes(tariffOnServiceUuid);
+        <div className={'max-h-[440px] overflow-auto'}>
+          {availableServices.map(({ service, price, isAvailable, tariffOnServiceUuid }) => {
+            const isSelected =
+              tariffOnServiceUuid !== null && selectedServices.includes(tariffOnServiceUuid);
 
-          return (
-            <div
-              key={service.uuid}
-              className={cn(
-                'flex items-center justify-between gap-4 p-2 rounded-md transition-all bg-white border',
-                isSelected ? 'bg-cyan-50 border-cyan-200' : 'border-white hover:bg-cyan-50',
-              )}
-            >
-              <CheckboxInput
-                label={service.name}
-                checked={isSelected}
-                onChange={() => handleServiceSelection(service.uuid, price, isAvailable)}
-                disabled={!isAvailable}
+            return (
+              <div
+                key={service.uuid}
                 className={cn(
-                  !isAvailable ? 'opacity-50 line-through' : '',
-                  'focus:ring-2 focus:ring-cyan-400 focus:border-cyan-500',
-                )}
-              />
-              <span
-                className={cn(
-                  'font-bold',
-                  !isAvailable
-                    ? 'text-gray-400 line-through'
-                    : isSelected
-                      ? 'text-cyan-600'
-                      : 'text-gray-700',
+                  'flex items-center justify-between gap-4 p-2 rounded-md transition-all bg-white border',
+                  isSelected ? 'bg-cyan-50 border-cyan-200' : 'border-white hover:bg-cyan-50',
                 )}
               >
-                {price}С
-              </span>
-            </div>
-          );
-        })}
+                <CheckboxInput
+                  label={service.name}
+                  checked={isSelected}
+                  onChange={() => handleServiceSelection(service.uuid, price, isAvailable)}
+                  disabled={!isAvailable}
+                  className={cn(
+                    !isAvailable ? 'opacity-50 line-through' : '',
+                    'focus:ring-2 focus:ring-cyan-400 focus:border-cyan-500',
+                  )}
+                />
+                <span
+                  className={cn(
+                    'font-bold',
+                    !isAvailable
+                      ? 'text-gray-400 line-through'
+                      : isSelected
+                        ? 'text-cyan-600'
+                        : 'text-gray-700',
+                  )}
+                >
+                  {price}С
+                </span>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

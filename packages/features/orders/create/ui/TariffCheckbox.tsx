@@ -271,7 +271,7 @@ const TariffCard: React.FC<TariffCardProps> = ({
                 </p>
               )}
               <p className="font-helvetica-neue text-sm leading-5 text-end text-black/50 pl-3 pt-3">
-                Мин. цена: <strong className="text-black text-5xl">{selectedTariff.price}С</strong>
+                Цена тарифа: <strong className="text-black text-5xl">{selectedTariff.price}С</strong>
               </p>
             </div>
           </>

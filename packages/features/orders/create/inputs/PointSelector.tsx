@@ -149,7 +149,6 @@ const PointSelector: React.FC<PointSelectorProps> = ({
                 className="font-semibold text-transparent bg-clip-text bg-gradient-to-r from-cyan-700 to-blue-700"
               >
                 {label}
-                <div className="h-1 w-32 bg-gradient-to-r from-cyan-500 to-transparent rounded-full mt-1"></div>
               </div>
             </div>
 
