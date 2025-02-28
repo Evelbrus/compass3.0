@@ -17,6 +17,40 @@ interface CreatePointModalProps {
 const DEFAULT_CENTER = [42.856219, 74.603967];
 const DEFAULT_ZOOM = 10;
 
+// Функция для прямого HTTP-запроса геокодирования через Яндекс API
+const getAddressByCoordinates = async (
+  lat: number,
+  lon: number,
+  apiKey: string,
+): Promise<string> => {
+  try {
+    // Важно: используем lon,lat (а не lat,lon) для Яндекс HTTP API геокодера
+    const url = `https://geocode-maps.yandex.ru/1.x/?apikey=${apiKey}&format=json&geocode=${lon},${lat}&lang=ru_RU`;
+    console.log('Запрос геокодирования:', url);
+
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      console.error(`Ошибка HTTP при геокодировании: ${response.status}`);
+      return 'Ошибка получения адреса';
+    }
+
+    const data = await response.json();
+    console.log('Ответ от geocode-maps API:', data);
+
+    // Извлечение адреса из ответа
+    const geoObject = data.response?.GeoObjectCollection?.featureMember?.[0]?.GeoObject;
+    if (geoObject) {
+      return geoObject.metaDataProperty?.GeocoderMetaData?.text || 'Адрес не найден';
+    } else {
+      return 'Адрес не найден';
+    }
+  } catch (error) {
+    console.error('Ошибка при запросе к geocode-maps API:', error);
+    return 'Ошибка получения адреса';
+  }
+};
+
 const MapComponent: React.FC<{
   coordinates: [number, number] | null;
   setCoordinates: (coords: [number, number]) => void;
@@ -24,39 +58,35 @@ const MapComponent: React.FC<{
 }> = ({ coordinates, setCoordinates, setAddress }) => {
   const mapRef = useRef<any>(null);
   const ymaps = useYMaps(['geocode']);
+  const [isMapLoaded, setIsMapLoaded] = useState(false);
+  const apiKey = process.env.NEXT_PUBLIC_YANDEX_MAPS_API_KEY || '';
 
-  const handleMapClick = (event: any) => {
+  useEffect(() => {
+    if (ymaps) {
+      console.log('YMaps API загружен успешно');
+      setIsMapLoaded(true);
+    }
+  }, [ymaps]);
+
+  const handleMapClick = async (event: any) => {
     const coords = event.get('coords');
 
     if (coords && coords.length === 2 && !isNaN(coords[0]) && !isNaN(coords[1])) {
       const lat = parseFloat(coords[0].toFixed(6));
       const lon = parseFloat(coords[1].toFixed(6));
       const validCoords: [number, number] = [lat, lon];
+
+      console.log('Выбраны координаты:', validCoords);
       setCoordinates(validCoords);
 
-      if (ymaps) {
-        ymaps
-          .geocode(validCoords)
-          .then((result) => {
-            const firstGeoObject = result.geoObjects.get(0);
-            if (firstGeoObject) {
-              const location = String((firstGeoObject.properties.get as (key: string, defaultValue?: any) => any)('description') || '');
-              const route = String((firstGeoObject.properties.get as (key: string, defaultValue?: any) => any)('name') || '');
-              const fullAddress = `${location}${location && route ? ', ' : ''}${route}`.trim();
-              console.log('Полученный адрес:', fullAddress);
-              setAddress(fullAddress);
-            } else {
-              console.warn('Геокодирование не вернуло объектов');
-              setAddress('Адрес не найден');
-            }
-          })
-          .catch((err) => {
-            console.error('Ошибка геокодирования:', err);
-            setAddress('Ошибка получения адреса');
-          });
-      } else {
-        console.warn('YMaps не загружен');
-        setAddress('Ошибка: карта не инициализирована');
+      try {
+        // Используем HTTP API вместо JS API для геокодирования
+        const address = await getAddressByCoordinates(lat, lon, apiKey);
+        console.log('Полученный адрес:', address);
+        setAddress(address);
+      } catch (error) {
+        console.error('Ошибка получения адреса:', error);
+        setAddress('Ошибка получения адреса');
       }
     } else {
       console.warn('Некорректные координаты:', coords);
@@ -65,28 +95,40 @@ const MapComponent: React.FC<{
   };
 
   const handleMapLoad = (ymapsInstance: any) => {
+    console.log('Карта загружена');
     if (mapRef.current) {
       mapRef.current.events.add('click', handleMapClick);
     }
   };
 
   return (
-    <Map
-      defaultState={{ center: DEFAULT_CENTER, zoom: DEFAULT_ZOOM }}
-      width="100%"
-      height="500px"
-      onClick={handleMapClick}
-      options={{
-        suppressMapOpenBlock: true,
-        suppressObsoleteBrowserNotifier: true,
-        yandexMapDisablePoiInteractivity: true,
-      }}
-      style={{ width: '100%', height: '500px', minHeight: '500px', overflow: 'hidden' }}
-      instanceRef={mapRef}
-      onLoad={handleMapLoad}
-    >
-      {coordinates && <Placemark geometry={coordinates} />}
-    </Map>
+    <div className="relative rounded-lg overflow-hidden">
+      {!isMapLoaded && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-100 z-10">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mb-2"></div>
+            <p>Загрузка карты...</p>
+          </div>
+        </div>
+      )}
+
+      <Map
+        defaultState={{ center: DEFAULT_CENTER, zoom: DEFAULT_ZOOM }}
+        width="100%"
+        height="500px"
+        onClick={handleMapClick}
+        options={{
+          suppressMapOpenBlock: true,
+          suppressObsoleteBrowserNotifier: true,
+          yandexMapDisablePoiInteractivity: true,
+        }}
+        style={{ width: '100%', height: '500px', minHeight: '500px', overflow: 'hidden' }}
+        instanceRef={mapRef}
+        onLoad={handleMapLoad}
+      >
+        {coordinates && <Placemark geometry={coordinates} />}
+      </Map>
+    </div>
   );
 };
 
@@ -100,6 +142,25 @@ const CreatePointModal: React.FC<CreatePointModalProps> = ({ onClose }) => {
   const [longitude, setLongitude] = useState<string>('74.603967');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isApiLoaded, setIsApiLoaded] = useState(false);
+
+  // Проверяем доступность API Яндекс Карт
+  useEffect(() => {
+    const checkYandexMapsApi = async () => {
+      try {
+        const apiKey = process.env.NEXT_PUBLIC_YANDEX_MAPS_API_KEY;
+        console.log('Используется API ключ:', apiKey ? 'Ключ существует' : 'Ключ отсутствует');
+
+        setIsApiLoaded(true);
+      } catch (error) {
+        console.error('Проверка API Яндекс Карт не удалась:', error);
+        setError('Ошибка загрузки карты. Пожалуйста, попробуйте обновить страницу.');
+        setIsApiLoaded(false);
+      }
+    };
+
+    checkYandexMapsApi();
+  }, []);
 
   useEffect(() => {
     if (uuid) {
@@ -239,7 +300,9 @@ const CreatePointModal: React.FC<CreatePointModalProps> = ({ onClose }) => {
             />
 
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Коэффициент сложности местности: {terrainDifficulty}</label>
+              <label className="text-sm font-medium">
+                Коэффициент сложности местности: {terrainDifficulty}
+              </label>
               <input
                 type="range"
                 min="0.0"
@@ -254,18 +317,31 @@ const CreatePointModal: React.FC<CreatePointModalProps> = ({ onClose }) => {
 
             <div className="flex flex-col gap-2">
               <label className="text-sm font-medium">Выберите точку на карте:</label>
-              <YMaps
-                query={{
-                  apikey: process.env.NEXT_PUBLIC_YANDEX_MAPS_API_KEY,
-                  load: 'Map,Placemark,geocode',
-                }}
-              >
-                <MapComponent
-                  coordinates={latitude && longitude ? [parseFloat(latitude), parseFloat(longitude)] : null}
-                  setCoordinates={handleMapCoordinatesChange}
-                  setAddress={setAddress}
-                />
-              </YMaps>
+              {isApiLoaded ? (
+                <YMaps
+                  query={{
+                    apikey: process.env.NEXT_PUBLIC_YANDEX_MAPS_API_KEY,
+                    load: 'Map,Placemark,geocode',
+                    lang: 'ru_RU',
+                    mode: 'release',
+                  }}
+                >
+                  <MapComponent
+                    coordinates={
+                      latitude && longitude ? [parseFloat(latitude), parseFloat(longitude)] : null
+                    }
+                    setCoordinates={handleMapCoordinatesChange}
+                    setAddress={setAddress}
+                  />
+                </YMaps>
+              ) : (
+                <div className="bg-gray-100 rounded-lg p-6 text-center h-[300px] flex items-center justify-center">
+                  <div className="text-gray-500">
+                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500 mx-auto mb-3"></div>
+                    <p>Загрузка карты...</p>
+                  </div>
+                </div>
+              )}
             </div>
 
             <TextInput

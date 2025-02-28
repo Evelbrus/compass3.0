@@ -29,6 +29,39 @@ const POINT_ICONS = {
   unselected: 'islands#lightBlueCircleIcon',
 };
 
+// Функция для прямого HTTP-запроса геокодирования через Яндекс API
+const getAddressByCoordinates = async (
+  lat: number,
+  lon: number,
+  apiKey: string,
+): Promise<string> => {
+  try {
+    // Важно: используем lon,lat (а не lat,lon) для Яндекс HTTP API геокодера
+    const url = `https://geocode-maps.yandex.ru/1.x/?apikey=${apiKey}&format=json&geocode=${lon},${lat}&lang=ru_RU`;
+    console.log('Запрос геокодирования:', url);
+
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      console.error(`Ошибка HTTP при геокодировании: ${response.status}`);
+      return 'Ошибка получения адреса';
+    }
+
+    const data = await response.json();
+
+    // Извлечение адреса из ответа
+    const geoObject = data.response?.GeoObjectCollection?.featureMember?.[0]?.GeoObject;
+    if (geoObject) {
+      return geoObject.metaDataProperty?.GeocoderMetaData?.text || 'Адрес не найден';
+    } else {
+      return 'Адрес не найден';
+    }
+  } catch (error) {
+    console.error('Ошибка при запросе к geocode-maps API:', error);
+    return 'Ошибка получения адреса';
+  }
+};
+
 const RouteMapInner: React.FC<RouteMapInnerProps> = ({
   ymaps,
   allPoints,
@@ -38,9 +71,26 @@ const RouteMapInner: React.FC<RouteMapInnerProps> = ({
   onDurationUpdate,
 }) => {
   const mapRef = useRef<any>(null);
-  const [_routeDuration, setRouteDuration] = useState<string | null>(null);
+  const [routeDuration, setRouteDuration] = useState<string | null>(null);
   const initialBoundsRef = useRef<any>(null);
   const [hoveredPoint, setHoveredPoint] = useState<PointWithoutTimestamps | null>(null);
+  const [apiKey, setApiKey] = useState<string>('');
+  const [mapLoaded, setMapLoaded] = useState(false);
+
+  // Получаем ключ API из окружения
+  useEffect(() => {
+    const key = process.env.NEXT_PUBLIC_YANDEX_MAPS_API_KEY || '';
+    setApiKey(key);
+    console.log('Яндекс Карты API ключ:', key ? 'Ключ существует' : 'Ключ отсутствует');
+  }, []);
+
+  // Устанавливаем флаг загрузки карты
+  useEffect(() => {
+    if (ymaps && mapRef.current) {
+      console.log('Яндекс Карты API и карта загружены');
+      setMapLoaded(true);
+    }
+  }, [ymaps, mapRef.current]);
 
   // Track point letters to maintain them when points are removed
   const [pointLetters, setPointLetters] = useState<{ [key: string]: string }>({});
@@ -82,10 +132,18 @@ const RouteMapInner: React.FC<RouteMapInnerProps> = ({
   useEffect(() => {
     if (!ymaps || !allPoints.length || !mapRef.current || initialBoundsRef.current) return;
 
-    const coordinates = allPoints.map((point) => [point.latitude, point.longitude]);
-    const newBounds = ymaps.util.bounds.fromPoints(coordinates);
-    initialBoundsRef.current = newBounds;
-    mapRef.current.setBounds(newBounds);
+    try {
+      const coordinates = allPoints.map((point) => [point.latitude, point.longitude]);
+      const newBounds = ymaps.util.bounds.fromPoints(coordinates);
+      initialBoundsRef.current = newBounds;
+      mapRef.current.setBounds(newBounds);
+    } catch (error) {
+      console.error('Ошибка при установке границ карты:', error);
+      // Устанавливаем дефолтные границы для Бишкека
+      if (mapRef.current) {
+        mapRef.current.setCenter([42.871709, 74.693002], 10);
+      }
+    }
   }, [ymaps, allPoints]);
 
   // Update route when selected points change
@@ -95,6 +153,7 @@ const RouteMapInner: React.FC<RouteMapInnerProps> = ({
     const geoObjects = mapRef.current.geoObjects;
     if (!geoObjects) return;
 
+    // Удаляем существующие маршруты
     geoObjects.each((obj: any) => {
       if (obj.properties.get('type') === 'route') {
         geoObjects.remove(obj);
@@ -116,64 +175,97 @@ const RouteMapInner: React.FC<RouteMapInnerProps> = ({
 
     let canceled = false;
 
-    const multiRoute = new ymaps.multiRouter.MultiRoute(
-      {
-        referencePoints: validPoints,
-        params: {
-          routingMode: 'auto',
+    try {
+      const multiRoute = new ymaps.multiRouter.MultiRoute(
+        {
+          referencePoints: validPoints,
+          params: {
+            routingMode: 'auto',
+          },
         },
-      },
-      {
-        boundsAutoApply: false,
-        wayPointVisible: false,
-        pinVisible: false,
-      },
-    );
+        {
+          boundsAutoApply: false,
+          wayPointVisible: false,
+          pinVisible: false,
+        },
+      );
 
-    multiRoute.properties.set('type', 'route');
-    geoObjects.add(multiRoute);
+      multiRoute.properties.set('type', 'route');
+      geoObjects.add(multiRoute);
 
-    multiRoute.model.events.add('update', () => {
-      if (canceled || !mapRef.current) return;
+      // Обработка обновления маршрута
+      multiRoute.model.events.add('update', () => {
+        if (canceled || !mapRef.current) return;
 
-      const activeRoute = multiRoute.getActiveRoute();
-      if (activeRoute) {
-        const humanTime = activeRoute.properties.get('duration').text;
-        const distanceInMeters = activeRoute.properties.get('distance').value;
-        const distanceInKm = distanceInMeters / 1000;
-        setRouteDuration(humanTime || 'Время неизвестно');
-        onDistanceUpdate?.(distanceInKm);
-        onDurationUpdate?.(humanTime || 'Время неизвестно');
-      } else {
-        setRouteDuration('Маршрут не найден');
-        onDistanceUpdate?.(0);
-        onDurationUpdate?.('Маршрут не найден');
-      }
-    });
+        const activeRoute = multiRoute.getActiveRoute();
+        if (activeRoute) {
+          const humanTime = activeRoute.properties.get('duration').text;
+          const distanceInMeters = activeRoute.properties.get('distance').value;
+          const distanceInKm = distanceInMeters / 1000;
+          setRouteDuration(humanTime || 'Время неизвестно');
+          onDistanceUpdate?.(distanceInKm);
+          onDurationUpdate?.(humanTime || 'Время неизвестно');
+        } else {
+          setRouteDuration('Маршрут не найден');
+          onDistanceUpdate?.(0);
+          onDurationUpdate?.('Маршрут не найден');
+        }
+      });
 
-    multiRoute.events.add('error', (e: any) => {
-      if (!canceled) {
-        console.error('Ошибка построения маршрута:', e.get('error'));
-        setRouteDuration('Ошибка расчета');
-        onDistanceUpdate?.(0);
-        onDurationUpdate?.('Ошибка расчета');
-      }
-    });
+      // Обработка ошибок
+      multiRoute.events.add('error', (e: any) => {
+        if (!canceled) {
+          console.error('Ошибка построения маршрута:', e.get('error'));
+          setRouteDuration('Ошибка расчета');
+          onDistanceUpdate?.(0);
+          onDurationUpdate?.('Ошибка расчета');
+        }
+      });
 
-    return () => {
-      canceled = true;
-      if (mapRef.current) {
-        geoObjects.remove(multiRoute);
-      }
-    };
+      return () => {
+        canceled = true;
+        if (mapRef.current) {
+          geoObjects.remove(multiRoute);
+        }
+      };
+    } catch (error) {
+      console.error('Ошибка при создании маршрута:', error);
+      setRouteDuration('Ошибка создания маршрута');
+      onDistanceUpdate?.(0);
+      onDurationUpdate?.('Ошибка создания маршрута');
+    }
   }, [ymaps, selectedPoints, onDistanceUpdate, onDurationUpdate]);
 
+  // Модифицированный обработчик клика с HTTP геокодированием в случае проблем
   const handlePointClick = useCallback(
-    (point: PointWithoutTimestamps) => {
-      const isAlreadySelected = selectedPoints.some((p) => p?.uuid === point.uuid);
-      onPointSelect(point, isAlreadySelected);
+    async (point: PointWithoutTimestamps) => {
+      console.log('Клик по точке:', {
+        uuid: point.uuid,
+        coords: [point.latitude, point.longitude],
+        address: point.address,
+      });
+
+      try {
+        // Если адрес отсутствует или равен "Ошибка получения адреса", пытаемся получить его через HTTP API
+        let updatedPoint = { ...point };
+
+        if (!point.address || point.address === 'Ошибка получения адреса') {
+          console.log('Пытаемся получить адрес через HTTP API для точки:', point.uuid);
+          const address = await getAddressByCoordinates(point.latitude, point.longitude, apiKey);
+          console.log('Полученный адрес:', address);
+          updatedPoint = { ...point, address };
+        }
+
+        const isAlreadySelected = selectedPoints.some((p) => p?.uuid === point.uuid);
+        onPointSelect(updatedPoint, isAlreadySelected);
+      } catch (error) {
+        console.error('Ошибка при обработке клика по точке:', error);
+        // В случае ошибки все равно вызываем обработчик с исходной точкой
+        const isAlreadySelected = selectedPoints.some((p) => p?.uuid === point.uuid);
+        onPointSelect(point, isAlreadySelected);
+      }
     },
-    [selectedPoints, onPointSelect],
+    [selectedPoints, onPointSelect, apiKey],
   );
 
   // Handle mouse enter on placemark
@@ -253,15 +345,30 @@ const RouteMapInner: React.FC<RouteMapInnerProps> = ({
 
   const hoveredPointInfo = getHoveredPointInfo();
 
+  // Обработчик загрузки карты
+  const handleMapLoad = (mapInstance: any) => {
+    console.log('Карта загружена');
+    setMapLoaded(true);
+  };
+
   return (
     <div className="relative w-full h-full rounded-xl overflow-hidden shadow-lg border border-gray-200">
+      {!mapLoaded && (
+        <div className="absolute inset-0 bg-gray-100 flex items-center justify-center z-10">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mb-2"></div>
+            <p className="text-gray-600">Загрузка карты...</p>
+          </div>
+        </div>
+      )}
+
       <Map
         instanceRef={mapRef}
         defaultState={{
           center:
             allPoints.length && allPoints[0]
               ? [allPoints[0].latitude, allPoints[0].longitude]
-              : [55.75, 37.57],
+              : [42.871709, 74.693002],
           zoom: 7,
         }}
         options={{
@@ -269,8 +376,19 @@ const RouteMapInner: React.FC<RouteMapInnerProps> = ({
         }}
         width="100%"
         height="100%"
+        onLoad={handleMapLoad}
       >
         {allPoints.map((point) => {
+          if (
+            !point ||
+            !point.uuid ||
+            typeof point.latitude !== 'number' ||
+            typeof point.longitude !== 'number'
+          ) {
+            console.warn('Некорректная точка:', point);
+            return null;
+          }
+
           const { preset, iconContent, hintContent } = getPointStyle(point);
           return (
             <Placemark
@@ -295,7 +413,7 @@ const RouteMapInner: React.FC<RouteMapInnerProps> = ({
         })}
       </Map>
 
-      {/* Tooltip in top-right corner that shows hovered point info */}
+      {/* Tooltip that shows hovered point info */}
       {hoveredPointInfo && (
         <div className="absolute top-4 left-4 bg-white p-3 rounded-lg shadow-lg border border-gray-200 z-10 min-w-[250px] max-w-[350px]">
           <div className="flex items-center mb-2">
@@ -348,7 +466,11 @@ const RouteMapInner: React.FC<RouteMapInnerProps> = ({
   );
 };
 
-const ConnectedRouteMap = withYMaps(RouteMapInner, true, ['multiRouter.MultiRoute', 'util.bounds']);
+const ConnectedRouteMap = withYMaps(RouteMapInner, true, [
+  'multiRouter.MultiRoute',
+  'util.bounds',
+  'geocode',
+]);
 
 const RouteMap: React.FC<RouteMapProps> = ({
   allPoints,
@@ -357,11 +479,19 @@ const RouteMap: React.FC<RouteMapProps> = ({
   onDistanceUpdate,
   onDurationUpdate,
 }) => {
+  // Проверяем наличие API ключа
+  useEffect(() => {
+    const apiKey = process.env.NEXT_PUBLIC_YANDEX_MAPS_API_KEY;
+    console.log('YMaps API Key доступен:', apiKey ? 'Да' : 'Нет');
+  }, []);
+
   return (
     <YMaps
       query={{
         apikey: process.env.NEXT_PUBLIC_YANDEX_MAPS_API_KEY,
-        load: 'Map,Placemark,multiRouter.MultiRoute,util.bounds',
+        load: 'Map,Placemark,multiRouter.MultiRoute,util.bounds,geocode',
+        lang: 'ru_RU',
+        mode: 'release',
       }}
     >
       <ConnectedRouteMap
