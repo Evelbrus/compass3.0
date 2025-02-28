@@ -202,14 +202,6 @@ const CreatePointModal: React.FC<CreatePointModalProps> = ({ onClose }) => {
     setLongitude(coords[1].toString());
   };
 
-  const apiKey = process.env.NEXT_PUBLIC_YANDEX_MAPS_API_KEY;
-
-  // Логирование для отладки
-  useEffect(() => {
-    console.log('Yandex Maps API Key:', apiKey ? 'Ключ существует' : 'Ключ отсутствует');
-    console.log('API Key первые 5 символов:', apiKey?.substring(0, 5));
-  }, [apiKey]);
-
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50 p-4">
       <AnimatedComponent duration={500} className="w-[580px] max-h-[800px] flex justify-center">
