@@ -22,7 +22,7 @@ const BaseLayout = async ({ children }: RootLayoutProps): Promise<JSX.Element> =
             <GradientBackground />
             <div className={'w-full flex flex-col z-50'}>
               <Header userSession={userSession} />
-              <main className="min-h-[calc(100vh-80px)] z-10 p-4">{children}</main>
+              <main className="min-h-[calc(100vh-80px)] z-10">{children}</main>
             </div>
           </div>
         </div>

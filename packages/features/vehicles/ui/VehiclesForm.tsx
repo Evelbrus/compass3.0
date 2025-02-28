@@ -12,7 +12,6 @@ import {
   ownershipOptions,
 } from '@shared/lib/effector/vehicles/optionsTranslation/optionsTranslationVehicle';
 import { useVehiclesForm, VehicleData } from '@features/vehicles/hooks/useVehiclesCreateForm';
-import { formatDate } from '@shared/components/ui/inputs/date/functions/formatDate';
 import { useAvailabilityUpdater } from '@features/vehicles/hooks/useAvailabilityUpdater';
 
 interface VehiclesFormProps {
@@ -142,17 +141,31 @@ const VehiclesForm: React.FC<VehiclesFormProps> = ({ mode, vehicleData }) => {
                 name="year"
                 control={control}
                 rules={{ required: 'Год выпуска обязателен' }}
-                render={({ field, fieldState }) => (
-                  <TextInput
-                    label="Год выпуска:"
-                    type="date"
-                    placeholder="Выберите год выпуска"
-                    value={field.value ? formatDate(field.value) : ''}
-                    onChange={(value) => field.onChange(value)}
-                    error={!!fieldState.error}
-                    message={fieldState.error?.message || ''}
-                  />
-                )}
+                render={({ field, fieldState }) => {
+                  const [inputValue, setInputValue] = React.useState(
+                    field.value ? new Date(field.value).getFullYear().toString() : '',
+                  );
+
+                  return (
+                    <TextInput
+                      label="Год выпуска:"
+                      type="text"
+                      placeholder="Введите год выпуска"
+                      value={inputValue}
+                      onChange={(value: string) => {
+                        const sanitizedValue = value.replace(/\D/g, '').slice(0, 4);
+                        setInputValue(sanitizedValue);
+                        if (sanitizedValue.length === 4) {
+                          field.onChange(`${sanitizedValue}-01-01T00:00:00.000Z`);
+                        } else {
+                          field.onChange(null);
+                        }
+                      }}
+                      error={!!fieldState.error}
+                      message={fieldState.error?.message || ''}
+                    />
+                  );
+                }}
               />
 
               {/*Цвет автомобиля */}

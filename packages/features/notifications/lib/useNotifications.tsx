@@ -85,10 +85,15 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
           `Проверка для админа/оператора: action=${notification.action}, read=${notification.read}`,
         );
 
-        console.log(`Открываем модалку для уведомления ${notification.uuid}`);
-        openModal(notification);
+        // Не открываем модалку, если уведомление с action: "noted" и read: true
+        if (!(notification.action === Action.noted && notification.read)) {
+          console.log(`Открываем модалку для уведомления ${notification.uuid}`);
+          openModal(notification);
+        } else {
+          console.log(`Модалка не открывается для уведомления ${notification.uuid} (noted и read: true)`);
+        }
 
-        setNewNotificationReceived(true); // Устанавливаем флаг, что пришло новое уведомление
+        setNewNotificationReceived(true);
 
         return updatedNotifications;
       });

@@ -11,15 +11,16 @@ export const revalidate = 60;
 const Page = async (): Promise<JSX.Element> => {
   const { role, refreshToken } = await getLayoutData();
 
-  if (refreshToken) {
-    if (role === UserRole.Admin || role === UserRole.Operator) {
-      return <OrderCreateView />;
-    } else {
-      return <Loading />;
-    }
-  } else {
+  if (!refreshToken) {
     redirect(publicRoutes.LOGIN);
   }
+
+  if (role !== UserRole.Admin && role !== UserRole.Operator) {
+    return <Loading />;
+  }
+
+  // Передаем только role и mode="create", orderData=null
+  return <OrderCreateView role={role} mode="create" />;
 };
 
 export default Page;

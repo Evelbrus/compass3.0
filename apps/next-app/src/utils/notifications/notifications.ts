@@ -244,6 +244,16 @@ export const notificationTemplates: Record<string, NotificationTemplate> = {
     ) =>
       `Водитель ${driverFullName || 'не указан'} принял просроченный заказ ${orderName} от ${departureAddress} до ${arrivalAddress}. Статус водителя: "${driverAcceptanceStatusTranslations[order.driverAcceptanceStatus || 'ACCEPTED']}". Время отправления было: ${order.departureTime.toLocaleString()}.`,
   },
+  orderNotedByDriver: {
+    title: (_order, _departureAddress, _arrivalAddress) => 'Уведомление отмечено',
+    message: (order, orderName, departureAddress, arrivalAddress) =>
+      `Вы отметили уведомление о заказе ${orderName} от ${departureAddress} до ${arrivalAddress} как прочитанное. Время отправления: ${order.departureTime.toLocaleString()}.`,
+  },
+  orderNotedByClient: {
+    title: (_order, _departureAddress, _arrivalAddress) => 'Уведомление отмечено',
+    message: (order, orderName, departureAddress, arrivalAddress) =>
+      `Вы отметили уведомление о заказе ${orderName} от ${departureAddress} до ${arrivalAddress} как прочитанное. Время отправления: ${order.departureTime.toLocaleString()}.`,
+  },
 };
 
 /**
@@ -314,6 +324,7 @@ export async function processNotification({
     );
     log('Сформированы данные уведомления:', { title, message });
 
+    // Устанавливаем read в зависимости от markNotificationAsRead или action
     const readValue = markNotificationAsRead || action === Action.cancelled;
     log('readValue установлен:', readValue);
 
@@ -328,7 +339,7 @@ export async function processNotification({
           title,
           message,
           action,
-          read: readValue,
+          read: readValue, // Устанавливаем актуальное значение
           createdById,
           driverById,
           updatedAt: new Date(),
@@ -344,7 +355,7 @@ export async function processNotification({
           title,
           message,
           action,
-          read: readValue,
+          read: readValue, // Устанавливаем актуальное значение
           createdById,
           driverById,
         },
@@ -352,6 +363,7 @@ export async function processNotification({
       log('Уведомление создано:', notification.uuid);
     }
 
+    // Формируем данные для отправки через WebSocket с актуальным read
     const notificationData = {
       uuid: notification.uuid,
       userId: notification.userId,
@@ -359,7 +371,7 @@ export async function processNotification({
       title: notification.title,
       message: notification.message,
       action: notification.action,
-      read: notification.read,
+      read: notification.read, // Используем значение из базы
       createdById: notification.createdById,
       createdAt: notification.createdAt.toISOString(),
       updatedAt: notification.updatedAt.toISOString(),

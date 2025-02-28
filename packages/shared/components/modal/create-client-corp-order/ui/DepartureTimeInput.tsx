@@ -87,11 +87,11 @@ const DepartureTimeInput: React.FC<DepartureTimeInputProps> = ({ control }) => {
   }, [value]);
 
   return (
-    <div>
+    <div className={'flex flex-col gap-2'}>
       <label htmlFor={name} className="block text-sm font-medium text-gray-700">
         Выберите дату и время отъезда
       </label>
-      <div className="mt-1">
+      <div className="">
         <Controller
           name={name}
           control={control}
@@ -118,12 +118,12 @@ const DepartureTimeInput: React.FC<DepartureTimeInputProps> = ({ control }) => {
           )}
         />
       </div>
-      <div>
-        <p className="mt-2 text-sm">
+      <div className={'flex flex-col gap-2'}>
+        <p className="text-sm">
           <span className="font-bold">Отправление: </span>
           {formattedDate}
         </p>
-        <p className="mt-2 text-sm">
+        <p className="text-sm">
           <span className="font-bold">Время: </span>
           {formattedTime}
         </p>

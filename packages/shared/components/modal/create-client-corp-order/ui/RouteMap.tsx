@@ -123,7 +123,7 @@ const RouteMapInner: React.FC<RouteMapInnerProps> = ({
   );
 
   return (
-    <div style={{ position: 'relative' }}>
+    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
       <Map
         instanceRef={mapRef}
         defaultState={{
@@ -134,7 +134,7 @@ const RouteMapInner: React.FC<RouteMapInnerProps> = ({
           zoom: 7, // Начальный зум
         }}
         width="100%"
-        height="400px"
+        height="550px"
       >
         {allPoints.map((point) => (
           <Placemark

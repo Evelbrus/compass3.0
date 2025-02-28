@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { fetchAdditionalServices } from '@shared/components/modal/create-client-corp-order/api/useApi';
-import { ExtendedTariff, TariffAdditionalService } from '@shared/prisma/interface/orders/interface';
+import { TariffAdditionalService } from '@shared/prisma/interface/orders/interface';
 import { AdditionalService } from '@prisma/client';
+import { TariffWithServices } from '@shared/components/modal/create-client-corp-order/CreateClientCorpOrder';
 
-const useAdditionalServices = (selectedTariff: ExtendedTariff | null) => {
+const useAdditionalServices = (selectedTariff: TariffWithServices | null) => {
   const [allServices, setAllServices] = useState<AdditionalService[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -11,7 +12,7 @@ const useAdditionalServices = (selectedTariff: ExtendedTariff | null) => {
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [selectedServicesMap, setSelectedServicesMap] = useState<Record<string, string[]>>({});
 
-  const prevTariffRef = useRef<ExtendedTariff | null>(null);
+  const prevTariffRef = useRef<TariffWithServices | null>(null);
   const prevSelectedServicesRef = useRef<string[]>(selectedServices);
 
   useEffect(() => {
@@ -55,7 +56,7 @@ const useAdditionalServices = (selectedTariff: ExtendedTariff | null) => {
     if (selectedTariff && selectedTariff.uuid != null) {
       const newUuid = selectedTariff.uuid;
       if (selectedServicesMap.hasOwnProperty(newUuid)) {
-        setSelectedServices(selectedServicesMap[newUuid]);
+        setSelectedServices(selectedServicesMap[newUuid] || []);
       } else {
         setSelectedServices([]);
       }
@@ -78,7 +79,11 @@ const useAdditionalServices = (selectedTariff: ExtendedTariff | null) => {
     //Создаем Map для быстрого поиска.
     const tariffServiceMap = new Map<string, TariffAdditionalService>();
     selectedTariff.tariffAdditionalServices?.forEach((ts) => {
-      tariffServiceMap.set(ts.serviceUuid, ts);
+      const extendedTs: TariffAdditionalService = {
+        ...ts,
+        name: ts.service.name,
+      };
+      tariffServiceMap.set(ts.serviceUuid, extendedTs);
     });
 
     //Для каждого сервиса из общего списка ищем информацию в Map.

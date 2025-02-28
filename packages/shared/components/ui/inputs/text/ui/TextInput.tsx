@@ -6,13 +6,17 @@ import { cn } from '@shared/lib';
 
 const formatDateForInput = (value: unknown): string => {
   if (!value) return '';
-  if (typeof value === 'string') return value.split('T')[0] ?? '';
-  if (value instanceof Date) return value.toISOString().split('T')[0] || '';
+  if (typeof value === 'string') return value.split('-')[0] ?? '';
+  if (value instanceof Date) return value.getFullYear().toString();
   return '';
 };
 
 const formatDateForBackend = (value: string): string => {
-  return new Date(value).toISOString();
+  const year = value.trim();
+  if (!year) return '';
+
+  const date = new Date(`${year}-01-01T00:00:00.000Z`);
+  return date.toISOString();
 };
 
 export interface TextInputProps {

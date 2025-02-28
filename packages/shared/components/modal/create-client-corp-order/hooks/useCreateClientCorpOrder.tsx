@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useForm, UseFormReturn } from 'react-hook-form';
 import { ServiceLevels, VehicleType } from '@prisma/client';
-import { ExtendedTariff } from '@shared/prisma/interface/orders/interface';
+import { TariffWithServices } from '@shared/components/modal/create-client-corp-order/CreateClientCorpOrder';
 
 export interface CreateClientCorpOrderData {
   createdBy: string;
@@ -21,7 +21,7 @@ export interface CreateClientCorpOrderData {
 }
 
 const useCreateClientCorpOrderLogic = (
-  tariffs: ExtendedTariff[],
+  tariffs: TariffWithServices[],
   initialServiceLevel: ServiceLevels | undefined,
   initialVehicleType: VehicleType | undefined,
 ) => {
@@ -43,7 +43,7 @@ const useCreateClientCorpOrderLogic = (
   const selectedVehicleType = watch('vehicleType');
 
   //Состояние для выбранного тарифа
-  const [selectedTariff, setSelectedTariff] = useState<ExtendedTariff | null>(null);
+  const [selectedTariff, setSelectedTariff] = useState<TariffWithServices | null>(null);
 
   //Используем ref для хранения ранее выбранных уровней обслуживания для разных типов авто
   const serviceLevelMapRef = useRef<Partial<Record<VehicleType, ServiceLevels>>>({});
@@ -52,9 +52,9 @@ const useCreateClientCorpOrderLogic = (
   useEffect(() => {
     if (selectedServiceLevel && selectedVehicleType) {
       const matchingTariff = tariffs.find(
-        (tariff) =>
-          tariff.serviceLevel === selectedServiceLevel &&
-          tariff.vehicleType === selectedVehicleType,
+        (TariffWithServices) =>
+          TariffWithServices.serviceLevel === selectedServiceLevel &&
+          TariffWithServices.vehicleType === selectedVehicleType,
       );
       setSelectedTariff(matchingTariff || null);
     } else {

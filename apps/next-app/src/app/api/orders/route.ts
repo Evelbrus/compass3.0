@@ -158,7 +158,7 @@ export async function POST(req: NextRequest) {
         orderId: createdOrder.uuid,
         action: Action.noted,
         templateKey: 'orderCreatedByAdminToClient',
-        createdById: adminUserId,
+        createdById: corpClientId,
       });
       if (assignedDriverId) {
         await processNotification({
@@ -283,7 +283,24 @@ export async function GET(req: Request) {
         [parsedParams.sort_by]: parsedParams.sort_order,
       },
       include: {
-        createdBy: true,
+        createdBy: {
+          include: {
+            companyProfile: true,
+          },
+        },
+        assignedDriver: {
+          include: {
+            vehicleDriver: {
+              include: {
+                vehicle: {
+                  select: {
+                    plateNumber: true,
+                  },
+                },
+              },
+            },
+          },
+        },
         tariff: true,
         departurePoint: true,
         arrivalPoint: true,
@@ -317,6 +334,17 @@ export async function GET(req: Request) {
           fullName: order.createdBy.fullName,
           email: order.createdBy.email,
           phone: order.createdBy.phone,
+          companyProfile: {
+            companyName: order.createdBy.companyProfile?.companyName || null,
+            companyPhone: order.createdBy.companyProfile?.phone || null,
+            companyLogo: order.createdBy.companyProfile?.logoImagePath || null,
+          },
+        },
+        assignedDriver: {
+          uuid: order.assignedDriver?.fullName || null,
+          plateNumber: order.assignedDriver?.vehicleDriver?.vehicle.plateNumber || null,
+          fullName: order.assignedDriver?.fullName || null,
+          phone: order.assignedDriver?.phone || null,
         },
         tariff: {
           uuid: order.tariff.uuid,

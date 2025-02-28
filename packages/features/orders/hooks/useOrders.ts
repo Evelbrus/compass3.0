@@ -52,6 +52,7 @@ const useOrders = () => {
       }
 
       const data = await response.json();
+      console.log('ffdsdf:', data);
       setOrders(data.orders);
       setTotal(data.total);
 
@@ -97,7 +98,17 @@ const useOrders = () => {
     createdBy: {
       fullName: order.createdBy.fullName,
       phone: order.createdBy.phone,
+      companyProfile: {
+        companyName: order.createdBy.companyProfile?.companyName,
+        companyPhone: order.createdBy.companyProfile?.companyPhone,
+        companyLogo: order.createdBy.companyProfile?.companyLogo,
+      },
     },
+    assignedDriver: {
+      fullname: order.assignedDriver.fullName,
+      phone: order.assignedDriver.phone,
+    },
+    plateNumber: order.assignedDriver.plateNumber,
     tariff: {
       name: order.tariff.name,
     },
@@ -118,6 +129,7 @@ const useOrders = () => {
       navigate: router.push,
     }),
   }));
+  console.log('sfdf:', tableData);
 
   return {
     orders: tableData,

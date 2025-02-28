@@ -44,8 +44,9 @@ export interface CreateOrderData
 
 //Тип данных для детализированного представления заказа
 export interface DetailOrderData extends Order {
-  createdBy: User;
+  createdBy: User & { companyProfile: { companyName: string, companyPhone: string, companyLogo: string | null } };
   tariff: ExtendedTariff;
   departurePoint: Point;
   arrivalPoint: Point;
+  assignedDriver: User & { plateNumber: number };
 }

@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { fetchTariffs } from '@shared/components/modal/create-client-corp-order/api/useApi';
 import { ServiceLevels, VehicleType } from '@prisma/client';
-import { ExtendedTariff } from '@shared/prisma/interface/orders/interface';
+import { TariffWithServices } from '@shared/components/modal/create-client-corp-order/CreateClientCorpOrder';
 
 interface UseTariffsProps {
   serviceLevel?: ServiceLevels;
@@ -10,7 +10,7 @@ interface UseTariffsProps {
 }
 
 const useTariffs = ({ serviceLevel, vehicleType }: UseTariffsProps = {}) => {
-  const [tariffs, setTariffs] = useState<ExtendedTariff[]>([]);
+  const [tariffs, setTariffs] = useState<TariffWithServices[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const initialMount = useRef(true);

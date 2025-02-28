@@ -6,7 +6,10 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { VehicleType, Vehicle } from '@prisma/client';
 import { TableVehicleRow } from '@shared/components/ui/table';
 import { renderActions } from '@shared/components/ui/table/ui/TableRenders';
-import { formatDate } from '@shared/components/ui/inputs/date/functions/formatDate';
+import {
+  formatDate,
+  formatDateCreateAuto,
+} from '@shared/components/ui/inputs/date/functions/formatDate';
 
 // Определяем тип для ответа API, учитывая поле drivers
 type VehicleWithDrivers = Vehicle & {
@@ -105,7 +108,7 @@ const useDriverVehicles = () => {
     number: (optimisticPage - 1) * perPage + index + 1,
     brand: vehicle.brand,
     model: vehicle.model,
-    year: vehicle.year ? formatDate(vehicle.year) : 'N/A',
+    year: vehicle.year ? formatDateCreateAuto(vehicle.year) : 'N/A',
     color: vehicle.color,
     plateNumber: vehicle.plateNumber,
     isAvailable: vehicle.isAvailable ? 'Yes' : 'No',

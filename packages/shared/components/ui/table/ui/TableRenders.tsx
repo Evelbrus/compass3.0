@@ -116,6 +116,25 @@ export const renderCustomerPhone = (phone: string, fullName: string) => {
   );
 };
 
+export const renderLogoCompany = (fullName: string, logoPath?: string) => {
+  const logoSrc = logoPath ? `/api/images/${logoPath.split('/').pop()}?type=logo` : null;
+
+  return (
+    <div className="flex items-center gap-2">
+      {logoSrc && (
+        <img
+          src={logoSrc}
+          alt="Company Logo"
+          width={32}
+          height={32}
+          className="object-contain rounded-full"
+        />
+      )}
+      <span className="text-gray-500 text-sm">{fullName}</span>
+    </div>
+  );
+};
+
 interface RenderOrderDriverActionsProps {
   entity: 'orders';
   uuid?: string;

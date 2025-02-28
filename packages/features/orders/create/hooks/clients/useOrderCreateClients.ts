@@ -1,33 +1,35 @@
+// @features/orders/create/hooks/useOrderCreateClients.ts
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { useClients } from '@features/orders/create/hooks';
-import { CompanyProfile, User } from '@prisma/client';
+import { useClients } from '@features/orders/create/hooks/clients/useClients';
 import { useDebounce } from '@shared/utils/hooks/useDebounce';
-
-export interface ExtendedUser extends User {
-  companyProfile?: CompanyProfile | null;
-}
+import { User } from '@prisma/client';
+import { UseFormSetValue } from 'react-hook-form';
+import { FormOrderValues } from '@features/orders/create/hooks/useCreateAdminOrderLogic';
 
 interface UseOrderCreateClientsProps {
   assignedClientId?: string | null;
-  setErrorMessage: (error: Error | null | undefined, message: string) => void;
+  setValue: UseFormSetValue<FormOrderValues>;
 }
 
 export const useOrderCreateClients = ({
   assignedClientId,
-  setErrorMessage,
+  setValue,
 }: UseOrderCreateClientsProps) => {
   const [searchClient, setSearchClient] = useState('');
-  const [selectedClientInfo, setSelectedClientInfo] = useState<ExtendedUser | null>(null);
+  const [selectedClientInfo, setSelectedClientInfo] = useState<Pick<
+    User,
+    'uuid' | 'fullName' | 'email' | 'phone' | 'role'
+  > | null>(null);
   const debouncedSearchClient = useDebounce(searchClient, 500);
   const isClientAssigned = useRef(false);
 
   const { clients, refetchClients, fetchClientByUuidCallback, loadMore, total, currentPage } =
-    useClients({ setErrorMessage });
+    useClients({});
 
-  //Эффект для загрузки назначенного клиента (режим редактирования)
+  // Эффект для загрузки назначенного клиента (режим редактирования)
   useEffect(() => {
     const fetchAssignedClient = async () => {
-      if (assignedClientId) {
+      if (assignedClientId && !isClientAssigned.current) {
         const client = await fetchClientByUuidCallback(assignedClientId);
         if (client) {
           setSelectedClientInfo(client);
@@ -39,35 +41,41 @@ export const useOrderCreateClients = ({
     fetchAssignedClient();
   }, [assignedClientId, fetchClientByUuidCallback]);
 
-  //Эффект для загрузки списка клиентов по умолчанию (режим создания)
+  // Эффект для загрузки списка клиентов по умолчанию (режим создания)
   useEffect(() => {
-    if (!assignedClientId) {
+    if (!assignedClientId && !clients) {
       refetchClients('');
     }
-  }, [assignedClientId, refetchClients]);
+  }, [assignedClientId, refetchClients, clients]);
 
-  //Эффект для поиска клиентов при изменении debouncedSearchClient
+  // Эффект для поиска клиентов при изменении debouncedSearchClient
   useEffect(() => {
     if (debouncedSearchClient !== undefined) {
       refetchClients(debouncedSearchClient);
     }
   }, [debouncedSearchClient, refetchClients]);
 
-  //Обработчик изменения поискового запроса
+  // Обработчик изменения поискового запроса
   const handleSearchChange = useCallback((value: string) => {
     setSearchClient(value);
   }, []);
 
-  //Возвращаемые значения
+  const handleClientSelection = (
+    client: Pick<User, 'uuid' | 'fullName' | 'email' | 'phone' | 'role'>,
+  ) => {
+    setSelectedClientInfo(client);
+    setValue('createdBy', client);
+  };
+
   return {
-    clients,
+    clients: clients,
     selectedClientInfo,
     searchClient,
     setSelectedClientInfo,
     handleSearchChange,
-    refetchClients,
     loadMore,
     total,
     currentPage,
+    handleClientSelection,
   };
 };

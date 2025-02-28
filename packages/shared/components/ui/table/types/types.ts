@@ -16,7 +16,17 @@ export interface ITableProps<T> {
 
 export interface TableOrdersRow {
   number: number;
-  createdBy: { fullName: string; phone: string };
+  createdBy: {
+    fullName: string;
+    phone: string;
+    companyProfile: {
+      companyName: string;
+      companyPhone: string;
+      companyLogo?: string | null;
+    };
+  };
+  assignedDriver: { fullname: string; phone: string };
+  plateNumber: number;
   tariff: { name: string };
   departurePoint: { address: string };
   arrivalPoint: { address: string };

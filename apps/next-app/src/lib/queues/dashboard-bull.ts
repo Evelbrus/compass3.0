@@ -6,7 +6,10 @@ import { Queue, Worker, Job } from 'bullmq';
 import dotenv from 'dotenv';
 import { Order, Action, OrderStatus, UserRole } from '@prisma/client';
 import { prisma } from '@shared/prisma/prisma-client';
-import { processBulkNotifications, processNotification } from '@next-app/src/utils/notifications/notifications';
+import {
+  processBulkNotifications,
+  processNotification,
+} from '@next-app/src/utils/notifications/notifications';
 
 dotenv.config();
 
@@ -98,7 +101,12 @@ async function processNotificationJob(order: Order) {
     await prisma.$transaction(async (prismaTx) => {
       const fullOrder = await prismaTx.order.findUnique({
         where: { uuid: order.uuid },
-        include: { departurePoint: true, arrivalPoint: true, createdBy: true, assignedDriver: true },
+        include: {
+          departurePoint: true,
+          arrivalPoint: true,
+          createdBy: true,
+          assignedDriver: true,
+        },
       });
 
       if (!fullOrder) {
@@ -141,67 +149,75 @@ async function processNotificationJob(order: Order) {
 async function processCheckoverdueJob(order: Order) {
   console.info(`🚀 Начало проверки просроченного заказа ${order.uuid}`);
 
-  try {
-    const freshOrder = await prisma.order.findUnique({
-      where: { uuid: order.uuid },
-      include: { departurePoint: true, createdBy: true, assignedDriver: true },
-    });
+  const freshOrder = await prisma.order.findUnique({
+    where: { uuid: order.uuid },
+    include: { departurePoint: true, createdBy: true, assignedDriver: true },
+  });
 
-    if (!freshOrder) {
-      console.error(`Заказ ${order.uuid} не найден`);
-      throw new Error(`Заказ ${order.uuid} не найден`);
-    }
+  if (!freshOrder) {
+    console.error(`Заказ ${order.uuid} не найден`);
+    throw new Error(`Заказ ${order.uuid} не найден`);
+  }
 
-    if (freshOrder.status === OrderStatus.PENDING || freshOrder.status === OrderStatus.PLANNED) {
-      await prisma.$transaction(async (prismaTx) => {
-        if (freshOrder.assignedDriverId) {
-          const driverId = freshOrder.assignedDriverId;
-          if (!driverId || typeof driverId !== 'string') {
-            console.error(`Некорректный driverId: ${driverId}`);
-            throw new Error('Driver ID is invalid');
-          }
-          await processNotification({
-            userId: driverId,
-            orderId: freshOrder.uuid,
-            action: Action.warning,
-            templateKey: 'orderOverdueDriver',
-            createdById: freshOrder.createdById,
-            driverById: driverId,
-          });
-          console.info(`✅ Уведомление для водителя отправлено о просроченном заказе ${freshOrder.uuid}`);
-        } else {
-          console.warn(`⚠️ Водитель не назначен для заказа ${freshOrder.uuid}, уведомление не отправлено`);
-        }
+  const now = new Date();
+  if (
+    (freshOrder.status === OrderStatus.PENDING || freshOrder.status === OrderStatus.PLANNED) &&
+    now > new Date(freshOrder.departureTime)
+  ) {
+    await prisma.$transaction(async (prismaTx) => {
+      // Обновляем статус заказа на OVERDUE
+      const updatedOrder = await prismaTx.order.update({
+        where: { uuid: freshOrder.uuid },
+        data: { status: OrderStatus.OVERDUE },
+      });
+      console.info(`✅ Статус заказа ${freshOrder.uuid} обновлён на OVERDUE`);
 
-        const adminsAndOperators = await prismaTx.user.findMany({
-          where: { role: { in: [UserRole.Operator, UserRole.Admin] } },
+      if (freshOrder.assignedDriverId) {
+        const driverId = freshOrder.assignedDriverId;
+        await processNotification({
+          userId: driverId,
+          orderId: freshOrder.uuid,
+          action: Action.warning,
+          templateKey: 'orderOverdueDriver',
+          createdById: freshOrder.createdById,
+          driverById: driverId,
         });
+        console.info(
+          `✅ Уведомление для водителя отправлено о просроченном заказе ${freshOrder.uuid}`,
+        );
+      }
 
-        if (adminsAndOperators.length > 0) {
-          const validUsers = adminsAndOperators.filter(user => user.uuid && typeof user.uuid === 'string');
-          if (validUsers.length === 0) {
-            console.warn('Нет валидных пользователей для уведомления');
-            return;
-          }
+      const adminsAndOperators = await prismaTx.user.findMany({
+        where: { role: { in: [UserRole.Operator, UserRole.Admin] } },
+      });
+
+      if (adminsAndOperators.length > 0) {
+        const validUsers = adminsAndOperators.filter(
+          (user) => user.uuid && typeof user.uuid === 'string',
+        );
+        if (validUsers.length > 0) {
           await processBulkNotifications({
-            users: validUsers.map(user => ({ uuid: user.uuid, role: user.role })),
+            users: validUsers.map((user) => ({ uuid: user.uuid, role: user.role })),
             orderId: freshOrder.uuid,
             action: Action.warning,
             templateKey: 'orderOverdueAdmin',
             createdById: freshOrder.createdById,
             driverById: freshOrder.assignedDriverId,
           });
-          console.info(`✅ Уведомления для администраторов и операторов отправлены о просроченном заказе ${freshOrder.uuid}`);
+          console.info(
+            `✅ Уведомления для админов/операторов отправлены о просроченном заказе ${freshOrder.uuid}`,
+          );
         } else {
-          console.warn(`⚠️ Не найдено администраторов или операторов для уведомления`);
+          console.warn(`⚠️ Нет валидных пользователей для уведомления`);
         }
-      });
-    } else {
-      console.info(`ℹ️ Заказ ${freshOrder.uuid} не является просроченным (статус: ${freshOrder.status})`);
-    }
-  } catch (error) {
-    console.error(`❌ Ошибка при обработке checkoverdue для заказа ${order.uuid}:`, error);
-    throw error;
+      } else {
+        console.warn(`⚠️ Не найдено админов или операторов`);
+      }
+    });
+  } else {
+    console.info(
+      `ℹ️ Заказ ${freshOrder.uuid} не является просроченным (статус: ${freshOrder.status})`,
+    );
   }
 }
 

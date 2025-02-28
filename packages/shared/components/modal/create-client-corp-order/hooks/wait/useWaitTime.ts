@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Point } from '@prisma/client';
 import { Decimal } from 'decimal.js';
-import { ExtendedTariff } from '@shared/prisma/interface/orders/interface';
+import { TariffWithServices } from '@shared/components/modal/create-client-corp-order/CreateClientCorpOrder';
 
 interface UseWaitTimeProps {
-  selectedTariff?: ExtendedTariff | null;
+  selectedTariff?: TariffWithServices | null;
   departurePoint?: Point | null;
 }
 

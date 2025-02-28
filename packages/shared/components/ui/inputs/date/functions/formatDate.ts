@@ -4,3 +4,7 @@ export const formatDate = (date: Date | string): string => {
   const day = `0${d.getDate()}`.slice(-2);
   return `${d.getFullYear()}-${month}-${day}`;
 };
+
+export const formatDateCreateAuto = (date: Date | string): string => {
+  return new Date(date).getFullYear().toString();
+};

@@ -12,9 +12,10 @@ import { fetchDrivers } from '@features/vehicles/api/vehicles.api';
  * Интерфейс для данных автомобиля, используемых в форме.
  * Поле vehicleDrivers представляет массив объектов, в которых обязательно есть driver типа User.
  */
-export interface VehicleData extends Omit<Vehicle, 'photoPath'> {
+export interface VehicleData extends Omit<Vehicle, 'photoPath' | 'year'> {
   photoImage?: File | null;
   photoPath: string | null;
+  year: string;
   vehicleDrivers: (VehicleDriver & { driver: User })[];
 }
 
