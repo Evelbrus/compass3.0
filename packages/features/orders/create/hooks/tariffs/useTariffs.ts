@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { fetchTariffs } from '@features/orders/create/api/orders.api';
-import { Tariff } from '@prisma/client';
+import { Tariff, TariffOnService } from '@prisma/client';
 
-const useTariffs = () => {
-  const [tariffs, setTariffs] = useState<Tariff[]>([]);
+export const useTariffs = () => {
+  const [tariffs, setTariffs] = useState<
+    (Tariff & { tariffAdditionalServices: TariffOnService[] })[]
+  >([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const initialMount = useRef(true);
@@ -31,9 +33,7 @@ const useTariffs = () => {
       loadTariffs();
       initialMount.current = false;
     }
-  }, []); // Пустой массив зависимостей - загрузка только при монтировании
+  }, []);
 
   return { tariffs, loading, error, isInitialMount };
 };
-
-export default useTariffs;

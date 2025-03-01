@@ -1,29 +1,36 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { AdditionalService } from '@prisma/client';
 import {
-  OrderData,
-  TariffWithServices,
-} from '@pages/(administrator)/orders/create/OrderCreate.view';
+  AdditionalService,
+  Tariff,
+  TariffOnService,
+} from '@prisma/client';
+import { OrderData } from '@features/orders/create/types/types';
 
-const useAdditionalServices = (
-  selectedTariff: TariffWithServices | null,
+export const useAdditionalServices = (
+  selectedTariff: (Tariff & { tariffAdditionalServices: TariffOnService[] }) | null,
   allServices: AdditionalService[],
   orderData?: OrderData | null,
 ) => {
-  const initialSelectedServices = orderData?.selectedServices?.length
-    ? [...orderData.selectedServices]
-    : [];
+  const initialSelectedServices = useMemo(() => {
+    if (!orderData?.selectedServices?.length || !selectedTariff) return [];
+    return selectedTariff.tariffAdditionalServices.filter((service) =>
+      orderData.selectedServices.some((item) => item.uuid === service.uuid),
+    );
+  }, [orderData, selectedTariff]);
 
-  const [selectedServices, setSelectedServices] = useState<string[]>(initialSelectedServices);
+  const [selectedServices, setSelectedServices] =
+    useState<TariffOnService[]>(initialSelectedServices);
   const initializedRef = useRef<boolean>(false);
 
-  // Инициализация при первом совпадении тарифа
   useEffect(() => {
     if (!selectedTariff || !orderData || initializedRef.current) return;
 
     const currentTariffUuid = selectedTariff.uuid;
     if (orderData.tariff?.uuid === currentTariffUuid && orderData.selectedServices.length > 0) {
-      setSelectedServices(orderData.selectedServices);
+      const initialServices = selectedTariff.tariffAdditionalServices.filter((service) =>
+        orderData.selectedServices.some((item) => item.uuid === service.uuid),
+      );
+      setSelectedServices(initialServices);
       initializedRef.current = true;
     }
   }, [selectedTariff, orderData]);
@@ -65,20 +72,19 @@ const useAdditionalServices = (
     if (!tariffService) return;
 
     setSelectedServices((prev) => {
-      const isAlreadySelected = prev.includes(tariffService.uuid);
+      const isAlreadySelected = prev.some((s) => s.uuid === tariffService.uuid);
       if (isAlreadySelected) {
-        return prev.filter((uuid) => uuid !== tariffService.uuid);
+        return prev.filter((s) => s.uuid !== tariffService.uuid);
       }
-      return [...prev, tariffService.uuid];
+      return [...prev, tariffService];
     });
   };
 
   const totalAdditionalServicesPrice = useMemo(() => {
-    return selectedServices.reduce((total, uuid) => {
-      const info = availableServices.find((item) => item.tariffOnServiceUuid === uuid);
-      return total + (info && info.isAvailable ? info.price : 0);
+    return selectedServices.reduce((total, service) => {
+      return total + (service.isAvailable ? service.price : 0);
     }, 0);
-  }, [selectedServices, availableServices]);
+  }, [selectedServices]);
 
   return {
     availableServices,
@@ -87,5 +93,3 @@ const useAdditionalServices = (
     totalAdditionalServicesPrice,
   };
 };
-
-export default useAdditionalServices;

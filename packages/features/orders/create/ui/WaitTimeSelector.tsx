@@ -1,11 +1,5 @@
 import React from 'react';
-import { Point } from '@prisma/client';
-
-// Определяем тип PointWithoutTimestamps, как в других местах
-type PointWithoutTimestamps = Pick<
-  Point,
-  'uuid' | 'address' | 'pricePerKm' | 'airport' | 'latitude' | 'longitude' | 'terrainDifficulty'
->;
+import { PointWithoutTimestamps } from '@features/orders/create/types/types';
 
 interface WaitTimeSelectorProps {
   waitTime: number;
@@ -13,11 +7,11 @@ interface WaitTimeSelectorProps {
   adjustWaitTime: (increment: number) => void;
   minWaitTime: number;
   maxWaitTime: number;
-  departurePoint?: PointWithoutTimestamps | null | undefined; // Обновили тип
+  departurePoint?: PointWithoutTimestamps | null | undefined;
   freeWaitTime: number;
 }
 
-const WaitTimeSelector: React.FC<WaitTimeSelectorProps> = ({
+export const WaitTimeSelector: React.FC<WaitTimeSelectorProps> = ({
   waitTime,
   additionalWaitTimeCost,
   adjustWaitTime,
@@ -97,5 +91,3 @@ const WaitTimeSelector: React.FC<WaitTimeSelectorProps> = ({
     </div>
   );
 };
-
-export default WaitTimeSelector;

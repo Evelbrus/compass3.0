@@ -3,14 +3,9 @@ import {
   fetchPoints,
   FetchPointsResponse,
 } from '@shared/components/modal/create-client-corp-order/api/useApi';
-import { Point } from '@prisma/client';
+import { PointWithoutTimestamps } from '@features/orders/create/types/types';
 
-export type PointWithoutTimestamps = Pick<
-  Point,
-  'uuid' | 'address' | 'pricePerKm' | 'airport' | 'latitude' | 'longitude' | 'terrainDifficulty'
->;
-
-const useAllPoints = () => {
+export const useAllPoints = () => {
   const [allPoints, setAllPoints] = useState<PointWithoutTimestamps[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -33,5 +28,3 @@ const useAllPoints = () => {
 
   return { allPoints, loading, error };
 };
-
-export default useAllPoints;

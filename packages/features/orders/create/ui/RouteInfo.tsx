@@ -1,11 +1,11 @@
 import React, { FC, useMemo } from 'react';
 import { Control, Controller } from 'react-hook-form';
 import Decimal from 'decimal.js';
-import { PointWithoutTimestamps } from '@features/orders/create/hooks/points/useAllPoints';
 import { cn } from '@shared/lib';
 import { OrderStatus } from '@prisma/client';
 import { orderStatusTranslations } from '@shared/lib/effector/orders/options-and-translation/optionsStatusOrder';
 import { FormOrderValues } from '@features/orders/create/hooks/useCreateAdminOrderLogic';
+import { PointWithoutTimestamps } from '@features/orders/create/types/types';
 
 interface RouteInfoProps {
   control: Control<FormOrderValues>;
@@ -28,7 +28,7 @@ interface RouteInfoProps {
   isPriceEdited?: boolean;
 }
 
-const RouteInfo: FC<RouteInfoProps> = ({
+export const RouteInfo: FC<RouteInfoProps> = ({
   control,
   departurePoint,
   additionalPoints,
@@ -510,5 +510,3 @@ const RouteInfo: FC<RouteInfoProps> = ({
     </div>
   );
 };
-
-export default RouteInfo;

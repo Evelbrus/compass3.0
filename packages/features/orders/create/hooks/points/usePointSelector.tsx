@@ -1,15 +1,15 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { PointWithoutTimestamps } from '@features/orders/create/hooks/points/useAllPoints';
+import { PointWithoutTimestamps } from '@features/orders/create/types/types';
 
 export interface UsePointSelectorProps {
   allPoints?: PointWithoutTimestamps[];
   mode?: 'single' | 'multiple';
   initialSelectedPoints?: (PointWithoutTimestamps | null)[];
   initialSelectedPoint?: PointWithoutTimestamps | null;
-  selectedServices?: string[]; // Добавляем выбранные услуги
+  selectedServices?: string[];
 }
 
-const usePointSelector = ({
+export const usePointSelector = ({
   allPoints = [],
   mode = 'single',
   initialSelectedPoints = [],
@@ -141,8 +141,6 @@ const usePointSelector = ({
     selectedPoint: mode === 'single' ? selectedPoint : null,
     selectedPoints: mode === 'multiple' ? selectedPoints : undefined,
     onRemovePoint: mode === 'multiple' ? onRemovePoint : undefined,
-    selectedServices, // Возвращаем услуги для использования в компоненте
+    selectedServices,
   };
 };
-
-export default usePointSelector;

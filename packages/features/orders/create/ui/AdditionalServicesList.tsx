@@ -1,7 +1,7 @@
 import React from 'react';
 import { CheckboxInput } from '@shared/components/ui/inputs';
 import { cn } from '@shared/lib';
-import { AdditionalService } from '@prisma/client';
+import { AdditionalService, TariffOnService } from '@prisma/client';
 
 interface AdditionalServicesListProps {
   label: string;
@@ -11,12 +11,12 @@ interface AdditionalServicesListProps {
     isAvailable: boolean;
     tariffOnServiceUuid: string | null;
   }[];
-  selectedServices: string[];
+  selectedServices: TariffOnService[];
   handleServiceSelection: (serviceUuid: string, price: number, isAvailable: boolean) => void;
   totalAdditionalServicesPrice: number;
 }
 
-const AdditionalServicesList: React.FC<AdditionalServicesListProps> = ({
+export const AdditionalServicesList: React.FC<AdditionalServicesListProps> = ({
   label,
   availableServices,
   handleServiceSelection,
@@ -42,7 +42,8 @@ const AdditionalServicesList: React.FC<AdditionalServicesListProps> = ({
         <div className={'max-h-[440px] overflow-auto'}>
           {availableServices.map(({ service, price, isAvailable, tariffOnServiceUuid }) => {
             const isSelected =
-              tariffOnServiceUuid !== null && selectedServices.includes(tariffOnServiceUuid);
+              tariffOnServiceUuid !== null &&
+              selectedServices.some((s) => s.uuid === tariffOnServiceUuid);
 
             return (
               <div
@@ -82,5 +83,3 @@ const AdditionalServicesList: React.FC<AdditionalServicesListProps> = ({
     </div>
   );
 };
-
-export default AdditionalServicesList;

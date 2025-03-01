@@ -24,7 +24,7 @@ interface UseTotalPriceReturn {
   isPriceEdited: boolean; // Добавленный флаг, показывающий, отличается ли цена от автоматически рассчитанной
 }
 
-const useTotalPrice = ({
+export const useTotalPrice = ({
   tariffPrice,
   additionalServicesPrice,
   waitTimeCost,
@@ -37,7 +37,7 @@ const useTotalPrice = ({
   );
 
   // Ручная цена
-  const [manualPrice, setManualPrice] = useState<Decimal | null>(null);
+  const [_manualPrice, setManualPrice] = useState<Decimal | null>(null);
 
   // Флаг первичной инициализации
   const isInitializedRef = useRef(false);
@@ -151,5 +151,3 @@ const useTotalPrice = ({
     isPriceEdited,
   };
 };
-
-export default useTotalPrice;

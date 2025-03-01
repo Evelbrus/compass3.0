@@ -1,14 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Control, Controller } from 'react-hook-form';
-import { Point } from '@prisma/client';
+import { TariffOnService } from '@prisma/client';
 import { showToast } from '@shared/components/toast/ToastManager';
 import { cn } from '@shared/lib';
 import { FormOrderValues } from '@features/orders/create/hooks/useCreateAdminOrderLogic';
-
-type PointWithoutTimestamps = Pick<
-  Point,
-  'uuid' | 'address' | 'pricePerKm' | 'airport' | 'latitude' | 'longitude' | 'terrainDifficulty'
->;
+import { PointWithoutTimestamps } from '@features/orders/create/types/types';
 
 interface AdditionalPointsProps {
   control: Control<FormOrderValues>;
@@ -29,7 +25,7 @@ interface AdditionalPointsProps {
   arrivalPoint: PointWithoutTimestamps | null;
   additionalPoints: (PointWithoutTimestamps | null)[];
   currentSelectorType: string;
-  selectedServices?: string[];
+  selectedServices?: TariffOnService[];
   availableServices?: Array<{
     service: any;
     price: number;
@@ -65,26 +61,26 @@ const SHADOW_COLORS = [
   'shadow-cyan-100',
 ];
 
-const AdditionalPoints: React.FC<AdditionalPointsProps> = ({
-                                                             control,
-                                                             name,
-                                                             label,
-                                                             isOpen,
-                                                             onOpenSelect,
-                                                             search,
-                                                             handleSearchChange,
-                                                             filteredPoints,
-                                                             onSelectPoint,
-                                                             selectorRef,
-                                                             selectedPoints,
-                                                             onRemovePoint,
-                                                             onChangeOrder,
-                                                             departurePoint,
-                                                             arrivalPoint,
-                                                             additionalPoints,
-                                                             selectedServices = [],
-                                                             availableServices = [],
-                                                           }) => {
+export const AdditionalPoints: React.FC<AdditionalPointsProps> = ({
+  control,
+  name,
+  label,
+  isOpen,
+  onOpenSelect,
+  search,
+  handleSearchChange,
+  filteredPoints,
+  onSelectPoint,
+  selectorRef,
+  selectedPoints,
+  onRemovePoint,
+  onChangeOrder,
+  departurePoint,
+  arrivalPoint,
+  additionalPoints,
+  selectedServices = [],
+  availableServices = [],
+}) => {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   // Создаем массив ссылок на DOM-элементы для каждого инпута
   const inputRefs = useRef<Array<HTMLDivElement | null>>([]);
@@ -169,9 +165,9 @@ const AdditionalPoints: React.FC<AdditionalPointsProps> = ({
   };
 
   // Проверяем, требуются ли аэропортовые услуги
-  const requiresAirportService = selectedServices.some((uuid) =>
+  const requiresAirportService = selectedServices.some((service) =>
     availableServices
-      ?.find((s) => s.tariffOnServiceUuid === uuid)
+      ?.find((s) => s.tariffOnServiceUuid === service.uuid)
       ?.service.name.toLowerCase()
       .includes('аэропорт'),
   );
@@ -435,5 +431,3 @@ const AdditionalPoints: React.FC<AdditionalPointsProps> = ({
     />
   );
 };
-
-export default AdditionalPoints;

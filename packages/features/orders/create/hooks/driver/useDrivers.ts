@@ -1,9 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
-import { User } from '@prisma/client';
 import { fetchAssignedDriver, fetchDrivers } from '@features/orders/create/api/orders.api';
-
-// Определяем тип для частичного пользователя, который возвращается с API
-export type PartialUser = Pick<User, 'uuid' | 'fullName' | 'email' | 'phone' | 'role'>;
+import { Driver } from '@features/orders/create/types/types';
 
 interface UseDriversProps {
   vehicleType?: string | null;
@@ -11,9 +8,8 @@ interface UseDriversProps {
 }
 
 export const useDrivers = ({ vehicleType, serviceLevel }: UseDriversProps) => {
-  // Изменяем тип состояния, чтобы оно соответствовало возвращаемому типу API
-  const [drivers, setDrivers] = useState<PartialUser[] | null>(null);
-  const [assignedDriver, setAssignedDriver] = useState<PartialUser | null>(null);
+  const [drivers, setDrivers] = useState<Driver[] | null>(null);
+  const [assignedDriver, setAssignedDriver] = useState<Driver | null>(null);
   const [page, setPage] = useState<string>('1');
   const [perPage] = useState<string>('10');
   const [total, setTotal] = useState<number>(0);
@@ -35,7 +31,6 @@ export const useDrivers = ({ vehicleType, serviceLevel }: UseDriversProps) => {
           page,
           perPage,
         );
-        // Теперь типы совпадают
         setDrivers(driversData.drivers);
         setTotal(driversData.total);
         setServerTime(driversData.serverTime ? new Date(driversData.serverTime) : null);
@@ -60,7 +55,6 @@ export const useDrivers = ({ vehicleType, serviceLevel }: UseDriversProps) => {
   );
 
   useEffect(() => {
-    // Преобразуем null в undefined для vehicleType, если необходимо
     const vehicleTypeParam = vehicleType === null ? undefined : vehicleType;
     fetchDriversData(vehicleTypeParam, serviceLevel, '');
   }, [fetchDriversData, vehicleType, serviceLevel]);
@@ -69,7 +63,6 @@ export const useDrivers = ({ vehicleType, serviceLevel }: UseDriversProps) => {
     setIsLoading(true);
     try {
       const driverData = await fetchAssignedDriver(assignedDriverId);
-      // Теперь типы совпадают
       setAssignedDriver(driverData);
     } catch (error) {
       setAssignedDriver(null);

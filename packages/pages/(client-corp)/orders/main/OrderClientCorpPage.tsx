@@ -13,7 +13,6 @@ import { ordersClientCorpOverview } from '@entities/orders/ordersClientCorpOverv
 import OrderClientCorpTable from '@features/orders/table/table/OrderClientCorpTable';
 import useClientCorpOrders from '@features/orders/hooks/useClientCorpOrders';
 
-
 const OrderClientCorpPage: React.FC = () => {
   const topRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -50,7 +49,7 @@ const OrderClientCorpPage: React.FC = () => {
   };
 
   const handleCreate = () => {
-    openModal('createClientCorpOrder');
+    router.push('order/create');
   };
 
   return (

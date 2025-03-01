@@ -1,11 +1,9 @@
 import React, { FC, useState, useEffect, useRef } from 'react';
 import { Control, Controller } from 'react-hook-form';
-import { User } from '@prisma/client';
 import { FormOrderValues } from '@features/orders/create/hooks/useCreateAdminOrderLogic';
 import { PhoneInput } from '@shared/components/ui/inputs';
 import { cn } from '@shared/lib';
-
-export type PartialUser = Pick<User, 'uuid' | 'fullName' | 'email' | 'phone' | 'role'>;
+import { Client } from '@features/orders/create/types/types';
 
 // Тип для стилей полей
 type FieldStyle = {
@@ -20,15 +18,15 @@ type FieldStyle = {
 
 interface ClientSelectorProps {
   control: Control<FormOrderValues>;
-  clients: PartialUser[] | null;
-  selectedClientInfo: PartialUser | null;
-  savedClientInfo: PartialUser | null;
+  clients: Client[] | null;
+  selectedClientInfo: Client | null;
+  savedClientInfo: Client | null;
   searchClient: string;
   handleSearchChange: (valueOrEvent: string | React.ChangeEvent<HTMLInputElement>) => void;
-  handleClientSelection: (client: PartialUser | null) => void;
+  handleClientSelection: (client: Client | null) => void;
   loadMore: () => void;
   total: number;
-  initialClient: PartialUser | undefined;
+  initialClient: Client | undefined;
 }
 
 const FIELD_STYLES = {
@@ -156,7 +154,7 @@ const TimeSlider: FC<{
   );
 };
 
-const ClientSelector: FC<ClientSelectorProps> = ({
+export const ClientSelector: FC<ClientSelectorProps> = ({
   control,
   clients,
   selectedClientInfo,
@@ -671,5 +669,3 @@ const ClientSelector: FC<ClientSelectorProps> = ({
     </div>
   );
 };
-
-export default ClientSelector;

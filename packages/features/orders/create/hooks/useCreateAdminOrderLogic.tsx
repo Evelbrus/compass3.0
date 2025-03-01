@@ -9,10 +9,7 @@ import {
   Order,
   OrderStatus,
 } from '@prisma/client';
-import {
-  OrderData,
-  TariffWithServices,
-} from '@pages/(administrator)/orders/create/OrderCreate.view';
+import { OrderData } from '@features/orders/create/types/types';
 
 export interface FormOrderValues {
   createdBy: Pick<Order, 'uuid'>;
@@ -28,13 +25,16 @@ export interface FormOrderValues {
   departureTime: Date | undefined;
   basePrice: Pick<Order, 'basePrice'>;
   waitingTimeMinutes: Pick<Order, 'waitingTimeMinutes'>;
-  assignedDriverId: Pick<Order, 'assignedDriverId'>;
+  assignedDriverId: string | null;
   fullName?: string;
   phone?: string;
   status: OrderStatus;
 }
 
-const useCreateAdminOrderLogic = (tariffs: TariffWithServices[], orderData?: OrderData | null) => {
+export const useCreateAdminOrderLogic = (
+  tariffs: (Tariff & { tariffAdditionalServices: TariffOnService[] })[],
+  orderData?: OrderData | null,
+) => {
   const initialServiceLevel = orderData?.tariff?.serviceLevel || ServiceLevels.Basic;
   const initialVehicleType = orderData?.tariff?.vehicleType || VehicleType.Sedan;
 
@@ -71,7 +71,9 @@ const useCreateAdminOrderLogic = (tariffs: TariffWithServices[], orderData?: Ord
   const selectedServiceLevel = watch('serviceLevel');
   const selectedVehicleType = watch('vehicleType');
 
-  const [selectedTariff, setSelectedTariff] = useState<TariffWithServices | null>(null);
+  const [selectedTariff, setSelectedTariff] = useState<
+    (Tariff & { tariffAdditionalServices: TariffOnService[] }) | null
+  >(null);
   const serviceLevelMapRef = useRef<Partial<Record<VehicleType, ServiceLevels>>>({});
   const initializedRef = useRef(false);
 
@@ -169,5 +171,3 @@ const useCreateAdminOrderLogic = (tariffs: TariffWithServices[], orderData?: Ord
     formMethods,
   };
 };
-
-export default useCreateAdminOrderLogic;

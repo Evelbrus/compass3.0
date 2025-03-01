@@ -6,7 +6,6 @@ import SkeletonTable from '@shared/components/ui/table/ui/SkeletonTable';
 import NoData from '@shared/components/errors/noData';
 import { ordersClientCorpColumns } from '@features/orders/table/table/columns/ordersClientCorpColumns';
 
-
 interface OrderTableProps {
   orders: TableOrdersRow[];
   loading: boolean;

@@ -1,4 +1,5 @@
 import { User } from '@prisma/client';
+import { Driver } from '@features/orders/create/types/types';
 
 const fetchData = async (url: string) => {
   try {
@@ -55,7 +56,7 @@ export const fetchClientByUuid = async (
 };
 
 interface FetchDriversResponse {
-  drivers: Pick<User, 'uuid' | 'fullName' | 'email' | 'phone' | 'role'>[] | null;
+  drivers: Driver[] | null;
   serverTime: Date | null;
   assignedDriverId: string | null;
   serviceLevels: string[];
@@ -88,11 +89,11 @@ export const fetchDrivers = async (
 //Запрос назначенного водителя
 export const fetchAssignedDriver = async (
   assignedDriverId: string,
-): Promise<Pick<User, 'uuid' | 'fullName' | 'email' | 'phone' | 'role'>> => {
+): Promise<Driver> => {
   const params = new URLSearchParams({ assignedDriverId });
   const response = await fetch(`/api/orders/drivers?${params}`);
   const data = await response.json();
-  return data.data.driver as Pick<User, 'uuid' | 'fullName' | 'email' | 'phone' | 'role'>;
+  return data.data.driver as Driver;
 };
 
 export const fetchAdditionalServices = async () => {

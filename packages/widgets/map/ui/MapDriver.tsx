@@ -2,10 +2,10 @@ import React from 'react';
 import { LazyImage } from '@shared/components/ui/images';
 import { Skeleton } from '@shared/components/ui/skeleton/Skeleton';
 import { isDriverOnline } from '@widgets/drivers-nearby/fucntions/isDriverOnline';
-import { User } from '@prisma/client';
+import { Driver } from '@features/orders/create/types/types';
 
 interface MapDriverProps {
-  selectedDriverInfo: User | null;
+  selectedDriverInfo: Driver | null;
   serverTime?: string | Date | null;
 }
 

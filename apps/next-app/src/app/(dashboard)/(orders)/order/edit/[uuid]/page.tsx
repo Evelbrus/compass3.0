@@ -1,17 +1,53 @@
 import React, { JSX } from 'react';
 import { getLayoutData } from '@shared/utils/cookie/layout-data/getLayoutData';
-import OrderCreateView, { OrderData } from '@pages/(administrator)/orders/create/OrderCreate.view';
+import OrderCreateView from '@pages/(administrator)/orders/create/OrderCreate.view';
 import Loading from '@entities/loading/loading';
 import { UserRole } from '@prisma/client';
 import { redirect } from 'next/navigation';
 import { publicRoutes } from '@shared/utils/routing';
 import { prisma } from '@shared/prisma/prisma-client';
+import { OrderData } from '@features/orders/create/types/types';
+import { OrderStepType } from '@features/orders/create/config/steps';
 
 interface PageProps {
   params: Promise<{ uuid: string }>;
 }
 
 export const revalidate = 60;
+
+// Настройка шагов для режима редактирования заказа
+const editOrderStepsConfig = {
+  'route-info': {
+    title: 'Информация о заказе',
+    description: 'Основная информация о редактируемом заказе',
+  },
+  'client-selection': {
+    title: 'Клиент',
+    description: 'Информация о клиенте заказа',
+  },
+  'route-config': {
+    title: 'Маршрут',
+    description: 'Настройка маршрута поездки',
+  },
+  'tariff-services': {
+    title: 'Тариф и услуги',
+    description: 'Выбор тарифа и дополнительных услуг',
+  },
+  'driver-selection': {
+    title: 'Водитель',
+    description: 'Назначение водителя на заказ',
+  },
+};
+
+// Порядок шагов для режима редактирования
+// При редактировании часто удобнее сначала видеть информацию о заказе
+const editOrderStepsOrder: OrderStepType[] = [
+  'driver-selection',
+  'client-selection',
+  'tariff-services',
+  'route-config',
+  'route-info',
+];
 
 const Page = async ({ params }: PageProps): Promise<JSX.Element> => {
   const { uuid } = await params;
@@ -44,17 +80,7 @@ const Page = async ({ params }: PageProps): Promise<JSX.Element> => {
             role: true,
           },
         },
-        tariff: {
-          include: {
-            tariffAdditionalServices: {
-              include: {
-                orderTariffAdditionalServices: {
-                  where: { orderUuid: uuid },
-                },
-              },
-            },
-          },
-        },
+        tariff: true, // Получаем полные данные о тарифе
         departurePoint: {
           select: {
             uuid: true,
@@ -94,6 +120,24 @@ const Page = async ({ params }: PageProps): Promise<JSX.Element> => {
       return <Loading />;
     }
 
+    // Получение tariffAdditionalServices отдельно
+    const tariffWithServices = await prisma.tariff.findUnique({
+      where: { uuid: order.tariff.uuid },
+      include: {
+        tariffAdditionalServices: {
+          include: {
+            orderTariffAdditionalServices: {
+              where: { orderUuid: uuid },
+            },
+          },
+        },
+      },
+    });
+
+    if (!tariffWithServices) {
+      return <Loading />;
+    }
+
     // Получение полных данных для intermediatePoints
     const intermediatePointsData = await prisma.point.findMany({
       where: {
@@ -121,16 +165,11 @@ const Page = async ({ params }: PageProps): Promise<JSX.Element> => {
         role: order.createdBy.role,
       },
       tariff: {
-        uuid: order.tariff.uuid,
-        name: order.tariff.name,
-        serviceLevel: order.tariff.serviceLevel,
-        vehicleType: order.tariff.vehicleType,
-        tariffAdditionalServices: order.tariff.tariffAdditionalServices.map((service) => ({
+        ...order.tariff, // Используем все поля из tariff
+        tariffAdditionalServices: tariffWithServices.tariffAdditionalServices.map((service) => ({
           ...service,
           price: Number(service.price),
-          orderTariffAdditionalServices: service.orderTariffAdditionalServices,
         })),
-        description: order.tariff?.description,
       },
       departurePoint: {
         uuid: order.departurePoint.uuid,
@@ -167,7 +206,7 @@ const Page = async ({ params }: PageProps): Promise<JSX.Element> => {
       flightNumber: order.flightNumber,
       basePrice: Number(order.basePrice),
       waitingTimeMinutes: Number(order.waitingTimeMinutes),
-      selectedServices: order.tariff.tariffAdditionalServices
+      selectedServices: tariffWithServices.tariffAdditionalServices
         .filter((service) => service.orderTariffAdditionalServices.length > 0)
         .map((service) => service.uuid),
       intermediatePoints: intermediatePointsData.map((point) => ({
@@ -186,8 +225,16 @@ const Page = async ({ params }: PageProps): Promise<JSX.Element> => {
     return <Loading />;
   }
 
-  // Передача данных в клиентский компонент
-  return <OrderCreateView mode="edit" orderData={orderData} />;
+  // Передача данных в клиентский компонент с настройкой шагов
+  return (
+    <OrderCreateView
+      role={role}
+      mode="edit"
+      orderData={orderData}
+      customStepsConfig={editOrderStepsConfig}
+      customStepsOrder={editOrderStepsOrder}
+    />
+  );
 };
 
 export default Page;

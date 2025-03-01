@@ -1,17 +1,13 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { fetchClientByUuid, fetchClients } from '@features/orders/create/api/orders.api';
-import { User } from '@prisma/client';
-
-// Определяем тип для частичного пользователя
-export type PartialUser = Pick<User, 'uuid' | 'fullName' | 'email' | 'phone' | 'role'>;
+import { Client } from '@features/orders/create/types/types';
 
 interface UseClientsProps {
   per_page?: number;
 }
 
 export const useClients = ({ per_page = 4 }: UseClientsProps) => {
-  // Изменяем тип состояния на массив PartialUser
-  const [clients, setClients] = useState<PartialUser[] | null>(null);
+  const [clients, setClients] = useState<Client[] | null>(null);
   const [isClientsLoading, setIsClientsLoading] = useState<boolean>(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -30,7 +26,6 @@ export const useClients = ({ per_page = 4 }: UseClientsProps) => {
 
         setTotal(response.total);
 
-        // Корректно обрабатываем массив, обеспечивая правильную типизацию
         if (page === 1) {
           setClients(response.users || []);
         } else {
@@ -57,20 +52,15 @@ export const useClients = ({ per_page = 4 }: UseClientsProps) => {
     [fetchAllClients],
   );
 
-  const fetchClientByUuidCallback = useCallback(
-    async (uuid: string): Promise<PartialUser | null> => {
-      try {
-        const client = await fetchClientByUuid(uuid);
-        return client;
-      } catch (error) {
-        return null;
-      }
-    },
-    [],
-  );
+  const fetchClientByUuidCallback = useCallback(async (uuid: string): Promise<Client | null> => {
+    try {
+      return await fetchClientByUuid(uuid);
+    } catch (error) {
+      return null;
+    }
+  }, []);
 
   const loadMore = useCallback(() => {
-    // Корректная проверка наличия дополнительных элементов
     const hasMore = clients !== null && clients.length < total;
     if (hasMore && !isClientsLoading) {
       const nextPage = currentPage + 1;
@@ -79,12 +69,12 @@ export const useClients = ({ per_page = 4 }: UseClientsProps) => {
     }
   }, [isClientsLoading, currentPage, fetchAllClients, total, clients]);
 
-  // Сброс currentPage при изменении searchQuery
   useEffect(() => {
-    if (prevSearchRef.current !== undefined) {
+    const search = prevSearchRef.current;
+    if (search !== undefined) {
       setCurrentPage(1);
     }
-  }, [prevSearchRef.current]);
+  }, []);
 
   return {
     clients,

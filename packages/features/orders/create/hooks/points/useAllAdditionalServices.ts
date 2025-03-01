@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { fetchAdditionalServices } from '@features/orders/create/api/orders.api';
 import { AdditionalService } from '@prisma/client';
 
-const useAllAdditionalServices = () => {
+export const useAllAdditionalServices = () => {
   const [allServices, setAllServices] = useState<AdditionalService[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -29,5 +29,3 @@ const useAllAdditionalServices = () => {
 
   return { allServices, loading, error };
 };
-
-export default useAllAdditionalServices;
