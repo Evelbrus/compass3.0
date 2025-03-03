@@ -24,7 +24,7 @@ const MapDriver: React.FC<MapDriverProps> = ({ selectedDriverInfo, serverTime })
 
   return (
     <>
-      <div className="relative w-full h-full flex flex-col justify-center items-center">
+      <div className="relative w-full h-[600px] rounded-lg bg-white shadow-md border flex flex-col justify-center items-center">
         {/* Карточка выбранного водителя */}
         {selectedDriverInfo && (
           <div className={'absolute flex flex-col top-2 left-2 rounded-md gap-2 z-30'}>

@@ -459,7 +459,7 @@ const CreateClientCorpOrder: React.FC<CreateClientCorpOrderProps> = ({ onClose }
                             <span>{point.address}</span>
                           </React.Fragment>
                         ))}
-                    {/* Время в пути */}
+                    {/* Среднее время в пути */}
                     {routeDuration && (
                       <>
                         <span className="font-semibold text-purple-500">⏱</span>

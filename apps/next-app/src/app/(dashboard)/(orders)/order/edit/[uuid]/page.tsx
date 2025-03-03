@@ -40,7 +40,6 @@ const editOrderStepsConfig = {
 };
 
 // Порядок шагов для режима редактирования
-// При редактировании часто удобнее сначала видеть информацию о заказе
 const editOrderStepsOrder: OrderStepType[] = [
   'driver-selection',
   'client-selection',
@@ -51,7 +50,6 @@ const editOrderStepsOrder: OrderStepType[] = [
 
 const Page = async ({ params }: PageProps): Promise<JSX.Element> => {
   const { uuid } = await params;
-  console.log('uuid из params:', uuid);
 
   const { role, refreshToken } = await getLayoutData();
 

@@ -63,25 +63,38 @@ export const usePointSelectionHandlers = ({
       selectorType: 'departure' | 'arrival' | 'additional',
       index?: number,
     ) => {
-      // Проверка на дубликаты (только если point не null)
       if (point && isPointAlreadySelected(point, selectorType, index)) {
         showToast.error('Этот город уже выбран в другом селекторе');
         return;
       }
 
-      // Обработка выбора в зависимости от типа селектора
       if (selectorType === 'departure') {
         onSelectDeparture(point);
         setFormValue('departurePoint', point);
       } else if (selectorType === 'arrival') {
         onSelectArrival(point);
         setFormValue('arrivalPoint', point);
-      } else if (selectorType === 'additional' && index !== undefined) {
-        onSelectAdditional(point, index);
-        const currentPoints = additionalPoints || Array(5).fill(null);
-        const updatedPoints = [...currentPoints];
-        updatedPoints[index] = point;
-        setFormValue('intermediatePoints', updatedPoints);
+      } else if (selectorType === 'additional') {
+        if (point) {
+          const firstEmptyIndex = additionalPoints.findIndex((p) => p === null);
+
+          if (firstEmptyIndex !== -1) {
+            onSelectAdditional(point, firstEmptyIndex);
+            const updatedPoints = [...additionalPoints];
+            updatedPoints[firstEmptyIndex] = point;
+            setFormValue('intermediatePoints', updatedPoints);
+          } else if (index !== undefined) {
+            onSelectAdditional(point, index);
+            const updatedPoints = [...additionalPoints];
+            updatedPoints[index] = point;
+            setFormValue('intermediatePoints', updatedPoints);
+          }
+        } else if (index !== undefined) {
+          onSelectAdditional(null, index);
+          const updatedPoints = [...additionalPoints];
+          updatedPoints[index] = null;
+          setFormValue('intermediatePoints', updatedPoints);
+        }
       }
     },
     [
@@ -116,14 +129,15 @@ export const usePointSelectionHandlers = ({
     let totalCost = 0;
 
     for (let i = 0; i < segmentCount; i++) {
-      const fromPoint = allPointsInRoute[i];
-      if (!fromPoint) {
-        console.warn(`Точка на индексе ${i} не определена`);
+      // Используем точку ПРИБЫТИЯ для текущего сегмента (а не отправления)
+      const toPoint = allPointsInRoute[i + 1];
+      if (!toPoint) {
+        console.warn(`Точка на индексе ${i + 1} не определена`);
         continue;
       }
 
       const segmentCost = Math.round(
-        avgDistancePerSegment * Number(fromPoint.pricePerKm) * Number(fromPoint.terrainDifficulty),
+        avgDistancePerSegment * Number(toPoint.pricePerKm) * Number(toPoint.terrainDifficulty || 1),
       );
       totalCost += segmentCost;
     }

@@ -5,12 +5,12 @@ import Loading from '@entities/loading/loading';
 import { UserRole } from '@prisma/client';
 import { redirect } from 'next/navigation';
 import { publicRoutes } from '@shared/utils/routing';
-import { OrderStepType } from '@features/orders/create/config/steps';
+import { OrderStepConfig, OrderStepType } from '@features/orders/create/config/steps';
 
 export const revalidate = 60;
 
 // Настройка шагов для Admin и Operator
-const adminOperatorStepsConfig = {
+const adminOperatorStepsConfig: Partial<Record<OrderStepType, Partial<OrderStepConfig>>> = {
   'route-info': {
     title: 'Информация о заказе',
     description: 'Основная информация о редактируемом заказе',
@@ -43,7 +43,7 @@ const adminOperatorStepsOrder: OrderStepType[] = [
 ];
 
 // Настройка шагов для ClientCorp
-const clientCorpStepsConfig = {
+const clientCorpStepsConfig: Partial<Record<OrderStepType, Partial<OrderStepConfig>>> = {
   'route-config': {
     title: 'Маршрут',
     description: 'Настройка маршрута поездки',
@@ -51,6 +51,10 @@ const clientCorpStepsConfig = {
   'tariff-services': {
     title: 'Тариф и услуги',
     description: 'Выбор тарифа и дополнительных услуг',
+  },
+  'client-selection': {
+    title: 'Ваши данные',
+    description: 'Выберете дату отеъзда и описание',
   },
   'route-info': {
     title: 'Информация о заказе',
@@ -67,7 +71,7 @@ const clientCorpStepsOrder: OrderStepType[] = [
 ];
 
 const Page = async (): Promise<JSX.Element> => {
-  const { role, refreshToken } = await getLayoutData();
+  const { userSession, role, refreshToken } = await getLayoutData();
 
   if (!refreshToken) {
     redirect(publicRoutes.LOGIN);
@@ -94,6 +98,7 @@ const Page = async (): Promise<JSX.Element> => {
     <OrderCreateView
       role={role}
       mode="create"
+      userSession={userSession}
       customStepsConfig={stepsConfig}
       customStepsOrder={stepsOrder}
     />

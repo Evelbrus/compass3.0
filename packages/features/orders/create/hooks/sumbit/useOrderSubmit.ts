@@ -57,6 +57,35 @@ export const useOrderSubmit = (
 
   return useCallback(
     async (data: FormOrderValues) => {
+      // ДОБАВЛЕНО: Проверка обязательных полей
+      const errorMessages: string[] = [];
+
+      // Проверка на выбор клиента или создание нового
+      if (!orderData?.createdBy?.uuid && !data.createdBy?.uuid && !(data.fullName && data.phone)) {
+        errorMessages.push('Выберите клиента или укажите данные для создания нового');
+      }
+
+      // Проверка точки отправления
+      if (!departurePoint?.uuid && !data.departurePoint?.uuid) {
+        errorMessages.push('точку отправления');
+      }
+
+      // Проверка точки прибытия
+      if (!arrivalPoint?.uuid && !data.arrivalPoint?.uuid) {
+        errorMessages.push('точку прибытия');
+      }
+
+      // Проверка тарифа
+      if (!selectedTariff?.uuid && !orderData?.tariff?.uuid) {
+        errorMessages.push('тариф');
+      }
+
+      // Если есть ошибки, показываем сообщение и прерываем отправку
+      if (errorMessages.length > 0) {
+        showToast.error(`Необходимо указать: ${errorMessages.join(', ')}`);
+        return;
+      }
+
       let payload: ClientCorpOrderPayload | AdminOrderPayload;
       let apiUrl: string;
       let method: 'POST' | 'PUT';
@@ -85,8 +114,8 @@ export const useOrderSubmit = (
               .filter((uuid): uuid is string => Boolean(uuid)) || [],
           basePrice: data.basePrice ? Number(data.basePrice) : totalPrice?.toNumber() || 0,
           selectedServices: selectedServices || orderData?.selectedServices || [],
-          description: '',
-          flightNumber: '',
+          description: data.description.description || '', // Извлекаем строку
+          flightNumber: data.flightNumber.flightNumber || '', // Извлекаем строку
           waitingTimeMinutes: waitTime || 0,
           status: data.status as OrderStatus,
         };
@@ -111,13 +140,14 @@ export const useOrderSubmit = (
           basePrice: data.basePrice ? Number(data.basePrice) : totalPrice?.toNumber() || 0,
           selectedServices: selectedServices || orderData?.selectedServices || [],
           assignedDriverId: selectedDriverInfo?.uuid || data.assignedDriverId || null,
-          description: '',
-          flightNumber: '',
+          description: data.description.description || '', // Извлекаем строку
+          flightNumber: data.flightNumber.flightNumber || '', // Извлекаем строку
           waitingTimeMinutes: waitTime || 0,
           fullName: data.fullName || undefined,
           phone: data.phone || undefined,
           status: data.status as OrderStatus,
         };
+        console.log('description', data.description)
         apiUrl = mode === 'create' ? '/api/orders' : `/api/orders/${orderData?.uuid}`;
         method = mode === 'create' ? 'POST' : 'PUT'; // Поддержка создания и редактирования
       }

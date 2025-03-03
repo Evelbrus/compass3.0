@@ -4,9 +4,10 @@ import { Client } from '@features/orders/create/types/types';
 
 interface UseClientsProps {
   per_page?: number;
+  disabled?: boolean;
 }
 
-export const useClients = ({ per_page = 4 }: UseClientsProps) => {
+export const useClients = ({ per_page = 4, disabled = false }: UseClientsProps) => {
   const [clients, setClients] = useState<Client[] | null>(null);
   const [isClientsLoading, setIsClientsLoading] = useState<boolean>(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -16,6 +17,8 @@ export const useClients = ({ per_page = 4 }: UseClientsProps) => {
 
   const fetchAllClients = useCallback(
     async (searchQuery: string = '', page: number = 1) => {
+      if (disabled) return;
+
       try {
         setIsClientsLoading(true);
 
@@ -41,15 +44,17 @@ export const useClients = ({ per_page = 4 }: UseClientsProps) => {
         setIsClientsLoading(false);
       }
     },
-    [per_page, currentPage],
+    [per_page, currentPage, disabled],
   );
 
   const refetchClients = useCallback(
     (searchQuery: string = '') => {
+      if (disabled) return;
+
       setCurrentPage(1);
       fetchAllClients(searchQuery, 1);
     },
-    [fetchAllClients],
+    [fetchAllClients, disabled],
   );
 
   const fetchClientByUuidCallback = useCallback(async (uuid: string): Promise<Client | null> => {
@@ -61,20 +66,24 @@ export const useClients = ({ per_page = 4 }: UseClientsProps) => {
   }, []);
 
   const loadMore = useCallback(() => {
+    if (disabled) return;
+
     const hasMore = clients !== null && clients.length < total;
     if (hasMore && !isClientsLoading) {
       const nextPage = currentPage + 1;
       setCurrentPage(nextPage);
       fetchAllClients(prevSearchRef.current || '', nextPage);
     }
-  }, [isClientsLoading, currentPage, fetchAllClients, total, clients]);
+  }, [isClientsLoading, currentPage, fetchAllClients, total, clients, disabled]);
 
   useEffect(() => {
+    if (disabled) return;
+
     const search = prevSearchRef.current;
     if (search !== undefined) {
       setCurrentPage(1);
     }
-  }, []);
+  }, [disabled]);
 
   return {
     clients,

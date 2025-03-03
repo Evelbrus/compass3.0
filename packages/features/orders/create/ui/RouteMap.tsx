@@ -267,7 +267,7 @@ const RouteMapInner: React.FC<RouteMapInnerProps> = ({
       } else if (pointIndex === selectedPoints.filter((p) => p !== null).length - 1) {
         pointType = 'Точка прибытия';
       } else {
-        pointType = 'Промежуточная точка';
+        pointType = 'Дополнительная точка';
       }
     }
 
@@ -282,7 +282,7 @@ const RouteMapInner: React.FC<RouteMapInnerProps> = ({
   const hoveredPointInfo = getHoveredPointInfo();
 
   return (
-    <div className="relative w-full h-full rounded-xl overflow-hidden shadow-lg border border-gray-200">
+    <div className="relative w-full h-full overflow-hidden shadow-lg border border-gray-200">
       <Map
         instanceRef={mapRef}
         defaultState={{

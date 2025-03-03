@@ -86,21 +86,24 @@ const DriversNearby: React.FC<DriversNearbyProps> = ({
   return (
     <div className="w-full h-full flex flex-col gap-4">
       <h1 className="text-2xl font-extrabold leading-9">Водители поблизости</h1>
-      <TextInput
-        inputClass="text-base font-light leading-5 p-5 rounded-lg shadow-md border"
-        placeholder="Поиск по ФИО либо Номер автомобиля"
-        value={searchDriver}
-        onChange={(value) => {
-          if (value === null) {
-            handleSearchDriverChange('');
-          } else if (typeof value === 'string') {
-            handleSearchDriverChange(value);
-          } else {
-            console.warn('TextInput вернул число или bigint. Ожидалась строка для поиска по ФИО.');
-          }
-        }}
-        classNameLabel="bg-white"
-      />
+      <div className={'bg-white rounded-lg border'}>
+        <TextInput
+          inputClass="text-base font-light leading-5 p-5"
+          placeholder="Поиск по ФИО либо Номер автомобиля"
+          value={searchDriver}
+          onChange={(value) => {
+            if (value === null) {
+              handleSearchDriverChange('');
+            } else if (typeof value === 'string') {
+              handleSearchDriverChange(value);
+            } else {
+              console.warn(
+                'TextInput вернул число или bigint. Ожидалась строка для поиска по ФИО.',
+              );
+            }
+          }}
+        />
+      </div>
       <AnimatedComponent className="w-full h-full">
         {isDriversLoading ? (
           <div className="text-center text-gray-500">Загрузка...</div>

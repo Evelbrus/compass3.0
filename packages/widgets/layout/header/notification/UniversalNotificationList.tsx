@@ -3,7 +3,7 @@ import { Notification, Action, UserRole } from '@prisma/client';
 import { cn } from '@shared/lib';
 
 interface UniversalNotificationListProps {
-  userSession: { role?: UserRole } | null | undefined; // Добавляем undefined
+  userSession: { role?: UserRole } | null | undefined;
   notifications: Notification[];
   driverNotifications: Notification[];
   clientNotifications: Notification[];
