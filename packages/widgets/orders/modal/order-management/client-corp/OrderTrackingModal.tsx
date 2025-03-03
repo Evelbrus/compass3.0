@@ -15,7 +15,7 @@ import CancelledStage from '@widgets/orders/modal/order-management/client-corp/s
 import CancelOrderStage from '@widgets/orders/modal/order-management/client-corp/stage/CancelOrderStage';
 import CompletedStage from '@widgets/orders/modal/order-management/client-corp/stage/CompletedStage';
 import { updateClientOrderStatus } from '@widgets/orders/modal/order-management/client-corp/api/apiClientCorpModel';
-import { fetchOrderDetails } from '@widgets/orders/modal/order-management/api/apiOrder';
+import { fetchOrderDetails, fetchPointByUuid } from '@features/orders/create/api/orders.api';
 
 interface OrderTrackingModalProps {
   isOpen: boolean;
@@ -26,12 +26,12 @@ interface OrderTrackingModalProps {
 }
 
 const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
-                                                                 isOpen,
-                                                                 onClose,
-                                                                 notification,
-                                                                 getClientNotifications,
-                                                                 userRole,
-                                                               }) => {
+  isOpen,
+  onClose,
+  notification,
+  getClientNotifications,
+  userRole,
+}) => {
   const [currentStage, setCurrentStage] = useState<DriverAcceptanceStatus>(
     DriverAcceptanceStatus.PENDING,
   );
@@ -40,16 +40,46 @@ const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [orderData, setOrderData] = useState<OrderDetail | null>(null);
   const [showAdditionalServices, setShowAdditionalServices] = useState(false);
+  const [intermediateAddresses, setIntermediateAddresses] = useState<string[]>([]);
 
   useEffect(() => {
     if (!isOpen || !notification.orderId || userRole !== UserRole.ClientCorp) return;
     setIsLoading(true);
     setError(null);
     fetchOrderDetails(notification.orderId)
-      .then((data) => {
+      .then(async (data) => {
         setOrderData(data);
         setOrderStatus(data.status);
         setCurrentStage(data.driverAcceptanceStatus || DriverAcceptanceStatus.PENDING);
+
+        // Загрузка промежуточных точек, если они есть
+        if (data.intermediatePoints && data.intermediatePoints.length > 0) {
+          try {
+            const addresses = await Promise.all(
+              data.intermediatePoints.map(async (pointId: string | { address: string }) => {
+                try {
+                  if (typeof pointId === 'string') {
+                    const pointData = await fetchPointByUuid(pointId);
+                    return pointData.address || 'Адрес не указан';
+                  } else if (
+                    typeof pointId === 'object' &&
+                    pointId !== null &&
+                    'address' in pointId
+                  ) {
+                    return pointId.address || 'Адрес не указан';
+                  }
+                  return 'Некорректный формат адреса';
+                } catch (error) {
+                  console.error(`Ошибка загрузки точки ${pointId}:`, error);
+                  return 'Адрес не загружен';
+                }
+              }),
+            );
+            setIntermediateAddresses(addresses);
+          } catch (err) {
+            console.error('Ошибка загрузки промежуточных точек:', err);
+          }
+        }
       })
       .catch((err) => {
         console.error('Ошибка загрузки данных:', err);
@@ -214,7 +244,7 @@ const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
               <CloseIcon />
             </IButton>
             <h2 className="text-xl font-semibold">
-              Заказ #{notification.orderId || 'N/A'} -{' '}
+              Заказ #{notification.orderId?.slice(0, 8) || 'N/A'} -{' '}
               {notification.action === Action.warning
                 ? 'Просрочен'
                 : notification.action === Action.success
@@ -233,52 +263,124 @@ const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
             </div>
           ) : orderData ? (
             <div className="space-y-4">
-              <div>
-                <p>
-                  <strong>Время отправления:</strong>{' '}
-                  {new Date(orderData.departureTime).toLocaleString()}
+              {/* Основная информация */}
+              <div className="bg-gray-50 p-4 rounded-lg shadow-sm">
+                <h3 className="text-lg font-medium text-gray-800 border-b pb-2 mb-3">
+                  Основная информация
+                </h3>
+
+                <p className="mb-2">
+                  <span className="text-sm text-gray-500">Время отправления:</span>{' '}
+                  <span className="font-medium">
+                    {new Date(orderData.departureTime).toLocaleString('ru-RU', {
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </span>
                 </p>
-                <p>
-                  <strong>Откуда:</strong> {orderData.departurePoint.address}
-                </p>
-                <p>
-                  <strong>Куда:</strong> {orderData.arrivalPoint.address}
-                </p>
-                <p>
-                  <strong>Тариф:</strong> {orderData.tariff.name} ({orderData.tariff.price} сом)
-                </p>
+
+                {/* Маршрут */}
+                <div className="mt-4">
+                  <p className="text-sm text-gray-500 mb-1">Маршрут:</p>
+                  <div className="mt-1 flex flex-col space-y-2">
+                    <div className="flex items-start">
+                      <div className="mr-2 mt-1">
+                        <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                      </div>
+                      <p className="flex-grow">{orderData.departurePoint.address}</p>
+                    </div>
+
+                    {/* Промежуточные точки */}
+                    {intermediateAddresses.length > 0 &&
+                      intermediateAddresses.map((address, index) => (
+                        <div key={index} className="flex items-start">
+                          <div className="mr-2 mt-1">
+                            <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+                          </div>
+                          <p className="flex-grow">{address}</p>
+                        </div>
+                      ))}
+
+                    <div className="flex items-start">
+                      <div className="mr-2 mt-1">
+                        <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                      </div>
+                      <p className="flex-grow">{orderData.arrivalPoint.address}</p>
+                    </div>
+                  </div>
+                </div>
+
                 {orderData.description && (
-                  <p>
-                    <strong>Описание:</strong> {orderData.description}
+                  <p className="mt-3">
+                    <span className="text-sm text-gray-500">Описание:</span>{' '}
+                    <span>{orderData.description}</span>
+                  </p>
+                )}
+
+                {/* Текущий этап */}
+                {(notification.action === Action.inProgress ||
+                  notification.action === Action.warning) && (
+                  <p className="mt-3 font-semibold text-blue-700">
+                    Текущий этап: {stages[currentStage]}
                   </p>
                 )}
               </div>
 
-              {orderData.additionalServices && orderData.additionalServices.length > 0 && (
-                <div>
-                  <button
-                    className="text-blue-500 hover:underline"
-                    onClick={() => setShowAdditionalServices(!showAdditionalServices)}
-                  >
-                    {showAdditionalServices ? 'Скрыть доп. услуги' : 'Показать доп. услуги'}
-                  </button>
-                  {showAdditionalServices && (
-                    <ul className="mt-2 list-disc pl-5">
-                      {orderData.additionalServices.map((service) => (
-                        <li key={service.uuid}>
-                          {service.name} - {service.price} сом
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              )}
+              {/* Стоимость и услуги */}
+              <div className="bg-gray-50 p-4 rounded-lg shadow-sm">
+                <h3 className="text-lg font-medium text-gray-800 border-b pb-2 mb-3">
+                  Стоимость и услуги
+                </h3>
 
-              {(notification.action === Action.inProgress ||
-                notification.action === Action.warning) && (
-                <p className="mt-4 font-semibold">Текущий этап: {stages[currentStage]}</p>
-              )}
-              {error && <p className="text-red-500">{error}</p>}
+                {/* Общая сумма заказа */}
+                <p className="mb-2">
+                  <span className="text-sm text-gray-500">Общая сумма:</span>{' '}
+                  <span className="font-medium text-lg text-green-700">
+                    {orderData.basePrice || orderData.tariff.price} сом
+                  </span>
+                </p>
+
+                {/* Тариф */}
+                <p className="mb-2">
+                  <span className="text-sm text-gray-500">Тариф:</span>{' '}
+                  <span className="font-medium">{orderData.tariff.name}</span>
+                  {orderData.tariff.price && !orderData.basePrice && (
+                    <span className="text-sm text-gray-500 ml-2">
+                      ({orderData.tariff.price} сом)
+                    </span>
+                  )}
+                </p>
+
+                {/* Дополнительные услуги */}
+                {orderData.additionalServices && orderData.additionalServices.length > 0 && (
+                  <div className="mt-3">
+                    <button
+                      className="text-blue-500 hover:underline text-sm"
+                      onClick={() => setShowAdditionalServices(!showAdditionalServices)}
+                    >
+                      {showAdditionalServices ? 'Скрыть доп. услуги' : 'Показать доп. услуги'}
+                    </button>
+                    {showAdditionalServices && (
+                      <div className="mt-2 pl-2 border-l-2 border-blue-200">
+                        <p className="text-sm text-gray-500 mb-1">Дополнительные услуги:</p>
+                        <ul className="space-y-1">
+                          {orderData.additionalServices.map((service) => (
+                            <li key={service.uuid} className="flex justify-between text-sm">
+                              <span>{service.name}</span>
+                              <span className="font-medium">{service.price} сом</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {error && <p className="text-red-500 mt-3">{error}</p>}
             </div>
           ) : (
             <p className="text-red-500">Не удалось загрузить данные заказа</p>

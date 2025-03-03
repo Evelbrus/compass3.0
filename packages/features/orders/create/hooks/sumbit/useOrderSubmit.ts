@@ -14,7 +14,7 @@ interface ClientCorpOrderPayload {
   arrivalPoint: string | null;
   intermediatePoints: string[];
   basePrice: number;
-  selectedServices: TariffOnService[];
+  selectedServices: string[];
   description: string;
   flightNumber: string;
   waitingTimeMinutes: number;
@@ -30,7 +30,7 @@ interface AdminOrderPayload {
   arrivalPoint: string | null;
   intermediatePoints: string[];
   basePrice: number;
-  selectedServices: TariffOnService[];
+  selectedServices: string[];
   assignedDriverId: string | null;
   description: string;
   flightNumber: string;
@@ -57,7 +57,7 @@ export const useOrderSubmit = (
 
   return useCallback(
     async (data: FormOrderValues) => {
-      // ДОБАВЛЕНО: Проверка обязательных полей
+      // Проверка обязательных полей
       const errorMessages: string[] = [];
 
       // Проверка на выбор клиента или создание нового
@@ -90,12 +90,6 @@ export const useOrderSubmit = (
       let apiUrl: string;
       let method: 'POST' | 'PUT';
 
-      // Проверка на режим редактирования только для Admin/Operator
-      if (mode === 'edit' && role !== UserRole.ClientCorp && !orderData?.uuid) {
-        showToast.error('Ошибка: отсутствует UUID заказа для редактирования');
-        return;
-      }
-
       // Клиент (ClientCorp) может только создавать заказы
       if (role === UserRole.ClientCorp) {
         if (mode === 'edit') {
@@ -113,17 +107,24 @@ export const useOrderSubmit = (
               ?.map((point) => point?.uuid)
               .filter((uuid): uuid is string => Boolean(uuid)) || [],
           basePrice: data.basePrice ? Number(data.basePrice) : totalPrice?.toNumber() || 0,
-          selectedServices: selectedServices || orderData?.selectedServices || [],
-          description: data.description.description || '', // Извлекаем строку
-          flightNumber: data.flightNumber.flightNumber || '', // Извлекаем строку
+          selectedServices: (selectedServices || orderData?.selectedServices || []).map(
+            (service) => service.uuid,
+          ), // Передаём только UUID
+          description: data.description.description || '',
+          flightNumber: data.flightNumber.flightNumber || '',
           waitingTimeMinutes: waitTime || 0,
           status: data.status as OrderStatus,
         };
         apiUrl = '/api/client-corp/orders';
-        method = 'POST'; // Только создание для ClientCorp
+        method = 'POST';
       }
       // Admin и Operator могут создавать и редактировать заказы
       else {
+        if (mode === 'edit' && !orderData?.uuid) {
+          showToast.error('Ошибка: отсутствует UUID заказа для редактирования');
+          return;
+        }
+
         const isNewClientMode = !!data.fullName && !!data.phone;
         payload = {
           createdBy: isNewClientMode
@@ -138,18 +139,19 @@ export const useOrderSubmit = (
               ?.map((point) => point?.uuid)
               .filter((uuid): uuid is string => Boolean(uuid)) || [],
           basePrice: data.basePrice ? Number(data.basePrice) : totalPrice?.toNumber() || 0,
-          selectedServices: selectedServices || orderData?.selectedServices || [],
+          selectedServices: (selectedServices || orderData?.selectedServices || []).map(
+            (service) => service.uuid,
+          ), // Передаём только UUID
           assignedDriverId: selectedDriverInfo?.uuid || data.assignedDriverId || null,
-          description: data.description.description || '', // Извлекаем строку
-          flightNumber: data.flightNumber.flightNumber || '', // Извлекаем строку
+          description: data.description.description || '',
+          flightNumber: data.flightNumber.flightNumber || '',
           waitingTimeMinutes: waitTime || 0,
           fullName: data.fullName || undefined,
           phone: data.phone || undefined,
           status: data.status as OrderStatus,
         };
-        console.log('description', data.description)
         apiUrl = mode === 'create' ? '/api/orders' : `/api/orders/${orderData?.uuid}`;
-        method = mode === 'create' ? 'POST' : 'PUT'; // Поддержка создания и редактирования
+        method = mode === 'create' ? 'POST' : 'PUT';
       }
 
       // Отправка запроса на сервер
@@ -164,7 +166,7 @@ export const useOrderSubmit = (
 
         if (response.ok) {
           showToast.success(
-            mode === 'create' ? 'Заказ создан успешно!' : 'Заказ обновлен успешно!',
+            mode === 'create' ? 'Заказ создан успешно!' : 'Заказ обновлён успешно!',
           );
           router.push('/orders');
         } else {

@@ -18,7 +18,14 @@ export type PointWithoutTimestamps = Pick<
 export type Driver = Pick<
   User,
   'uuid' | 'fullName' | 'email' | 'phone' | 'role' | 'profilePhotoPath' | 'lastActive'
-> & { vehicleDriver: VehicleDriver & { vehicle: Vehicle } };
+> & {
+  vehicleDriver?: VehicleDriver & {
+    vehicle: Pick<
+      Vehicle,
+      'uuid' | 'vehicleType' | 'serviceLevels' | 'plateNumber' | 'isAvailable'
+    >;
+  };
+};
 
 export type OrderData = {
   uuid: string;

@@ -1,8 +1,5 @@
 import { useState, useEffect } from 'react';
-import {
-  fetchPoints,
-  FetchPointsResponse,
-} from '@shared/components/modal/create-client-corp-order/api/useApi';
+import { fetchPoints, FetchPointsResponse } from '@features/orders/create/api/orders.api';
 import { PointWithoutTimestamps } from '@features/orders/create/types/types';
 
 export const useAllPoints = () => {

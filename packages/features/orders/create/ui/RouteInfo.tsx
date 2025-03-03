@@ -5,7 +5,7 @@ import { cn } from '@shared/lib';
 import { OrderStatus, UserRole } from '@prisma/client';
 import { orderStatusTranslations } from '@shared/lib/effector/orders/options-and-translation/optionsStatusOrder';
 import { FormOrderValues } from '@features/orders/create/hooks/useCreateAdminOrderLogic';
-import { PointWithoutTimestamps } from '@features/orders/create/types/types';
+import { Driver, PointWithoutTimestamps } from '@features/orders/create/types/types';
 
 interface RouteInfoProps {
   control: Control<FormOrderValues>;
@@ -20,7 +20,7 @@ interface RouteInfoProps {
   waitTimeCost?: Decimal | null;
   routeCost?: Decimal | null;
   mode?: 'create' | 'edit';
-  selectedDriverInfo?: any;
+  selectedDriverInfo?: Driver | null;
   handleEditPrice?: (price: number) => void;
   resetPrice?: () => void;
   onStatusChange?: (status: OrderStatus) => void;
@@ -402,7 +402,9 @@ export const RouteInfo: FC<RouteInfoProps> = ({
             <div>
               <div className="text-sm text-gray-600">Расстояние</div>
               <div className="font-bold text-lg text-teal-700">
-                {routeDistance > 0 ? `${routeDistance.toFixed(2)} км` : 'Выберите адрес подачи и прибытия'}
+                {routeDistance > 0
+                  ? `${routeDistance.toFixed(2)} км`
+                  : 'Выберите адрес подачи и прибытия'}
               </div>
             </div>
           </div>
@@ -538,17 +540,17 @@ export const RouteInfo: FC<RouteInfoProps> = ({
             </div>
           </div>
           <div className="flex justify-between items-center text-base font-bold pt-3 mt-3 border-t bg-gradient-to-r from-blue-50 to-white p-3 border-b border-blue-100">
-                <span className="font-semibold text-blue-700">
-                  {priceMode === 'base' && isPriceEdited
-                    ? 'Общая сумма (сохраненная цена заказа):'
-                    : priceMode === 'manual' && isPriceEdited
-                      ? 'Общая сумма (изменена вручную):'
-                      : 'Общая сумма:'}
-                </span>
-                <span className="text-lg bg-gradient-to-r from-blue-600 to-cyan-600 text-transparent bg-clip-text">
-                  {formattedPrices.total} сом
-                </span>
-              </div>
+            <span className="font-semibold text-blue-700">
+              {priceMode === 'base' && isPriceEdited
+                ? 'Общая сумма (сохраненная цена заказа):'
+                : priceMode === 'manual' && isPriceEdited
+                  ? 'Общая сумма (изменена вручную):'
+                  : 'Общая сумма:'}
+            </span>
+            <span className="text-lg bg-gradient-to-r from-blue-600 to-cyan-600 text-transparent bg-clip-text">
+              {formattedPrices.total} сом
+            </span>
+          </div>
         </div>
 
         {/* Показываем блок редактирования цены только если:

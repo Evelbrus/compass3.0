@@ -3,7 +3,6 @@
 import React, { useRef, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { IButton } from '@shared/components/ui/buttons';
-import { openModal } from '@shared/lib/effector/state/state';
 import AnimatedComponent from '@shared/components/animated/CommonAnimated/AnimatedComponent';
 import Filters from '@widgets/filters/ui/Filters';
 import StatusOverview from '@widgets/status-overview/ui/StatusOverview';

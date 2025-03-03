@@ -330,7 +330,7 @@ export async function GET(req: Request) {
           email: order.createdBy.email,
           phone: order.createdBy.phone,
         },
-
+        basePrice: order.basePrice,
         assignedDriver: {
           uuid: order.assignedDriver?.uuid || null,
           fullName: order.assignedDriver?.fullName || null,

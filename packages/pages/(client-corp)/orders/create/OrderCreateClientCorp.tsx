@@ -10,7 +10,6 @@ import {
   useAllAdditionalServices,
   useAllPoints,
   useCreateAdminOrderLogic,
-  useOrderCreateDrivers,
   usePointSelectionHandlers,
   usePointSelector,
   useTariffs,
@@ -30,8 +29,6 @@ import {
 import DateTimeSelector from '@features/orders/create/ui/client/DateTimeSelector';
 import { UserSession } from '@shared/prisma/interface/users/interface';
 import PointDropdown from '@features/orders/create/inputs/PointDropdown';
-import DriversNearby from '@widgets/drivers-nearby/ui/DriversNearby';
-import MapDriver from '@widgets/map/ui/MapDriver';
 import { AdditionalPoints, PointSelector } from '@features/orders/create/inputs';
 
 // Пропсы компонента
@@ -42,7 +39,7 @@ interface OrderProps {
   orderData?: OrderData | null;
 }
 
-const OrderCreateView: FC<OrderProps> = ({ role, mode, orderData, userSession }) => {
+const OrderCreateClientCorp: FC<OrderProps> = ({ role, mode, orderData, userSession }) => {
   // Хуки для данных
   const tariffAndServices = useTariffs();
   const { allPoints } = useAllPoints();
@@ -86,28 +83,6 @@ const OrderCreateView: FC<OrderProps> = ({ role, mode, orderData, userSession })
     setValue,
     role,
     userSession,
-  });
-
-  // Водители
-  const {
-    drivers,
-    searchDriver,
-    isDriversLoading,
-    selectedDriverInfo,
-    page,
-    perPage,
-    total,
-    serverTime,
-    handleSearchDriverChange,
-    handleDriverClick,
-    handlePageChange,
-  } = useOrderCreateDrivers({
-    assignedDriverId: orderData?.assignedDriver?.uuid ?? null,
-    setValue,
-    selectedVehicleType,
-    selectedServiceLevel,
-    setSelectedVehicleType: handleVehicleTypeChange,
-    setSelectedServiceLevel: handleServiceLevelChange,
   });
 
   // Селекторы точек
@@ -266,7 +241,6 @@ const OrderCreateView: FC<OrderProps> = ({ role, mode, orderData, userSession })
     selectedServices,
     totalPrice,
     waitTime,
-    selectedDriverInfo,
   );
 
   return (
@@ -280,91 +254,6 @@ const OrderCreateView: FC<OrderProps> = ({ role, mode, orderData, userSession })
             <p className="text-blue-100 mt-2">
               Заполните информацию о маршруте, выберите услуги и водителя
             </p>
-          </div>
-
-          {/* Driver Selection */}
-          <div className="p-4 bg-gradient-to-bl from-cyan-50 to-white">
-            <div className="grid grid-cols-1 lg:grid-cols-[7fr_3fr] gap-6">
-              <MapDriver
-                selectedDriverInfo={selectedDriverInfo}
-                serverTime={serverTime || new Date()}
-              />
-              <DriversNearby
-                drivers={drivers || []}
-                isDriversLoading={isDriversLoading}
-                searchDriver={searchDriver}
-                handleSearchDriverChange={handleSearchDriverChange}
-                selectedDriverInfo={selectedDriverInfo}
-                handleDriverClick={handleDriverClick}
-                page={parseInt(page)}
-                perPage={parseInt(perPage)}
-                currentTotal={total}
-                handlePageChange={(newPage) => handlePageChange(String(newPage))}
-                serverTime={serverTime || new Date()}
-              />
-            </div>
-          </div>
-
-          {/* Client Selection */}
-          <div className="p-4 bg-gradient-to-tl from-cyan-50 to-white">
-            <div className="grid grid-cols-1 lg:grid-cols-[7fr_3fr] gap-6">
-              <ClientSelector
-                control={control}
-                clients={clients}
-                selectedClientInfo={selectedClientInfo}
-                savedClientInfo={savedClientInfo}
-                searchClient={searchClient}
-                handleSearchChange={handleSearchChange}
-                handleClientSelection={handleClientSelection}
-                loadMore={loadMore}
-                total={clientsTotal}
-                initialClient={orderData?.createdBy as any}
-                role={role}
-                userSession={userSession}
-              />
-              <DateTimeSelector control={control} />
-            </div>
-          </div>
-
-          {/* Tariff Services */}
-          <div className="p-4 bg-gradient-to-br from-cyan-50 to-white shadow-lg">
-            <div className="grid grid-cols-1 lg:grid-cols-[7fr_3fr] gap-6">
-              <div className="relative w-full flex flex-col rounded-lg p-6">
-                <TariffCheckbox
-                  tariffs={tariffs}
-                  selectedServiceLevel={selectedServiceLevel}
-                  selectedVehicleType={selectedVehicleType}
-                  selectedTariffUuid={selectedTariff?.uuid || null}
-                  handleServiceLevelChange={handleServiceLevelChange}
-                  handleVehicleTypeChange={handleVehicleTypeChange}
-                  {...formMethods}
-                />
-                <div className="mt-6">
-                  <label className="block text-gray-700 text-[20px] font-bold">
-                    Описание тарифа
-                  </label>
-                  <p>{selectedTariff?.description}</p>
-                </div>
-              </div>
-              <div className="flex flex-col gap-4">
-                <WaitTimeSelector
-                  waitTime={waitTime}
-                  additionalWaitTimeCost={additionalWaitTimeCost}
-                  adjustWaitTime={adjustWaitTime}
-                  minWaitTime={minWaitTime}
-                  maxWaitTime={maxWaitTime}
-                  departurePoint={departurePoint}
-                  freeWaitTime={selectedTariff?.freeWaitTimeAirport ?? 0}
-                />
-                <AdditionalServicesList
-                  label="Дополнительные опции"
-                  availableServices={availableServices}
-                  handleServiceSelection={handleServiceSelection}
-                  selectedServices={selectedServices}
-                  totalAdditionalServicesPrice={totalAdditionalServicesPrice}
-                />
-              </div>
-            </div>
           </div>
 
           {/* Route Config */}
@@ -483,6 +372,68 @@ const OrderCreateView: FC<OrderProps> = ({ role, mode, orderData, userSession })
             </div>
           </div>
 
+          {/* Tariff Services */}
+          <div className="p-4 bg-gradient-to-br from-cyan-50 to-white shadow-lg">
+            <div className="grid grid-cols-1 lg:grid-cols-[7fr_3fr] gap-6">
+              <div className="relative w-full flex flex-col rounded-lg p-6">
+                <TariffCheckbox
+                  tariffs={tariffs}
+                  selectedServiceLevel={selectedServiceLevel}
+                  selectedVehicleType={selectedVehicleType}
+                  selectedTariffUuid={selectedTariff?.uuid || null}
+                  handleServiceLevelChange={handleServiceLevelChange}
+                  handleVehicleTypeChange={handleVehicleTypeChange}
+                  {...formMethods}
+                />
+                <div className="mt-6">
+                  <label className="block text-gray-700 text-[20px] font-bold">
+                    Описание тарифа
+                  </label>
+                  <p>{selectedTariff?.description}</p>
+                </div>
+              </div>
+              <div className="flex flex-col gap-4">
+                <WaitTimeSelector
+                  waitTime={waitTime}
+                  additionalWaitTimeCost={additionalWaitTimeCost}
+                  adjustWaitTime={adjustWaitTime}
+                  minWaitTime={minWaitTime}
+                  maxWaitTime={maxWaitTime}
+                  departurePoint={departurePoint}
+                  freeWaitTime={selectedTariff?.freeWaitTimeAirport ?? 0}
+                />
+                <AdditionalServicesList
+                  label="Дополнительные опции"
+                  availableServices={availableServices}
+                  handleServiceSelection={handleServiceSelection}
+                  selectedServices={selectedServices}
+                  totalAdditionalServicesPrice={totalAdditionalServicesPrice}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Client Selection */}
+          <div className="p-4 bg-gradient-to-tl from-cyan-50 to-white">
+            <div className="grid grid-cols-1 lg:grid-cols-[7fr_3fr] gap-6">
+              <ClientSelector
+                control={control}
+                clients={clients}
+                selectedClientInfo={selectedClientInfo}
+                savedClientInfo={savedClientInfo}
+                searchClient={searchClient}
+                handleSearchChange={handleSearchChange}
+                handleClientSelection={handleClientSelection}
+                loadMore={loadMore}
+                total={clientsTotal}
+                initialClient={orderData?.createdBy as any}
+                role={role}
+                userSession={userSession}
+              />
+              <DateTimeSelector control={control} />
+            </div>
+          </div>
+
           {/* Route Info */}
           <div className="bg-gradient-to-tr from-cyan-50 to-white">
             <RouteInfo
@@ -495,7 +446,6 @@ const OrderCreateView: FC<OrderProps> = ({ role, mode, orderData, userSession })
               totalPrice={totalPrice}
               mode={mode}
               onStatusChange={(status) => setValue('status', status)}
-              selectedDriverInfo={selectedDriverInfo}
               handleEditPrice={handleEditPrice}
               resetPrice={resetPrice}
               tariffPrice={priceComponents.tariffPrice}
@@ -522,4 +472,4 @@ const OrderCreateView: FC<OrderProps> = ({ role, mode, orderData, userSession })
   );
 };
 
-export default OrderCreateView;
+export default OrderCreateClientCorp;

@@ -7,46 +7,12 @@ import { redirect } from 'next/navigation';
 import { publicRoutes } from '@shared/utils/routing';
 import { prisma } from '@shared/prisma/prisma-client';
 import { OrderData } from '@features/orders/create/types/types';
-import { OrderStepType } from '@features/orders/create/config/steps';
 
 interface PageProps {
   params: Promise<{ uuid: string }>;
 }
 
 export const revalidate = 60;
-
-// Настройка шагов для режима редактирования заказа
-const editOrderStepsConfig = {
-  'route-info': {
-    title: 'Информация о заказе',
-    description: 'Основная информация о редактируемом заказе',
-  },
-  'client-selection': {
-    title: 'Клиент',
-    description: 'Информация о клиенте заказа',
-  },
-  'route-config': {
-    title: 'Маршрут',
-    description: 'Настройка маршрута поездки',
-  },
-  'tariff-services': {
-    title: 'Тариф и услуги',
-    description: 'Выбор тарифа и дополнительных услуг',
-  },
-  'driver-selection': {
-    title: 'Водитель',
-    description: 'Назначение водителя на заказ',
-  },
-};
-
-// Порядок шагов для режима редактирования
-const editOrderStepsOrder: OrderStepType[] = [
-  'driver-selection',
-  'client-selection',
-  'tariff-services',
-  'route-config',
-  'route-info',
-];
 
 const Page = async ({ params }: PageProps): Promise<JSX.Element> => {
   const { uuid } = await params;
@@ -78,7 +44,7 @@ const Page = async ({ params }: PageProps): Promise<JSX.Element> => {
             role: true,
           },
         },
-        tariff: true, // Получаем полные данные о тарифе
+        tariff: true,
         departurePoint: {
           select: {
             uuid: true,
@@ -102,13 +68,20 @@ const Page = async ({ params }: PageProps): Promise<JSX.Element> => {
           },
         },
         assignedDriver: {
-          select: {
-            uuid: true,
-            fullName: true,
-            email: true,
-            phone: true,
-            role: true,
-            profilePhotoPath: true,
+          include: {
+            vehicleDriver: {
+              include: {
+                vehicle: {
+                  select: {
+                    uuid: true,
+                    vehicleType: true,
+                    serviceLevels: true,
+                    plateNumber: true,
+                    isAvailable: true,
+                  },
+                },
+              },
+            },
           },
         },
       },
@@ -163,10 +136,15 @@ const Page = async ({ params }: PageProps): Promise<JSX.Element> => {
         role: order.createdBy.role,
       },
       tariff: {
-        ...order.tariff, // Используем все поля из tariff
+        ...order.tariff,
         tariffAdditionalServices: tariffWithServices.tariffAdditionalServices.map((service) => ({
-          ...service,
+          uuid: service.uuid,
+          createdAt: service.createdAt,
+          updatedAt: service.updatedAt,
+          tariffUuid: service.tariffUuid,
           price: Number(service.price),
+          isAvailable: service.isAvailable,
+          serviceUuid: service.serviceUuid,
         })),
       },
       departurePoint: {
@@ -195,6 +173,24 @@ const Page = async ({ params }: PageProps): Promise<JSX.Element> => {
             phone: order.assignedDriver.phone,
             role: order.assignedDriver.role,
             profilePhotoPath: order.assignedDriver.profilePhotoPath,
+            lastActive: order.assignedDriver.lastActive,
+            vehicleDriver: order.assignedDriver.vehicleDriver
+              ? {
+                  uuid: order.assignedDriver.vehicleDriver.uuid,
+                  createdAt: order.assignedDriver.vehicleDriver.createdAt,
+                  updatedAt: order.assignedDriver.vehicleDriver.updatedAt,
+                  driverId: order.assignedDriver.vehicleDriver.driverId,
+                  vehicleId: order.assignedDriver.vehicleDriver.vehicleId,
+                  assignmentDate: order.assignedDriver.vehicleDriver.assignmentDate,
+                  vehicle: {
+                    uuid: order.assignedDriver.vehicleDriver.vehicle.uuid,
+                    vehicleType: order.assignedDriver.vehicleDriver.vehicle.vehicleType,
+                    serviceLevels: order.assignedDriver.vehicleDriver.vehicle.serviceLevels,
+                    plateNumber: order.assignedDriver.vehicleDriver.vehicle.plateNumber,
+                    isAvailable: order.assignedDriver.vehicleDriver.vehicle.isAvailable,
+                  },
+                }
+              : undefined,
           }
         : undefined,
       departureTime: order.departureTime
@@ -206,7 +202,15 @@ const Page = async ({ params }: PageProps): Promise<JSX.Element> => {
       waitingTimeMinutes: Number(order.waitingTimeMinutes),
       selectedServices: tariffWithServices.tariffAdditionalServices
         .filter((service) => service.orderTariffAdditionalServices.length > 0)
-        .map((service) => service.uuid),
+        .map((service) => ({
+          uuid: service.uuid,
+          createdAt: service.createdAt,
+          updatedAt: service.updatedAt,
+          tariffUuid: service.tariffUuid,
+          price: Number(service.price),
+          isAvailable: service.isAvailable,
+          serviceUuid: service.serviceUuid,
+        })),
       intermediatePoints: intermediatePointsData.map((point) => ({
         uuid: point.uuid,
         address: point.address,
@@ -223,16 +227,8 @@ const Page = async ({ params }: PageProps): Promise<JSX.Element> => {
     return <Loading />;
   }
 
-  // Передача данных в клиентский компонент с настройкой шагов
-  return (
-    <OrderCreateView
-      role={role}
-      mode="edit"
-      orderData={orderData}
-      customStepsConfig={editOrderStepsConfig}
-      customStepsOrder={editOrderStepsOrder}
-    />
-  );
+  // Передача данных в клиентский компонент
+  return <OrderCreateView role={role} mode="edit" orderData={orderData} />;
 };
 
 export default Page;

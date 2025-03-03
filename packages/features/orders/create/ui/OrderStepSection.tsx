@@ -1,6 +1,13 @@
 // src/features/orders/create/ui/OrderStepSection.tsx
 import React, { FC, ReactNode, useState } from 'react';
-import { OrderStepConfig } from '@features/orders/create/config/steps';
+
+export interface OrderStepConfig {
+  id: string;
+  title: string;
+  description?: string;
+  icon?: ReactNode;
+  isVisible?: boolean;
+}
 
 interface OrderStepSectionProps {
   step: OrderStepConfig;
@@ -43,9 +50,7 @@ export const OrderStepSection: FC<OrderStepSectionProps> = ({
                 {stepIndex + 1}
               </span>
               <div>
-                <h2 className="text-xl font-semibold text-gray-800">
-                  {step.title}
-                </h2>
+                <h2 className="text-xl font-semibold text-gray-800">{step.title}</h2>
                 {step.description && (
                   <p className="text-blue-600 text-sm mt-1">{step.description}</p>
                 )}
@@ -79,7 +84,6 @@ export const OrderStepSection: FC<OrderStepSectionProps> = ({
         </div>
       )}
 
-      {/* Содержимое секции */}
       <div
         className={`transition-all duration-300 ease-in-out ${
           isCollapsed ? 'max-h-0 opacity-0 overflow-hidden' : 'max-h-[5000px] opacity-100'

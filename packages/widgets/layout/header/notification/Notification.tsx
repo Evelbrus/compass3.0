@@ -1,14 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
+import { UserRole } from '@prisma/client';
 import {
   useNotifications,
   NotificationIslandProps,
 } from '@features/notifications/lib/useNotifications';
 import UniversalNotificationList from '@widgets/layout/header/notification/UniversalNotificationList';
-import { UserRole } from '@prisma/client';
 import OrderDriverModal from '@widgets/orders/modal/order-management/driver/OrderDriverModal';
 import OrderTrackingModal from '@widgets/orders/modal/order-management/client-corp/OrderTrackingModal';
-import WarningAdminModal from '@widgets/orders/modal/order-management/admin/WarningAdminModal';
+import OrderAdminModal from '@widgets/orders/modal/order-management/admin/OrderAdminModal';
 import { cn } from '@shared/lib';
 
 const Notification = ({ userSession }: NotificationIslandProps) => {
@@ -32,7 +32,14 @@ const Notification = ({ userSession }: NotificationIslandProps) => {
 
   useEffect(() => {
     const handleClick = (event: MouseEvent) => {
-      if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) {
+      if (
+        notificationRef.current &&
+        !notificationRef.current.contains(event.target as Node) &&
+        !(
+          event.target instanceof HTMLElement &&
+          event.target.closest('button[aria-label="Уведомления"]')
+        )
+      ) {
         setIsNotificationOpen(false);
       }
     };
@@ -47,17 +54,6 @@ const Notification = ({ userSession }: NotificationIslandProps) => {
     };
   }, []);
 
-  const getBellIcon = () => {
-    switch (userSession?.role) {
-      case UserRole.Driver:
-        return '/icons/bell.svg';
-      case UserRole.ClientCorp:
-        return '/icons/bell.svg';
-      default:
-        return '/icons/bell.svg';
-    }
-  };
-
   const getUnreadCount = () => {
     switch (userSession?.role) {
       case UserRole.Driver:
@@ -66,6 +62,15 @@ const Notification = ({ userSession }: NotificationIslandProps) => {
         return clientUnreadCount;
       default:
         return unreadCount;
+    }
+  };
+
+  const handleToggleNotifications = (event: React.MouseEvent) => {
+    event.stopPropagation();
+    if (isNotificationOpen) {
+      setIsNotificationOpen(false);
+    } else {
+      setIsNotificationOpen(true);
     }
   };
 
@@ -92,12 +97,11 @@ const Notification = ({ userSession }: NotificationIslandProps) => {
             />
           )}
           {(userSession?.role === UserRole.Admin || userSession?.role === UserRole.Operator) && (
-            <WarningAdminModal
+            <OrderAdminModal
               isOpen={true}
               onClose={closeModal}
               notification={activeNotification}
-              notifications={notifications}
-              userRole={userSession.role}
+              orderId={activeNotification.orderId}
             />
           )}
         </>
@@ -105,16 +109,17 @@ const Notification = ({ userSession }: NotificationIslandProps) => {
 
       <div className="relative flex items-center">
         <button
-          onClick={() => setIsNotificationOpen(!isNotificationOpen)}
-          className="p-2 rounded-full bg-[#2A3037] hover:bg-gray-100 shadow-md transition-colors group"
+          onClick={handleToggleNotifications}
+          className="p-3 rounded-full bg-white border shadow-md transition-colors group"
           aria-label="Уведомления"
+          aria-expanded={isNotificationOpen}
         >
           <Image
-            src={getBellIcon()}
+            src="/icons/bell.svg"
             alt="notification-icon"
             width={18}
             height={18}
-            className="duration-200 filter invert-0 group-hover:invert"
+            className="duration-200 filter invert"
           />
           {getUnreadCount() > 0 && (
             <span
