@@ -3,7 +3,7 @@ import { Notification, Action, UserRole } from '@prisma/client';
 import { cn } from '@shared/lib';
 
 interface UniversalNotificationListProps {
-  userSession: { role?: UserRole } | null | undefined; // Добавляем undefined
+  userSession: { role?: UserRole } | null | undefined;
   notifications: Notification[];
   driverNotifications: Notification[];
   clientNotifications: Notification[];
@@ -146,6 +146,18 @@ const UniversalNotificationList: React.FC<UniversalNotificationListProps> = ({
   const observer = useRef<IntersectionObserver | null>(null);
   const [open, setOpen] = useState<Record<string, boolean>>({});
 
+  // Определяем, какие роли могут просматривать заказы
+  const canViewOrder = (notification: Notification) => {
+    if (!openModal || !notification.orderId) return false;
+
+    return (
+      userSession?.role === UserRole.Driver ||
+      userSession?.role === UserRole.ClientCorp ||
+      userSession?.role === UserRole.Admin ||
+      userSession?.role === UserRole.Operator
+    );
+  };
+
   const getActiveNotifications = () => {
     switch (userSession?.role) {
       case UserRole.Driver:
@@ -225,11 +237,8 @@ const UniversalNotificationList: React.FC<UniversalNotificationListProps> = ({
     return NOTIFICATION_TITLES[action];
   };
 
-  const isModalSupported =
-    userSession?.role === UserRole.Driver || userSession?.role === UserRole.ClientCorp;
-
   return (
-    <div className="absolute w-[400px] max-h-[600px] right-0 top-10 z-50 bg-gradient-to-br from-white to-gray-50 p-4 flex flex-col gap-2 rounded-lg shadow-xl border border-gray-200 overflow-hidden">
+    <div className="absolute w-[400px] max-h-[600px] right-0 top-14 z-50 bg-gradient-to-br from-white to-gray-50 p-4 flex flex-col gap-2 rounded-lg shadow-xl border border-gray-200 overflow-hidden">
       <div className="flex justify-between items-center mb-2 sticky top-0 bg-white z-10 pb-2 border-b border-gray-100">
         <h1 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-700 to-blue-700">
           {getTitle()}
@@ -378,7 +387,7 @@ const UniversalNotificationList: React.FC<UniversalNotificationListProps> = ({
                         </div>
 
                         <div className="flex space-x-1">
-                          {openModal && isModalSupported && (
+                          {openModal && canViewOrder(notification) && (
                             <button
                               onClick={() => openModal(notification)}
                               className="p-1 bg-white bg-opacity-70 rounded-full text-cyan-600 hover:text-blue-700 hover:bg-blue-50 transition-colors"
@@ -430,7 +439,7 @@ const UniversalNotificationList: React.FC<UniversalNotificationListProps> = ({
                       >
                         <div className="text-sm text-gray-700 bg-white bg-opacity-60 p-3 rounded-md border border-gray-100">
                           {notification.message}
-                          {openModal && isModalSupported && (
+                          {openModal && canViewOrder(notification) && (
                             <div className="mt-2 pt-2 border-t border-gray-100 flex justify-end">
                               <button
                                 onClick={() => openModal(notification)}

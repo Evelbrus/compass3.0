@@ -1,11 +1,5 @@
 import React from 'react';
-import { Point } from '@prisma/client';
-
-// Определяем тип PointWithoutTimestamps, как в других местах
-type PointWithoutTimestamps = Pick<
-  Point,
-  'uuid' | 'address' | 'pricePerKm' | 'airport' | 'latitude' | 'longitude' | 'terrainDifficulty'
->;
+import { PointWithoutTimestamps } from '@features/orders/create/types/types';
 
 interface WaitTimeSelectorProps {
   waitTime: number;
@@ -13,11 +7,11 @@ interface WaitTimeSelectorProps {
   adjustWaitTime: (increment: number) => void;
   minWaitTime: number;
   maxWaitTime: number;
-  departurePoint?: PointWithoutTimestamps | null | undefined; // Обновили тип
+  departurePoint?: PointWithoutTimestamps | null | undefined;
   freeWaitTime: number;
 }
 
-const WaitTimeSelector: React.FC<WaitTimeSelectorProps> = ({
+export const WaitTimeSelector: React.FC<WaitTimeSelectorProps> = ({
   waitTime,
   additionalWaitTimeCost,
   adjustWaitTime,
@@ -74,7 +68,8 @@ const WaitTimeSelector: React.FC<WaitTimeSelectorProps> = ({
           </div>
         </div>
 
-        {isAirport && freeWaitTime > 0 && (
+        {/* Показываем информацию о бесплатном времени ожидания в любом случае, если оно > 0 */}
+        {freeWaitTime > 0 && (
           <div className="flex items-center mt-2 text-blue-600 text-sm">
             <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
@@ -84,7 +79,7 @@ const WaitTimeSelector: React.FC<WaitTimeSelectorProps> = ({
                 d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
               />
             </svg>
-            Бесплатное время ожидания в аэропорту:{' '}
+            {isAirport ? `Бесплатное время ожидания в аэропорту:` : `Бесплатное время ожидания:`}
             <span className="font-bold ml-1">{freeWaitTime} мин</span>
           </div>
         )}
@@ -97,5 +92,3 @@ const WaitTimeSelector: React.FC<WaitTimeSelectorProps> = ({
     </div>
   );
 };
-
-export default WaitTimeSelector;

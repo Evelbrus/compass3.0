@@ -3,7 +3,6 @@
 import React, { useRef, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { IButton } from '@shared/components/ui/buttons';
-import { openModal } from '@shared/lib/effector/state/state';
 import AnimatedComponent from '@shared/components/animated/CommonAnimated/AnimatedComponent';
 import Filters from '@widgets/filters/ui/Filters';
 import StatusOverview from '@widgets/status-overview/ui/StatusOverview';
@@ -12,7 +11,6 @@ import PaginationComponent from '@shared/components/ui/pagination/PaginationComp
 import { ordersClientCorpOverview } from '@entities/orders/ordersClientCorpOverview';
 import OrderClientCorpTable from '@features/orders/table/table/OrderClientCorpTable';
 import useClientCorpOrders from '@features/orders/hooks/useClientCorpOrders';
-
 
 const OrderClientCorpPage: React.FC = () => {
   const topRef = useRef<HTMLDivElement>(null);
@@ -50,7 +48,7 @@ const OrderClientCorpPage: React.FC = () => {
   };
 
   const handleCreate = () => {
-    openModal('createClientCorpOrder');
+    router.push('order/create');
   };
 
   return (

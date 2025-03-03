@@ -123,7 +123,7 @@ async function main() {
         gender: Gender.Male,
         address: 'Compass Main Office',
         profilePhotoPath: null,
-        availability: false,
+        availability: true,
       },
       {
         uuid: uuidv4(),

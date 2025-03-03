@@ -1,11 +1,11 @@
 import React, { FC, useMemo } from 'react';
 import { Control, Controller } from 'react-hook-form';
 import Decimal from 'decimal.js';
-import { PointWithoutTimestamps } from '@features/orders/create/hooks/points/useAllPoints';
 import { cn } from '@shared/lib';
-import { OrderStatus } from '@prisma/client';
+import { OrderStatus, UserRole } from '@prisma/client';
 import { orderStatusTranslations } from '@shared/lib/effector/orders/options-and-translation/optionsStatusOrder';
 import { FormOrderValues } from '@features/orders/create/hooks/useCreateAdminOrderLogic';
+import { Driver, PointWithoutTimestamps } from '@features/orders/create/types/types';
 
 interface RouteInfoProps {
   control: Control<FormOrderValues>;
@@ -20,15 +20,16 @@ interface RouteInfoProps {
   waitTimeCost?: Decimal | null;
   routeCost?: Decimal | null;
   mode?: 'create' | 'edit';
-  selectedDriverInfo?: any;
+  selectedDriverInfo?: Driver | null;
   handleEditPrice?: (price: number) => void;
   resetPrice?: () => void;
   onStatusChange?: (status: OrderStatus) => void;
   priceMode?: 'base' | 'manual' | 'auto';
   isPriceEdited?: boolean;
+  role?: UserRole; // Добавляем роль пользователя
 }
 
-const RouteInfo: FC<RouteInfoProps> = ({
+export const RouteInfo: FC<RouteInfoProps> = ({
   control,
   departurePoint,
   additionalPoints,
@@ -47,7 +48,11 @@ const RouteInfo: FC<RouteInfoProps> = ({
   onStatusChange,
   priceMode,
   isPriceEdited,
+  role,
 }) => {
+  // Определяем, является ли пользователь клиентом (ClientCorp)
+  const isClientCorp = role === UserRole.ClientCorp;
+
   const filteredAdditionalPoints = useMemo(
     () => additionalPoints.filter((point): point is PointWithoutTimestamps => point !== null),
     [additionalPoints],
@@ -96,6 +101,225 @@ const RouteInfo: FC<RouteInfoProps> = ({
     }
   };
 
+  // Функция для создания плейсхолдеров маршрутных точек, если их недостаточно
+  const renderRoutePoints = () => {
+    // Создаем массив с точкой отправления (A)
+    const result: React.ReactNode[] = [];
+
+    // Добавляем точку отправления, если она определена
+    if (departurePoint) {
+      result.push(
+        <div key="departure" className="flex items-center gap-3">
+          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold shadow-md z-10">
+            A
+          </div>
+          <div className="flex-1 rounded-md p-3 border border-blue-100 shadow-sm bg-blue-50">
+            <div className="text-sm text-blue-600 font-semibold">Откуда</div>
+            <div className="font-medium">{departurePoint.address}</div>
+            <div className="text-xs text-gray-500 mt-1 flex flex-wrap gap-2">
+              <span className="bg-white px-2 py-0.5 rounded-full border border-blue-100">
+                {Number(departurePoint.pricePerKm)} сом/км
+              </span>
+              {departurePoint.terrainDifficulty !== 1 && (
+                <span className="bg-white px-2 py-0.5 rounded-full border border-orange-100 text-orange-600">
+                  Коэф. сложности: {departurePoint.terrainDifficulty}
+                </span>
+              )}
+              {departurePoint.airport && (
+                <span className="bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full text-xs">
+                  Аэропорт
+                </span>
+              )}
+            </div>
+          </div>
+        </div>,
+      );
+    } else {
+      // Если нет точки отправления, отображаем плейсхолдер
+      result.push(
+        <div key="departure-placeholder" className="flex items-center gap-3">
+          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold shadow-md z-10 opacity-50">
+            A
+          </div>
+          <div className="flex-1 rounded-md p-3 border border-blue-100 shadow-sm bg-blue-50 opacity-50">
+            <div className="text-sm text-blue-600 font-semibold">Откуда</div>
+            <div className="font-medium">Выберите точку отправления</div>
+          </div>
+        </div>,
+      );
+    }
+
+    // Добавляем промежуточные точки
+    const existingIntermediatePoints = filteredAdditionalPoints.slice(0, 5);
+
+    // Рассчитываем, сколько дополнительных точек нужно добавить
+    const additionalNeeded = Math.max(0, 5 - existingIntermediatePoints.length);
+
+    // Добавляем существующие промежуточные точки
+    existingIntermediatePoints.forEach((point, index) => {
+      const letter = String.fromCharCode(67 + index); // C, D, E...
+      const bgColors = [
+        'from-green-500 to-green-600',
+        'from-purple-500 to-purple-600',
+        'from-orange-500 to-orange-600',
+        'from-cyan-500 to-cyan-600',
+        'from-pink-500 to-pink-600',
+        'from-indigo-500 to-indigo-600',
+        'from-yellow-500 to-yellow-600',
+      ];
+      const borderColors = [
+        'border-green-100',
+        'border-purple-100',
+        'border-orange-100',
+        'border-cyan-100',
+        'border-pink-100',
+        'border-indigo-100',
+        'border-yellow-100',
+      ];
+      const bgLight = [
+        'bg-green-50',
+        'bg-purple-50',
+        'bg-orange-50',
+        'bg-cyan-50',
+        'bg-pink-50',
+        'bg-indigo-50',
+        'bg-yellow-50',
+      ];
+
+      result.push(
+        <div key={point.uuid} className="flex items-center gap-3">
+          <div
+            className={`flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r ${
+              bgColors[index % bgColors.length]
+            } text-white font-bold shadow-md z-10`}
+          >
+            {letter}
+          </div>
+          <div
+            className={`flex-1 rounded-md p-3 border ${borderColors[index % borderColors.length]} shadow-sm ${bgLight[index % bgLight.length]}`}
+          >
+            <div className="text-xs font-semibold">Дополнительная точка {index + 1}</div>
+            <div className="font-medium">{point.address}</div>
+            <div className="text-xs text-gray-500 mt-1 flex flex-wrap gap-2">
+              <span className="bg-white px-2 py-0.5 rounded-full border border-gray-100">
+                {Number(point.pricePerKm)} сом/км
+              </span>
+              {point.terrainDifficulty !== 1 && (
+                <span className="bg-white px-2 py-0.5 rounded-full border border-orange-100 text-orange-600">
+                  Коэф. сложности: {point.terrainDifficulty}
+                </span>
+              )}
+              {point.airport && (
+                <span className="bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full text-xs">
+                  Аэропорт
+                </span>
+              )}
+            </div>
+          </div>
+        </div>,
+      );
+    });
+
+    // Добавляем плейсхолдеры для остальных промежуточных точек
+    for (let i = 0; i < additionalNeeded; i++) {
+      const index = existingIntermediatePoints.length + i;
+      const letter = String.fromCharCode(67 + index); // C, D, E...
+      const bgColors = [
+        'from-green-500 to-green-600',
+        'from-purple-500 to-purple-600',
+        'from-orange-500 to-orange-600',
+        'from-cyan-500 to-cyan-600',
+        'from-pink-500 to-pink-600',
+        'from-indigo-500 to-indigo-600',
+        'from-yellow-500 to-yellow-600',
+      ];
+      const borderColors = [
+        'border-green-100',
+        'border-purple-100',
+        'border-orange-100',
+        'border-cyan-100',
+        'border-pink-100',
+        'border-indigo-100',
+        'border-yellow-100',
+      ];
+      const bgLight = [
+        'bg-green-50',
+        'bg-purple-50',
+        'bg-orange-50',
+        'bg-cyan-50',
+        'bg-pink-50',
+        'bg-indigo-50',
+        'bg-yellow-50',
+      ];
+
+      result.push(
+        <div key={`placeholder-${i}`} className="flex items-center gap-3">
+          <div
+            className={`flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r ${
+              bgColors[index % bgColors.length]
+            } text-white font-bold shadow-md z-10 opacity-50`}
+          >
+            {letter}
+          </div>
+          <div
+            className={`flex-1 rounded-md p-3 border ${borderColors[index % borderColors.length]} shadow-sm ${bgLight[index % bgLight.length]} opacity-50`}
+          >
+            <div className="text-xs font-semibold">Дополнительная точка {index + 1}</div>
+            <div className="font-medium">
+              Добавьте промежуточную точку <br />
+              (опционально)
+            </div>
+          </div>
+        </div>,
+      );
+    }
+
+    // Добавляем точку прибытия (B)
+    if (arrivalPoint) {
+      result.push(
+        <div key="arrival" className="flex items-center gap-3">
+          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-red-500 to-red-600 text-white font-bold shadow-md z-10">
+            B
+          </div>
+          <div className="flex-1 rounded-md p-3 border border-red-100 shadow-sm bg-red-50">
+            <div className="text-sm text-red-600 font-semibold">Куда</div>
+            <div className="font-medium">{arrivalPoint.address}</div>
+            <div className="text-xs text-gray-500 mt-1 flex flex-wrap gap-2">
+              <span className="bg-white px-2 py-0.5 rounded-full border border-red-100">
+                {Number(arrivalPoint.pricePerKm)} сом/км
+              </span>
+              {arrivalPoint.terrainDifficulty !== 1 && (
+                <span className="bg-white px-2 py-0.5 rounded-full border border-orange-100 text-orange-600">
+                  Коэф. сложности: {arrivalPoint.terrainDifficulty}
+                </span>
+              )}
+              {arrivalPoint.airport && (
+                <span className="bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full text-xs">
+                  Аэропорт
+                </span>
+              )}
+            </div>
+          </div>
+        </div>,
+      );
+    } else {
+      // Плейсхолдер для точки прибытия
+      result.push(
+        <div key="arrival-placeholder" className="flex items-center gap-3">
+          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-red-500 to-red-600 text-white font-bold shadow-md z-10 opacity-50">
+            B
+          </div>
+          <div className="flex-1 rounded-md p-3 border border-red-100 shadow-sm bg-red-50 opacity-50">
+            <div className="text-sm text-red-600 font-semibold">Куда</div>
+            <div className="font-medium">Выберите точку прибытия</div>
+          </div>
+        </div>,
+      );
+    }
+
+    return result;
+  };
+
   const routeSegmentPrices = useMemo(() => {
     const segments: {
       from: string;
@@ -122,8 +346,8 @@ const RouteInfo: FC<RouteInfoProps> = ({
       if (!fromPoint || !toPoint) continue;
 
       const segmentDistance = avgDistancePerSegment;
-      const pricePerKm = Number(fromPoint.pricePerKm);
-      const terrainDifficulty = Number(fromPoint.terrainDifficulty) || 1;
+      const pricePerKm = Number(toPoint.pricePerKm);
+      const terrainDifficulty = Number(toPoint.terrainDifficulty) || 1;
       const segmentCost = Math.round(segmentDistance * pricePerKm * terrainDifficulty);
 
       segments.push({
@@ -140,7 +364,7 @@ const RouteInfo: FC<RouteInfoProps> = ({
   }, [departurePoint, arrivalPoint, filteredAdditionalPoints, routeDistance]);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 p-6 border rounded-lg shadow-sm">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 p-6">
       {/* Блок "Маршрут" */}
       <div className="flex flex-col">
         <h3 className="text-xl font-semibold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-cyan-700 to-blue-700">
@@ -149,117 +373,7 @@ const RouteInfo: FC<RouteInfoProps> = ({
         </h3>
         <div className="relative flex-1">
           <div className="absolute left-4 top-2 w-0.5 h-[calc(100%-8px)] bg-gradient-to-b from-blue-400 via-green-400 to-red-400"></div>
-          <div className="space-y-4 relative">
-            {departurePoint && (
-              <div className="flex items-center gap-3">
-                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold shadow-md z-10">
-                  A
-                </div>
-                <div className="flex-1 rounded-md p-3 border border-blue-100 shadow-sm bg-blue-50">
-                  <div className="text-sm text-blue-600 font-semibold">Откуда</div>
-                  <div className="font-medium">{departurePoint.address}</div>
-                  <div className="text-xs text-gray-500 mt-1 flex flex-wrap gap-2">
-                    <span className="bg-white px-2 py-0.5 rounded-full border border-blue-100">
-                      {Number(departurePoint.pricePerKm)} сом/км
-                    </span>
-                    {departurePoint.terrainDifficulty !== 1 && (
-                      <span className="bg-white px-2 py-0.5 rounded-full border border-orange-100 text-orange-600">
-                        Коэф. сложности: {departurePoint.terrainDifficulty}
-                      </span>
-                    )}
-                    {departurePoint.airport && (
-                      <span className="bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full text-xs">
-                        Аэропорт
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-            {filteredAdditionalPoints.map((point, index) => {
-              const letter = String.fromCharCode(67 + index); // C, D, E...
-              const bgColors = [
-                'from-green-500 to-green-600',
-                'from-purple-500 to-purple-600',
-                'from-orange-500 to-orange-600',
-                'from-cyan-500 to-cyan-600',
-                'from-pink-500 to-pink-600',
-              ];
-              const borderColors = [
-                'border-green-100',
-                'border-purple-100',
-                'border-orange-100',
-                'border-cyan-100',
-                'border-pink-100',
-              ];
-              const bgLight = [
-                'bg-green-50',
-                'bg-purple-50',
-                'bg-orange-50',
-                'bg-cyan-50',
-                'bg-pink-50',
-              ];
-
-              return (
-                <div key={point.uuid} className="flex items-center gap-3">
-                  <div
-                    className={`flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r ${
-                      bgColors[index % bgColors.length]
-                    } text-white font-bold shadow-md z-10`}
-                  >
-                    {letter}
-                  </div>
-                  <div
-                    className={`flex-1 rounded-md p-3 border ${borderColors[index % borderColors.length]} shadow-sm ${bgLight[index % bgLight.length]}`}
-                  >
-                    <div className="text-xs font-semibold">Промежуточная точка {index + 1}</div>
-                    <div className="font-medium">{point.address}</div>
-                    <div className="text-xs text-gray-500 mt-1 flex flex-wrap gap-2">
-                      <span className="bg-white px-2 py-0.5 rounded-full border border-gray-100">
-                        {Number(point.pricePerKm)} сом/км
-                      </span>
-                      {point.terrainDifficulty !== 1 && (
-                        <span className="bg-white px-2 py-0.5 rounded-full border border-orange-100 text-orange-600">
-                          Коэф. сложности: {point.terrainDifficulty}
-                        </span>
-                      )}
-                      {point.airport && (
-                        <span className="bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full text-xs">
-                          Аэропорт
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-            {arrivalPoint && (
-              <div className="flex items-center gap-3">
-                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-red-500 to-red-600 text-white font-bold shadow-md z-10">
-                  B
-                </div>
-                <div className="flex-1 rounded-md p-3 border border-red-100 shadow-sm bg-red-50">
-                  <div className="text-sm text-red-600 font-semibold">Куда</div>
-                  <div className="font-medium">{arrivalPoint.address}</div>
-                  <div className="text-xs text-gray-500 mt-1 flex flex-wrap gap-2">
-                    <span className="bg-white px-2 py-0.5 rounded-full border border-red-100">
-                      {Number(arrivalPoint.pricePerKm)} сом/км
-                    </span>
-                    {arrivalPoint.terrainDifficulty !== 1 && (
-                      <span className="bg-white px-2 py-0.5 rounded-full border border-orange-100 text-orange-600">
-                        Коэф. сложности: {arrivalPoint.terrainDifficulty}
-                      </span>
-                    )}
-                    {arrivalPoint.airport && (
-                      <span className="bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full text-xs">
-                        Аэропорт
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
+          <div className="space-y-4 relative">{renderRoutePoints()}</div>
         </div>
       </div>
 
@@ -275,9 +389,9 @@ const RouteInfo: FC<RouteInfoProps> = ({
               <span className="text-lg">⏱</span>
             </div>
             <div>
-              <div className="text-sm text-gray-600">Время в пути</div>
+              <div className="text-sm text-gray-600">Среднее время в пути</div>
               <div className="font-bold text-lg text-purple-700">
-                {routeDuration ? routeDuration : 'Рассчитывается...'}
+                {routeDuration ? routeDuration : 'Выберите адрес подачи и прибытия'}
               </div>
             </div>
           </div>
@@ -288,7 +402,9 @@ const RouteInfo: FC<RouteInfoProps> = ({
             <div>
               <div className="text-sm text-gray-600">Расстояние</div>
               <div className="font-bold text-lg text-teal-700">
-                {routeDistance > 0 ? `${routeDistance.toFixed(2)} км` : 'Рассчитывается...'}
+                {routeDistance > 0
+                  ? `${routeDistance.toFixed(2)} км`
+                  : 'Выберите адрес подачи и прибытия'}
               </div>
             </div>
           </div>
@@ -297,7 +413,7 @@ const RouteInfo: FC<RouteInfoProps> = ({
               <span className="text-lg">📍</span>
             </div>
             <div>
-              <div className="text-sm text-gray-600">Количество точек</div>
+              <div className="text-sm text-gray-600">Количество маршрутов</div>
               <div className="font-bold text-lg text-amber-700">{totalPointsCount}</div>
             </div>
           </div>
@@ -307,7 +423,7 @@ const RouteInfo: FC<RouteInfoProps> = ({
             </div>
             <div className="w-full">
               <div className="text-sm text-gray-600 mb-2">Статус заказа</div>
-              {mode === 'edit' ? (
+              {mode === 'edit' && !isClientCorp ? (
                 <Controller
                   name="status"
                   control={control}
@@ -346,7 +462,7 @@ const RouteInfo: FC<RouteInfoProps> = ({
               <div className="bg-gradient-to-r from-blue-50 to-white p-3 border-b border-blue-100">
                 <h4 className="font-semibold text-blue-700">Детализация маршрута</h4>
               </div>
-              <div className="p-3 max-h-64 overflow-y-auto">
+              <div className="p-3 h-[320px] max-h-[320px] overflow-y-auto">
                 <div className="space-y-2">
                   {routeSegmentPrices.map((segment, idx) => (
                     <div
@@ -381,11 +497,11 @@ const RouteInfo: FC<RouteInfoProps> = ({
                     </div>
                   ))}
                 </div>
-                <div className="flex justify-between text-sm font-semibold mt-2 pt-2 border-t border-blue-100 text-blue-700">
-                  <span>Итоговая стоимость маршрута:</span>
-                  <span>{formattedPrices.route} сом</span>
-                </div>
               </div>
+              {/*<div className="flex flex-row justify-between bg-gradient-to-r from-blue-50 to-white p-3 border-t border-blue-100">*/}
+              {/*  <h4 className="font-semibold text-blue-700">Итоговая стоимость маршрута:</h4>*/}
+              {/*  <h4 className="font-semibold text-blue-700">{formattedPrices.route} сом</h4>*/}
+              {/*</div>*/}
             </div>
           )}
         </div>
@@ -421,23 +537,26 @@ const RouteInfo: FC<RouteInfoProps> = ({
                   {formattedPrices.additionalServices} сом
                 </span>
               </div>
-              <div className="flex justify-between items-center text-base font-bold pt-3 mt-3 border-t border-blue-100 p-2 bg-gradient-to-r from-blue-50 to-white">
-                <span className="text-blue-800">
-                  {priceMode === 'base' && isPriceEdited
-                    ? 'Общая сумма (сохраненная цена заказа):'
-                    : priceMode === 'manual' && isPriceEdited
-                      ? 'Общая сумма (изменена вручную):'
-                      : 'Общая сумма:'}
-                </span>
-                <span className="text-lg bg-gradient-to-r from-blue-600 to-cyan-600 text-transparent bg-clip-text">
-                  {formattedPrices.total} сом
-                </span>
-              </div>
             </div>
+          </div>
+          <div className="flex justify-between items-center text-base font-bold pt-3 mt-3 border-t bg-gradient-to-r from-blue-50 to-white p-3 border-b border-blue-100">
+            <span className="font-semibold text-blue-700">
+              {priceMode === 'base' && isPriceEdited
+                ? 'Общая сумма (сохраненная цена заказа):'
+                : priceMode === 'manual' && isPriceEdited
+                  ? 'Общая сумма (изменена вручную):'
+                  : 'Общая сумма:'}
+            </span>
+            <span className="text-lg bg-gradient-to-r from-blue-600 to-cyan-600 text-transparent bg-clip-text">
+              {formattedPrices.total} сом
+            </span>
           </div>
         </div>
 
-        {handleEditPrice && resetPrice && (
+        {/* Показываем блок редактирования цены только если:
+            1. Это не роль ClientCorp
+            2. У нас есть функции для управления ценой */}
+        {!isClientCorp && handleEditPrice && resetPrice && (
           <div className="mt-4 border border-blue-100 rounded-lg shadow-sm overflow-hidden">
             <div className="bg-gradient-to-r from-blue-50 to-white p-3 border-b border-blue-100">
               <h4 className="font-semibold text-blue-700">Управление ценой</h4>
@@ -510,5 +629,3 @@ const RouteInfo: FC<RouteInfoProps> = ({
     </div>
   );
 };
-
-export default RouteInfo;

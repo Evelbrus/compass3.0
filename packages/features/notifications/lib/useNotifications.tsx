@@ -40,6 +40,7 @@ export interface OrderDetail {
   driverAcceptanceStatus?: DriverAcceptanceStatus;
   status: OrderStatus;
   assignedDriverId?: string;
+  basePrice?: string | number;
 }
 
 type ModalAction = Omit<Action, 'info'>;
@@ -262,23 +263,32 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
   const shouldShowModal = useMemo(() => {
     if (!activeNotification || !userSession) return false;
 
-    const validActions: ModalAction[] = [
-      Action.noted,
-      Action.inProgress,
-      Action.warning,
-      Action.success,
-      Action.cancelled,
-    ];
+    // Добавляем отладочные логи
+    console.log('🔄 shouldShowModal проверка:');
+    console.log('📢 Действие:', activeNotification.action);
+    console.log('📦 Заказ ID:', activeNotification.orderId);
+    console.log('👥 Роль:', userSession.role);
 
-    if (userSession.role === UserRole.Driver || userSession.role === UserRole.ClientCorp) {
-      return validActions.includes(activeNotification.action as ModalAction);
+    // Для AdminUI/Operator - показываем все уведомления с orderId
+    if (
+      (userSession.role === UserRole.Admin || userSession.role === UserRole.Operator) &&
+      activeNotification.orderId
+    ) {
+      console.log('✅ Показываем модальное окно админу/оператору');
+      return true;
     }
 
-    if (userSession.role === UserRole.Admin || userSession.role === UserRole.Operator) {
-      return (
-        activeNotification.action === Action.warning ||
-        activeNotification.action === Action.cancelled
-      );
+    // Для клиентов и водителей - стандартная логика
+    if (userSession.role === UserRole.Driver || userSession.role === UserRole.ClientCorp) {
+      const validActions: ModalAction[] = [
+        Action.noted,
+        Action.inProgress,
+        Action.warning,
+        Action.success,
+        Action.cancelled,
+      ];
+
+      return validActions.includes(activeNotification.action as ModalAction);
     }
 
     return false;

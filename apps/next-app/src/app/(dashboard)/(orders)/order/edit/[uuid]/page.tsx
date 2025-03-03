@@ -1,11 +1,12 @@
 import React, { JSX } from 'react';
 import { getLayoutData } from '@shared/utils/cookie/layout-data/getLayoutData';
-import OrderCreateView, { OrderData } from '@pages/(administrator)/orders/create/OrderCreate.view';
+import OrderCreateView from '@pages/(administrator)/orders/create/OrderCreate.view';
 import Loading from '@entities/loading/loading';
 import { UserRole } from '@prisma/client';
 import { redirect } from 'next/navigation';
 import { publicRoutes } from '@shared/utils/routing';
 import { prisma } from '@shared/prisma/prisma-client';
+import { OrderData } from '@features/orders/create/types/types';
 
 interface PageProps {
   params: Promise<{ uuid: string }>;
@@ -15,7 +16,6 @@ export const revalidate = 60;
 
 const Page = async ({ params }: PageProps): Promise<JSX.Element> => {
   const { uuid } = await params;
-  console.log('uuid из params:', uuid);
 
   const { role, refreshToken } = await getLayoutData();
 
@@ -44,17 +44,7 @@ const Page = async ({ params }: PageProps): Promise<JSX.Element> => {
             role: true,
           },
         },
-        tariff: {
-          include: {
-            tariffAdditionalServices: {
-              include: {
-                orderTariffAdditionalServices: {
-                  where: { orderUuid: uuid },
-                },
-              },
-            },
-          },
-        },
+        tariff: true,
         departurePoint: {
           select: {
             uuid: true,
@@ -78,19 +68,44 @@ const Page = async ({ params }: PageProps): Promise<JSX.Element> => {
           },
         },
         assignedDriver: {
-          select: {
-            uuid: true,
-            fullName: true,
-            email: true,
-            phone: true,
-            role: true,
-            profilePhotoPath: true,
+          include: {
+            vehicleDriver: {
+              include: {
+                vehicle: {
+                  select: {
+                    uuid: true,
+                    vehicleType: true,
+                    serviceLevels: true,
+                    plateNumber: true,
+                    isAvailable: true,
+                  },
+                },
+              },
+            },
           },
         },
       },
     });
 
     if (!order) {
+      return <Loading />;
+    }
+
+    // Получение tariffAdditionalServices отдельно
+    const tariffWithServices = await prisma.tariff.findUnique({
+      where: { uuid: order.tariff.uuid },
+      include: {
+        tariffAdditionalServices: {
+          include: {
+            orderTariffAdditionalServices: {
+              where: { orderUuid: uuid },
+            },
+          },
+        },
+      },
+    });
+
+    if (!tariffWithServices) {
       return <Loading />;
     }
 
@@ -121,16 +136,16 @@ const Page = async ({ params }: PageProps): Promise<JSX.Element> => {
         role: order.createdBy.role,
       },
       tariff: {
-        uuid: order.tariff.uuid,
-        name: order.tariff.name,
-        serviceLevel: order.tariff.serviceLevel,
-        vehicleType: order.tariff.vehicleType,
-        tariffAdditionalServices: order.tariff.tariffAdditionalServices.map((service) => ({
-          ...service,
+        ...order.tariff,
+        tariffAdditionalServices: tariffWithServices.tariffAdditionalServices.map((service) => ({
+          uuid: service.uuid,
+          createdAt: service.createdAt,
+          updatedAt: service.updatedAt,
+          tariffUuid: service.tariffUuid,
           price: Number(service.price),
-          orderTariffAdditionalServices: service.orderTariffAdditionalServices,
+          isAvailable: service.isAvailable,
+          serviceUuid: service.serviceUuid,
         })),
-        description: order.tariff?.description,
       },
       departurePoint: {
         uuid: order.departurePoint.uuid,
@@ -158,6 +173,24 @@ const Page = async ({ params }: PageProps): Promise<JSX.Element> => {
             phone: order.assignedDriver.phone,
             role: order.assignedDriver.role,
             profilePhotoPath: order.assignedDriver.profilePhotoPath,
+            lastActive: order.assignedDriver.lastActive,
+            vehicleDriver: order.assignedDriver.vehicleDriver
+              ? {
+                  uuid: order.assignedDriver.vehicleDriver.uuid,
+                  createdAt: order.assignedDriver.vehicleDriver.createdAt,
+                  updatedAt: order.assignedDriver.vehicleDriver.updatedAt,
+                  driverId: order.assignedDriver.vehicleDriver.driverId,
+                  vehicleId: order.assignedDriver.vehicleDriver.vehicleId,
+                  assignmentDate: order.assignedDriver.vehicleDriver.assignmentDate,
+                  vehicle: {
+                    uuid: order.assignedDriver.vehicleDriver.vehicle.uuid,
+                    vehicleType: order.assignedDriver.vehicleDriver.vehicle.vehicleType,
+                    serviceLevels: order.assignedDriver.vehicleDriver.vehicle.serviceLevels,
+                    plateNumber: order.assignedDriver.vehicleDriver.vehicle.plateNumber,
+                    isAvailable: order.assignedDriver.vehicleDriver.vehicle.isAvailable,
+                  },
+                }
+              : undefined,
           }
         : undefined,
       departureTime: order.departureTime
@@ -167,9 +200,17 @@ const Page = async ({ params }: PageProps): Promise<JSX.Element> => {
       flightNumber: order.flightNumber,
       basePrice: Number(order.basePrice),
       waitingTimeMinutes: Number(order.waitingTimeMinutes),
-      selectedServices: order.tariff.tariffAdditionalServices
+      selectedServices: tariffWithServices.tariffAdditionalServices
         .filter((service) => service.orderTariffAdditionalServices.length > 0)
-        .map((service) => service.uuid),
+        .map((service) => ({
+          uuid: service.uuid,
+          createdAt: service.createdAt,
+          updatedAt: service.updatedAt,
+          tariffUuid: service.tariffUuid,
+          price: Number(service.price),
+          isAvailable: service.isAvailable,
+          serviceUuid: service.serviceUuid,
+        })),
       intermediatePoints: intermediatePointsData.map((point) => ({
         uuid: point.uuid,
         address: point.address,
@@ -187,7 +228,7 @@ const Page = async ({ params }: PageProps): Promise<JSX.Element> => {
   }
 
   // Передача данных в клиентский компонент
-  return <OrderCreateView mode="edit" orderData={orderData} />;
+  return <OrderCreateView role={role} mode="edit" orderData={orderData} />;
 };
 
 export default Page;

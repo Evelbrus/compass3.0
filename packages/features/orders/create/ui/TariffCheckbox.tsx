@@ -39,7 +39,7 @@ const FIELD_STYLES = {
   },
 };
 
-const TariffCheckbox: React.FC<TariffCheckboxProps> = ({
+export const TariffCheckbox: React.FC<TariffCheckboxProps> = ({
   control,
   tariffs,
   selectedTariffUuid,
@@ -159,7 +159,7 @@ const TariffCheckbox: React.FC<TariffCheckboxProps> = ({
                   <div
                     key={levelOption.value}
                     className={cn(
-                      'mb-2 p-3 rounded-lg border border-gray-200 transition-all duration-200',
+                      'flex flex-row items-center gap-4 mb-2 p-3 rounded-lg border border-gray-200 transition-all duration-200',
                       serviceLevelValue === levelOption.value && isAvailable
                         ? FIELD_STYLES.card.active
                         : '',
@@ -271,7 +271,8 @@ const TariffCard: React.FC<TariffCardProps> = ({
                 </p>
               )}
               <p className="font-helvetica-neue text-sm leading-5 text-end text-black/50 pl-3 pt-3">
-                Цена тарифа: <strong className="text-black text-5xl">{selectedTariff.price}С</strong>
+                Цена тарифа:{' '}
+                <strong className="text-black text-5xl">{selectedTariff.price}С</strong>
               </p>
             </div>
           </>
@@ -284,5 +285,3 @@ const TariffCard: React.FC<TariffCardProps> = ({
     </div>
   );
 };
-
-export default TariffCheckbox;

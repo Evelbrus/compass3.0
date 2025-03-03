@@ -171,7 +171,7 @@ const RouteMapInner: React.FC<RouteMapInnerProps> = ({
             boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
           }}
         >
-          Время в пути: {routeDuration}
+          Среднее время в пути: {routeDuration}
         </div>
       )}
     </div>

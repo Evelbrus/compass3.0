@@ -152,8 +152,10 @@ const VehiclesForm: React.FC<VehiclesFormProps> = ({ mode, vehicleData }) => {
                       type="text"
                       placeholder="Введите год выпуска"
                       value={inputValue}
-                      onChange={(value: string) => {
-                        const sanitizedValue = value.replace(/\D/g, '').slice(0, 4);
+                      onChange={(value: string | number | null) => {
+                        const sanitizedValue = value
+                          ? value.toString().replace(/\D/g, '').slice(0, 4)
+                          : '';
                         setInputValue(sanitizedValue);
                         if (sanitizedValue.length === 4) {
                           field.onChange(`${sanitizedValue}-01-01T00:00:00.000Z`);

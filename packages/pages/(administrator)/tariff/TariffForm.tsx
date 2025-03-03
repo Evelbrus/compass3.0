@@ -156,19 +156,6 @@ const TariffForm: React.FC<UseTariffFormProps> = ({ mode, initialData }) => {
             <div className="grid grid-cols-1 gap-4">
               <h4 className="text-lg font-bold text-gray-800">Тарифные параметры</h4>
               <div>
-                <TextInput
-                  type="number"
-                  label="Фиксированая цена за каждую дополнительную точку в поездку"
-                  value={formData.additionalPointPrice}
-                  onChange={(value) =>
-                    handleInputChange({
-                      target: { id: 'additionalPointPrice', value, type: 'number' },
-                    } as ChangeEvent<HTMLInputElement>)
-                  }
-                  required
-                />
-              </div>
-              <div>
                 <SelectSingle
                   label="Уровень обслуживания"
                   value={

@@ -8,12 +8,10 @@ import { IButton } from '@shared/components/ui/buttons';
 import AnimatedComponent from '@shared/components/animated/CommonAnimated/AnimatedComponent';
 import { useRouter } from 'next/navigation';
 import AdditionalServicesTable from '@widgets/additional-service/ui/AdditionalServicesTable';
-
 import { AdditionalService } from '@prisma/client';
 import NoData from '@shared/components/errors/noData';
 import SkeletonTable from '@shared/components/ui/table/ui/SkeletonTable';
 import { Column } from '@shared/components/ui/table';
-import { openModal } from '@shared/lib/effector';
 
 type TStatus = 'loading' | 'success' | 'error';
 
@@ -75,7 +73,7 @@ const TariffClientCorpPage = (): JSX.Element => {
   }, []);
 
   const handleCreate = () => {
-    openModal('createClientCorpOrder');
+    router.push('order/create');
   };
 
   const handleMouseDown = () => {

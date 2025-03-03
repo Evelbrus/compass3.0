@@ -5,32 +5,19 @@ import Pagination from '@shared/components/ui/pagination/Pagination';
 import { TextInput } from '@shared/components/ui/inputs';
 import { LazyImage } from '@shared/components/ui/images';
 import { isDriverOnline } from '@widgets/drivers-nearby/fucntions/isDriverOnline';
-import { User } from '@prisma/client';
 import { countryData } from '@shared/components/ui/inputs/phone';
 import {
   serviceLevelOptions,
   vehicleTypeOptions,
 } from '@shared/lib/effector/vehicles/optionsTranslation/optionsTranslationVehicle';
-
-// Расширяем тип User, добавляя вложенную информацию о транспорте
-interface DriverWithVehicle extends User {
-  vehicleDriver?: {
-    vehicle?: {
-      plateNumber: string;
-      vehicleType: string;
-      serviceLevels: string;
-    };
-  };
-}
-
-type SafeUser = Pick<User, 'uuid' | 'fullName' | 'email' | 'phone' | 'profilePhotoPath'>;
+import { Client, Driver } from '@features/orders/create/types/types';
 
 interface DriversNearbyProps {
-  drivers: DriverWithVehicle[];
+  drivers: Driver[];
   isDriversLoading: boolean;
   searchDriver: string;
   handleSearchDriverChange: (value: string) => void;
-  selectedDriverInfo: SafeUser | null;
+  selectedDriverInfo: Client | null;
   handleDriverClick: (driverId: string) => void;
   page: number;
   perPage: number;
@@ -99,28 +86,31 @@ const DriversNearby: React.FC<DriversNearbyProps> = ({
   return (
     <div className="w-full h-full flex flex-col gap-4">
       <h1 className="text-2xl font-extrabold leading-9">Водители поблизости</h1>
-      <TextInput
-        inputClass="text-base font-light leading-5 p-5 rounded-lg shadow-md border"
-        placeholder="Поиск по ФИО либо Номер автомобиля"
-        value={searchDriver}
-        onChange={(value) => {
-          if (value === null) {
-            handleSearchDriverChange('');
-          } else if (typeof value === 'string') {
-            handleSearchDriverChange(value);
-          } else {
-            console.warn('TextInput вернул число или bigint. Ожидалась строка для поиска по ФИО.');
-          }
-        }}
-        classNameLabel="bg-white"
-      />
-      <AnimatedComponent className="w-full h-full bg-white rounded-lg border shadow-lg">
+      <div className={'bg-white rounded-lg border'}>
+        <TextInput
+          inputClass="text-base font-light leading-5 p-5"
+          placeholder="Поиск по ФИО либо Номер автомобиля"
+          value={searchDriver}
+          onChange={(value) => {
+            if (value === null) {
+              handleSearchDriverChange('');
+            } else if (typeof value === 'string') {
+              handleSearchDriverChange(value);
+            } else {
+              console.warn(
+                'TextInput вернул число или bigint. Ожидалась строка для поиска по ФИО.',
+              );
+            }
+          }}
+        />
+      </div>
+      <AnimatedComponent className="w-full h-full">
         {isDriversLoading ? (
           <div className="text-center text-gray-500">Загрузка...</div>
         ) : !drivers || drivers.length === 0 ? (
           <NoData message="Нет доступных водителей" />
         ) : (
-          <div className="w-full overflow-x-auto">
+          <div className="w-full border rounded-lg shadow-lg overflow-x-auto">
             <table className="w-full border-collapse rounded-md bg-white border-[#0000001A]">
               <tbody>
                 {drivers.map((driver) => {

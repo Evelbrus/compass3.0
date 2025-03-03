@@ -3,9 +3,9 @@ import { LANG_COOKIE, REFRESH_TOKEN_COOKIE, ACCESS_TOKEN_COOKIE } from '@shared/
 import { LanguageCode, mapLanguageCode } from '@shared/utils/language';
 import { prisma } from '@shared/prisma/prisma-client';
 import { authConfig } from '@shared/utils/cookie/get-cookie/auth';
-import { UserSession } from '@shared/prisma/interface/users/interface';
 import { UserRole } from '@prisma/client';
 import { verifyJWT } from '@shared/utils/parse-jwt/parseJwt';
+import { UserSession } from '@shared/prisma/interface/users/interface';
 
 export async function getLayoutData() {
   const allCookies = await cookies();
@@ -21,19 +21,29 @@ export async function getLayoutData() {
   if (accessToken) {
     try {
       const payload = await verifyJWT<UserSession>(accessToken, authConfig.accessToken.secret);
-      //Проверяем только наличие uuid
+      // Проверяем только наличие uuid
       if (!payload.uuid) {
         throw new Error('Invalid token payload structure');
       }
 
+      // Запрос к базе данных с добавлением phone и companyProfile
       const user = await prisma.user.findUnique({
         where: { uuid: payload.uuid },
         select: {
           uuid: true,
           email: true,
+          fullName: true,
           role: true,
           isBlocked: true,
           lastActive: true,
+          phone: true,
+          companyProfile: {
+            select: {
+              companyName: true,
+              phone: true,
+              logoImagePath: true,
+            },
+          },
         },
       });
 
@@ -42,8 +52,17 @@ export async function getLayoutData() {
         userSession = {
           uuid: user.uuid,
           email: user.email,
+          fullName: user.fullName,
           role: user.role,
           lastActive: user.lastActive,
+          phone: user.phone,
+          companyProfile: user.companyProfile
+            ? {
+                companyName: user.companyProfile.companyName,
+                phone: user.companyProfile.phone,
+                logoImagePath: user.companyProfile.logoImagePath,
+              }
+            : null,
         };
       }
     } catch (error) {

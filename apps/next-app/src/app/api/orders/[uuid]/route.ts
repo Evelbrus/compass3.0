@@ -84,6 +84,7 @@ export async function GET(req: Request, { params }: { params: Promise<Params> })
       createdAt: order.createdAt,
       updatedAt: order.updatedAt,
       orderTariffAdditionalServices: formattedOrderTariffAdditionalServices,
+      basePrice: order.basePrice,
     };
 
     return NextResponse.json({

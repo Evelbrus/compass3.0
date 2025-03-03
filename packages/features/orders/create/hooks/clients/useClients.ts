@@ -1,17 +1,14 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { fetchClientByUuid, fetchClients } from '@features/orders/create/api/orders.api';
-import { User } from '@prisma/client';
-
-// Определяем тип для частичного пользователя
-export type PartialUser = Pick<User, 'uuid' | 'fullName' | 'email' | 'phone' | 'role'>;
+import { Client } from '@features/orders/create/types/types';
 
 interface UseClientsProps {
   per_page?: number;
+  disabled?: boolean;
 }
 
-export const useClients = ({ per_page = 4 }: UseClientsProps) => {
-  // Изменяем тип состояния на массив PartialUser
-  const [clients, setClients] = useState<PartialUser[] | null>(null);
+export const useClients = ({ per_page = 4, disabled = false }: UseClientsProps) => {
+  const [clients, setClients] = useState<Client[] | null>(null);
   const [isClientsLoading, setIsClientsLoading] = useState<boolean>(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -20,6 +17,8 @@ export const useClients = ({ per_page = 4 }: UseClientsProps) => {
 
   const fetchAllClients = useCallback(
     async (searchQuery: string = '', page: number = 1) => {
+      if (disabled) return;
+
       try {
         setIsClientsLoading(true);
 
@@ -30,7 +29,6 @@ export const useClients = ({ per_page = 4 }: UseClientsProps) => {
 
         setTotal(response.total);
 
-        // Корректно обрабатываем массив, обеспечивая правильную типизацию
         if (page === 1) {
           setClients(response.users || []);
         } else {
@@ -46,45 +44,46 @@ export const useClients = ({ per_page = 4 }: UseClientsProps) => {
         setIsClientsLoading(false);
       }
     },
-    [per_page, currentPage],
+    [per_page, currentPage, disabled],
   );
 
   const refetchClients = useCallback(
     (searchQuery: string = '') => {
+      if (disabled) return;
+
       setCurrentPage(1);
       fetchAllClients(searchQuery, 1);
     },
-    [fetchAllClients],
+    [fetchAllClients, disabled],
   );
 
-  const fetchClientByUuidCallback = useCallback(
-    async (uuid: string): Promise<PartialUser | null> => {
-      try {
-        const client = await fetchClientByUuid(uuid);
-        return client;
-      } catch (error) {
-        return null;
-      }
-    },
-    [],
-  );
+  const fetchClientByUuidCallback = useCallback(async (uuid: string): Promise<Client | null> => {
+    try {
+      return await fetchClientByUuid(uuid);
+    } catch (error) {
+      return null;
+    }
+  }, []);
 
   const loadMore = useCallback(() => {
-    // Корректная проверка наличия дополнительных элементов
+    if (disabled) return;
+
     const hasMore = clients !== null && clients.length < total;
     if (hasMore && !isClientsLoading) {
       const nextPage = currentPage + 1;
       setCurrentPage(nextPage);
       fetchAllClients(prevSearchRef.current || '', nextPage);
     }
-  }, [isClientsLoading, currentPage, fetchAllClients, total, clients]);
+  }, [isClientsLoading, currentPage, fetchAllClients, total, clients, disabled]);
 
-  // Сброс currentPage при изменении searchQuery
   useEffect(() => {
-    if (prevSearchRef.current !== undefined) {
+    if (disabled) return;
+
+    const search = prevSearchRef.current;
+    if (search !== undefined) {
       setCurrentPage(1);
     }
-  }, [prevSearchRef.current]);
+  }, [disabled]);
 
   return {
     clients,

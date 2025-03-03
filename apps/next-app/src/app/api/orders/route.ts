@@ -341,6 +341,7 @@ export async function GET(req: Request) {
             companyLogo: order.createdBy.companyProfile?.logoImagePath || null,
           },
         },
+        basePrice: order.basePrice,
         assignedDriver: {
           uuid: order.assignedDriver?.fullName || null,
           plateNumber: order.assignedDriver?.vehicleDriver?.vehicle.plateNumber || null,

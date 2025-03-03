@@ -12,10 +12,9 @@ import { fetchDrivers } from '@features/vehicles/api/vehicles.api';
  * Интерфейс для данных автомобиля, используемых в форме.
  * Поле vehicleDrivers представляет массив объектов, в которых обязательно есть driver типа User.
  */
-export interface VehicleData extends Omit<Vehicle, 'photoPath' | 'year'> {
+export interface VehicleData extends Omit<Vehicle, 'photoPath'> {
   photoImage?: File | null;
   photoPath: string | null;
-  year: string;
   vehicleDrivers: (VehicleDriver & { driver: User })[];
 }
 
@@ -157,6 +156,8 @@ export const useVehiclesForm = ({ mode, vehicleData }: UseVehiclesFormProps) => 
       try {
         let vehicleUuid = vehicleData?.uuid;
         const action = mode === 'create' ? 'created' : 'updated';
+        const year = data.year;
+        console.log('YEAR:', year);
 
         //Преобразуем vehicleDrivers в массив идентификаторов водителей (driverIds)
         const driverIds = data.vehicleDrivers?.map((item) => item.driver.uuid) || [];

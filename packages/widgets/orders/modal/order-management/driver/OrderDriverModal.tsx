@@ -11,7 +11,7 @@ import { IButton } from '@shared/components/ui/buttons';
 import AnimatedComponent from '@shared/components/animated/CommonAnimated/AnimatedComponent';
 import { showToast } from '@shared/components/toast/ToastManager';
 import { OrderDetail, stages } from '@features/notifications/lib/useNotifications';
-import { fetchOrderDetails } from '@widgets/orders/modal/order-management/api/apiOrder';
+import { fetchOrderDetails } from '@features/orders/create/api/orders.api';
 import PendingStage from '@widgets/orders/modal/order-management/driver/stage/PendingStage';
 import AcceptedStage from '@widgets/orders/modal/order-management/driver/stage/AcceptedStage';
 import OnTheWayStage from '@widgets/orders/modal/order-management/driver/stage/OnTheWayStage';
@@ -29,17 +29,17 @@ interface OrderDriverModalProps {
 }
 
 const OrderDriverModal: React.FC<OrderDriverModalProps> = ({
-                                                             isOpen,
-                                                             onClose,
-                                                             notification,
-                                                             getDriverNotifications,
-                                                             userRole,
-                                                           }) => {
+  isOpen,
+  onClose,
+  notification,
+  getDriverNotifications,
+  userRole,
+}) => {
   const [orderData, setOrderData] = useState<OrderDetail | null>(null);
   const [currentStage, setCurrentStage] = useState<DriverAcceptanceStatus>(
     DriverAcceptanceStatus.PENDING,
   );
-  const [orderStatus, setOrderStatus] = useState<OrderStatus>(OrderStatus.PENDING);
+  const [_orderStatus, setOrderStatus] = useState<OrderStatus>(OrderStatus.PENDING);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showAdditionalServices, setShowAdditionalServices] = useState(false);
@@ -121,7 +121,10 @@ const OrderDriverModal: React.FC<OrderDriverModalProps> = ({
 
     try {
       // Если action === cancelled, устанавливаем orderStatus в CANCELLED
-      const newOrderStatus = action === Action.cancelled ? OrderStatus.CANCELLED : driverStatusToOrderStatus[driverStatus];
+      const newOrderStatus =
+        action === Action.cancelled
+          ? OrderStatus.CANCELLED
+          : driverStatusToOrderStatus[driverStatus];
 
       if (driverStatus === DriverAcceptanceStatus.ACCEPTED && getDriverNotifications) {
         const driverNotifications = getDriverNotifications(notification.userId);
@@ -396,7 +399,7 @@ const OrderDriverModal: React.FC<OrderDriverModalProps> = ({
               <CloseIcon />
             </IButton>
             <h2 className="text-xl font-semibold">
-              Заказ #{notification.orderId} -{' '}
+              Заказ #{notification.orderId?.slice(0, 8) || 'N/A'} -{' '}
               {notification.action === Action.warning
                 ? 'Просрочен'
                 : notification.action === Action.success
@@ -415,56 +418,122 @@ const OrderDriverModal: React.FC<OrderDriverModalProps> = ({
             </div>
           ) : orderData ? (
             <div className="space-y-4">
-              <div>
-                <p>
-                  <strong>Время отправления:</strong>{' '}
-                  {new Date(orderData.departureTime).toLocaleString()}
+              {/* Основная информация */}
+              <div className="bg-gray-50 p-4 rounded-lg shadow-sm">
+                <h3 className="text-lg font-medium text-gray-800 border-b pb-2 mb-3">
+                  Основная информация
+                </h3>
+
+                <p className="mb-2">
+                  <span className="text-sm text-gray-500">Время отправления:</span>{' '}
+                  <span className="font-medium">
+                    {new Date(orderData.departureTime).toLocaleString('ru-RU', {
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </span>
                 </p>
-                <p>
-                  <strong>Откуда:</strong> {orderData.departurePoint.address}
-                </p>
-                <p>
-                  <strong>Куда:</strong> {orderData.arrivalPoint.address}
-                </p>
-                <p>
-                  <strong>Клиент:</strong> {orderData.createdBy.fullName} (
-                  {orderData.createdBy.phone})
-                </p>
-                <p>
-                  <strong>Тариф:</strong> {orderData.tariff.name} ({orderData.tariff.price} сом)
-                </p>
+
+                {/* Маршрут */}
+                <div className="mt-3">
+                  <p className="text-sm text-gray-500">Маршрут:</p>
+                  <div className="mt-1 flex flex-col space-y-2">
+                    <div className="flex items-start">
+                      <div className="mr-2 mt-1">
+                        <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                      </div>
+                      <p className="flex-grow">{orderData.departurePoint.address}</p>
+                    </div>
+
+                    <div className="flex items-start">
+                      <div className="mr-2 mt-1">
+                        <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                      </div>
+                      <p className="flex-grow">{orderData.arrivalPoint.address}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Информация о клиенте */}
+                <div className="mt-3">
+                  <p className="text-sm text-gray-500">Клиент:</p>
+                  <p className="font-medium">
+                    {orderData.createdBy.fullName} ({orderData.createdBy.phone})
+                  </p>
+                </div>
+
                 {orderData.description && (
-                  <p>
-                    <strong>Описание:</strong> {orderData.description}
+                  <p className="mt-3">
+                    <span className="text-sm text-gray-500">Описание:</span>{' '}
+                    <span>{orderData.description}</span>
+                  </p>
+                )}
+
+                {/* Текущий этап */}
+                {(notification.action === Action.inProgress ||
+                  notification.action === Action.warning) && (
+                  <p className="mt-3 font-semibold text-blue-700">
+                    Текущий этап: {stages[currentStage]}
                   </p>
                 )}
               </div>
 
-              {orderData.additionalServices && orderData.additionalServices.length > 0 && (
-                <div>
-                  <button
-                    className="text-blue-500 hover:underline"
-                    onClick={() => setShowAdditionalServices(!showAdditionalServices)}
-                  >
-                    {showAdditionalServices ? 'Скрыть доп. услуги' : 'Показать доп. услуги'}
-                  </button>
-                  {showAdditionalServices && (
-                    <ul className="mt-2 list-disc pl-5">
-                      {orderData.additionalServices.map((service) => (
-                        <li key={service.uuid}>
-                          {service.name} - {service.price} сом
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              )}
+              {/* Стоимость и услуги */}
+              <div className="bg-gray-50 p-4 rounded-lg shadow-sm">
+                <h3 className="text-lg font-medium text-gray-800 border-b pb-2 mb-3">
+                  Стоимость и услуги
+                </h3>
 
-              {(notification.action === Action.inProgress ||
-                notification.action === Action.warning) && (
-                <p className="mt-4 font-semibold">Текущий этап: {stages[currentStage]}</p>
-              )}
-              {error && <p className="text-red-500">{error}</p>}
+                {/* Общая сумма заказа */}
+                <p className="mb-2">
+                  <span className="text-sm text-gray-500">Общая сумма:</span>{' '}
+                  <span className="font-medium text-lg text-green-700">
+                    {/* Проверяем наличие basePrice и используем его, если он есть */}
+                    {'basePrice' in orderData ? orderData.basePrice : orderData.tariff.price} сом
+                  </span>
+                </p>
+
+                {/* Тариф */}
+                <p className="mb-2">
+                  <span className="text-sm text-gray-500">Тариф:</span>{' '}
+                  <span className="font-medium">{orderData.tariff.name}</span>
+                  {orderData.tariff.price && !('basePrice' in orderData) && (
+                    <span className="text-sm text-gray-500 ml-2">
+                      ({orderData.tariff.price} сом)
+                    </span>
+                  )}
+                </p>
+
+                {/* Дополнительные услуги */}
+                {orderData.additionalServices && orderData.additionalServices.length > 0 && (
+                  <div className="mt-3">
+                    <button
+                      className="text-blue-500 hover:underline text-sm"
+                      onClick={() => setShowAdditionalServices(!showAdditionalServices)}
+                    >
+                      {showAdditionalServices ? 'Скрыть доп. услуги' : 'Показать доп. услуги'}
+                    </button>
+                    {showAdditionalServices && (
+                      <div className="mt-2 pl-2 border-l-2 border-blue-200">
+                        <p className="text-sm text-gray-500 mb-1">Дополнительные услуги:</p>
+                        <ul className="space-y-1">
+                          {orderData.additionalServices.map((service) => (
+                            <li key={service.uuid} className="flex justify-between text-sm">
+                              <span>{service.name}</span>
+                              <span className="font-medium">{service.price} сом</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {error && <p className="text-red-500 mt-3">{error}</p>}
             </div>
           ) : (
             <p className="text-red-500">Не удалось загрузить данные заказа</p>

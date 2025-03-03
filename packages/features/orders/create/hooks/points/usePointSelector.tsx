@@ -1,15 +1,15 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { PointWithoutTimestamps } from '@features/orders/create/hooks/points/useAllPoints';
+import { PointWithoutTimestamps } from '@features/orders/create/types/types';
 
 export interface UsePointSelectorProps {
   allPoints?: PointWithoutTimestamps[];
   mode?: 'single' | 'multiple';
   initialSelectedPoints?: (PointWithoutTimestamps | null)[];
   initialSelectedPoint?: PointWithoutTimestamps | null;
-  selectedServices?: string[]; // Добавляем выбранные услуги
+  selectedServices?: string[];
 }
 
-const usePointSelector = ({
+export const usePointSelector = ({
   allPoints = [],
   mode = 'single',
   initialSelectedPoints = [],
@@ -17,7 +17,7 @@ const usePointSelector = ({
   selectedServices = [],
 }: UsePointSelectorProps = {}) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [searchValue, setSearchValue] = useState(
+  const [_searchValue, setSearchValue] = useState(
     initialSelectedPoint ? initialSelectedPoint.address : '',
   );
   const [search, setSearch] = useState('');
@@ -28,6 +28,23 @@ const usePointSelector = ({
   );
   const [selectedPoints, setSelectedPoints] =
     useState<(PointWithoutTimestamps | null)[]>(initialSelectedPoints);
+
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const [dropDirection, setDropDirection] = useState<'up' | 'down'>('down');
+
+  const dropdownPositionStyles = {
+    position: 'absolute',
+    top: 0,
+    right: '370px',
+    width: '373px',
+    height: '670px',
+    maxHeight: '670px',
+  } as const;
+
+  const closeDropdown = useCallback(() => {
+    setIsOpen(false);
+    setActiveIndex(null);
+  }, []);
 
   useEffect(() => {
     if (initialSelectedPoint) {
@@ -46,7 +63,6 @@ const usePointSelector = ({
 
   const onOpenSelect = useCallback(() => {
     setSearch('');
-    setSearchValue('');
     setIsOpen(true);
     setFilteredPoints(allPoints);
   }, [allPoints]);
@@ -75,7 +91,7 @@ const usePointSelector = ({
       if (mode === 'single') {
         setSelectedPoint(point);
         setSearchValue(point ? point.address : '');
-        setIsOpen(false);
+        closeDropdown();
       } else if (typeof index === 'number') {
         setSelectedPoints((prev) => {
           const newPoints = [...prev];
@@ -83,10 +99,10 @@ const usePointSelector = ({
           console.log('Updated selectedPoints in usePointSelector:', newPoints);
           return newPoints;
         });
-        setIsOpen(false);
+        closeDropdown();
       }
     },
-    [mode],
+    [mode, closeDropdown],
   );
 
   const onRemovePoint = useCallback(
@@ -107,13 +123,13 @@ const usePointSelector = ({
 
     const handleClickOutside = (event: MouseEvent) => {
       if (selectorRef.current && !selectorRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
+        closeDropdown();
       }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isOpen]);
+  }, [isOpen, closeDropdown]);
 
   const onChangeOrder = useCallback((currentIndex: number, newIndex: number) => {
     setSelectedPoints((prev) => {
@@ -127,7 +143,6 @@ const usePointSelector = ({
 
   return {
     isOpen,
-    searchValue,
     search,
     filteredPoints,
     loading: false,
@@ -141,8 +156,12 @@ const usePointSelector = ({
     selectedPoint: mode === 'single' ? selectedPoint : null,
     selectedPoints: mode === 'multiple' ? selectedPoints : undefined,
     onRemovePoint: mode === 'multiple' ? onRemovePoint : undefined,
-    selectedServices, // Возвращаем услуги для использования в компоненте
+    selectedServices,
+    closeDropdown,
+    activeIndex,
+    setActiveIndex,
+    dropDirection,
+    setDropDirection,
+    dropdownPositionStyles,
   };
 };
-
-export default usePointSelector;
