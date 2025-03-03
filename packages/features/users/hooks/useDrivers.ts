@@ -8,7 +8,14 @@ const useDrivers = () => {
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  const [users, setUsers] = useState<(User & { driverProfile: DriverProfile | null })[]>([]);
+  const [users, setUsers] = useState<
+    (User & {
+      driverProfile: DriverProfile & {
+        driverExperience?: { companyName: string }[] | null;
+        driverHistory?: { totalOrders: number; totalFines: number }[] | null;
+      };
+    })[]
+  >([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState<number>(Number(searchParams.get('page')) || 1);
@@ -40,6 +47,7 @@ const useDrivers = () => {
       if (!response.ok) throw new Error('Network response was not ok');
 
       const { status, message, data } = await response.json();
+      console.log('derrr:', data);
 
       if (status !== 'success') throw new Error(message || 'Error fetching drivers');
 
@@ -78,6 +86,11 @@ const useDrivers = () => {
     },
     passportId: user.driverProfile?.passportId ? user.driverProfile.passportId.toString() : null,
     passportPhotoPath: user.driverProfile?.passportPhotoPath || null,
+    yearsOfDriving: user.driverProfile?.yearsOfDriving || null,
+    companyName: user.driverProfile?.driverExperience?.[0]?.companyName || null,
+    totalOrders: user.driverProfile?.driverHistory?.[0]?.totalOrders || null,
+    totalFines: user.driverProfile?.driverHistory?.[0]?.totalFines || null,
+    partnerCompany: user.partnerCompany || null,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
     actions: renderActions({

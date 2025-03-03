@@ -334,6 +334,7 @@ export async function GET(req: Request) {
           fullName: order.createdBy.fullName,
           email: order.createdBy.email,
           phone: order.createdBy.phone,
+          role: order.createdBy.role,
           companyProfile: {
             companyName: order.createdBy.companyProfile?.companyName || null,
             companyPhone: order.createdBy.companyProfile?.phone || null,
@@ -346,10 +347,12 @@ export async function GET(req: Request) {
           fullName: order.assignedDriver?.fullName || null,
           phone: order.assignedDriver?.phone || null,
         },
+        driverAcceptanceStatus: order.driverAcceptanceStatus || null,
         tariff: {
           uuid: order.tariff.uuid,
           name: order.tariff.name,
-          vehicleTypes: order.tariff.vehicleType,
+          vehicleType: order.tariff.vehicleType,
+          serviceLevel: order.tariff.serviceLevel,
         },
         departurePoint: {
           uuid: order.departurePoint.uuid,

@@ -84,6 +84,7 @@ const Page = async ({ params }: PageProps): Promise<JSX.Element> => {
             email: true,
             phone: true,
             role: true,
+            profilePhotoPath: true,
           },
         },
       },
@@ -129,6 +130,7 @@ const Page = async ({ params }: PageProps): Promise<JSX.Element> => {
           price: Number(service.price),
           orderTariffAdditionalServices: service.orderTariffAdditionalServices,
         })),
+        description: order.tariff?.description,
       },
       departurePoint: {
         uuid: order.departurePoint.uuid,
@@ -155,6 +157,7 @@ const Page = async ({ params }: PageProps): Promise<JSX.Element> => {
             email: order.assignedDriver.email,
             phone: order.assignedDriver.phone,
             role: order.assignedDriver.role,
+            profilePhotoPath: order.assignedDriver.profilePhotoPath,
           }
         : undefined,
       departureTime: order.departureTime
@@ -162,6 +165,8 @@ const Page = async ({ params }: PageProps): Promise<JSX.Element> => {
         : new Date().toISOString(),
       description: order.description,
       flightNumber: order.flightNumber,
+      basePrice: Number(order.basePrice),
+      waitingTimeMinutes: Number(order.waitingTimeMinutes),
       selectedServices: order.tariff.tariffAdditionalServices
         .filter((service) => service.orderTariffAdditionalServices.length > 0)
         .map((service) => service.uuid),
@@ -174,6 +179,7 @@ const Page = async ({ params }: PageProps): Promise<JSX.Element> => {
         longitude: Number(point.longitude),
         terrainDifficulty: Number(point.terrainDifficulty),
       })),
+      status: order.status,
     };
   } catch (error) {
     console.error('Ошибка при загрузке данных заказа:', error);

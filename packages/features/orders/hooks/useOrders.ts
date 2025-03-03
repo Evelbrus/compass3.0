@@ -55,6 +55,7 @@ const useOrders = () => {
       console.log('ffdsdf:', data);
       setOrders(data.orders);
       setTotal(data.total);
+      console.log('data', data);
 
       const statusesCountData: Record<string, number> = {};
       data.statusesCount.forEach((item: { status: OrderStatus; _count: { status: number } }) => {
@@ -98,6 +99,7 @@ const useOrders = () => {
     createdBy: {
       fullName: order.createdBy.fullName,
       phone: order.createdBy.phone,
+      role: order.createdBy.role,
       companyProfile: {
         companyName: order.createdBy.companyProfile?.companyName,
         companyPhone: order.createdBy.companyProfile?.companyPhone,
@@ -111,7 +113,10 @@ const useOrders = () => {
     plateNumber: order.assignedDriver.plateNumber,
     tariff: {
       name: order.tariff.name,
+      vehicleType: order.tariff.vehicleType,
+      serviceLevel: order.tariff.serviceLevel,
     },
+    driverAcceptanceStatus: order.driverAcceptanceStatus,
     departurePoint: {
       address: order.departurePoint.address,
     },

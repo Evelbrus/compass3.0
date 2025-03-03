@@ -27,14 +27,14 @@ export const driversColumns: Column<TableDriversRow, keyof TableDriversRow>[] = 
       );
     },
     sortable: true,
-    className: 'w-[350px]',
+    className: 'w-[250px]',
   },
   {
     accessor: 'passportId',
     header: 'ID паспорта',
     render: (row: TableDriversRow) => <span className="text-gray-800">{row.passportId}</span>,
     sortable: true,
-    className: 'w-[200px]',
+    className: 'w-[150px]',
   },
   {
     accessor: 'passportPhotoPath',
@@ -102,6 +102,43 @@ export const driversColumns: Column<TableDriversRow, keyof TableDriversRow>[] = 
     },
     sortable: false,
     className: 'flex-grow text-center',
+  },
+  {
+    accessor: 'yearsOfDriving',
+    header: 'Опыт вождения',
+    render: (row: TableDriversRow) => (
+      <span>{row.yearsOfDriving !== null ? `${row.yearsOfDriving} лет` : 'Не указано'}</span>
+    ),
+    sortable: true,
+    className: 'w-[160px]',
+  },
+  {
+    accessor: 'companyName',
+    header: 'Компания',
+    render: (row: TableDriversRow) => <span className="text-gray-800">{row.companyName}</span>,
+    sortable: true,
+    className: 'w-[150px]',
+  },
+  {
+    accessor: 'partnerCompany',
+    header: 'Партнер',
+    render: (row: TableDriversRow) => <span className="text-gray-800">{row.partnerCompany}</span>,
+    sortable: true,
+    className: 'w-[150px]',
+  },
+  {
+    accessor: 'totalOrders',
+    header: 'Кол-во заказов',
+    render: (row: TableDriversRow) => <span className="text-gray-800">{row.totalOrders}</span>,
+    sortable: true,
+    className: 'w-[150px]',
+  },
+  {
+    accessor: 'totalFines',
+    header: 'Кол-во штрафов',
+    render: (row: TableDriversRow) => <span className="text-gray-800">{row.totalFines}</span>,
+    sortable: true,
+    className: 'w-[150px]',
   },
   {
     accessor: 'createdAt',

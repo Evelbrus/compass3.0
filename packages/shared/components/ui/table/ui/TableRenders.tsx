@@ -86,14 +86,24 @@ export const renderDateTime = (date: string | Date) => {
   );
 };
 
-export const renderCustomerPhone = (phone: string, fullName: string) => {
+export const renderCustomerPhone = (phone: string, fullName: string, logoPath?: string) => {
   const { isValid, formatted } = validateAndFormatPhone(phone);
+  const logoSrc = logoPath ? `/api/images/${logoPath.split('/').pop()}?type=logo` : null;
 
   const cleanedPhone = phone.replace(/\D/g, '');
   const country = countryData.find((c) => cleanedPhone.startsWith(c.dialCode.replace('+', '')));
 
   return (
     <div className="flex items-center gap-2">
+      {logoSrc && (
+        <img
+          src={logoSrc}
+          alt="Company Logo"
+          width={32}
+          height={32}
+          className="object-contain rounded-full"
+        />
+      )}
       <div className="flex flex-col items-start">
         <div className="flex flex-row justify-center items-center gap-2">
           {isValid && country && (
@@ -112,25 +122,6 @@ export const renderCustomerPhone = (phone: string, fullName: string) => {
         </div>
         <span className="text-gray-500 text-sm">{fullName}</span>
       </div>
-    </div>
-  );
-};
-
-export const renderLogoCompany = (fullName: string, logoPath?: string) => {
-  const logoSrc = logoPath ? `/api/images/${logoPath.split('/').pop()}?type=logo` : null;
-
-  return (
-    <div className="flex items-center gap-2">
-      {logoSrc && (
-        <img
-          src={logoSrc}
-          alt="Company Logo"
-          width={32}
-          height={32}
-          className="object-contain rounded-full"
-        />
-      )}
-      <span className="text-gray-500 text-sm">{fullName}</span>
     </div>
   );
 };

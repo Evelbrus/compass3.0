@@ -30,15 +30,15 @@ const POINT_ICONS = {
 };
 
 const RouteMapInner: React.FC<RouteMapInnerProps> = ({
-  ymaps,
-  allPoints,
-  selectedPoints,
-  onPointSelect,
-  onDistanceUpdate,
-  onDurationUpdate,
-}) => {
+                                                       ymaps,
+                                                       allPoints,
+                                                       selectedPoints,
+                                                       onPointSelect,
+                                                       onDistanceUpdate,
+                                                       onDurationUpdate,
+                                                     }) => {
   const mapRef = useRef<any>(null);
-  const [routeDuration, setRouteDuration] = useState<string | null>(null);
+  const [_routeDuration, setRouteDuration] = useState<string | null>(null);
   const initialBoundsRef = useRef<any>(null);
   const [hoveredPoint, setHoveredPoint] = useState<PointWithoutTimestamps | null>(null);
 
@@ -88,16 +88,30 @@ const RouteMapInner: React.FC<RouteMapInnerProps> = ({
     mapRef.current.setBounds(newBounds);
   }, [ymaps, allPoints]);
 
-  // Update route when selected points change
-  useEffect(() => {
-    if (!ymaps || !mapRef.current) return;
+  // Function to build the route
+  const buildRoute = useCallback(() => {
+    console.log('Attempting to build route...');
+    if (!ymaps) {
+      console.log('ymaps is not available yet.');
+      return;
+    }
+
+    if (!mapRef.current) {
+      console.log('mapRef.current is not available yet.');
+      return;
+    }
 
     const geoObjects = mapRef.current.geoObjects;
-    if (!geoObjects) return;
+    if (!geoObjects) {
+      console.log('geoObjects is not available yet.');
+      return;
+    }
 
-    geoObjects.each((obj: any) => {
-      if (obj.properties.get('type') === 'route') {
-        geoObjects.remove(obj);
+    // Remove all existing multiRouter.MultiRoute instances
+    geoObjects.each((geoObject: any) => { // Явно указываем тип параметра geoObject
+      if (geoObject instanceof ymaps.multiRouter.MultiRoute) {
+        geoObjects.remove(geoObject);
+        console.log('Removed existing MultiRoute instance.');
       }
     });
 
@@ -105,6 +119,7 @@ const RouteMapInner: React.FC<RouteMapInnerProps> = ({
       setRouteDuration(null);
       onDistanceUpdate?.(0);
       onDurationUpdate?.(null);
+      console.log('Less than 2 selected points, clearing route.');
       return;
     }
 
@@ -112,61 +127,73 @@ const RouteMapInner: React.FC<RouteMapInnerProps> = ({
       .filter((point): point is Point => point !== null)
       .map((point) => [point.latitude, point.longitude]);
 
-    if (validPoints.length < 2) return;
+    if (validPoints.length < 2) {
+      console.log('Less than 2 valid points, clearing route.');
+      return;
+    }
 
-    let canceled = false;
+    console.log('Building route with points:', validPoints);
 
-    const multiRoute = new ymaps.multiRouter.MultiRoute(
-      {
-        referencePoints: validPoints,
-        params: {
-          routingMode: 'auto',
+    try {
+      const multiRoute = new ymaps.multiRouter.MultiRoute(
+        {
+          referencePoints: validPoints,
+          params: {
+            routingMode: 'auto',
+          },
         },
-      },
-      {
-        boundsAutoApply: false,
-        wayPointVisible: false,
-        pinVisible: false,
-      },
-    );
+        {
+          boundsAutoApply: false,
+          wayPointVisible: false,
+          pinVisible: false,
+        },
+      );
 
-    multiRoute.properties.set('type', 'route');
-    geoObjects.add(multiRoute);
+      multiRoute.properties.set('type', 'route');
+      geoObjects.add(multiRoute);
 
-    multiRoute.model.events.add('update', () => {
-      if (canceled || !mapRef.current) return;
+      multiRoute.model.events.add('update', () => {
+        console.log('Route updated.');
+        const activeRoute = multiRoute.getActiveRoute();
+        if (activeRoute) {
+          const humanTime = activeRoute.properties.get('duration').text;
+          const distanceInMeters = activeRoute.properties.get('distance').value;
+          const distanceInKm = distanceInMeters / 1000;
+          setRouteDuration(humanTime || 'Время неизвестно');
+          onDistanceUpdate?.(distanceInKm);
+          onDurationUpdate?.(humanTime || 'Время неизвестно');
+        } else {
+          setRouteDuration('Маршрут не найден');
+          onDistanceUpdate?.(0);
+          onDurationUpdate?.('Маршрут не найден');
+        }
+      });
 
-      const activeRoute = multiRoute.getActiveRoute();
-      if (activeRoute) {
-        const humanTime = activeRoute.properties.get('duration').text;
-        const distanceInMeters = activeRoute.properties.get('distance').value;
-        const distanceInKm = distanceInMeters / 1000;
-        setRouteDuration(humanTime || 'Время неизвестно');
-        onDistanceUpdate?.(distanceInKm);
-        onDurationUpdate?.(humanTime || 'Время неизвестно');
-      } else {
-        setRouteDuration('Маршрут не найден');
-        onDistanceUpdate?.(0);
-        onDurationUpdate?.('Маршрут не найден');
-      }
-    });
-
-    multiRoute.events.add('error', (e: any) => {
-      if (!canceled) {
-        console.error('Ошибка построения маршрута:', e.get('error'));
+      multiRoute.events.add('error', (e: any) => {
+        console.error('Error building route:', e.get('error'));
         setRouteDuration('Ошибка расчета');
         onDistanceUpdate?.(0);
         onDurationUpdate?.('Ошибка расчета');
-      }
-    });
-
-    return () => {
-      canceled = true;
-      if (mapRef.current) {
-        geoObjects.remove(multiRoute);
-      }
-    };
+      });
+    } catch (error) {
+      console.error('Error creating multiRoute:', error);
+    }
   }, [ymaps, selectedPoints, onDistanceUpdate, onDurationUpdate]);
+
+  // Update route when selected points change
+  useEffect(() => {
+    console.log('Selected points changed:', selectedPoints);
+
+    if (ymaps) {
+      console.log('ymaps is available, calling ymaps.ready.');
+      ymaps.ready(() => {
+        console.log('ymaps.ready callback triggered, building route.');
+        buildRoute();
+      });
+    } else {
+      console.log('ymaps is not yet available.');
+    }
+  }, [ymaps, selectedPoints, buildRoute]);
 
   const handlePointClick = useCallback(
     (point: PointWithoutTimestamps) => {
@@ -208,11 +235,8 @@ const RouteMapInner: React.FC<RouteMapInnerProps> = ({
         preset = POINT_ICONS.arrival;
       } else {
         const additionalIndex = letter.charCodeAt(0) - 67;
-        const colorIndex = Math.min(
-          Math.max(0, additionalIndex),
-          POINT_ICONS.additional.length - 1,
-        );
-        preset = POINT_ICONS.additional[colorIndex];
+        const colorIndex = Math.min(additionalIndex, POINT_ICONS.additional.length - 1);
+        preset = POINT_ICONS.additional[Math.max(0, colorIndex)] ?? 'islands#lightBlueCircleIcon';
       }
 
       return {
@@ -272,6 +296,10 @@ const RouteMapInner: React.FC<RouteMapInnerProps> = ({
         }}
         width="100%"
         height="100%"
+        onLoad={() => { // Call buildRoute when the map is loaded
+          console.log('Map loaded, calling buildRoute.');
+          buildRoute();
+        }}
       >
         {allPoints.map((point) => {
           const { preset, iconContent, hintContent } = getPointStyle(point);
@@ -354,12 +382,12 @@ const RouteMapInner: React.FC<RouteMapInnerProps> = ({
 const ConnectedRouteMap = withYMaps(RouteMapInner, true, ['multiRouter.MultiRoute', 'util.bounds']);
 
 const RouteMap: React.FC<RouteMapProps> = ({
-  allPoints,
-  selectedPoints,
-  onPointSelect,
-  onDistanceUpdate,
-  onDurationUpdate,
-}) => {
+                                             allPoints,
+                                             selectedPoints,
+                                             onPointSelect,
+                                             onDistanceUpdate,
+                                             onDurationUpdate,
+                                           }) => {
   return (
     <YMaps
       query={{

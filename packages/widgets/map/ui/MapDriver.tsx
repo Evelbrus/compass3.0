@@ -10,25 +10,30 @@ interface MapDriverProps {
 }
 
 const MapDriver: React.FC<MapDriverProps> = ({ selectedDriverInfo, serverTime }) => {
-  //Преобразуем serverTime в ISO строку или используем текущее время в качестве значения по умолчанию
+  // Преобразуем serverTime в ISO строку или используем текущее время в качестве значения по умолчанию
   const isoServerTime = serverTime
     ? serverTime instanceof Date
       ? serverTime.toISOString()
       : serverTime
     : new Date().toISOString();
 
+  // Определяем userImageSrc для выбранного водителя
+  const userImageSrc = selectedDriverInfo?.profilePhotoPath
+    ? `/api/images/${selectedDriverInfo.profilePhotoPath.split('/').pop()}?type=avatar`
+    : null;
+
   return (
     <>
       <div className="relative w-full h-full flex flex-col justify-center items-center">
-        {/*Карточка выбранного водителя */}
+        {/* Карточка выбранного водителя */}
         {selectedDriverInfo && (
           <div className={'absolute flex flex-col top-2 left-2 rounded-md gap-2 z-30'}>
             <label className="text-5 leading-5 font-bold">Выбранный водитель:</label>
 
-            <div className="min-w-[500px] bg-blue-200 p-4 border rounded-md flex gap-4 items-center">
+            <div className="sticky top-0 min-w-[500px] bg-blue-200 p-4 border rounded-md flex gap-4 items-center shadow-lg">
               <div className="w-[50px] h-[50px] relative">
                 <LazyImage
-                  src={selectedDriverInfo.profilePhotoPath || '/icons/user-driver.svg'}
+                  src={userImageSrc || '/icons/user-driver.svg'}
                   alt="Selected Driver Avatar"
                   className="w-[50px] h-[50px] rounded-full object-cover bg-white border"
                 />

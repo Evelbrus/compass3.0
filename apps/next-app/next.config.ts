@@ -3,6 +3,34 @@ const path = require('path');
 const createNextIntlPlugin = require('next-intl/plugin');
 const withNextIntl = createNextIntlPlugin();
 
+// Заголовки безопасности, которые будут применяться ко всем маршрутам
+const securityHeaders = [
+  {
+    key: 'X-DNS-Prefetch-Control',
+    value: 'on',
+  },
+  {
+    key: 'X-XSS-Protection',
+    value: '1; mode=block',
+  },
+  {
+    key: 'X-Frame-Options',
+    value: 'DENY',
+  },
+  {
+    key: 'X-Content-Type-Options',
+    value: 'nosniff',
+  },
+  {
+    key: 'Referrer-Policy',
+    value: 'strict-origin-when-cross-origin',
+  },
+  {
+    key: 'Permissions-Policy',
+    value: 'camera=(), microphone=(), geolocation=()',
+  },
+];
+
 const nextConfig: NextConfig = {
   reactStrictMode: false,
   images: {
@@ -22,6 +50,29 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+
+  // Добавляем настройку заголовков
+  async headers() {
+    return [
+      {
+        // Применяем ко всем маршрутам
+        source: '/:path*',
+        headers: securityHeaders,
+      },
+      {
+        // Отдельно настраиваем Content-Security-Policy для API
+        source: '/api/:path*',
+        headers: [
+          ...securityHeaders,
+          {
+            key: 'Content-Security-Policy',
+            value: "default-src 'self'; script-src 'none'; style-src 'self'",
+          },
+        ],
+      },
+    ];
+  },
+
   async rewrites() {
     return [
       {

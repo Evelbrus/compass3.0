@@ -14,7 +14,7 @@ export function useDebounce<T>(value: T, delay: number): T {
 }
 
 //Типизированная реализация debounce
-export const debounce = <F extends (...args: unknown[]) => unknown>(
+export const debounce = <F extends (...args: any[]) => any>(
   func: F,
   wait: number,
 ): ((...args: Parameters<F>) => void) => {

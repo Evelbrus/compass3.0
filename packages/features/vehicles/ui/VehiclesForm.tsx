@@ -163,6 +163,7 @@ const VehiclesForm: React.FC<VehiclesFormProps> = ({ mode, vehicleData }) => {
                       }}
                       error={!!fieldState.error}
                       message={fieldState.error?.message || ''}
+                      mode="createAutoDate"
                     />
                   );
                 }}

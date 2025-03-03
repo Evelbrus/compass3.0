@@ -1,7 +1,11 @@
 import { useContext, useEffect } from 'react';
 import { SocketContext } from '@shared/utils/contexts/SocketContext';
+import { Socket } from 'socket.io-client';
 
-export function useSocket(event?: string, callback?: (data: any) => void) {
+type SocketType = Socket | null;
+
+// Убираем значение по умолчанию T = any, делаем T обязательным
+export function useSocket<T>(event?: string, callback?: (data: T) => void): SocketType {
   const socket = useContext(SocketContext);
 
   useEffect(() => {

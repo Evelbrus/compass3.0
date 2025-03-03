@@ -1,9 +1,7 @@
+import { DriverAcceptanceStatus, UserRole } from '@prisma/client';
 import { Column, TableOrdersRow } from '@shared/components/ui/table';
-import {
-  renderCustomerPhone,
-  renderDateTime,
-  renderLogoCompany,
-} from '@shared/components/ui/table/ui/TableRenders';
+import { renderCustomerPhone, renderDateTime } from '@shared/components/ui/table/ui/TableRenders';
+import { driverAcceptanceStatusLabels } from '@shared/lib/effector/orders/options-and-translation/optionsStatusOrder';
 
 export const ordersColumns: Column<TableOrdersRow, keyof TableOrdersRow>[] = [
   {
@@ -13,38 +11,39 @@ export const ordersColumns: Column<TableOrdersRow, keyof TableOrdersRow>[] = [
     className: 'w-[70px] text-center',
   },
   {
-    accessor: 'companyProfile',
-    header: 'Контрагент',
-    render: (row: TableOrdersRow) => {
-      if (row.createdBy.companyProfile === null) {
-        return 'Не указано';
-      }
-      return (
-        <>
-          {renderLogoCompany(
-            row.createdBy.companyProfile.companyName || 'Не указано',
-            row.createdBy.companyProfile.companyLogo || undefined,
-          )}
-        </>
-      );
-    },
-    sortable: false,
-    className: 'w-[200px]',
-  },
-  {
     accessor: 'createdBy',
     header: 'Телефон, заказчик',
     render: (row: TableOrdersRow) => {
-      if (row.createdBy === null) {
-        return 'Не указано';
+      if (!row.createdBy) return 'Не указано';
+
+      const isCorporate = row.createdBy.role === UserRole.ClientCorp;
+      const companyProfile = row.createdBy.companyProfile;
+
+      if (isCorporate) {
+        if (companyProfile?.companyLogo) {
+          return renderCustomerPhone(
+            companyProfile.companyPhone || 'Не указано',
+            companyProfile.companyName || 'Не указано',
+            companyProfile.companyLogo,
+          );
+        }
+
+        if (companyProfile?.companyName || companyProfile?.companyPhone) {
+          return renderCustomerPhone(
+            companyProfile.companyPhone || 'Не указано',
+            companyProfile.companyName || 'Не указано',
+          );
+        }
+
+        return renderCustomerPhone(
+          row.createdBy.phone || 'Не указано',
+          row.createdBy.fullName || 'Не указано',
+        );
       }
-      return (
-        <>
-          {renderCustomerPhone(
-            row.createdBy.phone || 'Не указано',
-            row.createdBy.fullName || 'Не указано',
-          )}
-        </>
+
+      return renderCustomerPhone(
+        row.createdBy.phone || 'Не указано',
+        row.createdBy.fullName || 'Не указано',
       );
     },
     sortable: false,
@@ -60,8 +59,8 @@ export const ordersColumns: Column<TableOrdersRow, keyof TableOrdersRow>[] = [
       return (
         <>
           {renderCustomerPhone(
-            row.assignedDriver.phone || 'Не указано',
-            row.assignedDriver.fullname || 'Не указано',
+            row.assignedDriver?.phone || 'Не указано',
+            row.assignedDriver?.fullname || 'Не указано',
           )}
         </>
       );
@@ -93,7 +92,18 @@ export const ordersColumns: Column<TableOrdersRow, keyof TableOrdersRow>[] = [
   {
     accessor: 'tariff',
     header: 'Тариф',
-    render: (row: TableOrdersRow) => <span>{row.tariff.name}</span>,
+    render: (row: TableOrdersRow) => {
+      return (
+        <section className="flex flex-col">
+          <span>{row.tariff.name}</span>
+          <div className="flex">
+            <p className="text-gray-500 text-sm">
+              {row.tariff.vehicleType} - {row.tariff.serviceLevel}
+            </p>
+          </div>
+        </section>
+      );
+    },
     sortable: false,
     className: 'w-[150px]',
   },
@@ -101,15 +111,21 @@ export const ordersColumns: Column<TableOrdersRow, keyof TableOrdersRow>[] = [
     accessor: 'status',
     header: 'Статус',
     render: (row: TableOrdersRow) => (
-      <span
-        className={`px-2 py-1 rounded ${
-          row.status === 'COMPLETED'
-            ? 'bg-green-200 text-green-800'
-            : 'bg-yellow-200 text-yellow-800'
-        }`}
-      >
-        {row.status}
-      </span>
+      <section>
+        <div className="flex items-center gap-1">
+          <span
+            className={`p-1 rounded-full ${
+              row.status === 'COMPLETED' ? 'bg-green-200' : 'bg-yellow-200'
+            }`}
+          ></span>
+          <p>{row.status}</p>
+        </div>
+        <p
+          className={`text-sm ${row.driverAcceptanceStatus === 'COMPLETED' ? 'text-green-500' : 'text-yellow-500'}`}
+        >
+          {driverAcceptanceStatusLabels[row.driverAcceptanceStatus as DriverAcceptanceStatus] || ''}
+        </p>
+      </section>
     ),
     sortable: true,
     className: 'w-[150px] text-center',

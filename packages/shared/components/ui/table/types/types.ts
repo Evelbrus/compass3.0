@@ -1,5 +1,11 @@
 import React from 'react';
-import { UserRole } from '@prisma/client';
+import {
+  DriverAcceptanceStatus,
+  PartnerCompany,
+  ServiceLevels,
+  UserRole,
+  VehicleType,
+} from '@prisma/client';
 
 export interface Column<T, K extends keyof T> {
   header: string;
@@ -19,15 +25,17 @@ export interface TableOrdersRow {
   createdBy: {
     fullName: string;
     phone: string;
-    companyProfile: {
+    role: string;
+    companyProfile?: {
       companyName: string;
       companyPhone: string;
       companyLogo?: string | null;
     };
   };
-  assignedDriver: { fullname: string; phone: string };
-  plateNumber: number;
-  tariff: { name: string };
+  assignedDriver?: { fullname: string; phone: string };
+  plateNumber?: number;
+  tariff: { name: string; vehicleType: VehicleType; serviceLevel: ServiceLevels };
+  driverAcceptanceStatus?: DriverAcceptanceStatus | null;
   departurePoint: { address: string };
   arrivalPoint: { address: string };
   status: string;
@@ -72,6 +80,11 @@ export interface TableDriversRow {
   createdAt: Date;
   updatedAt: Date;
   actions: React.ReactNode;
+  yearsOfDriving: number | null;
+  companyName?: string | null;
+  totalOrders?: number | null;
+  totalFines?: number | null;
+  partnerCompany?: PartnerCompany | null;
 }
 
 export interface TableAdditionalServicesRow {

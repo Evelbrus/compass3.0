@@ -1,6 +1,14 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useForm, UseFormReturn } from 'react-hook-form';
-import { ServiceLevels, VehicleType, Tariff, TariffOnService, Point, Order } from '@prisma/client';
+import {
+  ServiceLevels,
+  VehicleType,
+  Tariff,
+  TariffOnService,
+  Point,
+  Order,
+  OrderStatus,
+} from '@prisma/client';
 import {
   OrderData,
   TariffWithServices,
@@ -23,6 +31,7 @@ export interface FormOrderValues {
   assignedDriverId: Pick<Order, 'assignedDriverId'>;
   fullName?: string;
   phone?: string;
+  status: OrderStatus;
 }
 
 const useCreateAdminOrderLogic = (tariffs: TariffWithServices[], orderData?: OrderData | null) => {
@@ -53,6 +62,7 @@ const useCreateAdminOrderLogic = (tariffs: TariffWithServices[], orderData?: Ord
         : { flightNumber: null },
       fullName: '',
       phone: '',
+      status: orderData?.status,
     },
   });
 

@@ -20,7 +20,7 @@ const Page = async (): Promise<JSX.Element> => {
   }
 
   // Передаем только role и mode="create", orderData=null
-  return <OrderCreateView role={role} mode="create" />;
+  return <OrderCreateView mode="create" />;
 };
 
 export default Page;
