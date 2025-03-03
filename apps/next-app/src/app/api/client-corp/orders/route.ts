@@ -6,8 +6,14 @@ import { orderQueue } from '@next-app/src/lib/queues/orderQueue';
 import { CreateClientCorpOrderData } from '@shared/components/modal/create-client-corp-order/hooks/useCreateClientCorpOrder';
 import { Decimal } from 'decimal.js';
 import { Action, OrderStatus, UserRole } from '@prisma/client';
-import { processNotification, processBulkNotifications } from '@next-app/src/utils/notifications/notifications';
-import { authenticateRequest, JwtPayload } from '@next-app/src/utils/authenticate/authenticateRequest';
+import {
+  processNotification,
+  processBulkNotifications,
+} from '@next-app/src/utils/notifications/notifications';
+import {
+  authenticateRequest,
+  JwtPayload,
+} from '@next-app/src/utils/authenticate/authenticateRequest';
 
 const log = debug('app:client-corp/orders');
 
@@ -64,7 +70,9 @@ export async function POST(req: NextRequest) {
       }
       log('Tariff found:', tariffRecord);
 
-      const departurePointRecord = await prismaTx.point.findUnique({ where: { uuid: departurePoint } });
+      const departurePointRecord = await prismaTx.point.findUnique({
+        where: { uuid: departurePoint },
+      });
       if (!departurePointRecord) {
         log(`Departure point with UUID ${departurePoint} not found`);
         throw new Error('Departure point not found');
@@ -104,7 +112,9 @@ export async function POST(req: NextRequest) {
           where: { uuid: { in: selectedServices } },
         });
         if (tariffOnServices.length !== selectedServices.length) {
-          log(`Not all services found for tariff ${tariffUuid}. Selected: ${selectedServices.join(', ')}`);
+          log(
+            `Not all services found for tariff ${tariffUuid}. Selected: ${selectedServices.join(', ')}`,
+          );
           throw new Error('Not all services found for tariff');
         }
         await prismaTx.orderOnTariffAdditionalService.createMany({
@@ -159,7 +169,9 @@ export async function POST(req: NextRequest) {
     log(`departureTimestamp: ${departureTimestamp}, now: ${now}, delay: ${delay}`);
 
     if (delay <= 0) {
-      log(`⚠️ DepartureTime (${result.departureTime}) уже меньше минуты или прошло, отправляем notification мгновенно`);
+      log(
+        `⚠️ DepartureTime (${result.departureTime}) уже меньше минуты или прошло, отправляем notification мгновенно`,
+      );
       await orderQueue.add(
         'notification',
         { orderUuid: result.uuid },
@@ -244,7 +256,24 @@ export async function GET(req: NextRequest) {
       where,
       orderBy: { [sortBy]: sortOrder },
       include: {
-        createdBy: true,
+        createdBy: {
+          include: {
+            companyProfile: true,
+          },
+        },
+        assignedDriver: {
+          include: {
+            vehicleDriver: {
+              include: {
+                vehicle: {
+                  select: {
+                    plateNumber: true,
+                  },
+                },
+              },
+            },
+          },
+        },
         tariff: true,
         departurePoint: true,
         arrivalPoint: true,
@@ -268,11 +297,25 @@ export async function GET(req: NextRequest) {
         fullName: order.createdBy.fullName,
         email: order.createdBy.email,
         phone: order.createdBy.phone,
+        role: order.createdBy.role,
+        companyProfile: {
+          companyName: order.createdBy.companyProfile?.companyName || null,
+          companyPhone: order.createdBy.companyProfile?.phone || null,
+          companyLogo: order.createdBy.companyProfile?.logoImagePath || null,
+        },
       },
+      assignedDriver: {
+        uuid: order.assignedDriver?.fullName || null,
+        plateNumber: order.assignedDriver?.vehicleDriver?.vehicle.plateNumber || null,
+        fullName: order.assignedDriver?.fullName || null,
+        phone: order.assignedDriver?.phone || null,
+      },
+      driverAcceptanceStatus: order.driverAcceptanceStatus || null,
       tariff: {
         uuid: order.tariff.uuid,
         name: order.tariff.name,
-        vehicleTypes: order.tariff.vehicleType,
+        vehicleType: order.tariff.vehicleType,
+        serviceLevel: order.tariff.serviceLevel,
       },
       departurePoint: {
         uuid: order.departurePoint.uuid,

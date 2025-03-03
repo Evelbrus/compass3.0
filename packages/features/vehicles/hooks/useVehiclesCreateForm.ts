@@ -156,6 +156,8 @@ export const useVehiclesForm = ({ mode, vehicleData }: UseVehiclesFormProps) => 
       try {
         let vehicleUuid = vehicleData?.uuid;
         const action = mode === 'create' ? 'created' : 'updated';
+        const year = data.year;
+        console.log('YEAR:', year);
 
         //Преобразуем vehicleDrivers в массив идентификаторов водителей (driverIds)
         const driverIds = data.vehicleDrivers?.map((item) => item.driver.uuid) || [];

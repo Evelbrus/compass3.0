@@ -1,4 +1,4 @@
-import { Order, User, Tariff, Point, VehicleType, ServiceLevels } from '@prisma/client';
+import { Order, User, Tariff, Point, VehicleType, ServiceLevels, DriverAcceptanceStatus } from '@prisma/client';
 
 export interface TariffAdditionalService {
   uuid: string;
@@ -44,9 +44,10 @@ export interface CreateOrderData
 
 //Тип данных для детализированного представления заказа
 export interface DetailOrderData extends Order {
-  createdBy: User;
+  createdBy: User & { companyProfile: { companyName: string, companyPhone: string, companyLogo: string | null } };
   tariff: ExtendedTariff;
+  driverAcceptanceStatus: DriverAcceptanceStatus | null;
   departurePoint: Point;
   arrivalPoint: Point;
-  assignedDriver: User & { plateNumber: true };
+  assignedDriver: User & { plateNumber: number };
 }

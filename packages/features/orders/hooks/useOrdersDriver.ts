@@ -10,7 +10,9 @@ import { useUnit } from 'effector-react';
 import { $updateFlag } from '@shared/lib/effector/state/state';
 
 type OrderWithDetails = Order & {
-  createdBy: User;
+  createdBy: User & {
+    companyProfile: { companyName: string; companyPhone: string; companyLogo: string | null };
+  };
   tariff: Tariff;
   departurePoint: Point;
   arrivalPoint: Point;
@@ -104,9 +106,17 @@ const useOrdersDriver = () => {
     createdBy: {
       fullName: order.createdBy.fullName || 'Не указано',
       phone: order.createdBy.phone || 'Не указано',
+      role: order.createdBy.role,
+      companyProfile: {
+        companyName: order.createdBy.companyProfile?.companyName,
+        companyPhone: order.createdBy.companyProfile?.companyPhone,
+        companyLogo: order.createdBy.companyProfile?.companyLogo,
+      },
     },
     tariff: {
       name: order.tariff.name,
+      serviceLevel: order.tariff.serviceLevel,
+      vehicleType: order.tariff.vehicleType,
     },
     departurePoint: {
       address: order.departurePoint.address,

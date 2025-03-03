@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { OrderStatus, Order, User, Tariff, Point } from '@prisma/client';
+import { OrderStatus, Order, User, Tariff, Point, DriverAcceptanceStatus } from '@prisma/client';
 import { useSearchParams } from 'next/navigation';
 import { TableOrdersRow } from '@shared/components/ui/table';
 import { renderOrderDriverActions } from '@shared/components/ui/table/ui/TableRenders';
@@ -10,10 +10,14 @@ import { useUnit } from 'effector-react';
 import { $updateFlag } from '@shared/lib/effector/state/state';
 
 type OrderWithDetails = Order & {
-  createdBy: User;
+  createdBy: User & {
+    companyProfile: { companyName: string; companyPhone: string; companyLogo: string | null };
+  };
   tariff: Tariff;
+  driverAcceptanceStatus: DriverAcceptanceStatus | null;
   departurePoint: Point;
   arrivalPoint: Point;
+  assignedDriver: User & { plateNumber: number };
 };
 
 const useClientCorpOrders = () => {
@@ -104,10 +108,24 @@ const useClientCorpOrders = () => {
     createdBy: {
       fullName: order.createdBy.fullName || 'Не указано',
       phone: order.createdBy.phone || 'Не указано',
+      role: order.createdBy.role,
+      companyProfile: {
+        companyName: order.createdBy.companyProfile?.companyName,
+        companyPhone: order.createdBy.companyProfile?.companyPhone,
+        companyLogo: order.createdBy.companyProfile?.companyLogo,
+      },
     },
+    assignedDriver: {
+      fullname: order.assignedDriver.fullName,
+      phone: order.assignedDriver.phone,
+    },
+    plateNumber: order.assignedDriver.plateNumber,
     tariff: {
       name: order.tariff.name,
+      vehicleType: order.tariff.vehicleType,
+      serviceLevel: order.tariff.serviceLevel,
     },
+    driverAcceptanceStatus: order.driverAcceptanceStatus,
     departurePoint: {
       address: order.departurePoint.address,
     },

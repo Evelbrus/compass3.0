@@ -64,7 +64,11 @@ export async function GET(req: NextRequest) {
         [parsedParams.sort_by]: parsedParams.sort_order,
       },
       include: {
-        createdBy: true,
+        createdBy: {
+          include: {
+            companyProfile: true,
+          },
+        },
         tariff: true,
         departurePoint: true,
         arrivalPoint: true,
@@ -98,11 +102,18 @@ export async function GET(req: NextRequest) {
         fullName: order.createdBy.fullName,
         email: order.createdBy.email,
         phone: order.createdBy.phone,
+        role: order.createdBy.role,
+        companyProfile: {
+          companyName: order.createdBy.companyProfile?.companyName || null,
+          companyPhone: order.createdBy.companyProfile?.phone || null,
+          companyLogo: order.createdBy.companyProfile?.logoImagePath || null,
+        },
       },
       tariff: {
         uuid: order.tariff.uuid,
         name: order.tariff.name,
-        vehicleTypes: order.tariff.vehicleType,
+        vehicleType: order.tariff.vehicleType,
+        serviceLevel: order.tariff.serviceLevel,
       },
       departurePoint: {
         uuid: order.departurePoint.uuid,

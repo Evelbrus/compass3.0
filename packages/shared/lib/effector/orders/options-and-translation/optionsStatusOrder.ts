@@ -1,4 +1,4 @@
-import { OrderStatus } from '@prisma/client';
+import { DriverAcceptanceStatus, OrderStatus } from '@prisma/client';
 
 export const orderStatusOptions = [
   { label: 'Ожидает подтверждения', value: OrderStatus.PENDING },
@@ -16,6 +16,17 @@ export const orderStatusTranslations: Record<OrderStatus, string> = {
   COMPLETED: 'Выполнен',
   CANCELLED: 'Отменен',
   OVERDUE: 'Просрочен',
+};
+
+export const driverAcceptanceStatusLabels: Record<DriverAcceptanceStatus, string> = {
+  PENDING: 'Ожидание',
+  TAKEN: 'Принято к сведению',
+  ACCEPTED: 'Принят',
+  ON_THE_WAY: 'В пути',
+  ARRIVED: 'Прибыл',
+  PICKED_UP: 'Клиент в машине',
+  TIMEOUT: 'Время истекло',
+  COMPLETED: 'Завершено',
 };
 
 export type OrderStatusTranslationsType = typeof orderStatusTranslations;

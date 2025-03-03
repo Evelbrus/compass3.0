@@ -197,7 +197,7 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
     loadNotifications();
 
     if (!socket) {
-      console.error('Сокет не инициализирован');
+      // console.error('Сокет не инициализирован');
       return;
     }
 

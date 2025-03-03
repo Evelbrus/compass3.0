@@ -283,14 +283,19 @@ export async function GET(req: Request) {
         [parsedParams.sort_by]: parsedParams.sort_order,
       },
       include: {
-        createdBy: true,
+        createdBy: {
+          include: {
+            companyProfile: true,
+          },
+        },
         assignedDriver: {
           include: {
             vehicleDriver: {
               include: {
-                // Исправляем синтаксис для вложенного include
                 vehicle: {
-                  select: { plateNumber: true }, // Указываем конкретное поле
+                  select: {
+                    plateNumber: true,
+                  },
                 },
               },
             },
@@ -329,18 +334,26 @@ export async function GET(req: Request) {
           fullName: order.createdBy.fullName,
           email: order.createdBy.email,
           phone: order.createdBy.phone,
+          role: order.createdBy.role,
+          companyProfile: {
+            companyName: order.createdBy.companyProfile?.companyName || null,
+            companyPhone: order.createdBy.companyProfile?.phone || null,
+            companyLogo: order.createdBy.companyProfile?.logoImagePath || null,
+          },
         },
         basePrice: order.basePrice,
         assignedDriver: {
-          uuid: order.assignedDriver?.uuid || null,
+          uuid: order.assignedDriver?.fullName || null,
+          plateNumber: order.assignedDriver?.vehicleDriver?.vehicle.plateNumber || null,
           fullName: order.assignedDriver?.fullName || null,
           phone: order.assignedDriver?.phone || null,
-          plateNumber: order.assignedDriver?.vehicleDriver?.vehicle?.plateNumber || null,
         },
+        driverAcceptanceStatus: order.driverAcceptanceStatus || null,
         tariff: {
           uuid: order.tariff.uuid,
           name: order.tariff.name,
-          vehicleTypes: order.tariff.vehicleType,
+          vehicleType: order.tariff.vehicleType,
+          serviceLevel: order.tariff.serviceLevel,
         },
         departurePoint: {
           uuid: order.departurePoint.uuid,
