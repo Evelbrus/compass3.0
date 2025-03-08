@@ -32,7 +32,7 @@ const ReferenceBooks: React.FC<ReferenceBooksProps> = ({ initialTab }) => {
 
   return (
     <div>
-      <div className="flex flex-row gap-6 p-5">
+      <div className="flex flex-row gap-6 px-5">
         <IButton onClick={handleNavigateToAdditionalServices}>Дополнительные услуги</IButton>
         <IButton onClick={handleNavigateToPoints}>Пункты прибытия</IButton>
       </div>

@@ -87,7 +87,6 @@ export const usePointSelector = ({
 
   const onSelectPoint = useCallback(
     (point: PointWithoutTimestamps | null, index?: number) => {
-      console.log('usePointSelector onSelectPoint called:', { point: point?.address, index });
       if (mode === 'single') {
         setSelectedPoint(point);
         setSearchValue(point ? point.address : '');
@@ -96,7 +95,6 @@ export const usePointSelector = ({
         setSelectedPoints((prev) => {
           const newPoints = [...prev];
           newPoints[index] = point;
-          console.log('Updated selectedPoints in usePointSelector:', newPoints);
           return newPoints;
         });
         closeDropdown();

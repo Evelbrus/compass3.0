@@ -86,14 +86,13 @@ export async function GET(req: Request) {
 
 // POST: Создать тариф
 export async function POST(req: Request) {
-  try {
+
     const data: CreateTariffData = await req.json()
     const {
       name,
       vehicleType,
       description,
       price,
-      additionalPointPrice,
       freeWaitTimeBishkek,
       pricePerMinuteAfterBishkek,
       freeWaitTimeAirport,
@@ -107,7 +106,6 @@ export async function POST(req: Request) {
       !name ||
       !vehicleType ||
       price === undefined ||
-      additionalPointPrice === undefined ||
       freeWaitTimeBishkek === undefined ||
       pricePerMinuteAfterBishkek === undefined ||
       freeWaitTimeAirport === undefined ||
@@ -129,7 +127,6 @@ export async function POST(req: Request) {
           vehicleType,
           description,
           price,
-          additionalPointPrice,
           freeWaitTimeBishkek,
           pricePerMinuteAfterBishkek,
           freeWaitTimeAirport,
@@ -161,13 +158,5 @@ export async function POST(req: Request) {
       message: 'Tariff created successfully',
       uuid: result.uuid,
     })
-  } catch (error) {
-    // Логируем только при ошибке
-    logError('× Error creating tariff')
-    if (error instanceof Error) {
-      logError('Error message:', error.message)
-      logError('Error stack:', error.stack)
-    }
-    return NextResponse.json({ error: 'Unable to create tariff' }, { status: 500 })
-  }
+
 }

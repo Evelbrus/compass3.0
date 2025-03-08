@@ -1,44 +1,53 @@
-import React from 'react'
-import { showToast } from '@shared/components/toast/ToastManager';
+import { useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { DetailTariffData } from '@shared/prisma/interface/tariff/interface';
+import { Tariff, TariffOnService } from '@prisma/client';
+import { showToast } from '@shared/components/toast/ToastManager';
+import { TariffFormData } from './create/useTariffCreateForm';
 
-export const useTariffSubmit = (formData: Partial<DetailTariffData>, mode: 'create' | 'edit') => {
+interface UseTariffSubmitProps {
+  mode: 'create' | 'edit';
+  tariffData?: Tariff & { tariffAdditionalServices: TariffOnService[] };
+}
+
+export const useTariffSubmit = ({ mode, tariffData }: UseTariffSubmitProps) => {
   const router = useRouter();
-  const isEdit = mode === 'edit';
 
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
+  const handleSubmit = useCallback(
+    async (data: TariffFormData): Promise<void> => {
+      try {
+        const action = mode === 'create' ? 'создано' : 'обновлен';
 
-    const submissionData: Partial<DetailTariffData> = {
-      ...formData,
-      tariffAdditionalServices: formData.tariffAdditionalServices ?? [],
-    };
+        // Подготавливаем данные для отправки
+        const payload = { ...data };
 
-    try {
-      const response = await fetch(isEdit ? `/api/tariffs/${formData.uuid}` : '/api/tariffs', {
-        method: isEdit ? 'PUT' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(submissionData),
-      });
+        // Отправляем JSON-payload на сервер (POST или PUT)
+        const apiUrl = mode === 'create' ? '/api/tariffs' : `/api/tariffs/${tariffData?.uuid}`;
+        const response = await fetch(apiUrl, {
+          method: mode === 'create' ? 'POST' : 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
 
-      if (!response.ok) {
-        throw new Error(`Ошибка сети: ${response.statusText}`);
+        if (!response.ok) {
+          const errorData = await response.json();
+          const errorMessage =
+            errorData.error?.message || `Failed ${action} tariff: ${response.status}`;
+          showToast.error(errorMessage);
+          return;
+        }
+
+        showToast.success(`Тариф ${action} успешно!`);
+        router.push(`/tariff-management`);
+      } catch (error) {
+        if (error instanceof Error) {
+          showToast.error(error.message);
+        }
       }
-
-      const result = await response.json();
-      if (result?.uuid) {
-        showToast.success(`Тариф успешно ${isEdit ? 'обновлен' : 'создан'}`);
-        router.push('/tariff-management/');
-      } else {
-        showToast.error('Не удалось выполнить перенаправление на страницу деталей тарифа');
-      }
-    } catch (error) {
-      showToast.error(
-        `Ошибка при ${isEdit ? 'обновлении' : 'создании'} тарифа: ${(error as Error).message}`,
-      );
-    }
-  };
+    },
+    [mode, router, tariffData],
+  );
 
   return { handleSubmit };
 };
+
+export default useTariffSubmit;

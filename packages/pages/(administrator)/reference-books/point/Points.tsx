@@ -39,10 +39,10 @@ const Points = () => {
 
   return (
     <AnimatedComponent
-      className="relative max-w-full min-h-[calc(100vh-80px)] p-5 flex flex-col gap-4"
+      className="relative max-w-full min-h-[calc(100vh-80px)] flex flex-col gap-4"
       duration={1000}
     >
-      <div ref={topRef} className="w-full flex flex-row justify-between items-center">
+      <div ref={topRef} className="w-full flex flex-row justify-between items-center px-5">
         <h1 className="text-2xl font-extrabold leading-4">Пункты прибытия</h1>
         <IButton onClick={() => openModal('createPointModal')}>Добавить точку</IButton>
       </div>

@@ -19,16 +19,15 @@ export const colorOptions = [
 export const vehicleTypeOptions = [
   { label: 'Седан', value: 'Sedan' as VehicleType },
   { label: 'Минивэн', value: 'Minivan' as VehicleType },
-  { label: 'Спринтер', value: 'Sprinter' as VehicleType },
+  { label: 'Микроавтобус', value: 'Microbus' as VehicleType },
   { label: 'Автобус', value: 'Bus' as VehicleType },
-  { label: 'Нет', value: 'None' as VehicleType },
+  { label: 'Внедорожник', value: 'SUV' as VehicleType },
 ];
 
 export const serviceLevelOptions = [
   { label: 'Базовый', value: 'Basic' as ServiceLevels },
   { label: 'Премиум', value: 'Premium' as ServiceLevels },
   { label: 'VIP', value: 'Vip' as ServiceLevels },
-  { label: 'Нет', value: 'None' as ServiceLevels },
 ];
 
 //Новые опции владения (Ownership)
@@ -40,7 +39,8 @@ export const ownershipOptions = [
 export const vehicleSeats: Record<VehicleType, string> = {
   Sedan: '4',
   Minivan: '6-7',
-  Sprinter: 'до 18',
+  Microbus: 'до 18',
+  SUV: 'до 5',
   Bus: '27-30',
   None: 'Неизвестно',
 };

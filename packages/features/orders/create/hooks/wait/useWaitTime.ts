@@ -67,15 +67,6 @@ export const useWaitTime = ({
     } else {
       setAdditionalWaitTimeCost(0);
     }
-
-    console.log('Расчет стоимости ожидания:', {
-      waitTime,
-      freeWaitTime,
-      additionalMinutes,
-      pricePerMinute,
-      cost:
-        additionalMinutes > 0 ? Number(new Decimal(additionalMinutes).mul(pricePerMinute || 0)) : 0,
-    });
   }, [waitTime, selectedTariff, departurePoint]);
 
   const adjustWaitTime = (increment: number) => {

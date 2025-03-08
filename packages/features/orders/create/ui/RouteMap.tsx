@@ -90,20 +90,16 @@ const RouteMapInner: React.FC<RouteMapInnerProps> = ({
 
   // Function to build the route
   const buildRoute = useCallback(() => {
-    console.log('Attempting to build route...');
     if (!ymaps) {
-      console.log('ymaps is not available yet.');
       return;
     }
 
     if (!mapRef.current) {
-      console.log('mapRef.current is not available yet.');
       return;
     }
 
     const geoObjects = mapRef.current.geoObjects;
     if (!geoObjects) {
-      console.log('geoObjects is not available yet.');
       return;
     }
 
@@ -112,7 +108,6 @@ const RouteMapInner: React.FC<RouteMapInnerProps> = ({
       // Явно указываем тип параметра geoObject
       if (geoObject instanceof ymaps.multiRouter.MultiRoute) {
         geoObjects.remove(geoObject);
-        console.log('Removed existing MultiRoute instance.');
       }
     });
 
@@ -120,7 +115,6 @@ const RouteMapInner: React.FC<RouteMapInnerProps> = ({
       setRouteDuration(null);
       onDistanceUpdate?.(0);
       onDurationUpdate?.(null);
-      console.log('Less than 2 selected points, clearing route.');
       return;
     }
 
@@ -129,11 +123,8 @@ const RouteMapInner: React.FC<RouteMapInnerProps> = ({
       .map((point) => [point.latitude, point.longitude]);
 
     if (validPoints.length < 2) {
-      console.log('Less than 2 valid points, clearing route.');
       return;
     }
-
-    console.log('Building route with points:', validPoints);
 
     try {
       const multiRoute = new ymaps.multiRouter.MultiRoute(
@@ -154,7 +145,6 @@ const RouteMapInner: React.FC<RouteMapInnerProps> = ({
       geoObjects.add(multiRoute);
 
       multiRoute.model.events.add('update', () => {
-        console.log('Route updated.');
         const activeRoute = multiRoute.getActiveRoute();
         if (activeRoute) {
           const humanTime = activeRoute.properties.get('duration').text;
@@ -183,16 +173,10 @@ const RouteMapInner: React.FC<RouteMapInnerProps> = ({
 
   // Update route when selected points change
   useEffect(() => {
-    console.log('Selected points changed:', selectedPoints);
-
     if (ymaps) {
-      console.log('ymaps is available, calling ymaps.ready.');
       ymaps.ready(() => {
-        console.log('ymaps.ready callback triggered, building route.');
         buildRoute();
       });
-    } else {
-      console.log('ymaps is not yet available.');
     }
   }, [ymaps, selectedPoints, buildRoute]);
 
@@ -299,7 +283,6 @@ const RouteMapInner: React.FC<RouteMapInnerProps> = ({
         height="100%"
         onLoad={() => {
           // Call buildRoute when the map is loaded
-          console.log('Map loaded, calling buildRoute.');
           buildRoute();
         }}
       >

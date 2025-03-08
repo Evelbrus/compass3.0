@@ -1,333 +1,146 @@
-import { NextResponse } from 'next/server';
-import { prisma } from '@shared/prisma/prisma-client';
-import { Prisma, User, UserRole } from '@prisma/client';
+import { NextResponse, NextRequest } from 'next/server';
+import { CompanyProfile, DriverProfile, User, UserRole } from '@prisma/client';
 import debug from 'debug';
-import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcrypt';
-import { CreateUserData } from '@shared/prisma/interface/users/interface';
+import { authenticateRequest } from '@next-app/src/utils/authenticate/authenticateRequest';
+import { parseParams } from '@next-app/src/utils/parsed-params/parseParams';
+import { checkExistingUser } from '@next-app/src/app/api/users/checkExistingUser';
+import { createUser } from '@next-app/src/app/api/users/createUser';
+import { getUsers } from '@next-app/src/app/api/users/getUsers';
 import convertPrismaData from '@shared/prisma/utils/converterBigIntToString';
 
-const log = debug('app:users');
+const logError = debug('app:users:error');
+const allowedRoles = [UserRole.Operator, UserRole.Admin];
 
-export async function POST(req: Request) {
-  try {
-    const data: CreateUserData = await req.json();
+export async function POST(req: NextRequest) {
+  await authenticateRequest(req, allowedRoles);
 
-    //Валидация данных
-    if (!data.email || !data.password || !data.role || !data.fullName) {
-      return NextResponse.json(
-        { status: 'error', message: 'Отсутствуют обязательные поля' },
-        { status: 400 },
-      );
-    }
-
-    const {
-      email,
-      password,
-      role,
-      fullName,
-      phone,
-      gender,
-      address,
-      profilePhotoPath,
-      companyProfile,
-      driverProfile,
-      partnerCompany = 'NONE',
-      individualSalaryRate,
-      defaultSalaryId,
-    } = data;
-
-    log('Received data:', data);
-
-    //Проверка на существование пользователя
-    const existingUser = await prisma.user.findUnique({ where: { email } });
-    if (existingUser) {
-      return NextResponse.json(
-        { message: 'Пользователь с таким email уже существует' },
-        { status: 409 },
-      );
-    }
-
-    //Хеширование пароля
-    const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
-
-    const now = new Date();
-    const userUuid = uuidv4();
-
-    //Данные пользователя
-    const userData = {
-      uuid: userUuid,
-      email,
-      password: hashedPassword,
-      role,
-      availability: data.availability !== undefined ? data.availability : true,
-      fullName,
-      phone,
-      gender,
-      address,
-      profilePhotoPath,
-      partnerCompany,
-      defaultSalaryId: defaultSalaryId || null,
-      individualSalaryRate: individualSalaryRate || null,
-      createdAt: now,
-      updatedAt: now,
+  const data: User & {
+    password: string;
+    companyProfile?: CompanyProfile;
+    driverProfile?: DriverProfile & {
+      driverExperience?: Array<{
+        companyName: string;
+        position: string;
+        from: string | Date;
+        to: string | Date;
+      }>;
     };
+  } = await req.json();
 
-    let createdUser: User | null = null;
+  if (!data.email || !data.password || !data.role || !data.fullName) {
+    logError('× Отсутствуют обязательные поля (400)');
+    return NextResponse.json(
+      { status: 'error', message: 'Отсутствуют обязательные поля' },
+      { status: 400 },
+    );
+  }
 
-    await prisma.$transaction(async (prisma) => {
-      //Создаем пользователя
-      createdUser = await prisma.user.create({ data: userData });
+  const { email, password } = data;
 
-      if (!createdUser) {
-        throw new Error('User creation failed');
-      }
+  const existingUser = await checkExistingUser(email);
+  if (existingUser) {
+    logError(`× Пользователь с email ${email} уже существует (409)`);
+    return NextResponse.json(
+      { status: 'error', message: 'Пользователь с таким email уже существует' },
+      { status: 409 },
+    );
+  }
 
-      //Обработка профилей компании и водителя
-      if (role === UserRole.ClientCorp || role === UserRole.Operator) {
-        if (!companyProfile) {
-          throw new Error('Company profile is required for ClientCorp and Operator roles');
-        }
+  const saltRounds = 10;
+  const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-        await prisma.companyProfile.create({
-          data: {
-            ...companyProfile,
-            userId: createdUser.uuid,
-          },
-        });
-      } else if (role === UserRole.Driver) {
-        if (!driverProfile) {
-          throw new Error('Driver profile is required for Driver role');
-        }
-
-        await prisma.driverProfile.create({
-          data: {
-            ...driverProfile,
-            userId: createdUser.uuid,
-            driverExperience: {
-              create:
-                driverProfile.driverExperience?.map((experience) => ({
-                  companyName: experience.companyName,
-                  position: experience.position,
-                  from: new Date(experience.from),
-                  to: new Date(experience.to),
-                })) || [],
-            },
-          },
-        });
-      } else if (role !== UserRole.Client && role !== UserRole.Admin) {
-        throw new Error('Invalid role');
-      }
-
-      //Обработка общей ставки для партнера
-      if (!defaultSalaryId && partnerCompany !== 'NONE') {
-        const existingSalary = await prisma.partnerSalary.findFirst({
-          where: { partnerCompany },
-        });
-
-        if (!existingSalary) {
-          const newSalaryUuid = uuidv4();
-          await prisma.partnerSalary.create({
-            data: {
-              uuid: newSalaryUuid,
-              partnerCompany,
-              salaryRate: 0,
-              currency: 'RUB',
-              description: `Default salary for ${partnerCompany}`,
-            },
-          });
-
-          //Обновляем пользователя, связывая его с новой ставкой
-          await prisma.user.update({
-            where: { uuid: createdUser.uuid },
-            data: { defaultSalaryId: newSalaryUuid },
-          });
-        } else {
-          //Связываем пользователя с существующей ставкой
-          await prisma.user.update({
-            where: { uuid: createdUser.uuid },
-            data: { defaultSalaryId: existingSalary.uuid },
-          });
-        }
-      }
-
-      //Обработка индивидуальной ставки
-      if (individualSalaryRate !== null && individualSalaryRate !== undefined && !defaultSalaryId) {
-        const newIndividualSalaryUuid = uuidv4();
-        await prisma.partnerSalary.create({
-          data: {
-            uuid: newIndividualSalaryUuid,
-            partnerCompany,
-            salaryRate: individualSalaryRate,
-            currency: 'RUB',
-            description: `Individual salary for user ${createdUser.uuid}`,
-          },
-        });
-
-        await prisma.user.update({
-          where: { uuid: createdUser.uuid },
-          data: { defaultSalaryId: newIndividualSalaryUuid },
-        });
-      }
-    });
-
-    log('Created user:', createdUser);
-
-    return NextResponse.json({
-      status: 'success',
-      message: 'User created successfully',
-      uuid: createdUser!.uuid,
-    });
+  let createdUser: User;
+  try {
+    createdUser = await createUser(data, hashedPassword);
   } catch (error) {
-    log('Error creating user:', error);
-
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-      return NextResponse.json(
-        { status: 'error', message: 'Пользователь с таким email уже существует' },
-        { status: 409 },
-      );
+    logError('× Ошибка при создании пользователя');
+    if (error instanceof Error) {
+      logError('Error message:', error.message);
+      logError('Error stack:', error.stack);
+      if (
+        error.message === 'Company profile is required for ClientCorp and Operator roles' ||
+        error.message === 'Driver profile is required for Driver role' ||
+        error.message === 'Invalid role'
+      ) {
+        return NextResponse.json({ status: 'error', message: error.message }, { status: 400 });
+      }
+      if (error.message === 'User with this email already exists') {
+        return NextResponse.json(
+          { status: 'error', message: 'Пользователь с таким email уже существует' },
+          { status: 409 },
+        );
+      }
     }
-
     return NextResponse.json(
       { status: 'error', message: 'Ошибка создания пользователя' },
       { status: 500 },
     );
   }
+
+  return NextResponse.json({
+    status: 'success',
+    message: 'User created successfully',
+    uuid: createdUser.uuid,
+  });
 }
 
-export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
+export async function GET(req: NextRequest) {
+  await authenticateRequest(req, allowedRoles);
 
-  //Допустимые варианты сортировки: email, fullName, createdAt, updatedAt, role, availability, passportId
-  const parsedParams = {
-    page: parseInt(searchParams.get('page') || '1', 10),
-    per_page: parseInt(searchParams.get('per_page') || '10', 10),
-    role: (searchParams.get('role') as UserRole | 'all' | null) || null,
-    roles: searchParams.getAll('role'),
-    availability: searchParams.get('availability') as 'true' | 'false' | null,
+  const parsedParams = parseParams<{
+    page: number;
+    per_page: number;
+    role: UserRole | 'all' | null;
+    roles: string[];
+    availability: 'true' | 'false' | null;
     sort_by:
-      (searchParams.get('sort_by') as
-        | 'email'
-        | 'fullName'
-        | 'createdAt'
-        | 'updatedAt'
-        | 'role'
-        | 'availability'
-        | 'passportId'
-        | null) || 'createdAt',
-    sort_order: (searchParams.get('sort_order') as 'asc' | 'desc') || 'desc',
-    search: searchParams.get('search') || null,
-  };
+      | 'email'
+      | 'fullName'
+      | 'createdAt'
+      | 'updatedAt'
+      | 'role'
+      | 'availability'
+      | 'passportId';
+    sort_order: 'asc' | 'desc';
+    search: string | null;
+  }>({
+    searchParams: new URL(req.url).searchParams,
+    defaults: { sort_by: 'createdAt', sort_order: 'desc' },
+    allowedSortFields: [
+      'email',
+      'fullName',
+      'createdAt',
+      'updatedAt',
+      'role',
+      'availability',
+      'passportId',
+    ],
+  });
 
-  console.log('Parsed parameters:', parsedParams);
+  const { users, total, totalAllRoles, roleCounts } = await getUsers(parsedParams);
 
-  try {
-    const where: {
-      role?: UserRole | { in: UserRole[] };
-      availability?: boolean;
-      OR?: { fullName: { contains: string; mode: 'insensitive' } }[];
-    } = {};
+  const searchTerm = parsedParams.search ? parsedParams.search.toLowerCase() : '';
+  const filteredUsers = parsedParams.search
+    ? users.filter((user) => {
+        const nameParts = user.fullName.toLowerCase().split(' ');
+        return nameParts.some((part) => part.startsWith(searchTerm));
+      })
+    : users;
 
-    if (parsedParams.roles.length > 0) {
-      where.role =
-        parsedParams.roles.length === 1
-          ? (parsedParams.roles[0] as UserRole)
-          : { in: parsedParams.roles as UserRole[] };
-    } else if (parsedParams.role && parsedParams.role !== 'all') {
-      where.role = parsedParams.role;
-    }
-
-    if (parsedParams.availability) {
-      where.availability = parsedParams.availability === 'true';
-    }
-
-    if (parsedParams.search) {
-      where.OR = [{ fullName: { contains: parsedParams.search, mode: 'insensitive' } }];
-    }
-
-    //Формирование orderBy. Если сортировка по passportId, то сортировка по полю внутри driverProfile.
-    let orderBy: Prisma.UserOrderByWithRelationInput = {};
-    if (parsedParams.sort_by === 'passportId') {
-      orderBy = {
-        driverProfile: {
-          passportId: parsedParams.sort_order,
-        },
-      };
-    } else {
-      orderBy = {
-        [parsedParams.sort_by]: parsedParams.sort_order,
-      };
-    }
-
-    const users = await prisma.user.findMany({
-      skip: (parsedParams.page - 1) * parsedParams.per_page,
-      take: parsedParams.per_page,
-      where,
-      orderBy,
-      select: {
-        uuid: true,
-        email: true,
-        role: true,
-        phone: true,
-        availability: true,
-        fullName: true,
-        driverProfile: {
-          select: {
-            uuid: true,
-            passportId: true,
-            passportPhotoPath: true,
-            yearsOfDriving: true,
-            driverExperience: true,
-            driverHistory: true,
-          },
-        },
-        partnerCompany: true,
-        createdAt: true,
-        updatedAt: true,
+  return NextResponse.json(
+    convertPrismaData({
+      status: 'success',
+      message: 'Fetched users successfully',
+      data: {
+        page: parsedParams.page,
+        per_page: parsedParams.per_page,
+        total,
+        totalAllRoles,
+        roleCounts,
+        users: filteredUsers,
       },
-    });
-
-    const total = await prisma.user.count({ where });
-    const totalAllRoles = await prisma.user.count();
-
-    const roleCounts = await prisma.user.groupBy({
-      by: ['role'],
-      _count: { role: true },
-    });
-
-    console.log('Fetched users:', users);
-
-    //Фильтрация пользователей по поисковому запросу (если он задан)
-    const searchTerm = parsedParams.search ? parsedParams.search.toLowerCase() : '';
-    const filteredUsers = parsedParams.search
-      ? users.filter((user) => {
-          const nameParts = user.fullName.toLowerCase().split(' ');
-          return nameParts.some((part) => part.startsWith(searchTerm));
-        })
-      : users;
-
-    return NextResponse.json(
-      convertPrismaData({
-        status: 'success',
-        message: 'Fetched users successfully',
-        data: {
-          page: parsedParams.page,
-          per_page: parsedParams.per_page,
-          total,
-          totalAllRoles,
-          roleCounts,
-          users: filteredUsers,
-        },
-      }),
-      { status: 200 },
-    );
-  } catch (error) {
-    console.error('Error fetching users:', error);
-    if (error instanceof Error) {
-      console.error('Error message:', error.message);
-      console.error('Error stack:', error.stack);
-    }
-    return NextResponse.json({ error: 'Unable to fetch users' }, { status: 500 });
-  }
+    }),
+    { status: 200 },
+  );
 }

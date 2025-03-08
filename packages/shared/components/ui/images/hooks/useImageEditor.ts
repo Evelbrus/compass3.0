@@ -1,6 +1,7 @@
+// @shared/components/ui/images/hooks/useImageEditor.ts
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { getCroppedImg } from '@shared/components/ui/images/utils/cropImage';
 import { Area } from 'react-easy-crop';
 
@@ -24,6 +25,12 @@ export const useImageEditor = (
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<CroppedArea | null>(null);
   const [showFullImage, setShowFullImage] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Синхронизация localPreview с initialImage при изменении
+  useEffect(() => {
+    setLocalPreview(initialImage || null);
+    setOriginalPreview(initialImage || null);
+  }, [initialImage]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files && e.target.files[0];
@@ -59,7 +66,6 @@ export const useImageEditor = (
   };
 
   const handleCropSave = async () => {
-    console.log('Current zoom:', zoom);
     if (originalPreview && croppedAreaPixels) {
       try {
         const croppedImageUrl = await getCroppedImg(originalPreview, croppedAreaPixels);

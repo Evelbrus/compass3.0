@@ -14,16 +14,16 @@ enum Gender {
 }
 
 enum PartnerCompany {
-  TRANSFER @map("transfer") // Твоя компания "Трансфер"
-  YANDEX   @map("yandex") // Яндекс
-  UBER     @map("uber") // Убер
-  NONE     @map("none") // Нет партнера
+  TRANSFER @map("transfer")
+  YANDEX   @map("yandex")
+  UBER     @map("uber")
+  NONE     @map("none")
 }
 
 enum DriverStatus {
-  FREE     @map("free") // Водитель свободен и готов взять заказ
-  BUSY     @map("busy") // Водитель занят (выполняет заказ)
-  ON_BREAK @map("on_break") // Водитель на перерыве
+  FREE     @map("free")
+  BUSY     @map("busy")
+  ON_BREAK @map("on_break")
 }
 
 model User {
@@ -32,7 +32,7 @@ model User {
   password String   @map("password")
   role     UserRole @map("role")
 
-  driverStatus DriverStatus @default(FREE) @map("driver_status") // Глобальный статус водителя
+  driverStatus DriverStatus @default(FREE) @map("driver_status")
 
   partnerCompany  PartnerCompany @default(NONE) @map("partner_company")
   PartnerSalary   PartnerSalary? @relation(fields: [partnerSalaryId], references: [uuid])

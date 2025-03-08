@@ -32,12 +32,8 @@ const Page = async ({ params }: PageProps): Promise<JSX.Element> => {
         return <Loading />;
       }
 
-      console.log('Исходный userData', userData);
-
       //Убираем поля password и refreshTokens
       const { password, refreshTokens, ...safeUserData } = userData;
-
-      console.log('Очищенный userData', safeUserData);
 
       return <ClientsDetailAdminPage userData={safeUserData} />;
     } else {

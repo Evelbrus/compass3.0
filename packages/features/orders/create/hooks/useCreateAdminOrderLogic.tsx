@@ -110,8 +110,6 @@ export const useCreateAdminOrderLogic = (
         setValue('tariffUuid', { uuid: initialTariff.uuid });
         setSelectedTariff(initialTariff);
         serviceLevelMapRef.current[initialTariff.vehicleType] = initialTariff.serviceLevel;
-      } else {
-        console.log('Не найден тариф с UUID:', orderData.tariff.uuid);
       }
     }
   }, [tariffs, orderData, setValue]);

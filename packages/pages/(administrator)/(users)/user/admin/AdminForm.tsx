@@ -1,9 +1,9 @@
 import React from 'react';
 import { useFormContext, Controller } from 'react-hook-form';
 import { Gender } from '@prisma/client';
-import { UserCard } from '@pages/(administrator)/(users)/user/useClientsAdminForm';
 import { TextInput, PhoneInput, RadioInput } from '@shared/components/ui/inputs';
 import { ImageUploadWithCrop } from '@shared/components/ui/images/ui/ImageUploadWithCrop';
+import { userFormData } from '@shared/prisma/interfaceForm/user/userFormData';
 
 interface AdminFormProps {
   mode: 'create' | 'edit';
@@ -12,7 +12,7 @@ interface AdminFormProps {
 }
 
 const AdminForm: React.FC<AdminFormProps> = ({ mode, profilePhotoPath, setPreview }) => {
-  const { control, getValues, clearErrors } = useFormContext<UserCard>();
+  const { control, getValues, clearErrors } = useFormContext<userFormData>();
 
   return (
     <div className="flex flex-row justify-center p-5 bg-white border rounded-xl">
@@ -269,17 +269,17 @@ const AdminForm: React.FC<AdminFormProps> = ({ mode, profilePhotoPath, setPrevie
       {/*Правая колонка – загрузка и редактирование изображения */}
       <div className="w-1/3 flex flex-col items-center justify-start">
         <Controller
-          name="profileImage"
+          name="profilePhotoPath"
           control={control}
           render={({ field, fieldState }) => (
             <ImageUploadWithCrop
               label="Фото профиля:"
-              initialSrc={profilePhotoPath || undefined}
+              initialImage={profilePhotoPath || undefined}
               required={false}
               error={!!fieldState.error}
               errorMessage={fieldState.error?.message || ''}
               onChange={(file) => {
-                clearErrors('profileImage');
+                clearErrors('profilePhotoPath');
                 field.onChange(file);
                 if (file) {
                   const url = URL.createObjectURL(file);
@@ -288,8 +288,6 @@ const AdminForm: React.FC<AdminFormProps> = ({ mode, profilePhotoPath, setPrevie
                   setPreview('');
                 }
               }}
-              containerWidth={400}
-              containerHeight={350}
               aspect={1}
             />
           )}

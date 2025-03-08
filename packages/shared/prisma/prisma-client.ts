@@ -13,7 +13,6 @@ envFilePath =
   process.env.NODE_ENV === 'production'
     ? path.resolve(__dirname, '../../../../apps/next-app/.env.production')
     : path.resolve(__dirname, '../../../../.env.development');
-console.log(`Загружаем переменные окружения из файла: ${envFilePath}`);
 dotenv.config({ path: envFilePath });
 
 const prismaClientSingleton = () => {

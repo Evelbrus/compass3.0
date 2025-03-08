@@ -8,12 +8,7 @@ import { IButton } from '@shared/components/ui/buttons';
 import { LazyImage } from '@shared/components/ui/images';
 import { Skeleton } from '@shared/components/ui/skeleton/Skeleton';
 import { $currentPage, setCurrentPage } from '@shared/lib/effector';
-import {
-  PrivatePageType,
-  privateRoutes,
-  PublicPageType,
-  publicRoutes,
-} from '@shared/utils/routing';
+import { PrivatePageType, privateRoutes } from '@shared/utils/routing';
 import { rolePagesMap } from '@shared/utils/routing/private/rolePagesMap';
 
 const Sidebar: React.FC<SidebarProps> = ({ role }) => {
@@ -21,7 +16,7 @@ const Sidebar: React.FC<SidebarProps> = ({ role }) => {
   const router = useRouter();
   const currentPage = useUnit($currentPage);
 
-  //При маунте определяем, какой ключ (например 'HOME') соответствует данному pathname
+  // При маунте определяем, какой ключ соответствует данному pathname
   useEffect(() => {
     const currentPathKey = Object.keys(privateRoutes).find(
       (key) => privateRoutes[key as PrivatePageType] === pathname,
@@ -32,29 +27,28 @@ const Sidebar: React.FC<SidebarProps> = ({ role }) => {
     }
   }, [pathname, currentPage]);
 
-  //Переходим по реальным путям privateRoutes[key], а не строке "HOME"
+  // Переходим по реальным путям
   const handleNavigation = (key: PrivatePageType) => {
     if (key !== currentPage) {
       router.push(privateRoutes[key]);
     }
   };
 
-  //Определяем, какие страницы доступны по роли; получаем массив реальных путей
+  // Определяем доступные страницы по роли
   const allowedPages = role ? rolePagesMap[role] : [];
-  const allowedHrefs = allowedPages.map(
-    (pageType) =>
-      privateRoutes[pageType as PrivatePageType] || publicRoutes[pageType as PublicPageType],
-  );
 
-  //Фильтруем навигационные элементы, сохраняя только те, что есть в allowedHrefs
+  // Получаем разрешенные пути
+  const allowedHrefs = allowedPages.map((pageType) => privateRoutes[pageType as PrivatePageType]);
+
+  // Фильтруем навигационные элементы
   const filteredNavItems = navItems.filter((item: NavItem) => allowedHrefs.includes(item.href));
 
   return (
-    <aside className="hidden md:block lg:block max-w-[200px] w-[200px] text-white flex-shrink-0 z-50">
-      {/*При клике передаём ключ 'HOME', чтобы router.push ходил на privateRoutes.HOME */}
+    <aside className="hidden md:block lg:block h-full text-white z-50 bg-transparent">
+      {/* При клике переходим на главную */}
       <div
         onClick={() => handleNavigation('HOME')}
-        className="flex w-full h-[70px] p-4 cursor-pointer"
+        className="flex items-center justify-start w-full h-[100px] p-4 cursor-pointer"
       >
         <LazyImage
           src="/compassLogo.svg"
@@ -67,8 +61,8 @@ const Sidebar: React.FC<SidebarProps> = ({ role }) => {
       <nav className="px-5 py-8 border-y border-gray-300">
         <ul className="flex flex-col gap-8">
           {filteredNavItems.map((item: NavItem) => {
-            //Сравниваем реальные пути: например '/' === '/'
-            const currentPath = privateRoutes[currentPage as PrivatePageType] || '';
+            // Получаем текущий путь
+            const currentPath = currentPage ? privateRoutes[currentPage] : '';
             const isActive = currentPath === item.href;
 
             return (
@@ -81,12 +75,12 @@ const Sidebar: React.FC<SidebarProps> = ({ role }) => {
                       : 'text-[#4B5664] font-light hover:text-black'
                   }`}
                   buttonPrefix={item.icon}
-                  onClick={() => {
-                    //Находим ключ (например 'HOME') из privateRoutes, соответствующий item.href
-                    const key =
-                      (Object.keys(privateRoutes).find(
-                        (k) => privateRoutes[k as PrivatePageType] === item.href,
-                      ) as PrivatePageType) || undefined;
+                  onClick={(e) => {
+                    e.preventDefault();
+                    // Находим ключ по пути
+                    const key = Object.keys(privateRoutes).find(
+                      (k) => privateRoutes[k as PrivatePageType] === item.href,
+                    ) as PrivatePageType | undefined;
 
                     if (key) {
                       handleNavigation(key);
@@ -102,20 +96,6 @@ const Sidebar: React.FC<SidebarProps> = ({ role }) => {
           })}
         </ul>
       </nav>
-
-      {/*{role !== UserRole.Client && role !== UserRole.ClientCorp && (*/}
-      {/*<div className="flex justify-center text-sm my-2">*/}
-      {/*<IButton*/}
-      {/*type="button"*/}
-      {/*className="relative text-sm text-right text-black hover:underline"*/}
-      {/*badge={5}*/}
-      {/*badgeClassName="top-[-15px] right-[-25px] text-white bg-black"*/}
-      {/*aria-label="Notifications"*/}
-      {/*>*/}
-      {/*Водители на линии*/}
-      {/*</IButton>*/}
-      {/*</div>*/}
-      {/*)}*/}
     </aside>
   );
 };

@@ -1,59 +1,140 @@
 'use client';
 
-import React, { JSX } from 'react';
+import React, { JSX, useState, useRef } from 'react';
 import { SafeUser } from '@pages/(administrator)/(users)/user/ClientsDetailAdminPage';
-import Image from 'next/image';
-import { LazyImage } from '@shared/components/ui/images';
+import { useRouter } from 'next/navigation';
+import { ImageUploadWithCrop } from '@shared/components/ui/images/ui/ImageUploadWithCrop';
+import { TextInput } from '@shared/components/ui/inputs';
+import { handleTabChange } from '@shared/lib/navigation/handleTabChange';
+import FormTabs, { TabItem } from '@widgets/navigations/tabs/FormTabs';
 
 interface ClientDetailViewProps {
   userData: SafeUser;
 }
 
-const renderField = (label: string, value?: string | null) => (
-  <div className="grid grid-cols-2 gap-2 w-full">
-    <label className="font-normal text-[14px] text-[#989898]">{label}:</label>
-    <p className="font-normal text-[14px] text-[#2A3037]">{value || 'N/A'}</p>
-  </div>
-);
-
 const ClientDetailView = ({ userData }: ClientDetailViewProps): JSX.Element => {
-  const userFields = [
-    { label: 'Email', value: userData.email },
-    { label: 'ФИО', value: userData.fullName },
-    { label: 'Телефон', value: userData.phone },
-    { label: 'Пол', value: userData.gender },
-    { label: 'Адрес', value: userData.address },
-    { label: 'Доступность', value: userData.availability ? 'Available' : 'Unavailable' },
+  const router = useRouter();
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const tabs: TabItem[] = [{ id: 'personal', label: 'Основная информация' }];
+
+  const [activeTab, setActiveTab] = useState('personal');
+
+  const onTabChange = (tabId: string) => {
+    handleTabChange({ setActiveTab }, tabId, activeTab, scrollRef, false);
+  };
+
+  // Группируем поля пользователя парами для более логичного отображения
+  const userFieldPairs = [
+    [
+      { label: 'ФИО', value: userData.fullName },
+      { label: 'Email', value: userData.email },
+    ],
+    [
+      { label: 'Телефон', value: userData.phone },
+      { label: 'Пол', value: userData.gender },
+    ],
+    [
+      { label: 'Адрес', value: userData.address },
+      { label: 'Доступность', value: userData.availability ? 'Доступен' : 'Недоступен' },
+    ],
   ];
 
   const imageSrc = userData.profilePhotoPath
     ? `/api/images/${userData.profilePhotoPath.split('/').pop()}?type=avatar`
     : null;
 
+  const handleEdit = () => {
+    router.push(`/user/edit/${userData.uuid}`);
+  };
+
+  const noop = () => {};
+
   return (
-    <>
-      <h2 className="text-3xl font-bold text-gray-800 mb-6">Client Details</h2>
-      <section className="flex flex-col sm:flex-row lg:flex-row md:flex-row gap-6 p-6 bg-white shadow-md rounded-lg border border-gray-200 w-full">
-        {imageSrc ? (
-          <Image
-            src={imageSrc}
-            alt="Client Profile Photo"
-            width={180}
-            height={180}
-            className="rounded-lg object-cover"
-          />
-        ) : (
-          <div className="w-[180px] h-[180px] flex items-center justify-center bg-gray-50 rounded-lg">
-            <LazyImage src="/new-user.svg" alt="Default Profile" className="w-[140px] h-[140px]" />
+    <div className="w-full flex flex-col">
+      <div className="flex items-center justify-end">
+        <button
+          onClick={handleEdit}
+          className="inline-flex items-center px-4 py-2 bg-blue-50 border border-blue-200 rounded-md text-sm font-medium text-blue-600 hover:bg-blue-100 transition-colors"
+        >
+          <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+            />
+          </svg>
+          Редактировать
+        </button>
+      </div>
+
+      <div ref={scrollRef}>
+        <FormTabs tabs={tabs} activeTab={activeTab} onTabChange={onTabChange} />
+      </div>
+
+      {activeTab === 'personal' && (
+        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+          <div className="flex flex-row border-b border-gray-100">
+            <div className="w-1/3 bg-gray-50 p-6 border-r border-gray-100">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Фото профиля</h3>
+              <div className="flex flex-col items-center">
+                {imageSrc ? (
+                  <div className="w-full bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm h-[400px]">
+                    <ImageUploadWithCrop
+                      initialImage={imageSrc}
+                      mode="gallery"
+                      aspect={1}
+                    />
+                  </div>
+                ) : (
+                  <div className="w-full h-[400px] flex items-center justify-center bg-gray-100 rounded-lg border border-gray-200">
+                    <svg
+                      className="w-16 h-16 text-gray-300"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="1"
+                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                      />
+                    </svg>
+                  </div>
+                )}
+                <p className="text-xs text-gray-500 mt-3">Фотография клиента</p>
+              </div>
+            </div>
+
+            <div className="w-2/3">
+              <div>
+              <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center p-6 border-b">
+                Персональная информация
+              </h3>
+                <div className="p-6 space-y-4">
+                  {userFieldPairs.map((pair, pairIndex) => (
+                    <div key={`personal-pair-${pairIndex}`} className="grid grid-cols-2 gap-4">
+                      {pair.map((field, fieldIndex) => (
+                        <TextInput
+                          key={`personal-field-${pairIndex}-${fieldIndex}`}
+                          label={field.label}
+                          value={field.value ?? 'Не указано'}
+                          onChange={noop}
+                          readOnly={true}
+                          inputClass="bg-gray-50 font-medium"
+                        />
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
-        )}
-        <div className="grid gap-2">
-          {userFields.map((field, index) => (
-            <React.Fragment key={index}>{renderField(field.label, field.value)}</React.Fragment>
-          ))}
         </div>
-      </section>
-    </>
+      )}
+    </div>
   );
 };
 

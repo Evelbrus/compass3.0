@@ -10,13 +10,11 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     // Обработчик успешного подключения
     const onConnect = () => {
-      console.log('Socket connected:', socket.id);
       setIsConnected(true);
     };
 
     // Обработчик отключения
     const onDisconnect = () => {
-      console.log('Socket disconnected');
       setIsConnected(false);
     };
 
@@ -26,10 +24,8 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
 
     // Если сокет не подключен, инициируем подключение
     if (!socket.connected) {
-      console.log('Инициируем подключение к WebSocket');
       socket.connect();
     } else {
-      console.log('Сокет уже подключен:', socket.id);
       setIsConnected(true); // Если подключен изначально, сразу обновляем состояние
     }
 

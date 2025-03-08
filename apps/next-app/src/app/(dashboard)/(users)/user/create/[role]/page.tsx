@@ -1,7 +1,7 @@
 import React from 'react';
 import { redirect } from 'next/navigation';
 import { getLayoutData } from '@shared/utils/cookie/layout-data/getLayoutData';
-import ClientsAdminPage from '@pages/(administrator)/(users)/user/ClientsAdminPage';
+import CreateUserAdminPage from '@pages/(administrator)/(users)/user/CreateUserAdminPage';
 import { UserRole } from '@prisma/client';
 import Loading from '@entities/loading/loading';
 import { publicRoutes } from '@shared/utils/routing';
@@ -18,7 +18,7 @@ const toUserRole = (role: string): UserRole | undefined => {
       return UserRole.Admin;
     case 'client':
       return UserRole.Client;
-    case 'client-corp':
+    case 'clientcorp':
       return UserRole.ClientCorp;
     case 'driver':
       return UserRole.Driver;
@@ -34,14 +34,18 @@ const Page: React.FC<PageProps> = async ({ params }) => {
   const resolvedParams = await params;
   const { role } = resolvedParams;
 
+  console.log('role', role)
+
   const userRole = toUserRole(role);
+
+  console.log('userRole', userRole)
 
   if (refreshToken) {
     if (!userRole) {
       return redirect('/');
     }
     if (currentUserRole === UserRole.Admin || currentUserRole === UserRole.Operator) {
-      return <ClientsAdminPage role={userRole} mode={'create'} />;
+      return <CreateUserAdminPage role={userRole} mode={'create'} />;
     } else {
       return <Loading />;
     }

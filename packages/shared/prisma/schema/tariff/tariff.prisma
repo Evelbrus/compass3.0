@@ -3,7 +3,6 @@ model Tariff {
   name                       String            @map("name")
   price                      Int               @map("price")
   description                String?           @map("description")
-  additionalPointPrice       Int               @map("additional_point_price")
   freeWaitTimeBishkek        Int               @map("free_wait_time_bishkek")
   pricePerMinuteAfterBishkek Int               @map("price_per_minute_after_bishkek")
   freeWaitTimeAirport        Int               @map("free_wait_time_airport")

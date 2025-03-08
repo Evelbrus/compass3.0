@@ -118,8 +118,6 @@ const RegisterSection: React.FC = () => {
   };
 
   const onSubmit = handleSubmit(async (data: UserRegisterCard) => {
-    console.log('Данные регистрации:', data);
-
     //Собираем fullName из полей
     const fullName = `${data.lastName || ''} ${data.firstName || ''}${
       data.middleName ? ' ' + data.middleName : ''
@@ -157,7 +155,6 @@ const RegisterSection: React.FC = () => {
       if (!userId) {
         throw new Error('Ошибка регистрации: не получен идентификатор пользователя');
       }
-      console.log('Зарегистрированный пользователь:', userId);
 
       //Если файлы есть, отправляем их отдельно
       const formData = new FormData();
@@ -189,7 +186,6 @@ const RegisterSection: React.FC = () => {
           throw new Error(uploadError.message || 'Ошибка загрузки изображений');
         }
         const uploadResult = await uploadResponse.json();
-        console.log('Upload result:', uploadResult);
       }
 
       //После регистрации и загрузки файлов выполняем автоматический вход
@@ -233,7 +229,7 @@ const RegisterSection: React.FC = () => {
               <RegisterStepFour previewLogo={previewLogo} setPreviewLogo={setPreviewLogo} />
             )}
 
-            <div className="flex flex-row-reverse justify-between mt-6 gap-4">
+            <div className="flex flex-row-reverse justify-between gap-4">
               {currentStep < finalStep && (
                 <IButton
                   type="button"

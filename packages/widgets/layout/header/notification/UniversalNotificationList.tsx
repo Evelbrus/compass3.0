@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useCallback, useState } from 'react';
 import { Notification, Action, UserRole } from '@prisma/client';
 import { cn } from '@shared/lib';
+import { SafeHtml } from '@shared/lib/sanitize-html/SafeHtml';
 
 interface UniversalNotificationListProps {
   userSession: { role?: UserRole } | null | undefined;
@@ -13,7 +14,11 @@ interface UniversalNotificationListProps {
   openModal?: (notification: Notification) => void;
 }
 
-const NOTIFICATION_ICONS = {
+type NotificationIconMap = {
+  [key in Action]: React.ReactNode;
+};
+
+const NOTIFICATION_ICONS: NotificationIconMap = {
   [Action.info]: (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -96,7 +101,11 @@ const NOTIFICATION_ICONS = {
   ),
 };
 
-const NOTIFICATION_COLORS = {
+type NotificationColorMap = {
+  [key in Action]: string;
+};
+
+const NOTIFICATION_COLORS: NotificationColorMap = {
   [Action.info]: 'from-blue-50 to-blue-100 border-blue-200',
   [Action.warning]: 'from-orange-50 to-orange-100 border-orange-200',
   [Action.success]: 'from-green-50 to-green-100 border-green-200',
@@ -105,7 +114,11 @@ const NOTIFICATION_COLORS = {
   [Action.cancelled]: 'from-red-50 to-red-100 border-red-200',
 };
 
-const NOTIFICATION_TITLES = {
+type NotificationTitleMap = {
+  [key in Action]: string;
+};
+
+const NOTIFICATION_TITLES: NotificationTitleMap = {
   [Action.info]: 'Информация',
   [Action.warning]: 'Внимание',
   [Action.success]: 'Успешно',
@@ -114,7 +127,11 @@ const NOTIFICATION_TITLES = {
   [Action.cancelled]: 'Отменено',
 };
 
-const DRIVER_STATUS_TEXT = {
+type StatusTextMap = {
+  [key in Action]: string;
+};
+
+const DRIVER_STATUS_TEXT: StatusTextMap = {
   [Action.info]: 'Информация о поездке',
   [Action.warning]: 'Требуется внимание',
   [Action.success]: 'Поездка успешно завершена',
@@ -123,7 +140,7 @@ const DRIVER_STATUS_TEXT = {
   [Action.cancelled]: 'Поездка отменена',
 };
 
-const CLIENT_STATUS_TEXT = {
+const CLIENT_STATUS_TEXT: StatusTextMap = {
   [Action.info]: 'Информация о заказе',
   [Action.warning]: 'Проблема с заказом',
   [Action.success]: 'Заказ выполнен',
@@ -131,6 +148,12 @@ const CLIENT_STATUS_TEXT = {
   [Action.inProgress]: 'Заказ в процессе',
   [Action.cancelled]: 'Заказ отменен',
 };
+
+interface NotificationGroup {
+  date: Date;
+  notifications: Notification[];
+  hasUnread: boolean;
+}
 
 const UniversalNotificationList: React.FC<UniversalNotificationListProps> = ({
   userSession,
@@ -215,30 +238,51 @@ const UniversalNotificationList: React.FC<UniversalNotificationListProps> = ({
     setOpen((prev) => ({ ...prev, [uuid]: !prev[uuid] || false }));
   };
 
-  const groupedNotifications = getActiveNotifications().reduce(
+  // Группировка уведомлений по датам
+  const groupedNotifications = getActiveNotifications().reduce<Record<string, NotificationGroup>>(
     (groups, notification) => {
-      const date = new Date(notification.createdAt).toLocaleDateString();
-      if (!groups[date]) groups[date] = [];
-      groups[date].push(notification);
+      // Преобразуем дату в ISO формат YYYY-MM-DD и используем его как ключ
+      const dateObj = new Date(notification.createdAt);
+      const dateKey = dateObj.toISOString().split('T')[0]; // Получаем только часть с датой
+
+      if (dateKey) { // Проверяем, что dateKey не undefined
+        if (!groups[dateKey]) {
+          groups[dateKey] = {
+            date: dateObj, // Сохраняем объект Date для правильного отображения
+            notifications: [],
+            hasUnread: false,
+          };
+        }
+        groups[dateKey].notifications.push(notification);
+
+        // Проверяем, есть ли непрочитанные уведомления в группе
+        if (!notification.read) {
+          groups[dateKey].hasUnread = true;
+        }
+      }
+
       return groups;
     },
-    {} as Record<string, Notification[]>,
+    {},
   );
 
+  // Получаем отсортированные ключи (ISO даты)
   const sortedDates = Object.keys(groupedNotifications).sort(
     (a, b) => new Date(b).getTime() - new Date(a).getTime(),
   );
 
-  const getStatusText = (action: Action) => {
-    if (userSession?.role === UserRole.Driver)
-      return DRIVER_STATUS_TEXT[action] || NOTIFICATION_TITLES[action];
-    if (userSession?.role === UserRole.ClientCorp)
-      return CLIENT_STATUS_TEXT[action] || NOTIFICATION_TITLES[action];
+  const getStatusText = (action: Action): string => {
+    if (userSession?.role === UserRole.Driver) {
+      return DRIVER_STATUS_TEXT[action];
+    }
+    if (userSession?.role === UserRole.ClientCorp) {
+      return CLIENT_STATUS_TEXT[action];
+    }
     return NOTIFICATION_TITLES[action];
   };
 
   return (
-    <div className="absolute w-[400px] max-h-[600px] right-0 top-14 z-50 bg-gradient-to-br from-white to-gray-50 p-4 flex flex-col gap-2 rounded-lg shadow-xl border border-gray-200 overflow-hidden">
+    <div className="absolute w-[400px] max-h-[600px] right-0 top-20 z-50 bg-gradient-to-br from-white to-gray-50 p-4 flex flex-col gap-2 rounded-lg shadow-xl border border-gray-200 overflow-hidden">
       <div className="flex justify-between items-center mb-2 sticky top-0 bg-white z-10 pb-2 border-b border-gray-100">
         <h1 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-700 to-blue-700">
           {getTitle()}
@@ -308,90 +352,120 @@ const UniversalNotificationList: React.FC<UniversalNotificationListProps> = ({
         </div>
       ) : (
         <div className="overflow-y-auto custom-scrollbar max-h-[500px] pr-1">
-          {sortedDates.map((date) => (
-            <div key={date} className="mb-4">
-              <div className="sticky top-0 bg-gradient-to-r from-gray-100 to-white py-1 px-2 text-sm text-gray-500 rounded-md mb-2 shadow-sm z-10">
-                {new Date(date).toLocaleDateString('ru-RU', {
-                  weekday: 'long',
-                  day: 'numeric',
-                  month: 'long',
-                })}
-              </div>
-              <ul className="space-y-2">
-                {groupedNotifications[date]?.map((notification, index) => {
-                  const actionType = notification.action as Action;
-                  const colorClass =
-                    NOTIFICATION_COLORS[actionType] || NOTIFICATION_COLORS[Action.info];
-                  const icon = NOTIFICATION_ICONS[actionType] || NOTIFICATION_ICONS[Action.info];
-                  const customTitle = notification.title || getStatusText(actionType);
+          {sortedDates.map((dateKey) => {
+            const dateGroup = groupedNotifications[dateKey];
 
-                  return (
-                    <li
-                      key={notification.uuid}
-                      ref={(el) => {
-                        if (
-                          markAsRead &&
-                          (userSession?.role === UserRole.Admin ||
-                            userSession?.role === UserRole.Operator)
-                        ) {
-                          notificationRefs.current[index] = el;
-                        }
-                      }}
-                      data-uuid={notification.uuid}
-                      className={cn(
-                        'p-3 border rounded-lg transition-all duration-200',
-                        'bg-gradient-to-r',
-                        colorClass,
-                        !notification.read && 'border-l-4 shadow-md',
-                      )}
-                    >
-                      <div className="flex justify-between items-start">
-                        <div
-                          className="flex items-start gap-2 cursor-pointer"
-                          onClick={() => toggleOpen(notification.uuid)}
-                        >
+            // Проверяем, что dateGroup существует перед рендерингом
+            if (!dateGroup) {
+              return null; // Пропускаем рендеринг, если dateGroup не существует
+            }
+
+            return (
+              <div key={dateKey} className="mb-4">
+                <div
+                  className={cn(
+                    'sticky top-0 bg-gradient-to-r py-1 px-2 text-sm rounded-md mb-2 shadow-sm z-10',
+                    dateGroup.hasUnread
+                      ? 'from-blue-100 to-white text-blue-700 border-l-4 border-blue-500'
+                      : 'from-gray-100 to-white text-gray-500',
+                  )}
+                >
+                  <div className="flex justify-between items-center">
+                    <span>
+                      {dateGroup.date.toLocaleDateString('ru-RU', {
+                        weekday: 'long',
+                        day: 'numeric',
+                        month: 'long',
+                        timeZone: 'Asia/Bishkek',
+                      })}
+                    </span>
+
+                    {dateGroup.hasUnread && (
+                      <span className="bg-blue-500 text-white text-xs px-2 py-0.5 rounded-full">
+                        Новые
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <ul className="space-y-2">
+                  {dateGroup.notifications.map((notification, index) => {
+                    const actionType = notification.action as Action;
+                    const colorClass = NOTIFICATION_COLORS[actionType];
+                    const icon = NOTIFICATION_ICONS[actionType];
+                    const customTitle = notification.title || getStatusText(actionType);
+
+                    return (
+                      <li
+                        key={notification.uuid}
+                        ref={(el) => {
+                          if (
+                            markAsRead &&
+                            (userSession?.role === UserRole.Admin ||
+                              userSession?.role === UserRole.Operator)
+                          ) {
+                            notificationRefs.current[index] = el;
+                          }
+                        }}
+                        data-uuid={notification.uuid}
+                        className={cn(
+                          'p-3 border rounded-lg transition-all duration-200 relative',
+                          'bg-gradient-to-r',
+                          colorClass,
+                          !notification.read && 'border-l-4 shadow-md ring-2 ring-blue-200',
+                        )}
+                      >
+                        <div className="flex justify-between items-start">
                           <div
-                            className={cn(
-                              'p-2 rounded-full',
-                              actionType === Action.warning && 'bg-orange-100',
-                              actionType === Action.success && 'bg-green-100',
-                              actionType === Action.info && 'bg-blue-100',
-                              actionType === Action.noted && 'bg-indigo-100',
-                              actionType === Action.inProgress && 'bg-cyan-100',
-                              actionType === Action.cancelled && 'bg-red-100',
-                            )}
+                            className="flex items-start gap-2 cursor-pointer w-full"
+                            onClick={() => toggleOpen(notification.uuid)}
                           >
-                            {icon}
-                          </div>
-                          <div className="flex-1">
-                            <h3
+                            <div
                               className={cn(
-                                'text-sm font-semibold',
-                                actionType === Action.warning && 'text-orange-800',
-                                actionType === Action.success && 'text-green-800',
-                                actionType === Action.info && 'text-blue-800',
-                                actionType === Action.noted && 'text-indigo-800',
-                                actionType === Action.inProgress && 'text-cyan-800',
-                                actionType === Action.cancelled && 'text-red-800',
+                                'p-2 rounded-full',
+                                actionType === Action.warning && 'bg-orange-100',
+                                actionType === Action.success && 'bg-green-100',
+                                actionType === Action.info && 'bg-blue-100',
+                                actionType === Action.noted && 'bg-indigo-100',
+                                actionType === Action.inProgress && 'bg-cyan-100',
+                                actionType === Action.cancelled && 'bg-red-100',
                               )}
                             >
-                              {customTitle}
-                            </h3>
-                            <p className="text-xs text-gray-500">
-                              {new Date(notification.createdAt).toLocaleTimeString([], {
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              })}
-                            </p>
+                              {icon}
+                            </div>
+                            <div className="flex-1">
+                              <h3
+                                className={cn(
+                                  'text-sm font-semibold',
+                                  actionType === Action.warning && 'text-orange-800',
+                                  actionType === Action.success && 'text-green-800',
+                                  actionType === Action.info && 'text-blue-800',
+                                  actionType === Action.noted && 'text-indigo-800',
+                                  actionType === Action.inProgress && 'text-cyan-800',
+                                  actionType === Action.cancelled && 'text-red-800',
+                                  !notification.read && 'font-bold',
+                                )}
+                              >
+                                {customTitle}
+                              </h3>
+                              <p className="text-xs text-gray-500">
+                                {new Date(notification.createdAt).toLocaleTimeString([], {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                  timeZone: 'Asia/Bishkek',
+                                })}
+                              </p>
+                            </div>
                           </div>
-                        </div>
 
-                        <div className="flex space-x-1">
-                          {openModal && canViewOrder(notification) && (
+                          <div className="flex space-x-1">
                             <button
-                              onClick={() => openModal(notification)}
-                              className="p-1 bg-white bg-opacity-70 rounded-full text-cyan-600 hover:text-blue-700 hover:bg-blue-50 transition-colors"
-                              title="Перейти к заказу"
+                              onClick={() => toggleOpen(notification.uuid)}
+                              className={cn(
+                                'p-1 bg-white bg-opacity-70 rounded-full text-gray-500 hover:text-blue-600 hover:bg-blue-50',
+                                'transition-transform duration-300',
+                                open[notification.uuid] ? 'rotate-180' : '',
+                              )}
                             >
                               <svg
                                 xmlns="http://www.w3.org/2000/svg"
@@ -401,66 +475,67 @@ const UniversalNotificationList: React.FC<UniversalNotificationListProps> = ({
                               >
                                 <path
                                   fillRule="evenodd"
-                                  d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z"
+                                  d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
                                   clipRule="evenodd"
                                 />
                               </svg>
                             </button>
+                          </div>
+                        </div>
+
+                        <div
+                          className={cn(
+                            'overflow-hidden transition-all duration-300 ease-in-out',
+                            open[notification.uuid] ? 'max-h-96 mt-2' : 'max-h-0',
                           )}
-                          <button
-                            onClick={() => toggleOpen(notification.uuid)}
+                        >
+                          <div className="text-sm text-gray-700 bg-white bg-opacity-60 p-3 rounded-md border border-gray-100">
+                            <SafeHtml html={notification.message} />
+                          </div>
+                        </div>
+
+                        {canViewOrder(notification) && (
+                          <div
                             className={cn(
-                              'p-1 bg-white bg-opacity-70 rounded-full text-gray-500 hover:text-blue-600 hover:bg-blue-50',
-                              'transition-transform duration-300',
-                              open[notification.uuid] ? 'rotate-180' : '',
+                              'mt-2 text-right',
+                              !open[notification.uuid] && 'opacity-80',
                             )}
                           >
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              className="h-4 w-4"
-                              viewBox="0 0 20 20"
-                              fill="currentColor"
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openModal && openModal(notification);
+                                onClose();
+                              }}
+                              className="text-xs bg-cyan-500 hover:bg-cyan-600 text-white py-1 px-2 rounded transition-colors flex items-center gap-1 ml-auto"
                             >
-                              <path
-                                fillRule="evenodd"
-                                d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                                clipRule="evenodd"
-                              />
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
-
-                      <div
-                        className={cn(
-                          'overflow-hidden transition-all duration-300 ease-in-out',
-                          open[notification.uuid] ? 'max-h-96 mt-2' : 'max-h-0',
-                        )}
-                      >
-                        <div className="text-sm text-gray-700 bg-white bg-opacity-60 p-3 rounded-md border border-gray-100">
-                          {notification.message}
-                          {openModal && canViewOrder(notification) && (
-                            <div className="mt-2 pt-2 border-t border-gray-100 flex justify-end">
-                              <button
-                                onClick={() => openModal(notification)}
-                                className="px-3 py-1 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-md text-xs shadow-sm hover:shadow-md transition-all duration-200"
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className="h-3 w-3"
+                                viewBox="0 0 20 20"
+                                fill="currentColor"
                               >
-                                Просмотреть заказ
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
+                                <path
+                                  fillRule="evenodd"
+                                  d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z"
+                                  clipRule="evenodd"
+                                />
+                              </svg>
+                              Перейти к заказу
+                            </button>
+                          </div>
+                        )}
 
-                      {!notification.read && (
-                        <div className="absolute top-1 right-1 w-2 h-2 bg-blue-500 rounded-full"></div>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          ))}
+                        {!notification.read && (
+                          <div className="absolute top-1 right-1 w-3 h-3 bg-blue-500 rounded-full animate-pulse"></div>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

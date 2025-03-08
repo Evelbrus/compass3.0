@@ -1,8 +1,6 @@
 'use client';
 
 import React, { useRef, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
-import { IButton } from '@shared/components/ui/buttons';
 import AnimatedComponent from '@shared/components/animated/CommonAnimated/AnimatedComponent';
 import Filters from '@widgets/filters/ui/Filters';
 import StatusOverview from '@widgets/status-overview/ui/StatusOverview';
@@ -15,7 +13,6 @@ import { ordersDriverOverview } from '@entities/orders/ordersDriverOverview';
 
 const OrderDriverPage: React.FC = () => {
   const topRef = useRef<HTMLDivElement>(null);
-  const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
   const {
@@ -50,10 +47,10 @@ const OrderDriverPage: React.FC = () => {
 
   return (
     <AnimatedComponent
-      className="relative max-w-full min-h-[calc(100vh-80px)] p-5 flex flex-col gap-4"
+      className="relative max-w-full min-h-[calc(100vh-80px)] flex flex-col gap-4"
       duration={1000}
     >
-      <div ref={topRef} className="w-full flex flex-row justify-between items-center">
+      <div ref={topRef} className="w-full flex flex-row justify-between items-center px-5">
         <h1 className="text-2xl font-extrabold leading-6">Список заказов (Водитель)</h1>
         <div className="flex flex-row gap-2">
           <Filters />

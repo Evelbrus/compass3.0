@@ -68,8 +68,6 @@ export async function PATCH(req: Request, { params }: { params: Promise<Params> 
 
       const client = await prismaTx.user.findUnique({ where: { uuid: userId } });
       if (!client || client.role !== UserRole.ClientCorp) {
-        console.log('userole', client);
-        console.log('userId', userId);
         throw new Error('Клиент не найден или не является создателем заказа');
       }
 

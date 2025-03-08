@@ -53,11 +53,10 @@ const OrderClientCorpPage: React.FC = () => {
 
   return (
     <AnimatedComponent
-      className="relative max-w-full min-h-[calc(100vh-80px)] p-5 flex flex-col gap-4"
+      className="relative max-w-full min-h-[calc(100vh-80px)] flex flex-col gap-4"
       duration={1000}
     >
-      <div ref={topRef} className="w-full flex flex-row justify-between items-center">
-        <h1 className="text-2xl font-extrabold leading-6">Ваш список заказов</h1>
+      <div ref={topRef} className="w-full flex flex-row justify-end items-center px-5">
         <div className="flex flex-row gap-2">
           <IButton
             onClick={handleCreate}

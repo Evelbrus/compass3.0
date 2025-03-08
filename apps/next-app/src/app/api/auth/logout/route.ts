@@ -50,7 +50,5 @@ export async function POST(request: NextRequest) {
 
   deleteAllCookies(response, request);
 
-  console.log('Все куки успешно удалены');
-
   return response;
 }

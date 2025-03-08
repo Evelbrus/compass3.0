@@ -52,7 +52,7 @@ export const ITable = <T extends object>({
 
   return (
     <div className="w-full rounded-lg overflow-auto">
-      <div className="overflow-x-auto pb-4">
+      <div className="overflow-x-auto pb-4 px-6">
         <div className="grid w-full" style={{ gridTemplateColumns: gridTemplate }}>
           {/*Заголовочная строка */}
           <div className="contents bg-gray-100 sticky top-0 z-10">

@@ -1,5 +1,3 @@
-'use client';
-
 import { User, DriverProfile } from '@prisma/client';
 
 export interface DriversResponse {
@@ -20,13 +18,17 @@ export interface DriversResponse {
  * @param sortOrder - Порядок сортировки (asc или desc, по умолчанию desc)
  */
 export const fetchDrivers = async (
+  serviceLevel?: string | null,
+  vehicleType?: string,
   search: string = '',
   page: string = '1',
-  perPage: string = '4',
+  perPage: string = '10',
   sortBy: 'createdAt' | 'updatedAt' = 'createdAt',
   sortOrder: 'asc' | 'desc' = 'desc',
 ): Promise<DriversResponse> => {
   const params = new URLSearchParams({
+    ...(serviceLevel && { serviceLevel }),
+    ...(vehicleType && { vehicleType }),
     page,
     per_page: perPage,
     sort_by: sortBy,

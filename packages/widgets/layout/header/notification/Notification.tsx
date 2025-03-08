@@ -6,9 +6,6 @@ import {
   NotificationIslandProps,
 } from '@features/notifications/lib/useNotifications';
 import UniversalNotificationList from '@widgets/layout/header/notification/UniversalNotificationList';
-import OrderDriverModal from '@widgets/orders/modal/order-management/driver/OrderDriverModal';
-import OrderTrackingModal from '@widgets/orders/modal/order-management/client-corp/OrderTrackingModal';
-import OrderAdminModal from '@widgets/orders/modal/order-management/admin/OrderAdminModal';
 import { cn } from '@shared/lib';
 
 const Notification = ({ userSession }: NotificationIslandProps) => {
@@ -24,10 +21,7 @@ const Notification = ({ userSession }: NotificationIslandProps) => {
     clientUnreadCount,
     clearNotifications,
     markAsRead,
-    activeNotification,
     openModal,
-    closeModal,
-    shouldShowModal,
   } = useNotifications({ userSession });
 
   useEffect(() => {
@@ -75,83 +69,50 @@ const Notification = ({ userSession }: NotificationIslandProps) => {
   };
 
   return (
-    <>
-      {shouldShowModal && activeNotification && (
-        <>
-          {userSession?.role === UserRole.Driver && (
-            <OrderDriverModal
-              isOpen={true}
-              onClose={closeModal}
-              notification={activeNotification}
-              getDriverNotifications={() => driverNotifications}
-              userRole={userSession.role}
-            />
-          )}
-          {userSession?.role === UserRole.ClientCorp && (
-            <OrderTrackingModal
-              isOpen={true}
-              onClose={closeModal}
-              notification={activeNotification}
-              getClientNotifications={() => clientNotifications}
-              userRole={userSession.role}
-            />
-          )}
-          {(userSession?.role === UserRole.Admin || userSession?.role === UserRole.Operator) && (
-            <OrderAdminModal
-              isOpen={true}
-              onClose={closeModal}
-              notification={activeNotification}
-              orderId={activeNotification.orderId}
-            />
-          )}
-        </>
-      )}
-
-      <div className="relative flex items-center">
-        <button
-          onClick={handleToggleNotifications}
-          className="p-3 rounded-full bg-white border shadow-md transition-colors group"
-          aria-label="Уведомления"
-          aria-expanded={isNotificationOpen}
-        >
-          <Image
-            src="/icons/bell.svg"
-            alt="notification-icon"
-            width={18}
-            height={18}
-            className="duration-200 filter invert"
-          />
-          {getUnreadCount() > 0 && (
-            <span
-              className={cn(
-                'absolute top-0 right-0 text-white rounded-full w-4 h-4 text-xs flex items-center justify-center',
-                userSession?.role === UserRole.Driver && 'bg-blue-500',
-                userSession?.role === UserRole.ClientCorp && 'bg-green-500',
-                (userSession?.role === UserRole.Admin || userSession?.role === UserRole.Operator) &&
-                  'bg-red-500',
-              )}
-            >
-              {getUnreadCount()}
-            </span>
-          )}
-        </button>
-
-        {isNotificationOpen && (
-          <div ref={notificationRef}>
-            <UniversalNotificationList
-              userSession={userSession}
-              notifications={notifications}
-              driverNotifications={driverNotifications}
-              clientNotifications={clientNotifications}
-              onClose={() => setIsNotificationOpen(false)}
-              onClear={clearNotifications}
-              markAsRead={markAsRead}
-              openModal={openModal}
-            />
-          </div>
+    <div className="relative flex items-center">
+      <button
+        onClick={handleToggleNotifications}
+        className="p-3 rounded-full bg-white border shadow-md transition-colors group"
+        aria-label="Уведомления"
+        aria-expanded={isNotificationOpen}
+      >
+        <Image
+          src="/icons/bell.svg"
+          alt="notification-icon"
+          width={18}
+          height={18}
+          className="duration-200 filter invert"
+        />
+        {getUnreadCount() > 0 && (
+          <span
+            className={cn(
+              'absolute top-0 right-0 text-white rounded-full w-4 h-4 text-xs flex items-center justify-center',
+              userSession?.role === UserRole.Driver && 'bg-blue-500',
+              userSession?.role === UserRole.ClientCorp && 'bg-green-500',
+              (userSession?.role === UserRole.Admin || userSession?.role === UserRole.Operator) &&
+                'bg-red-500',
+            )}
+          >
+            {getUnreadCount()}
+          </span>
         )}
-      </div>
-    </>
+      </button>
+
+      {isNotificationOpen && (
+        <div ref={notificationRef}>
+          <UniversalNotificationList
+            userSession={userSession}
+            notifications={notifications}
+            driverNotifications={driverNotifications}
+            clientNotifications={clientNotifications}
+            onClose={() => setIsNotificationOpen(false)}
+            onClear={clearNotifications}
+            markAsRead={markAsRead}
+            openModal={openModal}
+          />
+        </div>
+      )}
+    </div>
   );
 };
 

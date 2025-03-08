@@ -113,7 +113,6 @@ const LoginSection: React.FC = () => {
                   disabled={loading}
                   placeholder="Введите email"
                 />
-                <p className="text-sm text-red-500 min-h-[20px] my-1">{errors.username?.message}</p>
               </div>
             )}
           />
@@ -137,7 +136,6 @@ const LoginSection: React.FC = () => {
                   disabled={loading}
                   placeholder="Введите пароль"
                 />
-                <p className="text-sm text-red-500 min-h-[20px] my-1">{errors.password?.message}</p>
               </div>
             )}
           />
@@ -145,13 +143,13 @@ const LoginSection: React.FC = () => {
           <IButton
             type="button"
             onClick={handleForgotPassword}
-            className="w-full text-sm text-right text-black hover:underline my-2"
+            className="w-full text-sm text-right text-black hover:underline"
             textClassName="w-full text-end justify-end"
           >
             Забыли пароль?
           </IButton>
 
-          {generalError && <p className="text-sm text-red-500">{generalError}</p>}
+          {generalError && <p className="text-sm text-red-500 my-2">{generalError}</p>}
 
           <IButton
             type="submit"

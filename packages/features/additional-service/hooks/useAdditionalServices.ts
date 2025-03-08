@@ -4,12 +4,12 @@ import { useUnit } from 'effector-react';
 import { TableAdditionalServicesRow } from '@shared/components/ui/table';
 import { renderActions } from '@shared/components/ui/table/ui/TableRenders';
 import { AdditionalService } from '@prisma/client';
-import { $updateFlag } from '@shared/lib/effector/state/state'; // Убедитесь, что путь к вашему стору верный
+import { $updateFlag } from '@shared/lib/effector/state/state';
 
 const useAdditionalServices = () => {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const updateFlag = useUnit($updateFlag); // Подключаем глобальный флаг обновления из Effector
+  const updateFlag = useUnit($updateFlag);
 
   // Инициализация состояния из URL параметров
   const [page, setPage] = useState<number>(Number(searchParams.get('page')) || 1);

@@ -11,7 +11,6 @@ export const setValuesFromProps = createEvent<boolean>();
 export const $selectedVehicleType = createStore<VehicleType | null>(null, {
   skipVoid: false,
 }).on(setSelectedVehicleType, (_, vehicleType) => {
-  console.log('Effector: setSelectedVehicleType', vehicleType);
   return vehicleType;
 });
 
@@ -19,7 +18,6 @@ export const $selectedVehicleType = createStore<VehicleType | null>(null, {
 export const $selectedServiceLevel = createStore<ServiceLevels | null>(null, {
   skipVoid: false,
 }).on(setSelectedServiceLevel, (_, serviceLevel) => {
-  console.log('Effector: setSelectedServiceLevel', serviceLevel);
   return serviceLevel;
 });
 
@@ -27,7 +25,6 @@ export const $selectedServiceLevel = createStore<ServiceLevels | null>(null, {
 export const $areValuesFromProps = createStore<boolean>(false).on(
   setValuesFromProps,
   (_, isFromProps) => {
-    console.log('Effector: setValuesFromProps', isFromProps);
     return isFromProps;
   },
 );

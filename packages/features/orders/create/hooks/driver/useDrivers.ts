@@ -11,7 +11,7 @@ export const useDrivers = ({ vehicleType, serviceLevel }: UseDriversProps) => {
   const [drivers, setDrivers] = useState<Driver[] | null>(null);
   const [assignedDriver, setAssignedDriver] = useState<Driver | null>(null);
   const [page, setPage] = useState<string>('1');
-  const [perPage] = useState<string>('10');
+  const [perPage] = useState<string>('4');
   const [total, setTotal] = useState<number>(0);
   const [isDriversLoading, setIsLoading] = useState(false);
   const [serverTime, setServerTime] = useState<Date | null>(null);

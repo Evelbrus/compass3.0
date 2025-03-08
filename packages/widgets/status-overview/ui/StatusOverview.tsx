@@ -1,9 +1,8 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { IButton } from '@shared/components/ui/buttons';
 import { ArrowIcon, InfoIcon } from '@shared/components/ui/icon';
 import AnimatedComponent from '@shared/components/animated/CommonAnimated/AnimatedComponent';
 
-//Определения интерфейсов для статусов
 export interface StatusItem {
   key: string;
   label: string;
@@ -12,26 +11,18 @@ export interface StatusItem {
 }
 
 export interface StatusOverviewProps<T = string> {
-  selectedStatus: T | null;
+  selectedStatus: T | 'all';
   statusCounts: Record<string, number>;
   onSelectStatus: (status: T) => void;
   statusOverview: StatusItem[];
 }
 
-//Компонент, реализованный в виде стрелочной функции без использования JSX
 const StatusOverview = <T = string,>({
   selectedStatus,
   statusCounts,
   onSelectStatus,
   statusOverview,
 }: StatusOverviewProps<T>) => {
-  useEffect(() => {
-    if (!selectedStatus && statusOverview.length > 0) {
-      //При первом рендере устанавливаем выбранный статус как ключ первого элемента
-      onSelectStatus(statusOverview[0].key as T);
-    }
-  }, [selectedStatus, onSelectStatus, statusOverview]);
-
   const handleStatusChange = (status: string) => {
     if (selectedStatus !== status) {
       onSelectStatus(status as unknown as T);
@@ -40,7 +31,7 @@ const StatusOverview = <T = string,>({
 
   return React.createElement(
     'div',
-    { className: 'w-full flex flex-row overflow-y-hidden gap-4 justify-start pb-2' },
+    { className: 'w-full flex flex-row overflow-y-hidden gap-4 justify-start px-5 pb-2' },
     statusOverview.map((status: StatusItem) => {
       const isSelected = selectedStatus === status.key;
       return React.createElement(
@@ -49,7 +40,7 @@ const StatusOverview = <T = string,>({
           key: status.key,
           onClick: () => handleStatusChange(status.key),
           className:
-            'relative w-full max-w-[300px] h-16 px-4 py-2 flex justify-between items-center gap-4 rounded-xl ' +
+            'border border-gray-200 relative w-full max-w-[300px] h-16 px-4 py-2 flex justify-between items-center gap-4 rounded-xl ' +
             'bg-white transition-all duration-300 ' +
             (isSelected
               ? 'opacity-100 cursor-default'
@@ -91,7 +82,6 @@ const StatusOverview = <T = string,>({
   );
 };
 
-//Экспорт компонента с типизацией через React.memo
 export default React.memo(StatusOverview) as <T>(
   props: StatusOverviewProps<T>,
 ) => React.ReactElement;

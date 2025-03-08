@@ -10,16 +10,13 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ userSession }) => {
   return (
-    <div className="flex flex-col relative">
-      <StaticHeader
-        additionalContent={
-          <Suspense fallback={<HeaderIslandsSkeleton />}>
-            {/*Клиентские острова */}
-            <HeaderContainer userSession={userSession} />
-          </Suspense>
-        }
-      />
-    </div>
+    <StaticHeader
+      additionalContent={
+        <Suspense fallback={<HeaderIslandsSkeleton />}>
+          <HeaderContainer userSession={userSession} />
+        </Suspense>
+      }
+    />
   );
 };
 

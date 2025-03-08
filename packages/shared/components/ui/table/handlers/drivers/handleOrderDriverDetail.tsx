@@ -4,7 +4,6 @@ export const handleOrderDriverDetail = (entity?: 'orders' | 'vehicles', uuid?: s
   if (entity === 'orders' && uuid) {
     setOrderUuid(uuid);
     openModal('orderDetailDriver');
-    console.log(`Opening modal for order with UUID: ${uuid}`);
   } else {
     console.warn('Invalid parameters for handleOrderDriverDetail');
   }

@@ -7,7 +7,6 @@ import { cn } from '@shared/lib';
 import { countryData } from '@shared/components/ui/inputs/phone/data/PhoneData';
 import { countryOptions } from '@shared/components/ui/inputs/phone';
 import { formatByCountry } from '@shared/components/ui/inputs/phone';
-import { PhoneInputProps } from '@shared/components/ui/inputs/phone';
 import { OptionBase, SelectOption } from '@shared/lib/effector/types/types';
 import { LazyImage } from '@shared/components/ui/images';
 import { Skeleton } from '@shared/components/ui/skeleton/Skeleton';
@@ -26,9 +25,26 @@ export interface Country {
   formatPattern: number[];
 }
 
+// Обновляем интерфейс PhoneInputProps, добавляя onFocus
+export interface PhoneInputProps {
+  value: string;
+  onChange: (value: string | number) => void;
+  onFocus?: () => void;
+  label?: string;
+  required?: boolean;
+  error?: boolean;
+  disabled?: boolean;
+  readOnly?: boolean;
+  classNameWidthPhone?: string;
+  classNameLabel?: string;
+  requiredStar?: boolean;
+  message?: string;
+}
+
 export const PhoneInput: React.FC<PhoneInputProps> = ({
   value,
   onChange,
+  onFocus, // Добавлен новый проп
   label,
   required = false,
   error = false,
@@ -106,7 +122,7 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({
         </label>
       )}
       <div className="flex items-start space-x-2">
-        <div className={cn('w-1/6 min-w-[120px] max-w-[120px]', classNameWidthPhone)}>
+        <div className={cn('w-1/6 min-w-[150px] max-w-[150px]', classNameWidthPhone)}>
           <SelectSingle
             options={filteredCountryOptions}
             label=""
@@ -135,6 +151,7 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({
             type="text"
             value={formattedValue}
             onChange={handleNumberChange}
+            onFocus={onFocus} // Передаем onFocus в TextInput
             placeholder="Введите номер телефона"
             required={required}
             disabled={disabled}

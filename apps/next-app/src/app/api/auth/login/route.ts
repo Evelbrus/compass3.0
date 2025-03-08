@@ -155,7 +155,6 @@ export async function POST(request: NextRequest) {
     };
 
     // Поиск пользователя по email без учета регистра
-    console.log('Поиск пользователя в базе:', email);
     const user = await prisma.user.findFirst({
       where: { email: { equals: email, mode: 'insensitive' } },
       select: {
@@ -168,7 +167,6 @@ export async function POST(request: NextRequest) {
         refreshTokens: true,
       },
     });
-    console.log('Найден пользователь:', user);
 
     // Проверка существования пользователя
     if (!user) {

@@ -57,7 +57,6 @@ export async function GET(request: Request, context: { params: Promise<Params> }
     }
 
     const imagePath = path.join(process.cwd(), 'uploads', typeParam, fileName);
-    console.log('imagePath', imagePath);
 
     try {
       await fs.access(imagePath);

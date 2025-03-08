@@ -1,4 +1,3 @@
-//Определения интерфейсов для статусов
 export interface StatusItem {
   key: string;
   label: string;

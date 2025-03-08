@@ -7,12 +7,21 @@ import { redirect } from 'next/navigation';
 import { publicRoutes } from '@shared/utils/routing';
 import { prisma } from '@shared/prisma/prisma-client';
 import { OrderData } from '@features/orders/create/types/types';
+import { OrderStepConfig } from '@features/orders/create/ui/OrderStepSection';
 
 interface PageProps {
   params: Promise<{ uuid: string }>;
 }
 
 export const revalidate = 60;
+
+const adminOperatorSteps: OrderStepConfig[] = [
+  { id: 'driverSelection', title: 'Выбор водителя', description: 'Выберите водителя для заказа' },
+  { id: 'clientSelection', title: 'Выбор клиента', description: 'Выберите клиента для заказа' },
+  { id: 'tariffServices', title: 'Тариф и услуги', description: 'Выберите тариф и дополнительные услуги' },
+  { id: 'routeConfig', title: 'Конфигурация маршрута', description: 'Настройте маршрут поездки' },
+  { id: 'routeInfo', title: 'Информация о маршруте', description: 'Просмотрите итоговую информацию о маршруте' },
+];
 
 const Page = async ({ params }: PageProps): Promise<JSX.Element> => {
   const { uuid } = await params;
@@ -228,7 +237,7 @@ const Page = async ({ params }: PageProps): Promise<JSX.Element> => {
   }
 
   // Передача данных в клиентский компонент
-  return <OrderCreateView role={role} mode="edit" orderData={orderData} />;
+  return <OrderCreateView role={role} mode="edit" orderData={orderData} steps={adminOperatorSteps} />;
 };
 
 export default Page;

@@ -26,7 +26,7 @@ const RegisterStepOne: React.FC = () => {
           validate: (value) => validateEmail(value) || 'Некорректный email.',
         }}
         render={({ field, fieldState }) => (
-          <div className="mb-4">
+          <div>
             <TextInput
               label="Email:"
               type="email"
@@ -55,7 +55,7 @@ const RegisterStepOne: React.FC = () => {
             validatePassword(value ?? '') || 'Пароль не удовлетворяет требованиям.',
         }}
         render={({ field, fieldState }) => (
-          <div className="mb-4">
+          <div>
             <TextInput
               label="Пароль:"
               type="password"
@@ -82,7 +82,7 @@ const RegisterStepOne: React.FC = () => {
           validate: (value) => value === getValues(FIELD_PASSWORD) || 'Пароли не совпадают.',
         }}
         render={({ field, fieldState }) => (
-          <div className="mb-4">
+          <div>
             <TextInput
               label="Подтверждение пароля:"
               type="password"

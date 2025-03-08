@@ -96,8 +96,6 @@ const TariffAdminPage = (): JSX.Element => {
     setIsDragging(false);
   };
 
-  console.log(selectedTariff);
-
   const columns: Column<DetailTariffData, keyof DetailTariffData>[] = [
     { header: 'Название', accessor: 'name', sortable: true },
     { header: 'Цена', accessor: 'price', sortable: true },
@@ -105,9 +103,8 @@ const TariffAdminPage = (): JSX.Element => {
 
   return (
     <AnimatedComponent duration={500}>
-      <div className="min-h-[calc(100vh-80px)] p-5 flex flex-col gap-4">
-        <div className="flex flex-row justify-between">
-          <h1 className="text-[40px] leading-6 content-center font-bold">Тарифы</h1>
+      <div className="min-h-[calc(100vh-80px)] px-5 pb-5 flex flex-col gap-4">
+        <div className="flex flex-row justify-end">
           <IButton
             onClick={handleCreate}
             className="w-[200px] h-[56px] rounded-lg border-none bg-[color:var(--button-secondary)]

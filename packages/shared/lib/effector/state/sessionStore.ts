@@ -86,18 +86,15 @@ export const refreshAccessTokenFx = createEffect(async () => {
       resetRefreshToken();
       return false;
     }
-    console.log('[REFRESH] Используем refresh-токен:', refreshTokenValue);
 
     // Формируем тело запроса. loginAttemptId больше не передаём.
     const requestBody = { refreshToken: refreshTokenValue };
-    console.log('[REFRESH] Отправляем запрос на обновление токенов с телом:', requestBody);
 
     const response = await fetch('/api/auth/refresh', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(requestBody),
     });
-    console.log('[REFRESH] HTTP статус ответа:', response.status);
 
     if (response.status === 401) {
       console.warn('[AUTH] Refresh-токен недействителен. Выполняется logout');
@@ -111,17 +108,14 @@ export const refreshAccessTokenFx = createEffect(async () => {
     }
 
     const data = await response.json();
-    console.log('[REFRESH] Ответ от сервера:', data);
 
     if (data.accessToken) {
       setAccessToken(data.accessToken);
       const decoded = parseJwt(data.accessToken);
       scheduleTokenRefresh('access', decoded.exp * 1000 - Date.now());
-      console.log('[REFRESH] Новый access-токен установлен');
     }
     if (data.refreshToken) {
       setRefreshToken(data.refreshToken);
-      console.log('[REFRESH] Новый refresh-токен установлен');
     }
     return true;
   } catch (error) {

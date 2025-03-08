@@ -3,7 +3,6 @@ import debug from 'debug';
 import { prisma } from '@shared/prisma/prisma-client';
 import { v4 as uuidv4 } from 'uuid';
 import { orderQueue } from '@next-app/src/lib/queues/orderQueue';
-import { CreateClientCorpOrderData } from '@shared/components/modal/create-client-corp-order/hooks/useCreateClientCorpOrder';
 import { Decimal } from 'decimal.js';
 import { Action, OrderStatus, UserRole } from '@prisma/client';
 import {
@@ -24,7 +23,7 @@ export async function POST(req: NextRequest) {
     const token: JwtPayload = await authenticateRequest(req, [UserRole.ClientCorp]);
     const clientUuid = token.uuid;
 
-    let data: CreateClientCorpOrderData;
+    let data: any;
     try {
       data = await req.json();
       log('Received data:', data);

@@ -1,5 +1,4 @@
 export * from './ui/PhoneInput';
-export * from './types/types';
 export * from './data/CountryOptions';
 export * from './data/PhoneData';
 export * from './utils/PhoneUtils';

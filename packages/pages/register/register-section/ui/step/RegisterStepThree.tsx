@@ -25,7 +25,7 @@ const RegisterStepThree: React.FC = () => {
         defaultValue=""
         rules={{ required: 'Введите название компании.' }}
         render={({ field, fieldState }) => (
-          <div className="mb-4">
+          <div>
             <TextInput
               label="Название компании:"
               type="text"
@@ -49,7 +49,7 @@ const RegisterStepThree: React.FC = () => {
         defaultValue=""
         rules={{ required: 'Введите PIN компании.' }}
         render={({ field, fieldState }) => (
-          <div className="mb-4">
+          <div>
             <TextInput
               label="PIN компании:"
               type="text"
@@ -76,7 +76,7 @@ const RegisterStepThree: React.FC = () => {
           validate: (value) => validateEmail(value ?? '') || 'Некорректный email.',
         }}
         render={({ field, fieldState }) => (
-          <div className="mb-4">
+          <div>
             <TextInput
               label="Email компании:"
               type="email"
@@ -100,7 +100,7 @@ const RegisterStepThree: React.FC = () => {
         defaultValue=""
         rules={{ required: 'Введите телефон компании.' }}
         render={({ field, fieldState }) => (
-          <div className="mb-4">
+          <div>
             <PhoneInput
               label="Телефон компании:"
               value={typeof field.value === 'string' ? field.value : ''}
@@ -122,7 +122,7 @@ const RegisterStepThree: React.FC = () => {
         defaultValue=""
         rules={{ required: 'Введите сайт компании.' }}
         render={({ field, fieldState }) => (
-          <div className="mb-4">
+          <div>
             <TextInput
               label="Сайт компании:"
               type="text"
@@ -146,7 +146,7 @@ const RegisterStepThree: React.FC = () => {
         defaultValue=""
         rules={{ required: 'Введите адрес компании.' }}
         render={({ field, fieldState }) => (
-          <div className="mb-4">
+          <div>
             <TextInput
               label="Адрес компании:"
               type="text"

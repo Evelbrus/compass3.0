@@ -33,3 +33,4 @@ export type EditTariffData = Omit<Tariff, 'uuid' | 'createdAt' | 'updatedAt' | '
     isAvailable: boolean;
   }[];
 };
+

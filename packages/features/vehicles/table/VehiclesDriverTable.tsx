@@ -3,7 +3,8 @@ import React from 'react';
 import { ITable, TableVehicleRow } from '@shared/components/ui/table';
 import SkeletonTable from '@shared/components/ui/table/ui/SkeletonTable';
 import NoData from '@shared/components/errors/noData';
-import { vehicleColumns } from '@pages/(driver)/vehicles/main/vehicleColums';
+import { vehicleDriverColumns } from '@features/vehicles/table/columns/vehicleDriverColums';
+
 
 interface VehiclesDriverTableProps {
   vehicles: TableVehicleRow[];
@@ -25,7 +26,7 @@ const VehiclesDriverTable: React.FC<VehiclesDriverTableProps> = ({
   return (
     <div>
       {loading ? (
-        <SkeletonTable columns={vehicleColumns} rows={10} />
+        <SkeletonTable columns={vehicleDriverColumns} rows={10} />
       ) : error ? (
         <div className="text-red-500">{error}</div>
       ) : vehicles.length === 0 ? (
@@ -33,7 +34,7 @@ const VehiclesDriverTable: React.FC<VehiclesDriverTableProps> = ({
       ) : (
         <ITable
           data={vehicles}
-          columns={vehicleColumns}
+          columns={vehicleDriverColumns}
           sortBy={sortBy}
           sortDirection={sortOrder}
           onSort={handleSort}

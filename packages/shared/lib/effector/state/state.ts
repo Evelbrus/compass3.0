@@ -1,17 +1,6 @@
 import { createEvent, createStore } from 'effector';
 import { PrivatePageType } from '@shared/utils/routing';
-import { Action, OrderStatus, UserRole } from '@prisma/client';
-
-//Остальные типы и события
-export type View =
-  | 'form'
-  | 'skeleton'
-  | 'example'
-  | 'loading'
-  | 'data'
-  | 'noData'
-  | 'success'
-  | 'error';
+import { UserRole, type Notification as PrismaNotification } from '@prisma/client';
 
 export type ModalType =
   | 'createUserModal'
@@ -25,8 +14,11 @@ export type ModalType =
   | 'createPointModal'
   | 'orderInfoModal'
   | 'orderProgressModal'
-  | 'warningModal'
+  | 'warningModal' // Уже есть, оставляем
   | 'warningAdminModal'
+  | 'orderDriverModal'
+  | 'orderTrackingModal'
+  | 'orderAdminModal'
   | null;
 
 export type EntityToDelete = {
@@ -35,19 +27,42 @@ export type EntityToDelete = {
   role?: UserRole;
 } | null;
 
-export const openModal = createEvent<ModalType>();
+// Тип пропсов для WarningModal
+export type WarningModalProps = {
+  title: string;
+  message: string;
+  confirmButtonText: string;
+  cancelButtonText: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+};
+
+export const openModal = createEvent<ModalType | null>();
+export const setModalType = createEvent<ModalType | null>();
 export const closeModal = createEvent();
 export const setCurrentPage = createEvent<PrivatePageType>();
 export const setEntityToDelete = createEvent<EntityToDelete>();
+export const openWarningModal = createEvent<WarningModalProps>(); // Событие для открытия WarningModal
 
 export const $entityToDelete = createStore<EntityToDelete>(null)
   .on(setEntityToDelete, (_, entity) => entity)
   .reset(closeModal);
 
-export const setModalType = createEvent<ModalType | null>();
 export const $modalType = createStore<ModalType | null>(null)
   .on(openModal, (_, modalType) => modalType)
   .on(setModalType, (_, modalType) => modalType)
+  .on(openWarningModal, () => 'warningModal') // Устанавливаем тип при вызове WarningModal
+  .reset(closeModal);
+
+// Хранилище для активного уведомления с типом PrismaNotification
+export const setActiveNotification = createEvent<PrismaNotification | null>();
+export const $activeNotification = createStore<PrismaNotification | null>(null)
+  .on(setActiveNotification, (_, notification) => notification)
+  .reset(closeModal);
+
+// Хранилище для пропсов WarningModal
+export const $warningModalProps = createStore<WarningModalProps | null>(null)
+  .on(openWarningModal, (_, props) => props)
   .reset(closeModal);
 
 export const $currentPage = createStore<PrivatePageType | null>(null).on(
@@ -58,19 +73,19 @@ export const $currentPage = createStore<PrivatePageType | null>(null).on(
 export const triggerUpdate = createEvent();
 export const $updateFlag = createStore(0).on(triggerUpdate, (state) => state + 1);
 
-//Если ранее у вас использовалось хранилище для orderUuid, оставляем его:
+// Хранилище для orderUuid
 export const setOrderUuid = createEvent<string | null>();
 export const $orderUuid = createStore<string | null>(null)
   .on(setOrderUuid, (_, uuid) => uuid)
   .reset(closeModal);
 
-//Хранилище для идентификатора пользователя
+// Хранилище для идентификатора пользователя
 export const setUserUuid = createEvent<string | null>();
 export const $userUuid = createStore<string | null>(null)
   .on(setUserUuid, (_, uuid) => uuid)
   .reset(closeModal);
 
-//Хранилище для fullName пользователя
+// Хранилище для fullName пользователя
 export const setUserFullName = createEvent<string | null>();
 export const $userFullName = createStore<string | null>(null)
   .on(setUserFullName, (_, fullName) => fullName)
@@ -82,7 +97,7 @@ export const $additionalServiceUuid = createStore<string | null>(null).on(
   (_, uuid) => uuid,
 );
 
-//Состояние для хранения UUID точки прибытия
+// Хранилище для UUID точки прибытия
 export const setPointUuid = createEvent<string | null>();
 export const $pointUuid = createStore<string | null>(null).on(setPointUuid, (_, uuid) => uuid);
 

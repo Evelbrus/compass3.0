@@ -5,7 +5,7 @@ import {
   Action,
   AdditionalService,
   DriverAcceptanceStatus,
-  Notification,
+  type Notification as PrismaNotification,
   OrderStatus,
   TariffOnService,
   UserRole,
@@ -16,7 +16,12 @@ import {
   markNotificationAsRead,
 } from '@features/notifications/api/apiNotifications';
 import { debounce } from '@shared/utils/hooks/useDebounce';
-import { triggerUpdate } from '@shared/lib/effector/state/state';
+import {
+  triggerUpdate,
+  setModalType,
+  setActiveNotification,
+  ModalType,
+} from '@shared/lib/effector/state/state';
 
 export const stages: Record<DriverAcceptanceStatus, string> = {
   PENDING: 'Ожидание принятия заказа',
@@ -43,29 +48,46 @@ export interface OrderDetail {
   basePrice?: string | number;
 }
 
-type ModalAction = Omit<Action, 'info'>;
-
 export interface NotificationIslandProps {
   userSession?: UserSession | null;
 }
 
 export const useNotifications = ({ userSession }: NotificationIslandProps) => {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notifications, setNotifications] = useState<PrismaNotification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeNotification, setActiveNotification] = useState<Notification | null>(null);
   const [newNotificationReceived, setNewNotificationReceived] = useState(false);
 
-  const openModal = useCallback((notification: Notification) => {
-    setActiveNotification(notification);
-  }, []);
+  const openModal = useCallback(
+    (notification: PrismaNotification) => {
+      let modalType: ModalType;
+      switch (userSession?.role) {
+        case UserRole.Driver:
+          modalType = 'orderDriverModal';
+          break;
+        case UserRole.ClientCorp:
+          modalType = 'orderTrackingModal';
+          break;
+        case UserRole.Admin:
+        case UserRole.Operator:
+          modalType = 'orderAdminModal';
+          break;
+        default:
+          return;
+      }
+      setModalType(modalType);
+      setActiveNotification(notification); // Теперь тип PrismaNotification совпадает
+    },
+    [userSession],
+  );
 
   const closeModal = useCallback(() => {
+    setModalType(null);
     setActiveNotification(null);
   }, []);
 
   const handleNotification = useCallback(
-    (notification: Notification) => {
+    (notification: PrismaNotification) => {
       console.log('📩 Получено уведомление через сокет:', notification);
       setNotifications((prev) => {
         const existingIndex = prev.findIndex((n) => n.uuid === notification.uuid);
@@ -81,18 +103,8 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
           updatedNotifications.unshift(notification);
         }
 
-        console.log(`Текущая роль userSession: ${userSession?.role}, userId: ${userSession?.uuid}`);
-        console.log(
-          `Проверка для админа/оператора: action=${notification.action}, read=${notification.read}`,
-        );
-
         if (!(notification.action === Action.noted && notification.read)) {
-          console.log(`Открываем модалку для уведомления ${notification.uuid}`);
           openModal(notification);
-        } else {
-          console.log(
-            `Модалка не открывается для уведомления ${notification.uuid} (noted и read: true)`,
-          );
         }
 
         setNewNotificationReceived(true);
@@ -102,12 +114,11 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
     [openModal, userSession],
   );
 
-  // Убираем явное указание типа, TypeScript выведет его автоматически
   const debouncedHandleNotification = useCallback(debounce(handleNotification, 300), [
     handleNotification,
   ]);
 
-  const socket = useSocket<Notification>('notification', debouncedHandleNotification);
+  const socket = useSocket<PrismaNotification>('notification', debouncedHandleNotification);
 
   const getDriverNotifications = useCallback(
     (driverId: string) => {
@@ -136,20 +147,13 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
 
       await bulkDeleteNotifications(notificationsToDelete.map((n) => n.uuid));
       setNotifications((prev) => prev.filter((n) => n.action !== Action.info));
-
-      if (
-        activeNotification &&
-        notificationsToDelete.some((n) => n.uuid === activeNotification.uuid)
-      ) {
-        closeModal();
-      }
     } catch (err) {
       console.error('Ошибка при очистке уведомлений:', err);
       setError(err instanceof Error ? err.message : 'Не удалось очистить уведомления');
     } finally {
       setIsLoading(false);
     }
-  }, [notifications, activeNotification, closeModal]);
+  }, [notifications]);
 
   const markAsRead = useCallback(async (notificationId: string) => {
     try {
@@ -196,13 +200,8 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
 
     loadNotifications();
 
-    if (!socket) {
-      // console.error('Сокет не инициализирован');
-      return;
-    }
-
-    if (!userSession) {
-      console.log('Нет userSession, регистрация не выполняется');
+    if (!socket || !userSession) {
+      console.log('Нет socket или userSession, регистрация не выполняется');
       return;
     }
 
@@ -260,40 +259,6 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
     [clientNotifications],
   );
 
-  const shouldShowModal = useMemo(() => {
-    if (!activeNotification || !userSession) return false;
-
-    // Добавляем отладочные логи
-    console.log('🔄 shouldShowModal проверка:');
-    console.log('📢 Действие:', activeNotification.action);
-    console.log('📦 Заказ ID:', activeNotification.orderId);
-    console.log('👥 Роль:', userSession.role);
-
-    // Для AdminUI/Operator - показываем все уведомления с orderId
-    if (
-      (userSession.role === UserRole.Admin || userSession.role === UserRole.Operator) &&
-      activeNotification.orderId
-    ) {
-      console.log('✅ Показываем модальное окно админу/оператору');
-      return true;
-    }
-
-    // Для клиентов и водителей - стандартная логика
-    if (userSession.role === UserRole.Driver || userSession.role === UserRole.ClientCorp) {
-      const validActions: ModalAction[] = [
-        Action.noted,
-        Action.inProgress,
-        Action.warning,
-        Action.success,
-        Action.cancelled,
-      ];
-
-      return validActions.includes(activeNotification.action as ModalAction);
-    }
-
-    return false;
-  }, [activeNotification, userSession]);
-
   return {
     notifications,
     getDriverNotifications,
@@ -305,13 +270,9 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
     clientUnreadCount,
     isLoading,
     error,
-    activeNotification,
     openModal,
     closeModal,
     clearNotifications,
     markAsRead,
-    shouldShowModal,
   };
 };
-
-export default useNotifications;

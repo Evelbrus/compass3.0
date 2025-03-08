@@ -6,8 +6,8 @@ type StaticHeaderProps = {
 
 export const StaticHeader = ({ additionalContent }: StaticHeaderProps) => {
   return (
-    <header className="p-4 flex justify-between items-center h-[100px] max-h-[100px] relative">
-      <div className="w-full flex items-center space-x-4">{additionalContent}</div>
+    <header className="flex justify-between items-center h-[130px] max-h-[130px] w-full">
+      <div className="w-full mx-4 flex items-center">{additionalContent}</div>
     </header>
   );
 };

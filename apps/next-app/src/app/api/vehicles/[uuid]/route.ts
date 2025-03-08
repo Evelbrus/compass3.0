@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import debug from 'debug';
 import { prisma } from '@shared/prisma/prisma-client';
-import { VehicleData } from '@features/vehicles/hooks/useVehiclesCreateForm';
+import { VehicleData } from '@features/vehicles/hooks/create/useVehiclesCreateForm';
 import { authenticateRequest, JwtPayload } from '@next-app/src/utils/authenticate/authenticateRequest';
 import { Params } from '@next-app/src/interface/interface';
 

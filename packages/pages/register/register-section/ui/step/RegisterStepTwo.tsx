@@ -25,7 +25,7 @@ const RegisterStepTwo: React.FC = () => {
         defaultValue=""
         rules={{ required: 'Введите имя.' }}
         render={({ field, fieldState }) => (
-          <div className="mb-4">
+          <div>
             <TextInput
               label="Имя:"
               type="text"
@@ -49,7 +49,7 @@ const RegisterStepTwo: React.FC = () => {
         defaultValue=""
         rules={{ required: 'Введите фамилию.' }}
         render={({ field, fieldState }) => (
-          <div className="mb-4">
+          <div>
             <TextInput
               label="Фамилия:"
               type="text"
@@ -72,7 +72,7 @@ const RegisterStepTwo: React.FC = () => {
         control={control}
         defaultValue=""
         render={({ field, fieldState }) => (
-          <div className="mb-4">
+          <div>
             <TextInput
               label="Отчество:"
               type="text"
@@ -96,7 +96,7 @@ const RegisterStepTwo: React.FC = () => {
         defaultValue=""
         rules={{ required: 'Введите адрес.' }}
         render={({ field, fieldState }) => (
-          <div className="mb-4">
+          <div>
             <TextInput
               label="Адрес:"
               type="text"
@@ -123,7 +123,7 @@ const RegisterStepTwo: React.FC = () => {
           validate: (value) => validatePhoneNumber(value ?? '') || 'Некорректный номер телефона.',
         }}
         render={({ field, fieldState }) => (
-          <div className="mb-4">
+          <div>
             <PhoneInput
               label="Телефон:"
               value={typeof field.value === 'string' ? field.value : ''}
@@ -145,7 +145,7 @@ const RegisterStepTwo: React.FC = () => {
         defaultValue="Male"
         rules={{ required: 'Выберите пол.' }}
         render={({ field, fieldState }) => (
-          <div className="mb-4">
+          <div>
             <p className="mb-1 font-semibold">Пол:</p>
             <div className="flex gap-4">
               <RadioInput

@@ -1,6 +1,6 @@
 import React, { JSX } from 'react';
 import { getLayoutData } from '@shared/utils/cookie/layout-data/getLayoutData';
-import TariffForm from '@pages/(administrator)/tariff/TariffForm';
+import TariffForm from '@pages/(administrator)/tariff/TariffFormPage';
 import Loading from '@entities/loading/loading';
 import { UserRole } from '@prisma/client';
 import { redirect } from 'next/navigation';

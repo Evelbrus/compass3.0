@@ -19,7 +19,7 @@ const RegisterStepFour: React.FC<RegisterStepFourProps> = ({ previewLogo, setPre
         name="companyProfile.logoImage"
         control={control}
         render={({ field, fieldState }) => (
-          <div className="mb-4">
+          <div>
             <ImageUploadWithCrop
               label="Логотип компании"
               initialSrc={previewLogo}
