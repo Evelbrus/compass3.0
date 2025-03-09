@@ -40,9 +40,9 @@ export interface userFormData {
     permanentAddress: string;
     birthPlace: string;
     yearsOfDriving?: number;
-    profilePhotoPath?: string;
-    passportPhotoPath?: string;
-    licensePhotoPath?: string;
+    profilePhotoPath?: string | File;
+    passportPhotoPath?: string | File;
+    licensePhotoPath?: string | File;
     driverExperience?: Array<{
       uuid: string;
       companyName: string;

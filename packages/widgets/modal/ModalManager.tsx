@@ -58,18 +58,12 @@ const ModalManagerComponent: React.FC<ModalManagerComponentProps> = ({ role, use
         <OrderDriverModal
           isOpen={true}
           onClose={closeModal}
-          notification={activeNotification}
-          userRole={role}
-          userSession={userSession}
         />
       )}
       {modalType === 'orderTrackingModal' && activeNotification && role === UserRole.ClientCorp && (
         <OrderTrackingModal
           isOpen={true}
           onClose={closeModal}
-          notification={activeNotification}
-          userRole={role}
-          userSession={userSession}
         />
       )}
       {modalType === 'orderAdminModal' &&
@@ -78,8 +72,6 @@ const ModalManagerComponent: React.FC<ModalManagerComponentProps> = ({ role, use
           <OrderAdminModal
             isOpen={true}
             onClose={closeModal}
-            notification={activeNotification}
-            orderId={activeNotification.orderId}
           />
         )}
       {modalType === 'warningModal' && warningModalProps && (

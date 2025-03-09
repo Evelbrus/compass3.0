@@ -86,33 +86,35 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
     setActiveNotification(null);
   }, []);
 
-  const handleNotification = useCallback(
-    (notification: PrismaNotification) => {
-      console.log('📩 Получено уведомление через сокет:', notification);
-      setNotifications((prev) => {
-        const existingIndex = prev.findIndex((n) => n.uuid === notification.uuid);
-        const updatedNotifications = [...prev];
+  const handleNotification = useCallback((notification: PrismaNotification) => {
+    console.log('📩 Получено уведомление через сокет:', notification);
+    setNotifications((prev) => {
+      const existingIndex = prev.findIndex((n) => n.uuid === notification.uuid);
+      const updatedNotifications = [...prev];
 
-        if (existingIndex !== -1) {
-          console.log(`Обновляем уведомление ${notification.uuid}, read: ${notification.read}`);
-          updatedNotifications[existingIndex] = notification;
-        } else {
-          console.log(
-            `Добавляем новое уведомление ${notification.uuid}, read: ${notification.read}`,
-          );
-          updatedNotifications.unshift(notification);
-        }
+      if (existingIndex !== -1) {
+        console.log(`Обновляем уведомление ${notification.uuid}, read: ${notification.read}`);
+        updatedNotifications[existingIndex] = notification;
+      } else {
+        console.log(`Добавляем новое уведомление ${notification.uuid}, read: ${notification.read}`);
+        updatedNotifications.unshift(notification);
+      }
 
-        if (!(notification.action === Action.noted && notification.read)) {
-          openModal(notification);
-        }
+      setNewNotificationReceived(true);
+      return updatedNotifications;
+    });
+  }, []);
 
-        setNewNotificationReceived(true);
-        return updatedNotifications;
-      });
-    },
-    [openModal, userSession],
-  );
+  // Отдельный useEffect для открытия модального окна при получении нового уведомления
+  useEffect(() => {
+    const newestNotification = notifications[0];
+    if (newestNotification && newNotificationReceived) {
+      if (!(newestNotification.action === Action.noted && newestNotification.read)) {
+        openModal(newestNotification);
+      }
+      setNewNotificationReceived(false);
+    }
+  }, [notifications, newNotificationReceived, openModal]);
 
   const debouncedHandleNotification = useCallback(debounce(handleNotification, 300), [
     handleNotification,
@@ -167,6 +169,7 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
     }
   }, []);
 
+  // Загрузка уведомлений
   useEffect(() => {
     const loadNotifications = async () => {
       if (!userSession) {
@@ -178,17 +181,6 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
       try {
         const data = await fetchNotifications(userSession.uuid);
         setNotifications(data);
-        const unreadNotification = data.find(
-          (n) =>
-            !n.read &&
-            (n.action === Action.noted ||
-              n.action === Action.inProgress ||
-              n.action === Action.warning ||
-              n.action === Action.cancelled),
-        );
-        if (unreadNotification) {
-          openModal(unreadNotification);
-        }
       } catch (err) {
         console.error('Ошибка при загрузке уведомлений:', err);
         setError(err instanceof Error ? err.message : 'Не удалось загрузить уведомления');
@@ -228,13 +220,30 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
       socket.off('connect_error');
       socket.off('disconnect');
     };
-  }, [userSession, socket, openModal]);
+  }, [userSession, socket]);
+
+  // Отдельный useEffect для открытия модальных окон при загрузке уведомлений
+  useEffect(() => {
+    if (notifications.length > 0 && !isLoading) {
+      const unreadNotification = notifications.find(
+        (n) =>
+          !n.read &&
+          (n.action === Action.noted ||
+            n.action === Action.inProgress ||
+            n.action === Action.warning ||
+            n.action === Action.cancelled),
+      );
+
+      if (unreadNotification) {
+        openModal(unreadNotification);
+      }
+    }
+  }, [notifications, isLoading, openModal]);
 
   useEffect(() => {
     if (newNotificationReceived) {
       console.log('Триггерим обновление заказов при новом уведомлении');
       triggerUpdate();
-      setNewNotificationReceived(false);
     }
   }, [newNotificationReceived]);
 
@@ -258,6 +267,8 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
     () => clientNotifications.filter((n) => !n.read).length,
     [clientNotifications],
   );
+
+  console.log('notifications', notifications);
 
   return {
     notifications,

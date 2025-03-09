@@ -40,7 +40,7 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ onClose }) =>
     setLoading(true);
 
     try {
-      const response = await fetch('/api/users/patch-user-password', {
+      const response = await fetch('/api/shared/patch-user-password', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

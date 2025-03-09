@@ -32,7 +32,7 @@ const useDrivers = () => {
   const fetchDrivers = useCallback(async () => {
     setLoading(true);
     try {
-      const url = new URL('/api/users', window.location.origin);
+      const url = new URL('/api/admin/users', window.location.origin);
       url.searchParams.append('page', page.toString());
       url.searchParams.append('per_page', perPage.toString());
       if (sortBy !== null) {

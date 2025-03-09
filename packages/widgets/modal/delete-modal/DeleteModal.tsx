@@ -22,28 +22,28 @@ const DeleteModal: React.FC<DeleteModalProps> = ({ onClose }) => {
 
     switch (entityToDelete.entity) {
       case 'orders':
-        apiPath = `/api/orders/${entityToDelete.uuid}`;
+        apiPath = `/api/admin/orders/${entityToDelete.uuid}`;
         successMessage = 'Заказ успешно удалён!';
         errorMessage = 'Ошибка при удалении заказа.';
         break;
       case 'vehicles':
-        apiPath = `/api/vehicles/${entityToDelete.uuid}`;
+        apiPath = `/api/admin/vehicles/${entityToDelete.uuid}`;
         successMessage = 'Машина успешно удалена!';
         errorMessage = 'Ошибка при удалении машины.';
         break;
       case 'users':
-        apiPath = `/api/users/${entityToDelete.uuid}`;
+        apiPath = `/api/admin/users/${entityToDelete.uuid}`;
         successMessage = 'Пользователь успешно удалён!';
         errorMessage = 'Ошибка при удалении пользователя.';
         break;
       case 'additional-services':
-        apiPath = `/api/additional-services/${entityToDelete.uuid}`;
-        successMessage = 'Пользователь успешно удалён!';
+        apiPath = `/api/admin/additional-services/${entityToDelete.uuid}`;
+        successMessage = 'услуга успешно удалёна!';
         errorMessage = 'Ошибка при удалении пользователя.';
         break;
       case 'points':
-        apiPath = `/api/points/${entityToDelete.uuid}`;
-        successMessage = 'Пользователь успешно удалён!';
+        apiPath = `/api/admin/points/${entityToDelete.uuid}`;
+        successMessage = 'Адресс успешно удалён!';
         errorMessage = 'Ошибка при удалении пользователя.';
         break;
       default:

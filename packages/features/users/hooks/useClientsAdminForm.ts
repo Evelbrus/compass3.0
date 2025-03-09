@@ -94,7 +94,7 @@ export default function useClientsAdminForm({
   const { watch, trigger } = formMethods;
 
   /** Обновление предпросмотра для файлов */
-  const watchedProfilePhotoFile = watch('profilePhotoPath') as File | undefined;
+  const watchedProfilePhotoFile = watch('profilePhotoPath') as any;
   useEffect(() => {
     if (watchedProfilePhotoFile && watchedProfilePhotoFile instanceof File) {
       try {
@@ -107,7 +107,7 @@ export default function useClientsAdminForm({
     }
   }, [watchedProfilePhotoFile]);
 
-  const watchedLogoFile = watch('companyProfile.logoImagePath') as File | undefined;
+  const watchedLogoFile = watch('companyProfile.logoImagePath') as any;
   useEffect(() => {
     if (watchedLogoFile && watchedLogoFile instanceof File) {
       try {
@@ -120,7 +120,8 @@ export default function useClientsAdminForm({
     }
   }, [watchedLogoFile]);
 
-  const watchedPassportFile = watch('driverProfile.passportImage') as File | undefined;
+  // Использование Any чтобы обойти типизацию для полей, которых нет в интерфейсе
+  const watchedPassportFile = watch('driverProfile.passportImage' as any) as any;
   useEffect(() => {
     if (watchedPassportFile && watchedPassportFile instanceof File) {
       try {
@@ -133,7 +134,7 @@ export default function useClientsAdminForm({
     }
   }, [watchedPassportFile]);
 
-  const watchedDriverProfileFile = watch('driverProfile.driverProfileImage') as File | undefined;
+  const watchedDriverProfileFile = watch('driverProfile.driverProfileImage' as any) as any;
   useEffect(() => {
     if (watchedDriverProfileFile && watchedDriverProfileFile instanceof File) {
       try {
@@ -146,7 +147,7 @@ export default function useClientsAdminForm({
     }
   }, [watchedDriverProfileFile]);
 
-  const watchedLicenseFile = watch('driverProfile.licenseImage') as File | undefined;
+  const watchedLicenseFile = watch('driverProfile.licenseImage' as any) as any;
   useEffect(() => {
     if (watchedLicenseFile && watchedLicenseFile instanceof File) {
       try {
@@ -196,10 +197,6 @@ export default function useClientsAdminForm({
       }
     } else if (currentStepNum === 3 && finalRole === UserRole.Driver) {
       fieldsToValidate = ['driverProfile.yearsOfDriving'];
-    } else if (currentStepNum === 4 && finalRole === UserRole.Driver) {
-      fieldsToValidate = ['driverProfile.licenseImage'];
-    } else if (currentStepNum === 5 && finalRole === UserRole.Driver) {
-      fieldsToValidate = ['driverProfile.driverProfileImage'];
     }
 
     return fieldsToValidate;

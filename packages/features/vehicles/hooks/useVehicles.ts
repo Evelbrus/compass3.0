@@ -39,7 +39,7 @@ const useVehicles = () => {
   const fetchVehicles = useCallback(async () => {
     setLoading(true);
     try {
-      const url = new URL('/api/vehicles', window.location.origin);
+      const url = new URL('/api/admin/vehicles', window.location.origin);
       url.searchParams.append('page', page.toString());
       url.searchParams.append('per_page', perPage.toString());
       if (vehicleTypeFilter !== 'all') {

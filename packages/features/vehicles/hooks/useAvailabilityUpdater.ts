@@ -21,7 +21,7 @@ export const useAvailabilityUpdater = () => {
   ): Promise<UpdateAvailabilityResponse | null> => {
     setLoading(true);
     try {
-      const response = await fetch('/api/vehicles/car-availability', {
+      const response = await fetch('/api/admin/vehicles/car-availability', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ uuid: vehicleUuid, isAvailable }),

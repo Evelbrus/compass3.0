@@ -32,7 +32,7 @@ const useAdditionalServices = () => {
   const fetchAdditionalServices = useCallback(async () => {
     setLoading(true);
     try {
-      const url = new URL('/api/additional-services', window.location.origin);
+      const url = new URL('/api/shared/additional-services', window.location.origin);
       url.searchParams.append('page', page.toString());
       url.searchParams.append('per_page', perPage.toString());
       if (sortBy !== null) {

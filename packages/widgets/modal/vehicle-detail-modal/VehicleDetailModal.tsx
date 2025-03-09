@@ -19,7 +19,7 @@ const VehicleDetailModal = () => {
       if (vehicleUuid) {
         setLoading(true);
         try {
-          const response = await fetch(`/api/vehicles/${vehicleUuid}`);
+          const response = await fetch(`/api/admin/vehicles/${vehicleUuid}`);
           if (!response.ok) {
             throw new Error(`Не удалось загрузить данные автомобиля: ${response.status}`);
           }

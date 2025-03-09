@@ -297,7 +297,7 @@ const CreatePointModal: React.FC<CreatePointModalProps> = ({ onClose }) => {
       const fetchPoint = async () => {
         setLoading(true);
         try {
-          const response = await fetch(`/api/points/${uuid}`, { credentials: 'include' });
+          const response = await fetch(`/api/shared/points/${uuid}`, { credentials: 'include' });
           if (!response.ok) throw new Error(`Ошибка загрузки: ${response.status}`);
           const data = await response.json();
           const point = data.data?.point;
@@ -347,7 +347,7 @@ const CreatePointModal: React.FC<CreatePointModalProps> = ({ onClose }) => {
 
     try {
       const method = uuid ? 'PUT' : 'POST';
-      const url = uuid ? `/api/points/${uuid}` : '/api/points';
+      const url = uuid ? `/api/admin/points/${uuid}` : '/api/admin/points';
       const body = JSON.stringify({
         address,
         pricePerKm: parsedPricePerKm,

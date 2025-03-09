@@ -67,7 +67,7 @@ const OrderDetails = ({ orderId }: { orderId: string }) => {
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch(`/api/orders/${orderId}`);
+        const response = await fetch(`/api/admin/orders/${orderId}`);
         if (!response.ok) {
           throw new Error(`Failed to fetch order: ${response.statusText}`);
         }

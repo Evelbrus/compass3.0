@@ -50,7 +50,7 @@ export const useTariffCreateForm = ({ tariffData }: UseTariffFormProps) => {
       setLoading(true);
       try {
         const response = await fetch(
-          '/api/additional-services?page=1&per_page=100&sort_by=name&sort_order=asc',
+          '/api/shared/additional-services?page=1&per_page=100&sort_by=name&sort_order=asc',
         );
         if (!response.ok) {
           throw new Error('Failed to fetch additional services');

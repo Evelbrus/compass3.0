@@ -34,7 +34,7 @@ const TariffClientCorpPage = (): JSX.Element => {
   const fetchTariffs = async () => {
     try {
       setStatusTariffs('loading');
-      const response = await fetch(`/api/tariffs`);
+      const response = await fetch(`/api/shared/tariffs`);
       if (!response.ok) {
         throw new Error('Network response was not ok');
       }
@@ -54,7 +54,7 @@ const TariffClientCorpPage = (): JSX.Element => {
   const fetchAdditionalServices = async () => {
     try {
       setStatusAdditionalServices('loading');
-      const response = await fetch('/api/additional-services');
+      const response = await fetch('/api/shared/additional-services');
       if (!response.ok) {
         throw new Error('Network response was not ok');
       }

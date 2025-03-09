@@ -1,161 +1,78 @@
+// app/api/clients/orders/[uuid]/update-client-status/route.ts
 import { NextResponse } from 'next/server';
-import { prisma } from '@shared/prisma/prisma-client';
 import debug from 'debug';
-import { DriverAcceptanceStatus, OrderStatus, Action, UserRole } from '@prisma/client';
-import {
-  processNotification,
-  processBulkNotifications,
-} from '@next-app/src/utils/notifications/notifications';
+import { updateOrderStatus } from '@next-app/src/services/orders/updateOrderStatus';
+import { UpdateOrderStatusDTO } from '@next-app/src/dto/orders/order-status.dto';
 import { Params } from '@next-app/src/interface/interface';
 
+const logError = debug('app:api:orders:update-client-status:error');
 const log = debug('app:orders:update-client-status');
-
-interface UpdateClientOrderRequest {
-  orderUuid: string;
-  driverStatus?: DriverAcceptanceStatus;
-  orderStatus?: OrderStatus;
-  notificationUuid: string;
-  userId: string;
-  createdById: string;
-  driverById?: string;
-  markNotificationAsRead?: boolean;
-  action: Action;
-}
 
 export async function PATCH(req: Request, { params }: { params: Promise<Params> }) {
   const { uuid } = await params;
   log(`Обновление статуса для заказа UUID: ${uuid} клиентом`);
 
   try {
-    const {
-      driverStatus,
-      orderStatus,
-      userId,
-      createdById,
-      notificationUuid,
-      driverById,
-      markNotificationAsRead,
-      action,
-    }: UpdateClientOrderRequest = await req.json();
+    let data: UpdateOrderStatusDTO;
+    try {
+      data = await req.json();
+    } catch (error) {
+      logError('× Ошибка разбора JSON (400)');
+      return NextResponse.json({ status: 'error', message: 'Invalid JSON' }, { status: 400 });
+    }
 
     log(`Полученные данные:`, {
-      driverStatus: driverStatus ?? 'null',
-      orderStatus: orderStatus ?? 'null',
-      userId,
-      createdById,
-      notificationUuid,
-      driverById: driverById ?? 'null',
-      markNotificationAsRead: markNotificationAsRead ?? 'null',
-      action,
+      driverStatus: data.driverStatus ?? 'null',
+      orderStatus: data.orderStatus ?? 'null',
+      userId: data.userId,
+      createdById: data.createdById,
+      notificationUuid: data.notificationUuid,
+      driverById: data.driverById ?? 'null',
+      action: data.action,
+      markNotificationAsRead: data.markNotificationAsRead ?? 'null',
     });
 
-    if (!userId || !createdById || !notificationUuid || !action) {
-      log(`Отсутствуют обязательные поля`);
-      return NextResponse.json(
-        {
-          error: 'Отсутствуют обязательные поля: userId, createdById, notificationUuid или action',
-        },
-        { status: 400 },
-      );
+    try {
+      const result = await updateOrderStatus(uuid, data);
+      log(`Заказ ${uuid} успешно обновлён клиентом:`, result);
+      return NextResponse.json(result, { status: 200 });
+    } catch (serviceError) {
+      if (serviceError instanceof Error) {
+        if (serviceError.message.startsWith('Отсутствуют обязательные поля')) {
+          return NextResponse.json(
+            { status: 'error', message: serviceError.message },
+            { status: 400 },
+          );
+        }
+        if (serviceError.message === 'Заказ не найден') {
+          return NextResponse.json(
+            { status: 'error', message: serviceError.message },
+            { status: 404 },
+          );
+        }
+        if (serviceError.message === 'Клиент не найден или не является создателем заказа') {
+          return NextResponse.json(
+            { status: 'error', message: serviceError.message },
+            { status: 403 },
+          );
+        }
+        if (
+          [
+            'Не удалось зафиксировать изменения заказа в базе данных',
+            'Уведомление не найдено',
+          ].some((msg) => serviceError.message.includes(msg))
+        ) {
+          return NextResponse.json(
+            { status: 'error', message: serviceError.message },
+            { status: 400 },
+          );
+        }
+      }
+      throw serviceError;
     }
-
-    const updatedOrder = await prisma.$transaction(async (prismaTx) => {
-      const order = await prismaTx.order.findUnique({ where: { uuid } });
-      if (!order) {
-        log(`Заказ с UUID ${uuid} не найден`);
-        throw new Error('Заказ не найден');
-      }
-
-      const client = await prismaTx.user.findUnique({ where: { uuid: userId } });
-      if (!client || client.role !== UserRole.ClientCorp) {
-        throw new Error('Клиент не найден или не является создателем заказа');
-      }
-
-      const updatedOrder = await prismaTx.order.update({
-        where: { uuid },
-        data: {
-          ...(orderStatus && { status: orderStatus }),
-          ...(driverStatus && { driverAcceptanceStatus: driverStatus }),
-        },
-      });
-
-      return updatedOrder;
-    });
-
-    // Логика уведомлений для действий клиента
-    if (orderStatus === OrderStatus.CANCELLED) {
-      // Уведомление клиенту
-      await processNotification({
-        userId, // Клиент
-        orderId: updatedOrder.uuid,
-        action: Action.cancelled,
-        templateKey: 'orderCancelledByCorpClientToClient',
-        createdById,
-      });
-
-      // Уведомление водителю, если он назначен
-      if (updatedOrder.assignedDriverId) {
-        await processNotification({
-          userId: updatedOrder.assignedDriverId, // Водитель
-          orderId: updatedOrder.uuid,
-          action: Action.cancelled,
-          templateKey: 'orderCancelledByCorpClientToDriver',
-          createdById,
-          driverById: updatedOrder.assignedDriverId,
-        });
-      }
-
-      // Уведомление админам и операторам
-      const adminsAndOperators = await prisma.user.findMany({
-        where: { role: { in: [UserRole.Admin, UserRole.Operator] } },
-        select: { uuid: true, role: true },
-      });
-      await processBulkNotifications({
-        users: adminsAndOperators,
-        orderId: updatedOrder.uuid,
-        action: Action.info,
-        templateKey: 'orderCancelledByCorpClientToAdmins',
-        createdById,
-        driverById: updatedOrder.assignedDriverId || null,
-      });
-    }
-
-    // Отметка уведомления как прочитанного
-    if (markNotificationAsRead && action === Action.noted) {
-      const notification = await prisma.notification.findUnique({
-        where: { uuid: notificationUuid },
-      });
-
-      if (!notification) {
-        log(`Уведомление с UUID ${notificationUuid} не найдено`);
-        throw new Error('Уведомление не найдено');
-      }
-
-      if (notification.read) {
-        log(`Уведомление ${notificationUuid} уже прочитано, пропускаем обновление`);
-      } else {
-        await prisma.notification.update({
-          where: { uuid: notificationUuid },
-          data: { read: true },
-        });
-        log(`Уведомление ${notificationUuid} помечено как прочитанное`);
-        await processNotification({
-          userId, // Только клиент
-          orderId: uuid,
-          action: Action.noted,
-          templateKey: 'orderNotedByClient',
-          createdById,
-          markNotificationAsRead: true,
-        });
-      }
-    }
-
-    const updatedData = { updatedOrder };
-    log(`Заказ ${uuid} успешно обновлён клиентом:`, updatedData);
-    return NextResponse.json(updatedData, { status: 200 });
   } catch (error: unknown) {
     log('Ошибка при обновлении статуса заказа клиентом:', error);
     const errorMessage = error instanceof Error ? error.message : String(error);
-    return NextResponse.json({ error: errorMessage }, { status: 500 });
+    return NextResponse.json({ status: 'error', message: errorMessage }, { status: 500 });
   }
 }

@@ -92,9 +92,9 @@ export const ImageUploadWithCrop: React.FC<ImageUploadWithCropProps> = ({
       )}
 
       <div
-        className={`w-full ${
+        className={`w-full${
           mode === 'upload' ? 'border-2 border-dashed border-[#E2E8F0]' : ''
-        } rounded-lg bg-white overflow-hidden relative w-full h-[${containerHeight}] ${widthClass} ${heightClass}`}
+        } rounded-lg bg-white overflow-hidden relative w-full ${containerHeight} ${widthClass} ${heightClass}`}
       >
         {localPreview ? (
           <>

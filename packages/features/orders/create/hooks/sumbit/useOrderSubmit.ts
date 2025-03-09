@@ -150,7 +150,7 @@ export const useOrderSubmit = (
           phone: data.phone || undefined,
           status: data.status as OrderStatus,
         };
-        apiUrl = mode === 'create' ? '/api/orders' : `/api/orders/${orderData?.uuid}`;
+        apiUrl = mode === 'create' ? '/api/admin/orders' : `/api/admin/orders/${orderData?.uuid}`;
         method = mode === 'create' ? 'POST' : 'PUT';
       }
 

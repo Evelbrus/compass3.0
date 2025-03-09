@@ -43,7 +43,7 @@ const useOrders = () => {
   const fetchOrders = useCallback(async () => {
     setLoading(true);
     try {
-      const url = new URL('/api/orders', window.location.origin);
+      const url = new URL('/api/admin/orders', window.location.origin);
       url.searchParams.append('page', page.toString());
       url.searchParams.append('per_page', perPage.toString());
 
@@ -135,11 +135,16 @@ const useOrders = () => {
         companyLogo: order.createdBy.companyProfile?.companyLogo,
       },
     },
-    assignedDriver: {
-      fullname: order.assignedDriver.fullName,
-      phone: order.assignedDriver.phone,
-    },
-    plateNumber: order.assignedDriver.plateNumber,
+    assignedDriver: order.assignedDriver
+      ? {
+          fullname: order.assignedDriver.fullName,
+          phone: order.assignedDriver.phone,
+        }
+      : {
+          fullname: 'Не назначен',
+          phone: '—',
+        },
+    plateNumber: order.assignedDriver?.plateNumber || undefined,
     tariff: {
       name: order.tariff.name,
       vehicleType: order.tariff.vehicleType,

@@ -36,7 +36,7 @@ export const fetchDrivers = async (
     search,
   });
 
-  const response = await fetch(`/api/users?role=Driver&include=driverProfile&${params.toString()}`);
+  const response = await fetch(`/api/admin/users?role=Driver&include=driverProfile&${params.toString()}`);
   if (!response.ok) {
     const error = await response.text();
     throw new Error(error || 'Failed to fetch drivers');

@@ -24,7 +24,7 @@ const CreateAdditionalServiceModal: React.FC<CreateAdditionalServiceModalProps> 
       const fetchService = async () => {
         setLoading(true);
         try {
-          const response = await fetch(`/api/additional-services/${uuid}`, {
+          const response = await fetch(`/api/shared/additional-services/${uuid}`, {
             credentials: 'include',
           });
           if (!response.ok) throw new Error('Ошибка загрузки услуги');
@@ -55,7 +55,7 @@ const CreateAdditionalServiceModal: React.FC<CreateAdditionalServiceModalProps> 
 
     try {
       const method = uuid ? 'PUT' : 'POST';
-      const url = uuid ? `/api/additional-services/${uuid}` : '/api/additional-services';
+      const url = uuid ? `/api/admin/additional-services/${uuid}` : '/api/admin/additional-services';
       const body = JSON.stringify({ name: serviceName });
 
       const response = await fetch(url, {

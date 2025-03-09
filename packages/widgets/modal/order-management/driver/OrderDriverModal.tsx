@@ -1,159 +1,82 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import {
-  OrderStatus,
-  DriverAcceptanceStatus,
-  Action,
-  type Notification as PrismaNotification,
-  UserRole,
-} from '@prisma/client';
-import { UserSession } from '@shared/prisma/interface/users/interface';
-import {
-  useNotifications,
-  OrderDetail,
-  stages,
-} from '@features/notifications/lib/useNotifications';
-import {
-  AcceptedStage,
-  PendingStage,
-  OnTheWayStage,
-  ArrivedStage,
-  PickedUpStage,
-  CompletedStage,
-} from '@widgets/modal/order-management/driver/stage';
-import { fetchOrderDetails } from '@features/orders/create/api/orders.api';
+import React, { useState } from 'react';
+import { useUnit } from 'effector-react';
+import { OrderStatus, DriverAcceptanceStatus, Action, UserRole } from '@prisma/client';
 import AnimatedComponent from '@shared/components/animated/CommonAnimated/AnimatedComponent';
-import { CloseIcon } from '@shared/components/ui/icon';
-import { IButton } from '@shared/components/ui/buttons';
 import { showToast } from '@shared/components/toast/ToastManager';
-import { updateDriverOrderStatus } from '@widgets/modal/order-management/driver/api/apiDriverModel';
+import {
+  markDriverNotificationAsRead,
+  updateDriverOrderStatus,
+} from '@widgets/modal/order-management/api/apiOrderModel';
+import { useOrderData } from '@widgets/modal/order-management/hooks/useOrderData';
+import {
+  driverStatusToOrderStatus,
+  isOrderCancelled,
+} from '@widgets/modal/order-management/utils/orderUtils';
+import { renderOrderActions } from '@widgets/modal/order-management/components/renderOrderActions';
+import OrderHeader from '@widgets/modal/order-management/components/OrderHeader';
+import CancelledOrderView from '@widgets/modal/order-management/components/CancelledOrderView';
+import OrderStageHeader from '@widgets/modal/order-management/components/OrderStageHeader';
+import OrderMapPreview from '@widgets/modal/order-management/components/OrderMapPreview';
+import OrderRouteDetails from '@widgets/modal/order-management/components/OrderRouteDetails';
+import OrderPaymentDetails from '@widgets/modal/order-management/components/OrderPaymentDetails';
+import OrderNotes from '@widgets/modal/order-management/components/OrderNotes';
+import ClientInfo from '@widgets/modal/order-management/components/ClientInfo';
+import OrderLoadError from '@widgets/modal/order-management/components/OrderLoadError';
+import { $activeNotification } from '@shared/lib/effector/state/state';
 
 interface OrderDriverModalProps {
   isOpen: boolean;
   onClose: () => void;
-  notification: PrismaNotification;
-  userRole?: UserRole;
-  userSession: UserSession | null; // Добавляем userSession для хука
 }
 
-const OrderDriverModal: React.FC<OrderDriverModalProps> = ({
-  isOpen,
-  onClose,
-  notification,
-  userRole,
-  userSession,
-}) => {
-  const { getDriverNotifications } = useNotifications({ userSession }); // Вызываем хук внутри
+const OrderDriverModal: React.FC<OrderDriverModalProps> = ({ isOpen, onClose }) => {
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  const [orderData, setOrderData] = useState<OrderDetail | null>(null);
-  const [currentStage, setCurrentStage] = useState<DriverAcceptanceStatus>(
-    DriverAcceptanceStatus.PENDING,
-  );
-  const [_orderStatus, setOrderStatus] = useState<OrderStatus>(OrderStatus.PENDING);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [showAdditionalServices, setShowAdditionalServices] = useState(false);
+  // Получаем уведомление напрямую из хранилища Effector
+  const notification = useUnit($activeNotification);
 
-  useEffect(() => {
-    if (!isOpen || !notification.orderId) return;
-    setIsLoading(true);
-    setError(null);
-    fetchOrderDetails(notification.orderId)
-      .then((data) => {
-        setOrderData(data);
-        setOrderStatus(data.status);
-        setCurrentStage(data.driverAcceptanceStatus || DriverAcceptanceStatus.PENDING);
-      })
-      .catch((err) => {
-        console.error('Ошибка загрузки данных:', err);
-        setError('Не удалось загрузить данные заказа');
-      })
-      .finally(() => setIsLoading(false));
-  }, [isOpen, notification.orderId]);
+  // Если нет уведомления или модальное окно закрыто, не рендерим компонент
+  if (!notification || !isOpen) return null;
 
-  useEffect(() => {
-    if (!isOpen || !notification.orderId || !notification.userId || userRole !== UserRole.Driver)
-      return;
+  // Используем хук для загрузки данных заказа
+  const {
+    orderData,
+    currentStage,
+    orderStatus,
+    isLoading,
+    error,
+    intermediateAddresses,
+    progress,
+    setCurrentStage,
+    setOrderStatus,
+    setError,
+  } = useOrderData(notification.orderId, isOpen);
 
-    const driverNotifications = getDriverNotifications(notification.userId);
-    const latestNotification = driverNotifications.find((n) => n.orderId === notification.orderId);
-
-    if (!latestNotification) {
-      onClose();
-      return;
-    }
-
-    fetchOrderDetails(notification.orderId)
-      .then((data) => {
-        setOrderData(data);
-        setOrderStatus(data.status);
-        setCurrentStage(data.driverAcceptanceStatus || DriverAcceptanceStatus.PENDING);
-      })
-      .catch((err) => {
-        console.error('Ошибка при обновлении данных заказа:', err);
-        setError('Не удалось обновить статус заказа');
-      });
-  }, [
-    isOpen,
-    notification.orderId,
-    notification.userId,
-    getDriverNotifications,
-    userRole,
-    onClose,
-  ]);
-
-  const driverStatusToOrderStatus: Record<DriverAcceptanceStatus, OrderStatus> = {
-    [DriverAcceptanceStatus.PENDING]: OrderStatus.PENDING,
-    [DriverAcceptanceStatus.TAKEN]: OrderStatus.PENDING,
-    [DriverAcceptanceStatus.ACCEPTED]: OrderStatus.IN_PROGRESS,
-    [DriverAcceptanceStatus.ON_THE_WAY]: OrderStatus.IN_PROGRESS,
-    [DriverAcceptanceStatus.ARRIVED]: OrderStatus.IN_PROGRESS,
-    [DriverAcceptanceStatus.PICKED_UP]: OrderStatus.IN_PROGRESS,
-    [DriverAcceptanceStatus.COMPLETED]: OrderStatus.COMPLETED,
-    [DriverAcceptanceStatus.TIMEOUT]: OrderStatus.OVERDUE,
-  };
-
+  // Обработчик действий водителя (принятие, завершение, отмена заказа)
   const handleDriverAction = async (
     driverStatus: DriverAcceptanceStatus,
     action: Action,
     successMessage: string,
     errorMessage: string,
   ) => {
-    setIsLoading(true);
     setError(null);
+    setIsProcessing(true);
 
     try {
-      // Если action === cancelled, устанавливаем orderStatus в CANCELLED
       const newOrderStatus =
         action === Action.cancelled
           ? OrderStatus.CANCELLED
           : driverStatusToOrderStatus[driverStatus];
 
-      if (driverStatus === DriverAcceptanceStatus.ACCEPTED) {
-        const driverNotifications = getDriverNotifications(notification.userId);
-        const hasActiveOrder = driverNotifications.some(
-          (n) =>
-            n.userId === notification.userId &&
-            n.action === Action.inProgress &&
-            n.orderId !== notification.orderId,
-        );
-        if (hasActiveOrder) {
-          showToast.error('Вы не можете принять новый заказ, пока не завершите текущий', {
-            position: 'top-right',
-            autoClose: 5000,
-          });
-          setIsLoading(false);
-          return;
-        }
-      }
-
+      // Обновление статуса заказа через API
       await updateDriverOrderStatus({
         orderUuid: notification.orderId,
         driverStatus,
         orderStatus: newOrderStatus,
         notificationUuid: notification.uuid,
-        userId: notification.userId, // ID водителя
+        userId: notification.userId,
         createdById: notification.createdById,
         action,
         markNotificationAsRead: true,
@@ -161,7 +84,6 @@ const OrderDriverModal: React.FC<OrderDriverModalProps> = ({
 
       setCurrentStage(driverStatus);
       setOrderStatus(newOrderStatus);
-
       showToast[action === Action.success ? 'success' : 'warn'](successMessage, {
         position: 'top-right',
         autoClose: 3000,
@@ -169,21 +91,38 @@ const OrderDriverModal: React.FC<OrderDriverModalProps> = ({
       onClose();
     } catch (err) {
       console.error('Ошибка при обновлении статуса:', err);
-      showToast.error(errorMessage, { position: 'top-right', autoClose: 5000 });
+      const errorMsg = err instanceof Error ? err.message : String(err);
+
+      if (errorMsg.includes('занят другими активными заказами')) {
+        // Создаем сообщение об ошибке на основе сообщения с сервера
+        const errorText = 'Вы уже заняты другими заказами. Сначала завершите текущие заказы.';
+        setError(errorText);
+
+        showToast.error('Вы уже заняты другими заказами', {
+          position: 'top-right',
+          autoClose: 5000,
+        });
+      } else {
+        setError(errorMessage);
+        showToast.error(errorMessage, { position: 'top-right', autoClose: 5000 });
+      }
     } finally {
-      setIsLoading(false);
+      setIsProcessing(false);
     }
   };
 
+  // Обработчик отметки уведомления как прочитанного
   const handleMarkAsRead = async () => {
+    setIsProcessing(true);
     try {
-      await updateDriverOrderStatus({
+      // Используем специальный метод для отметки уведомления как прочитанного
+      // Он сохранит оригинальный тип действия уведомления
+      await markDriverNotificationAsRead({
         orderUuid: notification.orderId,
         notificationUuid: notification.uuid,
-        userId: notification.userId, // ID водителя
+        userId: notification.userId,
         createdById: notification.createdById,
-        action: Action.noted,
-        markNotificationAsRead: true,
+        action: notification.action,
       });
 
       showToast.success('Уведомление отмечено как прочитанное', {
@@ -197,352 +136,95 @@ const OrderDriverModal: React.FC<OrderDriverModalProps> = ({
         position: 'top-right',
         autoClose: 3000,
       });
+    } finally {
+      setIsProcessing(false);
     }
   };
 
-  const getActions = () => {
-    if (userRole !== UserRole.Driver) return null;
-
-    switch (notification.action) {
-      case Action.inProgress:
-        switch (currentStage) {
-          case DriverAcceptanceStatus.PENDING:
-          case DriverAcceptanceStatus.TAKEN:
-            return (
-              <PendingStage
-                onAccept={() =>
-                  handleDriverAction(
-                    DriverAcceptanceStatus.ACCEPTED,
-                    Action.inProgress,
-                    `Заказ #${notification.orderId} принят`,
-                    'Не удалось принять заказ',
-                  )
-                }
-                onCancel={() =>
-                  handleDriverAction(
-                    DriverAcceptanceStatus.PENDING,
-                    Action.cancelled,
-                    `Заказ #${notification.orderId} отклонён`,
-                    'Не удалось отклонить заказ',
-                  )
-                }
-                isLoading={isLoading}
-              />
-            );
-          case DriverAcceptanceStatus.ACCEPTED:
-            return (
-              <AcceptedStage
-                onStartTrip={() =>
-                  handleDriverAction(
-                    DriverAcceptanceStatus.ON_THE_WAY,
-                    Action.inProgress,
-                    'Вы поехали к клиенту',
-                    'Не удалось обновить статус',
-                  )
-                }
-                onCancel={() =>
-                  handleDriverAction(
-                    DriverAcceptanceStatus.PENDING,
-                    Action.cancelled,
-                    `Заказ #${notification.orderId} отменён водителем`,
-                    'Не удалось отменить заказ',
-                  )
-                }
-                isLoading={isLoading}
-              />
-            );
-          case DriverAcceptanceStatus.ON_THE_WAY:
-            return (
-              <OnTheWayStage
-                onArrive={() =>
-                  handleDriverAction(
-                    DriverAcceptanceStatus.ARRIVED,
-                    Action.inProgress,
-                    'Вы прибыли к клиенту',
-                    'Не удалось обновить статус',
-                  )
-                }
-                onCancel={() =>
-                  handleDriverAction(
-                    DriverAcceptanceStatus.PENDING,
-                    Action.cancelled,
-                    `Заказ #${notification.orderId} отменён водителем`,
-                    'Не удалось отменить заказ',
-                  )
-                }
-                isLoading={isLoading}
-              />
-            );
-          case DriverAcceptanceStatus.ARRIVED:
-            return (
-              <ArrivedStage
-                onPickUp={() =>
-                  handleDriverAction(
-                    DriverAcceptanceStatus.PICKED_UP,
-                    Action.inProgress,
-                    'Поездка начата',
-                    'Не удалось начать поездку',
-                  )
-                }
-                isLoading={isLoading}
-              />
-            );
-          case DriverAcceptanceStatus.PICKED_UP:
-            return (
-              <PickedUpStage
-                onComplete={() =>
-                  handleDriverAction(
-                    DriverAcceptanceStatus.COMPLETED,
-                    Action.success,
-                    `Заказ #${notification.orderId} завершён`,
-                    'Не удалось завершить поездку',
-                  )
-                }
-                isLoading={isLoading}
-              />
-            );
-          case DriverAcceptanceStatus.COMPLETED:
-            return <CompletedStage />;
-          default:
-            return null;
-        }
-      case Action.noted:
-        return (
-          <div className="flex justify-center mt-6">
-            {notification.read ? (
-              <div
-                className="px-6 py-2 bg-green-500 text-white rounded cursor-default"
-                onClick={onClose}
-              >
-                Ознакомился (Прочитано)
-              </div>
-            ) : (
-              <button
-                className="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
-                onClick={handleMarkAsRead}
-              >
-                Ознакомился
-              </button>
-            )}
-          </div>
-        );
-      case Action.warning:
-        return (
-          <>
-            <button
-              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
-              onClick={() =>
-                handleDriverAction(
-                  DriverAcceptanceStatus.ACCEPTED,
-                  Action.inProgress,
-                  `Заказ #${notification.orderId} принят`,
-                  'Не удалось принять заказ',
-                )
-              }
-            >
-              Взять заказ
-            </button>
-            <button
-              className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition"
-              onClick={() =>
-                handleDriverAction(
-                  DriverAcceptanceStatus.PENDING,
-                  Action.cancelled,
-                  `Заказ #${notification.orderId} отклонён`,
-                  'Не удалось отклонить заказ',
-                )
-              }
-            >
-              Отклонить
-            </button>
-          </>
-        );
-      case Action.success:
-        return (
-          <div className="flex justify-center mt-6">
-            <button
-              className="px-6 py-2 bg-green-500 text-white rounded cursor-default"
-              onClick={onClose}
-            >
-              Заказ завершён
-            </button>
-          </div>
-        );
-      case Action.cancelled:
-        return (
-          <div className="flex justify-center mt-6">
-            <div className="px-6 py-2 bg-red-500 text-white rounded cursor-default">
-              Заказ отменён
-            </div>
-            <button
-              className="ml-4 px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
-              onClick={onClose}
-            >
-              Закрыть
-            </button>
-          </div>
-        );
-      default:
-        return null;
-    }
+  // Обработчик закрытия модального окна с отметкой "прочитано"
+  const handleCloseWithMarkAsRead = () => {
+    handleMarkAsRead();
   };
-
-  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50 p-4">
-      <AnimatedComponent duration={500}>
-        <div className="relative bg-white rounded-3xl max-w-3xl w-full p-6">
-          <div className="flex justify-between items-center mb-6">
-            <IButton
-              variant="close"
-              onClick={onClose}
-              aria-label="Закрыть модальное окно"
-              className="ml-4 border border-gray-200 hover:shadow-[0px_0px_5px_rgba(0,0,0,0.15)] hover:bg-blue-100 rounded-full"
-            >
-              <CloseIcon />
-            </IButton>
-            <h2 className="text-xl font-semibold">
-              Заказ #{notification.orderId?.slice(0, 8) || 'N/A'} -{' '}
-              {notification.action === Action.warning
-                ? 'Просрочен'
-                : notification.action === Action.success
-                  ? 'Завершён'
-                  : notification.action === Action.cancelled
-                    ? 'Отменён'
-                    : notification.action === Action.noted
-                      ? 'Уведомление'
-                      : 'В процессе'}
-            </h2>
-          </div>
+      <AnimatedComponent duration={500} className={'w-[700px]'}>
+        <div
+          className="relative bg-white rounded-2xl w-full p-0 flex flex-col overflow-hidden"
+          style={{ height: '80vh' }}
+        >
+          {/* Шапка модального окна */}
+          <OrderHeader
+            onClose={onClose}
+            orderId={notification.orderId}
+            action={notification.action}
+            onMarkAsRead={handleCloseWithMarkAsRead}
+          />
 
-          {isLoading && !orderData ? (
-            <div className="flex justify-center">
-              <div className="w-5 h-5 border-4 border-gray-200 border-t-blue-500 rounded-full animate-spin" />
+          {/* Полоса прогресса для активных заказов */}
+          {!isOrderCancelled(orderStatus) && (
+            <div className="bg-gray-100 h-1 w-full">
+              <div
+                className="bg-blue-500 h-1 rounded-r-full transition-all duration-500"
+                style={{ width: `${progress}%` }}
+              ></div>
             </div>
-          ) : orderData ? (
-            <div className="space-y-4">
-              {/* Основная информация */}
-              <div className="bg-gray-50 p-4 rounded-lg shadow-sm">
-                <h3 className="text-lg font-medium text-gray-800 border-b pb-2 mb-3">
-                  Основная информация
-                </h3>
+          )}
 
-                <p className="mb-2">
-                  <span className="text-sm text-gray-500">Время отправления:</span>{' '}
-                  <span className="font-medium">
-                    {new Date(orderData.departureTime).toLocaleString('ru-RU', {
-                      day: '2-digit',
-                      month: '2-digit',
-                      year: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </span>
-                </p>
-
-                {/* Маршрут */}
-                <div className="mt-3">
-                  <p className="text-sm text-gray-500">Маршрут:</p>
-                  <div className="mt-1 flex flex-col space-y-2">
-                    <div className="flex items-start">
-                      <div className="mr-2 mt-1">
-                        <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                      </div>
-                      <p className="flex-grow">{orderData.departurePoint.address}</p>
-                    </div>
-
-                    <div className="flex items-start">
-                      <div className="mr-2 mt-1">
-                        <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                      </div>
-                      <p className="flex-grow">{orderData.arrivalPoint.address}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Информация о клиенте */}
-                <div className="mt-3">
-                  <p className="text-sm text-gray-500">Клиент:</p>
-                  <p className="font-medium">
-                    {orderData.createdBy.fullName} ({orderData.createdBy.phone})
-                  </p>
-                </div>
-
-                {orderData.description && (
-                  <p className="mt-3">
-                    <span className="text-sm text-gray-500">Описание:</span>{' '}
-                    <span>{orderData.description}</span>
-                  </p>
-                )}
-
-                {/* Текущий этап */}
-                {(notification.action === Action.inProgress ||
-                  notification.action === Action.warning) && (
-                  <p className="mt-3 font-semibold text-blue-700">
-                    Текущий этап: {stages[currentStage]}
-                  </p>
-                )}
+          {/* Скроллируемый контент */}
+          <div className="flex-grow overflow-y-auto">
+            {isLoading && !orderData ? (
+              <div className="flex justify-center items-center h-full">
+                <div className="w-10 h-10 border-4 border-gray-200 border-t-blue-500 rounded-full animate-spin"></div>
               </div>
+            ) : orderData ? (
+              isOrderCancelled(orderStatus) ? (
+                <CancelledOrderView orderData={orderData} />
+              ) : (
+                <>
+                  <OrderStageHeader currentStage={currentStage} orderData={orderData} />
+                  <OrderMapPreview />
 
-              {/* Стоимость и услуги */}
-              <div className="bg-gray-50 p-4 rounded-lg shadow-sm">
-                <h3 className="text-lg font-medium text-gray-800 border-b pb-2 mb-3">
-                  Стоимость и услуги
-                </h3>
-
-                {/* Общая сумма заказа */}
-                <p className="mb-2">
-                  <span className="text-sm text-gray-500">Общая сумма:</span>{' '}
-                  <span className="font-medium text-lg text-green-700">
-                    {'basePrice' in orderData ? orderData.basePrice : orderData.tariff.price} сом
-                  </span>
-                </p>
-
-                {/* Тариф */}
-                <p className="mb-2">
-                  <span className="text-sm text-gray-500">Тариф:</span>{' '}
-                  <span className="font-medium">{orderData.tariff.name}</span>
-                  {orderData.tariff.price && !('basePrice' in orderData) && (
-                    <span className="text-sm text-gray-500 ml-2">
-                      ({orderData.tariff.price} сом)
-                    </span>
-                  )}
-                </p>
-
-                {/* Дополнительные услуги */}
-                {orderData.additionalServices && orderData.additionalServices.length > 0 && (
-                  <div className="mt-3">
-                    <button
-                      className="text-blue-500 hover:underline text-sm"
-                      onClick={() => setShowAdditionalServices(!showAdditionalServices)}
-                    >
-                      {showAdditionalServices ? 'Скрыть доп. услуги' : 'Показать доп. услуги'}
-                    </button>
-                    {showAdditionalServices && (
-                      <div className="mt-2 pl-2 border-l-2 border-blue-200">
-                        <p className="text-sm text-gray-500 mb-1">Дополнительные услуги:</p>
-                        <ul className="space-y-1">
-                          {orderData.additionalServices.map((service) => (
-                            <li key={service.uuid} className="flex justify-between text-sm">
-                              <span>{service.name}</span>
-                              <span className="font-medium">{service.price} сом</span>
-                            </li>
-                          ))}
-                        </ul>
+                  <div className="p-5 space-y-4">
+                    <OrderRouteDetails
+                      orderData={orderData}
+                      intermediateAddresses={intermediateAddresses}
+                    />
+                    <ClientInfo createdBy={orderData.createdBy} />
+                    <OrderPaymentDetails
+                      orderData={orderData}
+                      intermediateAddresses={intermediateAddresses}
+                    />
+                    {orderData.description && <OrderNotes description={orderData.description} />}
+                    {error && (
+                      <div className="bg-red-50 text-red-600 p-4 rounded-xl border border-red-100 error-message-container">
+                        <p>{error}</p>
                       </div>
                     )}
                   </div>
-                )}
-              </div>
+                </>
+              )
+            ) : (
+              <OrderLoadError message={error || 'Не удалось загрузить данные'} />
+            )}
+          </div>
 
-              {error && <p className="text-red-500 mt-3">{error}</p>}
+          {/* Футер с кнопками действий */}
+          <div className="p-5 border-t border-gray-200 sticky bottom-0 bg-white z-10 rounded-b-2xl shadow-inner">
+            <div className="flex justify-between gap-4">
+              {renderOrderActions({
+                userRole: UserRole.Driver,
+                notification,
+                currentStage,
+                orderData,
+                isLoading: isLoading || isProcessing,
+                onMarkAsRead: handleMarkAsRead,
+                onCancelOrder: () => {},
+                onDriverAction: handleDriverAction,
+                onClose: handleCloseWithMarkAsRead,
+              })}
             </div>
-          ) : (
-            <p className="text-red-500">Не удалось загрузить данные заказа</p>
-          )}
-
-          <div className="mt-5 flex gap-2 justify-center">{getActions()}</div>
+          </div>
         </div>
       </AnimatedComponent>
     </div>

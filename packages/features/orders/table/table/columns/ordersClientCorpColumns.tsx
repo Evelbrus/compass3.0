@@ -149,7 +149,7 @@ export const ordersClientCorpColumns: Column<TableOrdersRow, keyof TableOrdersRo
     header: 'Цена',
     render: (row: TableOrdersRow) => <span>{row.basePrice} сом</span>,
     sortable: true,
-    className: 'w-[150px] text-center',
+    className: 'flex-grow text-center',
   },
   {
     accessor: 'actions',

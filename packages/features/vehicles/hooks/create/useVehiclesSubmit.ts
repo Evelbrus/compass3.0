@@ -1,7 +1,8 @@
+'use client';
+
 import { useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { showToast } from '@shared/components/toast/ToastManager';
-import { v4 as uuidv4 } from 'uuid';
 import { VehicleData } from './useVehiclesCreateForm';
 
 interface UseVehiclesSubmitProps {
@@ -23,23 +24,15 @@ export const useVehiclesSubmit = ({ mode, vehicleData }: UseVehiclesSubmitProps)
 
         // Убираем поля, используемые только на клиенте: photoImage и vehicleDrivers
         const { photoImage, vehicleDrivers, ...vehicleDataRest } = data;
-        let photoPath: string | null = vehicleData?.photoPath ?? null;
 
-        // Если выбран файл, генерируем уникальное имя и формируем путь
-        if (photoImage instanceof File) {
-          const photoFilename = `${uuidv4()}-${photoImage.name}`;
-          photoPath = `/vehicle/${photoFilename}`;
-        }
-
-        // Формируем payload для API: добавляем photoPath и driverIds
-        const payload = { ...vehicleDataRest, photoPath, driverIds };
-        if (mode === 'create') {
-          vehicleUuid = uuidv4();
+        // Формируем payload для POST/PUT без photoPath
+        const payload = { ...vehicleDataRest, driverIds };
+        if (mode === 'edit' && vehicleUuid) {
           payload.uuid = vehicleUuid;
         }
 
-        // Отправляем JSON-payload на сервер (POST или PUT)
-        const apiUrl = mode === 'create' ? '/api/vehicles' : `/api/vehicles/${vehicleData?.uuid}`;
+        // 1. POST или PUT для создания/обновления автомобиля
+        const apiUrl = mode === 'create' ? '/api/admin/vehicles' : `/api/admin/vehicles/${vehicleUuid}`;
         const response = await fetch(apiUrl, {
           method: mode === 'create' ? 'POST' : 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -50,27 +43,49 @@ export const useVehiclesSubmit = ({ mode, vehicleData }: UseVehiclesSubmitProps)
           const errorData = await response.json();
           const errorMessage =
             errorData.error?.message || `Failed ${action} vehicle: ${response.status}`;
-          showToast.error(errorMessage);
-          return;
+          throw new Error(errorMessage);
         }
 
         const result = await response.json();
         vehicleUuid = result.uuid;
+        if (!vehicleUuid) throw new Error('Сервер не вернул UUID автомобиля');
 
-        if (photoImage instanceof File && photoPath) {
-          const formData = new FormData();
-          formData.append('photoImage', photoImage);
-          formData.append('photoPath', photoPath);
+        // 2. UPLOAD фото, если оно есть
+        let photoPath = null;
+        if (photoImage instanceof File) {
+          const uploadFormData = new FormData();
+          uploadFormData.append('photoImage', photoImage);
+
           const uploadResponse = await fetch('/api/upload', {
             method: 'POST',
-            body: formData,
+            body: uploadFormData,
           });
+
           if (!uploadResponse.ok) {
             const uploadError = await uploadResponse.json();
             const uploadErrorMessage =
               uploadError.error?.message || uploadError.message || 'Error uploading image';
-            showToast.error(uploadErrorMessage);
-            return;
+            throw new Error(uploadErrorMessage);
+          }
+
+          const uploadData = await uploadResponse.json();
+          photoPath = uploadData.filePaths.photoPath; // Получаем сгенерированный путь
+        }
+
+        // 3. PATCH для записи пути фото, если оно было загружено
+        if (photoPath) {
+          const patchPayload = { uuid: vehicleUuid, photoPath };
+          const patchResponse = await fetch(`/api/admin/vehicles/${vehicleUuid}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(patchPayload),
+          });
+
+          if (!patchResponse.ok) {
+            const patchError = await patchResponse.json();
+            const patchErrorMessage =
+              patchError.error?.message || 'Error updating vehicle photo path';
+            throw new Error(patchErrorMessage);
           }
         }
 

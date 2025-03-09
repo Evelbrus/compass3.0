@@ -21,7 +21,7 @@ export const useTariffSubmit = ({ mode, tariffData }: UseTariffSubmitProps) => {
         const payload = { ...data };
 
         // Отправляем JSON-payload на сервер (POST или PUT)
-        const apiUrl = mode === 'create' ? '/api/tariffs' : `/api/tariffs/${tariffData?.uuid}`;
+        const apiUrl = mode === 'create' ? '/api/admin/tariffs' : `/api/admin/tariffs/${tariffData?.uuid}`;
         const response = await fetch(apiUrl, {
           method: mode === 'create' ? 'POST' : 'PUT',
           headers: { 'Content-Type': 'application/json' },

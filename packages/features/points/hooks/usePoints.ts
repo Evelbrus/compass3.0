@@ -32,7 +32,7 @@ const usePoints = () => {
   const fetchPoints = useCallback(async () => {
     setLoading(true);
     try {
-      const url = new URL('/api/points', window.location.origin);
+      const url = new URL('/api/shared/points', window.location.origin);
       url.searchParams.append('page', page.toString());
       url.searchParams.append('per_page', perPage.toString());
       if (sortBy !== null) {

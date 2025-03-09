@@ -1,5 +1,6 @@
 import { Point, User } from '@prisma/client';
 import { Driver } from '@features/orders/create/types/types';
+import { OrderDetail } from '@widgets/modal/order-management/types/order.types';
 
 const fetchData = async (url: string) => {
   try {
@@ -29,26 +30,50 @@ export const fetchClients = async (
 ): Promise<FetchClientsResponse> => {
   const params = new URLSearchParams();
 
+  // Фильтрация по ролям Client и ClientCorp
   ['Client', 'ClientCorp'].forEach((role) => params.append('role', role));
+
   if (search) params.append('search', search);
   if (page) params.append('page', page);
   if (per_page) params.append('per_page', per_page);
   params.append('sort_by', sort_by);
   params.append('sort_order', sort_order);
 
-  const url = `/api/orders/clients?${params}`;
+  // Обновлен путь API с /api/orders/clients на /api/admin/users
+  const url = `/api/admin/users?${params}`;
   const data = await fetchData(url);
-  return data.data as FetchClientsResponse;
+
+  // Адаптация ответа к ожидаемому формату
+  return {
+    users: data.data?.users || null,
+    total: data.data?.total || 0,
+    page: data.data?.page || 1,
+    perPage: data.data?.per_page || 10,
+  };
 };
 
-//Функция для получения клиента по UUID (не изменилась)
+// Функция для получения клиента по UUID
 export const fetchClientByUuid = async (
   uuid: string,
 ): Promise<Pick<User, 'uuid' | 'fullName' | 'email' | 'phone' | 'role'> | null> => {
-  const url = `/api/orders/clients/${uuid}`;
+  // Обновлен путь API с /api/orders/clients/${uuid} на /api/admin/users/${uuid}
+  const url = `/api/admin/users/${uuid}`;
   try {
     const response = await fetchData(url);
-    return response.data;
+
+    // Адаптация ответа - в новом API структура может отличаться
+    // Предполагаем, что нужные поля есть непосредственно в ответе
+    if (response && response.uuid) {
+      return {
+        uuid: response.uuid,
+        fullName: response.fullName,
+        email: response.email,
+        phone: response.phone,
+        role: response.role,
+      };
+    } else {
+      return null;
+    }
   } catch (error) {
     console.error('Error fetching client by UUID:', error);
     return null;
@@ -81,27 +106,27 @@ export const fetchDrivers = async (
     ...(per_page && { per_page }),
   });
 
-  const response = await fetch(`/api/orders/drivers?${params}`);
+  const response = await fetch(`/api/admin/orders/drivers?${params}`);
   const data = await response.json();
   return data.data as FetchDriversResponse;
 };
 
-//Запрос назначенного водителя
+// Запрос назначенного водителя
 export const fetchAssignedDriver = async (assignedDriverId: string): Promise<Driver> => {
   const params = new URLSearchParams({ assignedDriverId });
-  const response = await fetch(`/api/orders/drivers?${params}`);
+  const response = await fetch(`/api/admin/orders/drivers?${params}`);
   const data = await response.json();
   return data.data.driver as Driver;
 };
 
 export const fetchAdditionalServices = async () => {
-  const url = '/api/additional-services?page=1&per_page=100';
+  const url = '/api/shared/additional-services?page=1&per_page=100';
   const data = await fetchData(url);
   return data.data.additionalServices || [];
 };
 
 export const fetchTariffs = async (serviceLevel?: string, vehicleType?: string) => {
-  let url = '/api/tariffs';
+  let url = '/api/shared/tariffs';
   const params = new URLSearchParams();
   if (serviceLevel) params.append('serviceLevel', serviceLevel);
   if (vehicleType) params.append('vehicleType', vehicleType);
@@ -133,7 +158,7 @@ export const fetchPoints = async (
     search: search,
   });
 
-  const response = await fetch(`/api/points?${params.toString()}`);
+  const response = await fetch(`/api/shared/points?${params.toString()}`);
   if (!response.ok) {
     const error = new Error('Failed to fetch points');
     console.error('Error fetching points:', error);
@@ -145,7 +170,7 @@ export const fetchPoints = async (
 };
 
 export const fetchPointByUuid = async (uuid: string): Promise<Point> => {
-  const response = await fetch(`/api/points/${uuid}`);
+  const response = await fetch(`/api/shared/points/${uuid}`);
   if (!response.ok) {
     throw new Error(`Failed to fetch point with UUID: ${uuid}`);
   }
@@ -158,10 +183,11 @@ export const fetchPointsByUuids = async (uuids: string[]): Promise<Point[]> => {
   return Promise.all(promises);
 };
 
-export const fetchOrderDetails = async (orderUuid: string) => {
-  const response = await fetch(`/api/orders/modal/${orderUuid}`);
+export const fetchOrderDetails = async (orderUuid: string): Promise<OrderDetail> => {
+  const response = await fetch(`/api/shared/orders/${orderUuid}`);
   if (!response.ok) {
     throw new Error(`Ошибка получения данных заказа: ${response.statusText}`);
   }
-  return response.json();
+  const data = await response.json();
+  return data as OrderDetail;
 };
