@@ -1,9 +1,9 @@
 // app/src/dto/orders/order.dto.ts
 import { Decimal } from 'decimal.js';
-import { Action, DriverAcceptanceStatus, Gender, OrderStatus, UserRole } from '@prisma/client';
+import { DriverAcceptanceStatus, OrderStatus, ServiceLevels, VehicleType } from '@prisma/client';
 
 export interface CreateOrderDTO {
-  createdBy: string;
+  clientBy: string;
   tariffUuid: string;
   departureTime: string | Date;
   departurePoint: string;
@@ -28,49 +28,26 @@ export interface GetOrdersRequestDTO {
   sort_order: 'asc' | 'desc';
 }
 
-export interface OrderTariffAdditionalServiceDTO {
-  serviceUuid: string;
-  name: string;
-  price: number | string | Decimal;
-}
-
 export interface OrderResponseDTO {
-  createdBy: string;
-  assignedDriverId: string | null;
-  departurePoint: string;
-  arrivalPoint: string;
-  intermediatePoints: string[];
-  tariff: any; // Можно детализировать при необходимости
-  description: string | null;
-  status: OrderStatus;
-  flightNumber: string | null;
-  waitingTimeMinutes: number;
-  departureTime: Date;
+  clientBy: {
+    fullName: string;
+    phone: string;
+    role: string;
+    companyProfile?: {
+      companyName: string;
+      phone: string;
+      logoImagePath?: string | null;
+    } | undefined;
+  };
+  assignedDriver?: { fullname: string; phone: string } | undefined;
+  plateNumber?: number | undefined;
+  tariff: { name: string; vehicleType: VehicleType; serviceLevel: ServiceLevels };
+  driverAcceptanceStatus?: DriverAcceptanceStatus | null;
+  departurePoint: { address: string };
+  arrivalPoint: { address: string };
+  status: string;
   createdAt: Date;
   updatedAt: Date;
-  orderTariffAdditionalServices: OrderTariffAdditionalServiceDTO[];
-  basePrice: number | string | Decimal;
-}
-
-export interface OrdersListResponseDTO {
-  page: number;
-  per_page: number;
-  total: number;
-  totalAllOrders: number;
-  statusesCount: Array<{
-    status: OrderStatus;
-    _count: {
-      status: number;
-    };
-  }>;
-  orders: OrderResponseDTO[];
-}
-
-export interface ProcessNotificationDTO {
-  userId: string;
-  orderId: string;
-  action: Action;
-  templateKey: string;
-  createdById: string;
-  driverById?: string;
+  basePrice: number;
+  departureTime: Date;
 }

@@ -10,7 +10,7 @@ const logError = debug('app:services:orders:error');
 
 export async function createOrder(data: CreateOrderDTO, orderStatus: OrderStatus): Promise<Order> {
   const {
-    createdBy: corpClientId,
+    clientBy: corpClientId,
     tariffUuid,
     departureTime,
     departurePoint,
@@ -97,7 +97,7 @@ export async function createOrder(data: CreateOrderDTO, orderStatus: OrderStatus
       const order = await tx.order.create({
         data: {
           uuid: uuidv4(),
-          createdById: clientUuid,
+          clientById: clientUuid,
           tariffUuid,
           departureTime: new Date(departureTime),
           departurePointId: departurePoint,

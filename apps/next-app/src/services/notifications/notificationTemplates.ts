@@ -4,8 +4,8 @@ import { Order, OrderStatus, DriverAcceptanceStatus } from '@prisma/client';
 interface OrderWithDetails extends Order {
   departurePoint: { address: string };
   arrivalPoint: { address: string };
-  createdBy: { fullName: string };
-  assignedDriver: { fullName: string } | null;
+  clientBy: { fullName: string };
+  assignedDriver?: { fullName: string } | null;
 }
 
 export type NotificationTemplate = {
@@ -82,6 +82,23 @@ export const notificationTemplates: Record<string, NotificationTemplate> = {
         ${driverFullName ? `<li>&#8226; Назначен водитель: <strong>${driverFullName}</strong></li>` : '<li>&#8226; Водитель не назначен</li>'}
         <li>&#8226; Время отправления: <strong>${order.departureTime.toLocaleString()}</strong></li>
       </ul>`,
+  },
+  orderSuccesByAdminToAdmin: {
+    title: () => 'Поездка успешно завершена',
+    message: (
+      order,
+      orderName,
+      departureAddress,
+      arrivalAddress,
+      _clientFullName,
+      driverFullName,
+    ) =>
+      `<ul>
+      <li>• Заказ <strong>${orderName}</strong> успешно завершен</li>
+      <li>• Водитель: <strong>${driverFullName || 'не указан'}</strong></li>
+      <li>• От <strong>${departureAddress}</strong> до <strong>${arrivalAddress}</strong></li>
+      <li>• Время завершения: <strong>${new Date().toLocaleString()}</strong></li>
+    </ul>`,
   },
   orderUpdatedByAdminToClient: {
     title: (_order, _departureAddress, _arrivalAddress) => 'Заказ обновлён',
@@ -351,5 +368,117 @@ export const notificationTemplates: Record<string, NotificationTemplate> = {
         <li>&#8226; От <strong>${departureAddress}</strong> до <strong>${arrivalAddress}</strong></li>
         <li>&#8226; Время отправления: <strong>${order.departureTime.toLocaleString()}</strong></li>
       </ul>`,
+  },
+  orderUpdatedByDriverToAdmins: {
+    title: (_order, _departureAddress, _arrivalAddress) => 'Заказ принят водителем',
+    message: (
+      order,
+      orderName,
+      departureAddress,
+      arrivalAddress,
+      _clientFullName,
+      driverFullName,
+    ) =>
+      `<ul>
+      <li>&#8226; Водитель <strong>${driverFullName || 'не указан'}</strong> принял заказ <strong>${orderName}</strong></li>
+      <li>&#8226; От <strong>${departureAddress}</strong> до <strong>${arrivalAddress}</strong></li>
+      <li>&#8226; Статус водителя: "<strong>${driverAcceptanceStatusTranslations[order.driverAcceptanceStatus || 'ACCEPTED']}</strong>"</li>
+      <li>&#8226; Время отправления: <strong>${order.departureTime.toLocaleString()}</strong></li>
+    </ul>`,
+  },
+  orderCompletedByDriverToAdmins: {
+    title: (_order, _departureAddress, _arrivalAddress) => 'Заказ выполнен',
+    message: (order, orderName, departureAddress, arrivalAddress, clientFullName, driverFullName) =>
+      `<ul>
+      <li>&#8226; Водитель <strong>${driverFullName || 'не указан'}</strong> успешно выполнил заказ <strong>${orderName}</strong></li>
+      <li>&#8226; Для клиента <strong>${clientFullName}</strong></li>
+      <li>&#8226; От <strong>${departureAddress}</strong> до <strong>${arrivalAddress}</strong></li>
+      <li>&#8226; Время завершения: <strong>${new Date().toLocaleString()}</strong></li>
+    </ul>`,
+  },
+  orderAutoCancelledAdmin: {
+    title: (_order, _departureAddress, _arrivalAddress) => 'Заказ автоматически отменен',
+    message: (order, orderName, departureAddress, arrivalAddress, clientFullName, driverFullName) =>
+      `<ul>
+      <li>&#8226; Заказ <strong>${orderName}</strong> был автоматически отменен системой из-за истечения времени ожидания</li>
+      <li>&#8226; Клиент: <strong>${clientFullName}</strong></li>
+      <li>&#8226; От <strong>${departureAddress}</strong> до <strong>${arrivalAddress}</strong></li>
+      ${driverFullName ? `<li>&#8226; Назначенный водитель: <strong>${driverFullName}</strong></li>` : ''}
+      <li>&#8226; Время отмены: <strong>${new Date().toLocaleString()}</strong></li>
+    </ul>`,
+  },
+  orderCancelledClient: {
+    title: (_order, _departureAddress, _arrivalAddress) => 'Заказ отменен',
+    message: (_order, orderName, departureAddress, arrivalAddress) =>
+      `<ul>
+      <li>&#8226; Ваш заказ <strong>${orderName}</strong> был отменен из-за длительного простоя</li>
+      <li>&#8226; От <strong>${departureAddress}</strong> до <strong>${arrivalAddress}</strong></li>
+      <li>&#8226; Время отмены: <strong>${new Date().toLocaleString()}</strong></li>
+    </ul>`,
+  },
+  orderCancelledDriver: {
+    title: (_order, _departureAddress, _arrivalAddress) => 'Заказ отменен',
+    message: (_order, orderName, departureAddress, arrivalAddress) =>
+      `<ul>
+      <li>&#8226; Заказ <strong>${orderName}</strong> был отменен из-за длительного простоя</li>
+      <li>&#8226; От <strong>${departureAddress}</strong> до <strong>${arrivalAddress}</strong></li>
+      <li>&#8226; Время отмены: <strong>${new Date().toLocaleString()}</strong></li>
+    </ul>`,
+  },
+  orderAcceptedByDriverToAdmins: {
+    title: (_order, _departureAddress, _arrivalAddress) => 'Заказ принят водителем',
+    message: (order, orderName, departureAddress, arrivalAddress, clientFullName, driverFullName) =>
+      `<ul>
+      <li>&#8226; Водитель <strong>${driverFullName || 'не указан'}</strong> принял заказ <strong>${orderName}</strong></li>
+      <li>&#8226; Для клиента <strong>${clientFullName}</strong></li>
+      <li>&#8226; От <strong>${departureAddress}</strong> до <strong>${arrivalAddress}</strong></li>
+      <li>&#8226; Статус водителя: "<strong>${driverAcceptanceStatusTranslations[order.driverAcceptanceStatus || 'ACCEPTED']}</strong>"</li>
+      <li>&#8226; Время отправления: <strong>${order.departureTime.toLocaleString()}</strong></li>
+    </ul>`,
+  },
+  orderAutoCancelledClient: {
+    title: (_order, _departureAddress, _arrivalAddress) => 'Заказ отменен',
+    message: (_order, orderName, departureAddress, arrivalAddress) =>
+      `<ul>
+      <li>&#8226; Ваш заказ <strong>${orderName}</strong> был автоматически отменен</li>
+      <li>&#8226; От <strong>${departureAddress}</strong> до <strong>${arrivalAddress}</strong></li>
+      <li>&#8226; Причина: заказ не был обработан вовремя</li>
+    </ul>`,
+  },
+  orderAutoCancelledDriver: {
+    title: (_order, _departureAddress, _arrivalAddress) => 'Заказ отменен',
+    message: (_order, orderName, departureAddress, arrivalAddress) =>
+      `<ul>
+      <li>&#8226; Заказ <strong>${orderName}</strong> был автоматически отменен</li>
+      <li>&#8226; От <strong>${departureAddress}</strong> до <strong>${arrivalAddress}</strong></li>
+      <li>&#8226; Причина: длительное отсутствие активности</li>
+    </ul>`,
+  },
+  orderCompletedByDriver: {
+    title: () => 'Поездка завершена',
+    message: (order, orderName, departureAddress, arrivalAddress, clientFullName) =>
+      `<ul>
+      <li>• Вы успешно завершили заказ <strong>${orderName}</strong></li>
+      <li>• Для клиента <strong>${clientFullName}</strong></li>
+      <li>• От <strong>${departureAddress}</strong> до <strong>${arrivalAddress}</strong></li>
+      <li>• Время завершения: <strong>${new Date().toLocaleString()}</strong></li>
+    </ul>`,
+  },
+  orderCompletedToClient: {
+    title: () => 'Поездка успешно завершена',
+    message: (
+      order,
+      orderName,
+      departureAddress,
+      arrivalAddress,
+      _clientFullName,
+      driverFullName,
+    ) =>
+      `<ul>
+      <li>• Ваш заказ <strong>${orderName}</strong> успешно завершен</li>
+      <li>• Водитель: <strong>${driverFullName || 'не указан'}</strong></li>
+      <li>• От <strong>${departureAddress}</strong> до <strong>${arrivalAddress}</strong></li>
+      <li>• Время завершения: <strong>${new Date().toLocaleString()}</strong></li>
+    </ul>`,
   },
 };

@@ -22,7 +22,7 @@ export interface ITableProps<T> {
 
 export interface TableOrdersRow {
   number: number;
-  createdBy: {
+  clientBy: {
     fullName: string;
     phone: string;
     role: string;

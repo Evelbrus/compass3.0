@@ -5,7 +5,7 @@ export interface OrderDetail {
   uuid: string;
   departurePoint: Point;
   arrivalPoint: Point;
-  createdBy: User;
+  clientBy: User;
   tariff: Tariff;
   departureTime: Date;
   description: string | null;

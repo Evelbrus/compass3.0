@@ -18,15 +18,41 @@ export const orderStatusTranslations: Record<OrderStatus, string> = {
   OVERDUE: 'Просрочен',
 };
 
-export const driverAcceptanceStatusLabels: Record<DriverAcceptanceStatus, string> = {
-  PENDING: 'Ожидание',
-  TAKEN: 'Принято к сведению',
-  ACCEPTED: 'Принят',
-  ON_THE_WAY: 'В пути',
-  ARRIVED: 'Прибыл',
-  PICKED_UP: 'Клиент в машине',
-  TIMEOUT: 'Время истекло',
-  COMPLETED: 'Завершено',
+// Перевод статусов принятия заказа водителем
+export const driverAcceptanceStatusOptions = [
+  { label: 'Ожидание решения водителя', value: DriverAcceptanceStatus.PENDING },
+  { label: 'Водитель принял к сведению', value: DriverAcceptanceStatus.TAKEN },
+  { label: 'Водитель принял заказ', value: DriverAcceptanceStatus.ACCEPTED },
+  { label: 'Водитель в пути к клиенту', value: DriverAcceptanceStatus.ON_THE_WAY },
+  { label: 'Водитель прибыл к клиенту', value: DriverAcceptanceStatus.ARRIVED },
+  { label: 'Клиент в машине, поездка начата', value: DriverAcceptanceStatus.PICKED_UP },
+  { label: 'Время для принятия заказа', value: DriverAcceptanceStatus.TIMEOUT },
+  { label: 'Поездка завершена', value: DriverAcceptanceStatus.COMPLETED },
+];
+
+// Справочники для получения перевода по значению enum
+export const orderStatusLabels: Record<OrderStatus, string> = {
+  [OrderStatus.PENDING]: 'В ожидании',
+  [OrderStatus.PLANNED]: 'Запланирован',
+  [OrderStatus.IN_PROGRESS]: 'Выполняется',
+  [OrderStatus.COMPLETED]: 'Завершен',
+  [OrderStatus.CANCELLED]: 'Отменен',
+  [OrderStatus.OVERDUE]: 'Просрочен',
 };
 
-export type OrderStatusTranslationsType = typeof orderStatusTranslations;
+export const driverAcceptanceStatusLabels: Record<DriverAcceptanceStatus, string> = {
+  [DriverAcceptanceStatus.PENDING]: 'Ожидание решения водителя',
+  [DriverAcceptanceStatus.TAKEN]: 'Водитель принял к сведению',
+  [DriverAcceptanceStatus.ACCEPTED]: 'Водитель принял заказ',
+  [DriverAcceptanceStatus.ON_THE_WAY]: 'Водитель в пути к клиенту',
+  [DriverAcceptanceStatus.ARRIVED]: 'Водитель прибыл к клиенту',
+  [DriverAcceptanceStatus.PICKED_UP]: 'Клиент в машине, поездка начата',
+  [DriverAcceptanceStatus.TIMEOUT]: 'Время для принятия заказа',
+  [DriverAcceptanceStatus.COMPLETED]: 'Поездка завершена',
+};
+
+// Вспомогательная функция для получения человекочитаемого статуса заказа
+export const getOrderStatusLabel = (status: OrderStatus | null | undefined): string => {
+  if (!status) return 'Неизвестно';
+  return orderStatusLabels[status] || 'Неизвестно';
+};

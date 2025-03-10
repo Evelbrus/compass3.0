@@ -1,10 +1,7 @@
 import React from 'react';
-import {
-  formatDateTime,
-  getEstimatedArrivalTime,
-  formatDuration,
-} from '@widgets/modal/order-management/utils/orderUtils';
 import { OrderDetail } from '@widgets/modal/order-management/types/order.types';
+import { format } from 'date-fns';
+import { ru } from 'date-fns/locale';
 
 interface OrderRouteDetailsProps {
   orderData: OrderDetail;
@@ -32,7 +29,12 @@ const OrderRouteDetails: React.FC<OrderRouteDetailsProps> = ({
           <div className="flex-1">
             <p className="font-medium text-gray-900">{orderData.departurePoint.address}</p>
             <p className="text-sm text-gray-500">
-              Отправление: {formatDateTime(orderData.departureTime)}
+              Отправление:{' '}
+              {orderData.departureTime
+                ? format(new Date(orderData.departureTime), 'dd MMMM yyyy HH:mm', {
+                    locale: ru,
+                  })
+                : 'Не указано'}
             </p>
           </div>
         </div>
@@ -60,7 +62,7 @@ const OrderRouteDetails: React.FC<OrderRouteDetailsProps> = ({
           <div className="flex-1">
             <p className="font-medium text-gray-900">{orderData.arrivalPoint.address}</p>
             <p className="text-sm text-gray-500">
-              Прибытие примерно в {getEstimatedArrivalTime(orderData)}
+              Прибытие примерно в
             </p>
           </div>
         </div>
@@ -71,7 +73,7 @@ const OrderRouteDetails: React.FC<OrderRouteDetailsProps> = ({
         <div className="mt-4 pt-3 border-t border-gray-100 flex justify-between text-sm text-gray-500">
           {orderData.distanceKm && <span>Расстояние: ~{orderData.distanceKm.toFixed(1)} км</span>}
           {orderData.estimatedDurationMinutes && (
-            <span>Время в пути: {formatDuration(orderData.estimatedDurationMinutes)}</span>
+            <span>Время в пути: {orderData.estimatedDurationMinutes}</span>
           )}
         </div>
       )}

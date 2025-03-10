@@ -81,7 +81,7 @@ const OrderCreateClientCorp: FC<OrderProps> = ({ role, mode, orderData, userSess
     loadMore,
     total: clientsTotal,
   } = useOrderCreateClients({
-    assignedClientId: orderData?.createdBy?.uuid || null,
+    assignedClientId: orderData?.clientBy?.uuid || null,
     setValue,
     role,
     userSession,
@@ -438,7 +438,7 @@ const OrderCreateClientCorp: FC<OrderProps> = ({ role, mode, orderData, userSess
                     handleClientSelection={handleClientSelection}
                     loadMore={loadMore}
                     total={clientsTotal}
-                    initialClient={orderData?.createdBy as any}
+                    initialClient={orderData?.clientBy as any}
                     role={role}
                     userSession={userSession}
                   />

@@ -1,539 +1,282 @@
-// app/src/services/orders/updateOrderStatus.ts
 import { prisma } from '@shared/prisma/prisma-client';
-import {
-  DriverAcceptanceStatus,
-  OrderStatus,
-  UserRole,
-  DriverStatus,
-  Action,
-  User,
-  Order,
-} from '@prisma/client';
-import debug from 'debug';
+import { DriverAcceptanceStatus, OrderStatus, UserRole, DriverStatus } from '@prisma/client';
 import {
   UpdateOrderStatusDTO,
   UpdateOrderStatusResultDTO,
 } from '@next-app/src/dto/orders/order-status.dto';
-import {
-  processNotification,
-  processBulkNotifications,
-} from '@next-app/src/utils/notifications/notifications';
-
-const logError = debug('app:services:orders:error');
-const log = debug('app:orders:update-status');
-
-// Типизированный интерфейс для параметров функции уведомлений
-interface NotificationParams {
-  updatedOrder: Order;
-  driverStatus?: DriverAcceptanceStatus;
-  orderStatus?: OrderStatus;
-  userId: string;
-  createdById: string;
-  driverById?: string;
-  adminsAndOperators: User[];
-  previousDriverId: string | null;
-  action: Action;
-}
+import * as notificationService from '@next-app/src/services/notifications/notificationService';
 
 export async function updateOrderStatus(
   uuid: string,
   data: UpdateOrderStatusDTO,
 ): Promise<UpdateOrderStatusResultDTO> {
   try {
-    const {
-      driverStatus,
-      orderStatus,
-      userId,
-      createdById,
-      notificationUuid,
-      markNotificationAsRead,
-      action,
-      driverById,
-      readOnly, // Получаем флаг readOnly
-      originalAction, // Получаем оригинальный тип действия
-    } = data;
-
-    log(`Полученные данные:`, {
-      driverStatus: driverStatus ?? 'null',
-      orderStatus: orderStatus ?? 'null',
-      userId,
-      createdById,
-      notificationUuid,
-      action,
-      driverById: driverById ?? 'null',
-      markNotificationAsRead: markNotificationAsRead ?? 'null',
-      readOnly: readOnly ?? 'false',
-      originalAction: originalAction ?? 'null',
+    const { driverStatus, orderStatus, userId, clientById, driverById } = data;
+    console.log(
+      `updateOrderStatus вызвана с orderStatus: ${orderStatus}, driverStatus: ${driverStatus}`,
+    );
+    if (!userId || !clientById) {
+      throw new Error('Отсутствуют обязательные поля: userId, clientById');
+    }
+    const order = await prisma.order.findUnique({
+      where: { uuid },
+      include: {
+        assignedDriver: true,
+        clientBy: true,
+      },
     });
-
-    if (!userId || !createdById || !notificationUuid || !action) {
-      logError('× Отсутствуют обязательные поля');
-      throw new Error(
-        'Отсутствуют обязательные поля: userId, createdById, notificationUuid или action',
-      );
+    if (!order) {
+      throw new Error('Заказ не найден');
     }
-
-    // Если это только отметка о прочтении, выполняем упрощенную логику без изменения заказа
-    if (readOnly === true) {
-      log('Запрос только для отметки уведомления как прочитанного (readOnly=true)');
-
-      // Проверяем существование уведомления
-      const notification = await prisma.notification.findUnique({
-        where: { uuid: notificationUuid },
-      });
-
-      if (!notification) {
-        throw new Error('Уведомление не найдено');
-      }
-
-      // Проверяем существование заказа (просто для валидации)
-      const order = await prisma.order.findUnique({ where: { uuid } });
-      if (!order) {
-        throw new Error('Заказ не найден');
-      }
-
-      // Отмечаем уведомление как прочитанное
-      if (markNotificationAsRead) {
-        await prisma.notification.update({
-          where: { uuid: notificationUuid },
-          data: { read: true },
+    const currentTime = new Date();
+    const departureTime = order.departureTime ? new Date(order.departureTime) : null;
+    const isOverdue =
+      order.status === OrderStatus.OVERDUE || (departureTime && departureTime < currentTime);
+    const isSameDriver = driverById === order.assignedDriverId;
+    console.log(`Заказ найден. isOverdue: ${isOverdue}, isSameDriver: ${isSameDriver}`);
+    const updatedOrder = await prisma.order.update({
+      where: { uuid },
+      data: {
+        ...(orderStatus && { status: orderStatus }),
+        ...(driverStatus && { driverAcceptanceStatus: driverStatus }),
+        ...(driverById !== undefined && { assignedDriverId: driverById }),
+        updatedAt: new Date(),
+      },
+    });
+    console.log(
+      `Заказ обновлён. Новый статус: ${updatedOrder.status}, новый статус водителя: ${updatedOrder.driverAcceptanceStatus}`,
+    );
+    let updatedDriver = null;
+    if (driverById) {
+      if (driverStatus === DriverAcceptanceStatus.ACCEPTED) {
+        console.log(`Выполняется логика для ACCEPTED`);
+        const driver = await prisma.user.findUnique({ where: { uuid: driverById } });
+        if (!driver || driver.role !== UserRole.Driver) {
+          throw new Error('Водитель не найден или не имеет роли Driver');
+        }
+        if (!isSameDriver) {
+          const activeOrders = await prisma.order.count({
+            where: {
+              assignedDriverId: driverById,
+              status: { in: [OrderStatus.IN_PROGRESS, OrderStatus.PLANNED] },
+              NOT: { uuid: order.uuid },
+            },
+          });
+          console.log(`ACTIVE ORDERS у водителя ${driverById}: ${activeOrders}`);
+          if (activeOrders > 0) {
+            throw new Error(`Водитель занят другими активными заказами (${activeOrders})`);
+          }
+        }
+        updatedDriver = await prisma.user.update({
+          where: { uuid: driverById },
+          data: { driverStatus: DriverStatus.BUSY },
         });
-        log(`Уведомление ${notificationUuid} помечено как прочитанное (readOnly режим)`);
-      }
-
-      // Возвращаем данные без изменения статуса заказа
-      return {
-        updatedOrder: order,
-        updatedDriver: null,
-        updatedAdminNotifications: [],
-        notificationMarkedAsRead: markNotificationAsRead || false,
-      };
-    }
-
-    // Транзакция для обновления заказа и водителя
-    const { updatedOrder, updatedDriver, previousDriverId } = await prisma.$transaction(
-      async (tx) => {
-        const order = await tx.order.findUnique({ where: { uuid } });
-        if (!order) {
-          logError(`× Заказ с UUID ${uuid} не найден`);
-          throw new Error('Заказ не найден');
-        }
-
-        let driver = null;
-        const previousDriverId = order.assignedDriverId; // Сохраняем текущего водителя
-
-        if (driverById) {
-          driver = await tx.user.findUnique({ where: { uuid: driverById } });
-          if (!driver || driver.role !== UserRole.Driver) {
-            logError(`× Водитель ${driverById} не найден или не имеет роли Driver`);
-            throw new Error('Водитель не найден или не имеет роли Driver');
-          }
-
-          if (driverStatus === DriverAcceptanceStatus.ACCEPTED) {
-            const activeOrders = await tx.order.count({
-              where: {
-                assignedDriverId: driverById,
-                status: { in: [OrderStatus.IN_PROGRESS, OrderStatus.PLANNED] },
-                NOT: { uuid: order.uuid },
-              },
-            });
-            if (activeOrders > 0) {
-              logError(
-                `× Водитель ${driverById} занят другими активными заказами (${activeOrders})`,
-              );
-              throw new Error(`Водитель занят другими активными заказами (${activeOrders})`);
-            }
-          }
-        }
-
-        const updatedOrder = await tx.order.update({
-          where: { uuid },
-          data: {
-            ...(orderStatus && { status: orderStatus }),
-            ...(driverStatus && { driverAcceptanceStatus: driverStatus }),
-            ...(driverById !== undefined && { assignedDriverId: driverById }),
+        console.log(`Обновлён статус водителя ${driverById} на BUSY`);
+      } else if (
+        driverStatus === DriverAcceptanceStatus.COMPLETED ||
+        orderStatus === OrderStatus.CANCELLED
+      ) {
+        console.log(`Выполняется логика для COMPLETED или CANCELLED`);
+        const activeOrders = await prisma.order.count({
+          where: {
+            assignedDriverId: driverById,
+            status: { in: [OrderStatus.IN_PROGRESS, OrderStatus.PLANNED] },
+            NOT: { uuid: order.uuid },
           },
         });
-
-        let updatedDriver = null;
-        if (driverById) {
-          if (
-            driverStatus === DriverAcceptanceStatus.COMPLETED ||
-            driverStatus === DriverAcceptanceStatus.TIMEOUT ||
-            orderStatus === OrderStatus.COMPLETED ||
-            orderStatus === OrderStatus.CANCELLED
-          ) {
-            const activeOrders = await tx.order.count({
-              where: {
-                assignedDriverId: driverById,
-                status: { in: [OrderStatus.IN_PROGRESS, OrderStatus.PLANNED] },
-                NOT: { uuid: updatedOrder.uuid },
-              },
-            });
-            if (activeOrders === 0) {
-              updatedDriver = await tx.user.update({
-                where: { uuid: driverById },
-                data: { driverStatus: DriverStatus.FREE },
-              });
-              log(`Водитель ${driverById} установлен в FREE`);
-            }
-          } else if (driverStatus === DriverAcceptanceStatus.ACCEPTED) {
-            updatedDriver = await tx.user.update({
-              where: { uuid: driverById },
-              data: { driverStatus: DriverStatus.BUSY },
-            });
-            log(`Водитель ${driverById} установлен в BUSY`);
-          }
+        console.log(`Проверка активных заказов для водителя ${driverById}: ${activeOrders}`);
+        if (activeOrders === 0) {
+          updatedDriver = await prisma.user.update({
+            where: { uuid: driverById },
+            data: { driverStatus: DriverStatus.FREE },
+          });
+          console.log(`Обновлён статус водителя ${driverById} на FREE`);
         }
-
-        return { updatedOrder, updatedDriver, previousDriverId };
-      },
-      { timeout: 10000 },
-    );
-
-    // Получение админов и операторов для отправки уведомлений
+      }
+    }
     const adminsAndOperators = await prisma.user.findMany({
       where: { role: { in: [UserRole.Operator, UserRole.Admin] } },
     });
-
-    // Логика уведомлений, основанная на шаблонах
-    await sendNotificationsBasedOnStatus({
-      updatedOrder,
-      driverStatus,
-      orderStatus,
-      userId,
-      createdById,
-      driverById,
-      adminsAndOperators,
-      previousDriverId,
-      action,
-    });
-
-    // Отметка уведомления как прочитанного
-    if (markNotificationAsRead) {
-      // Получаем текущее уведомление для сохранения его типа действия
-      const currentNotification = await prisma.notification.findUnique({
-        where: { uuid: notificationUuid },
-      });
-
-      if (!currentNotification) {
-        throw new Error('Уведомление не найдено');
-      }
-
-      // Используем originalAction, если передан, иначе сохраняем текущий тип действия
-      const actionToPreserve = originalAction || currentNotification.action;
-
-      // Обновляем уведомление, отмечая его как прочитанное
-      await prisma.notification.update({
-        where: { uuid: notificationUuid },
-        data: { read: true },
-      });
-      log(`Уведомление ${notificationUuid} помечено как прочитанное`);
-
-      // Создаем уведомление о прочтении только для действий, требующих подтверждения
-      if (['inProgress', 'success', 'warning', 'info'].includes(actionToPreserve)) {
-        // Уведомляем только инициатора действия о том, что уведомление прочитано,
-        // но сохраняем оригинальный тип действия в истории
-        await processNotification({
-          userId,
-          orderId: uuid,
-          action: actionToPreserve, // Используем сохраненный тип действия
-          templateKey:
-            userId === createdById
-              ? 'orderNotedByClient'
-              : userId === driverById
-                ? 'orderNotedByDriver'
-                : 'orderNotedByAdmin',
-          createdById,
-          driverById,
-          markNotificationAsRead: true,
-        });
+    if (isOverdue && orderStatus === OrderStatus.IN_PROGRESS) {
+      console.log(`Заказ просрочен и переходит в IN_PROGRESS, уведомляем админов/операторов`);
+      await notificationService.admin.notifyAdminsOverdueOrderAccepted(uuid, driverById || '');
+    }
+    if (driverStatus && driverById) {
+      console.log(`Переход в switch по driverStatus: ${driverStatus}`);
+      switch (driverStatus) {
+        case DriverAcceptanceStatus.TAKEN:
+          console.log(`Вызов: notifyDriverOrderNoted`);
+          await notificationService.driver.notifyDriverOrderNoted(driverById, uuid, clientById);
+          break;
+        case DriverAcceptanceStatus.ACCEPTED:
+          console.log(`Вызов: notifyDriverOrderInProgress (isCompleted: false) для ACCEPTED`);
+          await notificationService.driver.notifyDriverOrderInProgress(
+            driverById,
+            uuid,
+            clientById,
+          );
+          console.log(`Вызов: notifyClientOrderStatusChanged для ACCEPTED`);
+          await notificationService.client.notifyClientOrderStatusChanged(
+            updatedOrder.clientById,
+            uuid,
+            driverById,
+          );
+          if (!isOverdue) {
+            console.log(`Вызов: processBulkNotifications для админов/операторов`);
+            await notificationService.processBulkNotifications({
+              users: adminsAndOperators,
+              orderId: uuid,
+              templateKey: 'orderUpdatedByDriverToAdmins',
+              clientId: clientById,
+              driverById,
+            });
+          }
+          break;
+        case DriverAcceptanceStatus.ON_THE_WAY:
+        case DriverAcceptanceStatus.ARRIVED:
+        case DriverAcceptanceStatus.PICKED_UP:
+          console.log(`Вызов: notifyDriverOrderInProgress для ON_THE_WAY/ARRIVED/PICKED_UP`);
+          await notificationService.driver.notifyDriverOrderInProgress(
+            driverById,
+            uuid,
+            clientById,
+          );
+          console.log(`Вызов: notifyClientOrderInProgress для ON_THE_WAY/ARRIVED/PICKED_UP`);
+          await notificationService.client.notifyClientOrderInProgress(
+            updatedOrder.clientById,
+            uuid,
+            driverById,
+          );
+          break;
+        case DriverAcceptanceStatus.COMPLETED:
+          console.log(`Вызов: notifyDriverOrderInProgress (isCompleted: true) для COMPLETED`);
+          await notificationService.driver.notifyDriverOrderInProgress(
+            driverById,
+            uuid,
+            clientById,
+            true,
+          );
+          console.log(`Вызов: notifyClientOrderStatusChanged (isCompleted: true) для COMPLETED`);
+          await notificationService.client.notifyClientOrderStatusChanged(
+            updatedOrder.clientById,
+            uuid,
+            driverById,
+            true,
+          );
+          console.log(`Вызов: notifyAdminOrderUpdated (isCompleted: true) для COMPLETED`);
+          // Обновление уведомления администратора для данного заказа не должно перезаписывать уведомление водителя.
+          // Если userId (инициатор обновления) совпадает с driverById, пропускаем данный вызов.
+          if (userId !== driverById) {
+            await notificationService.admin.notifyAdminOrderUpdated(userId, uuid, true);
+          } else {
+            console.log(
+              `Пропущено обновление admin для завершённого заказа, т.к. инициатор совпадает с водителем`,
+            );
+          }
+          break;
+        case DriverAcceptanceStatus.PENDING:
+          if (orderStatus === OrderStatus.CANCELLED) {
+            console.log(`Вызов: notifyDriverOrderCancelled для PENDING при CANCELLED`);
+            await notificationService.driver.notifyDriverOrderCancelled(
+              driverById,
+              uuid,
+              clientById,
+            );
+            console.log(`Вызов: notifyClientOrderCancelledByDriver для PENDING при CANCELLED`);
+            await notificationService.client.notifyClientOrderCancelledByDriver(
+              updatedOrder.clientById,
+              uuid,
+              driverById,
+            );
+            console.log(`Вызов: notifyAdminsOrderCancelledByDriver для PENDING при CANCELLED`);
+            await notificationService.admin.notifyAdminsOrderCancelledByDriver(
+              uuid,
+              driverById,
+              clientById,
+            );
+          }
+          break;
+        default:
+          console.log(`Нет обработчика для driverStatus: ${driverStatus}`);
       }
     }
-
-    // Проверяем, что изменения были применены
-    const verifiedOrder = await prisma.order.findUnique({ where: { uuid } });
+    // Если заказ не завершён (или отменён) обновляем уведомления для клиента и админа,
+    // чтобы не перезаписывать финальное уведомление водителя.
+    if (orderStatus && orderStatus !== OrderStatus.COMPLETED) {
+      if (userId !== updatedOrder.clientById) {
+        if (orderStatus === OrderStatus.PENDING && !order.status) {
+          console.log(`Вызов: notifyClientOrderCreated для PENDING`);
+          await notificationService.client.notifyClientOrderCreated(clientById, uuid);
+        }
+        console.log(`Вызов: notifyAdminOrderUpdated для админа/оператора`);
+        await notificationService.admin.notifyAdminOrderUpdated(userId, uuid);
+        console.log(
+          `Вызов: notifyClientOrderUpdatedByAdmin для клиента, обновление заказа администратором`,
+        );
+        await notificationService.client.notifyClientOrderUpdatedByAdmin(
+          updatedOrder.clientById,
+          uuid,
+          userId,
+          driverById,
+        );
+        if (orderStatus === OrderStatus.CANCELLED) {
+          console.log(`Вызов: notifyClientOrderDeletedByAdmin для CANCELLED`);
+          await notificationService.client.notifyClientOrderDeletedByAdmin(
+            updatedOrder.clientById,
+            uuid,
+            userId,
+            driverById,
+          );
+          if (updatedOrder.assignedDriverId) {
+            console.log(`Вызов: notifyDriverOrderDeletedByAdmin для CANCELLED`);
+            await notificationService.driver.notifyDriverOrderDeletedByAdmin(
+              updatedOrder.assignedDriverId,
+              uuid,
+              userId,
+            );
+          }
+        }
+      } else if (userId === updatedOrder.clientById) {
+        console.log(`Вызов: notifyAdminsOrderUpdatedByClient для клиента`);
+        await notificationService.admin.notifyAdminsOrderUpdatedByClient(uuid, userId);
+        if (orderStatus === OrderStatus.CANCELLED) {
+          if (updatedOrder.assignedDriverId) {
+            console.log(`Вызов: notifyDriverOrderCancelledByClient для клиента при CANCELLED`);
+            await notificationService.driver.notifyDriverOrderCancelledByClient(
+              updatedOrder.assignedDriverId,
+              uuid,
+              userId,
+            );
+          }
+          console.log(`Вызов: notifyAdminsOrderCancelledByClient для клиента при CANCELLED`);
+          await notificationService.admin.notifyAdminsOrderCancelledByClient(uuid, userId);
+        }
+      }
+    }
+    const verifiedOrder = await prisma.order.findUnique({
+      where: { uuid },
+      select: { status: true, driverAcceptanceStatus: true },
+    });
     if (
       (orderStatus && verifiedOrder?.status !== orderStatus) ||
       (driverStatus && verifiedOrder?.driverAcceptanceStatus !== driverStatus)
     ) {
-      logError('× Не удалось зафиксировать изменения заказа в базе данных');
       throw new Error('Не удалось зафиксировать изменения заказа в базе данных');
     }
-
-    return {
+    console.log(
+      `Финальное состояние заказа: status=${verifiedOrder?.status}, driverAcceptanceStatus=${verifiedOrder?.driverAcceptanceStatus}`,
+    );
+    const result: UpdateOrderStatusResultDTO = {
       updatedOrder,
       updatedDriver,
       updatedAdminNotifications: [],
-      previousDriverId,
-      notificationMarkedAsRead: markNotificationAsRead || false,
     };
+    return result;
   } catch (error) {
-    logError('× Ошибка при обновлении статуса заказа');
     if (error instanceof Error) {
-      logError('Error message:', error.message);
-      logError('Error stack:', error.stack);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
     }
     throw error;
-  }
-}
-
-// Вспомогательная функция для отправки уведомлений в зависимости от статуса заказа
-async function sendNotificationsBasedOnStatus(params: NotificationParams): Promise<void> {
-  const {
-    updatedOrder,
-    driverStatus,
-    orderStatus,
-    userId,
-    createdById,
-    driverById,
-    adminsAndOperators,
-    previousDriverId,
-    action,
-  } = params;
-
-  // Действия водителя
-  if (driverById && driverStatus) {
-    switch (driverStatus) {
-      case DriverAcceptanceStatus.TAKEN:
-        await processNotification({
-          userId: driverById,
-          orderId: updatedOrder.uuid,
-          action: Action.noted,
-          templateKey: 'orderNotedByDriver',
-          createdById,
-          driverById,
-        });
-        break;
-
-      case DriverAcceptanceStatus.ACCEPTED:
-        await processNotification({
-          userId: driverById,
-          orderId: updatedOrder.uuid,
-          action: Action.inProgress,
-          templateKey: 'orderInProgressDriver',
-          createdById,
-          driverById,
-        });
-        await processNotification({
-          userId: updatedOrder.createdById,
-          orderId: updatedOrder.uuid,
-          action: Action.inProgress,
-          templateKey: 'orderStatusChangedToClient',
-          createdById,
-          driverById,
-        });
-        break;
-
-      case DriverAcceptanceStatus.ON_THE_WAY:
-      case DriverAcceptanceStatus.ARRIVED:
-      case DriverAcceptanceStatus.PICKED_UP:
-        await processNotification({
-          userId: driverById,
-          orderId: updatedOrder.uuid,
-          action: Action.inProgress,
-          templateKey: 'orderInProgressDriver',
-          createdById,
-          driverById,
-        });
-        await processNotification({
-          userId: updatedOrder.createdById,
-          orderId: updatedOrder.uuid,
-          action: Action.inProgress,
-          templateKey: 'orderInProgressClient',
-          createdById,
-          driverById,
-        });
-        break;
-
-      case DriverAcceptanceStatus.COMPLETED:
-        await processNotification({
-          userId: driverById,
-          orderId: updatedOrder.uuid,
-          action: Action.success,
-          templateKey: 'orderStatusChangedToClient',
-          createdById,
-          driverById,
-        });
-        await processNotification({
-          userId: updatedOrder.createdById,
-          orderId: updatedOrder.uuid,
-          action: Action.success,
-          templateKey: 'orderStatusChangedToClient',
-          createdById,
-          driverById,
-        });
-        break;
-
-      case DriverAcceptanceStatus.TIMEOUT:
-      case DriverAcceptanceStatus.PENDING:
-        if (orderStatus === OrderStatus.CANCELLED) {
-          await processNotification({
-            userId: driverById,
-            orderId: updatedOrder.uuid,
-            action: Action.cancelled,
-            templateKey: 'orderCancelledByDriverToDriver',
-            createdById,
-            driverById,
-          });
-          await processNotification({
-            userId: updatedOrder.createdById,
-            orderId: updatedOrder.uuid,
-            action: Action.cancelled,
-            templateKey: 'orderCancelledByDriverToClient',
-            createdById,
-            driverById,
-          });
-          if (adminsAndOperators.length > 0) {
-            await processBulkNotifications({
-              users: adminsAndOperators.map((user: User) => ({ uuid: user.uuid, role: user.role })),
-              orderId: updatedOrder.uuid,
-              action: Action.cancelled,
-              templateKey: 'orderCancelledByDriverToAdmins',
-              createdById,
-              driverById,
-            });
-          }
-        }
-        break;
-    }
-  }
-
-  // Обновление заказа админом
-  if (orderStatus && !driverStatus && userId !== updatedOrder.createdById) {
-    await processNotification({
-      userId,
-      orderId: updatedOrder.uuid,
-      action: Action.info,
-      templateKey: 'orderUpdatedByAdminToAdmin',
-      createdById,
-      driverById,
-    });
-    await processNotification({
-      userId: updatedOrder.createdById,
-      orderId: updatedOrder.uuid,
-      action: Action.info,
-      templateKey: 'orderUpdatedByAdminToClient',
-      createdById,
-      driverById,
-    });
-  }
-
-  // Отмена заказа админом
-  if (
-    orderStatus === OrderStatus.CANCELLED &&
-    !driverStatus &&
-    userId !== updatedOrder.createdById
-  ) {
-    await processNotification({
-      userId: updatedOrder.createdById,
-      orderId: updatedOrder.uuid,
-      action: Action.cancelled,
-      templateKey: 'orderDeletedByAdminToClient',
-      createdById,
-      driverById,
-    });
-    if (driverById) {
-      await processNotification({
-        userId: driverById,
-        orderId: updatedOrder.uuid,
-        action: Action.cancelled,
-        templateKey: 'orderDeletedByAdminToDriver',
-        createdById,
-        driverById,
-      });
-    }
-    await processNotification({
-      userId,
-      orderId: updatedOrder.uuid,
-      action: Action.cancelled,
-      templateKey: 'orderDeletedByAdminToAdmin',
-      createdById,
-      driverById,
-    });
-  }
-
-  // Обновление заказа клиентом
-  if (orderStatus && !driverStatus && userId === updatedOrder.createdById) {
-    await processNotification({
-      userId: updatedOrder.createdById,
-      orderId: updatedOrder.uuid,
-      action: Action.info,
-      templateKey: 'orderUpdatedByCorpClientToClient',
-      createdById,
-      driverById,
-    });
-    if (adminsAndOperators.length > 0) {
-      await processBulkNotifications({
-        users: adminsAndOperators.map((user: User) => ({ uuid: user.uuid, role: user.role })),
-        orderId: updatedOrder.uuid,
-        action: Action.info,
-        templateKey: 'orderUpdatedByCorpClientToAdmins',
-        createdById,
-        driverById,
-      });
-    }
-  }
-
-  // Отмена заказа клиентом
-  if (
-    orderStatus === OrderStatus.CANCELLED &&
-    !driverStatus &&
-    userId === updatedOrder.createdById
-  ) {
-    await processNotification({
-      userId: updatedOrder.createdById,
-      orderId: updatedOrder.uuid,
-      action: Action.cancelled,
-      templateKey: 'orderCancelledByCorpClientToClient',
-      createdById,
-      driverById,
-    });
-    if (driverById) {
-      await processNotification({
-        userId: driverById,
-        orderId: updatedOrder.uuid,
-        action: Action.cancelled,
-        templateKey: 'orderCancelledByCorpClientToDriver',
-        createdById,
-        driverById,
-      });
-    }
-    if (adminsAndOperators.length > 0) {
-      await processBulkNotifications({
-        users: adminsAndOperators.map((user: User) => ({ uuid: user.uuid, role: user.role })),
-        orderId: updatedOrder.uuid,
-        action: Action.cancelled,
-        templateKey: 'orderCancelledByCorpClientToAdmins',
-        createdById,
-        driverById,
-      });
-    }
-  }
-
-  // Смена водителя
-  if (
-    driverById &&
-    driverById !== previousDriverId &&
-    driverStatus === DriverAcceptanceStatus.ACCEPTED
-  ) {
-    if (previousDriverId) {
-      await processNotification({
-        userId: previousDriverId,
-        orderId: updatedOrder.uuid,
-        action: Action.info,
-        templateKey: 'orderDriverRemoved',
-        createdById,
-        driverById,
-      });
-    }
-    await processNotification({
-      userId: driverById,
-      orderId: updatedOrder.uuid,
-      action: Action.inProgress,
-      templateKey: 'orderUpdatedDriverReassigned',
-      createdById,
-      driverById,
-    });
   }
 }

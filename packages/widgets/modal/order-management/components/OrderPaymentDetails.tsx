@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { getWaitingPrice, getTotalPrice } from '@widgets/modal/order-management/utils/orderUtils';
 import { OrderDetail } from '@widgets/modal/order-management/types/order.types';
 
 interface OrderPaymentDetailsProps {
@@ -28,7 +27,6 @@ const OrderPaymentDetails: React.FC<OrderPaymentDetailsProps> = ({
         {orderData.waitingTimeMinutes !== undefined && orderData.waitingTimeMinutes > 0 && (
           <div className="flex justify-between">
             <span className="text-gray-600">Ожидание ({orderData.waitingTimeMinutes} мин)</span>
-            <span className="font-medium">{getWaitingPrice(orderData)} сом</span>
           </div>
         )}
 
@@ -79,7 +77,7 @@ const OrderPaymentDetails: React.FC<OrderPaymentDetailsProps> = ({
         {/* Итого */}
         <div className="pt-2 mt-2 border-t border-gray-100 flex justify-between font-semibold">
           <span>Итого</span>
-          <span className="text-lg text-blue-700">{getTotalPrice(orderData)} сом</span>
+          <span className="text-lg text-blue-700">{Number(orderData.basePrice)} сом</span>
         </div>
       </div>
 

@@ -1,15 +1,15 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUnit } from 'effector-react';
-import { Action, UserRole } from '@prisma/client';
+import { UserRole, OrderStatus, DriverAcceptanceStatus } from '@prisma/client';
 import AnimatedComponent from '@shared/components/animated/CommonAnimated/AnimatedComponent';
 import { showToast } from '@shared/components/toast/ToastManager';
 import { isOrderCancelled } from '@widgets/modal/order-management/utils/orderUtils';
 import { useOrderData } from '@widgets/modal/order-management/hooks/useOrderData';
 import { renderOrderActions } from '@widgets/modal/order-management/components/renderOrderActions';
-import { markAdminNotificationAsRead } from '@widgets/modal/order-management/api/apiOrderModel';
+import { markNotificationAsRead } from '@widgets/modal/order-management/api/apiOrderModel';
 import OrderHeader from '@widgets/modal/order-management/components/OrderHeader';
 import CancelledOrderView from '@widgets/modal/order-management/components/CancelledOrderView';
 import OrderStageHeader from '@widgets/modal/order-management/components/OrderStageHeader';
@@ -21,6 +21,9 @@ import OrderNotes from '@widgets/modal/order-management/components/OrderNotes';
 import OrderLoadError from '@widgets/modal/order-management/components/OrderLoadError';
 import ClientInfo from '@widgets/modal/order-management/components/ClientInfo';
 import { $activeNotification } from '@shared/lib/effector/state/state';
+
+// Безопасная функция для строк
+const safeStr = (str: string | null): string => str || '';
 
 interface OrderAdminModalProps {
   isOpen: boolean;
@@ -37,8 +40,6 @@ const OrderAdminModal: React.FC<OrderAdminModalProps> = ({ isOpen, onClose }) =>
   // Если нет уведомления или модальное окно закрыто, не рендерим компонент
   if (!notification || !isOpen) return null;
 
-  console.log('notification', notification);
-
   // Используем хук для загрузки данных заказа
   const {
     orderData,
@@ -48,24 +49,56 @@ const OrderAdminModal: React.FC<OrderAdminModalProps> = ({ isOpen, onClose }) =>
     error,
     intermediateAddresses,
     progress,
-  } = useOrderData(notification.orderId, isOpen);
+    setCurrentStage,
+    setOrderStatus,
+    setError,
+  } = useOrderData(safeStr(notification.orderId), isOpen);
+
+  // Добавляем useEffect для синхронизации с данными заказа
+  useEffect(() => {
+    if (
+      orderData &&
+      orderData.status === OrderStatus.CANCELLED &&
+      orderStatus !== OrderStatus.CANCELLED
+    ) {
+      console.log('Получено уведомление об отмене заказа, изменяем статус в AdminModal');
+      setOrderStatus(OrderStatus.CANCELLED);
+      setCurrentStage(DriverAcceptanceStatus.PENDING);
+    } else if (
+      orderData &&
+      orderData.status === OrderStatus.COMPLETED &&
+      orderStatus !== OrderStatus.COMPLETED
+    ) {
+      console.log('Получено уведомление о завершении заказа, изменяем статус в AdminModal');
+      setOrderStatus(OrderStatus.COMPLETED);
+      setCurrentStage(DriverAcceptanceStatus.COMPLETED);
+    }
+  }, [orderData, orderStatus, setOrderStatus, setCurrentStage]);
 
   // Обработчик отметки уведомления как прочитанного
   const handleMarkAsRead = async () => {
+    // Проверка, если уведомление уже прочитано, просто закрываем модальное окно
+    if (notification.read) {
+      onClose();
+      return;
+    }
+
     setIsProcessing(true);
     try {
-      await markAdminNotificationAsRead({
-        orderUuid: notification.orderId,
-        notificationUuid: notification.uuid,
-        userId: notification.userId,
-        createdById: notification.createdById,
-        action: notification.action,
-      });
+      // Используем простую функцию для отметки уведомления как прочитанного
+      const success = await markNotificationAsRead(notification.uuid);
 
-      showToast.success('Уведомление отмечено как прочитанное', {
-        position: 'top-right',
-        autoClose: 3000,
-      });
+      if (success) {
+        showToast.success('Уведомление отмечено как прочитанное', {
+          position: 'top-right',
+          autoClose: 3000,
+        });
+      } else {
+        showToast.error('Не удалось отметить уведомление как прочитанное', {
+          position: 'top-right',
+          autoClose: 3000,
+        });
+      }
       onClose();
     } catch (err) {
       console.error('Ошибка при обновлении уведомления:', err);
@@ -83,78 +116,24 @@ const OrderAdminModal: React.FC<OrderAdminModalProps> = ({ isOpen, onClose }) =>
     if (notification.orderId) {
       router.push(`/order/edit/${notification.orderId}`);
       onClose();
+    } else {
+      setError('Невозможно редактировать заказ: orderId отсутствует');
+      showToast.error('Невозможно редактировать заказ: orderId отсутствует', {
+        position: 'top-right',
+        autoClose: 3000,
+      });
     }
   };
 
   // Обработчик закрытия модального окна с отметкой "прочитано"
   const handleCloseWithMarkAsRead = () => {
-    handleMarkAsRead();
-    onClose();
+    // Проверяем статус прочтения перед вызовом API
+    if (notification.read) {
+      onClose();
+    } else {
+      handleMarkAsRead();
+    }
   };
-
-  // Для предупреждений и отмен используем специальный шаблон с сообщением
-  if (notification.action === Action.warning || notification.action === Action.cancelled) {
-    return (
-      <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50 p-4">
-        <AnimatedComponent duration={500} className="w-full max-w-lg">
-          <div className="bg-white rounded-2xl overflow-hidden shadow-xl">
-            <div className="bg-gradient-to-r from-orange-500 to-red-500 text-white p-5">
-              <div className="flex justify-between items-center">
-                <h2 className="text-xl font-bold">
-                  {notification.action === Action.warning ? 'Предупреждение' : 'Заказ отменен'}
-                </h2>
-                <button
-                  onClick={handleCloseWithMarkAsRead}
-                  className="bg-white/20 p-1 rounded-full hover:bg-white/30 transition-colors"
-                  aria-label="Закрыть"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-6 w-6"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            <div className="p-6">
-              <p className="text-lg font-medium mb-4">{notification.title}</p>
-              <p className="text-gray-600 whitespace-pre-line mb-6">{notification.message}</p>
-
-              {notification.orderId && (
-                <p className="mt-4 text-gray-500">
-                  ID заказа:{' '}
-                  <span className="font-medium text-gray-800">{notification.orderId}</span>
-                </p>
-              )}
-
-              <div className="flex justify-end gap-3 mt-8">
-                {notification.orderId && (
-                  <button
-                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition shadow-sm"
-                    onClick={handleEditOrder}
-                  >
-                    Редактировать
-                  </button>
-                )}
-                <button
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition"
-                  onClick={handleCloseWithMarkAsRead}
-                >
-                  Закрыть
-                </button>
-              </div>
-            </div>
-          </div>
-        </AnimatedComponent>
-      </div>
-    );
-  }
 
   // Основной интерфейс для заказов
   return (
@@ -167,8 +146,8 @@ const OrderAdminModal: React.FC<OrderAdminModalProps> = ({ isOpen, onClose }) =>
           {/* Шапка модального окна */}
           <OrderHeader
             onClose={onClose}
-            orderId={notification.orderId}
-            action={notification.action}
+            orderId={safeStr(notification.orderId)}
+            orderStatus={orderStatus}
             onMarkAsRead={handleCloseWithMarkAsRead}
           />
 
@@ -202,7 +181,7 @@ const OrderAdminModal: React.FC<OrderAdminModalProps> = ({ isOpen, onClose }) =>
                       intermediateAddresses={intermediateAddresses}
                     />
 
-                    {orderData.createdBy && <ClientInfo createdBy={orderData.createdBy} />}
+                    {orderData.clientBy && <ClientInfo clientBy={orderData.clientBy} />}
                     {orderData.assignedDriver && <DriverInfo driver={orderData.assignedDriver} />}
 
                     <OrderPaymentDetails
@@ -236,6 +215,7 @@ const OrderAdminModal: React.FC<OrderAdminModalProps> = ({ isOpen, onClose }) =>
                 onCancelOrder: () => {},
                 onEditOrder: handleEditOrder,
                 onClose: handleCloseWithMarkAsRead,
+                orderStatus: orderStatus,
               })}
             </div>
           </div>

@@ -125,14 +125,14 @@ const useOrders = () => {
 
   const tableData: TableOrdersRow[] = orders.map((order, index) => ({
     number: (optimisticPage - 1) * perPage + index + 1,
-    createdBy: {
-      fullName: order.createdBy.fullName,
-      phone: order.createdBy.phone,
-      role: order.createdBy.role,
+    clientBy: {
+      fullName: order.clientBy.fullName,
+      phone: order.clientBy.phone,
+      role: order.clientBy.role,
       companyProfile: {
-        companyName: order.createdBy.companyProfile?.companyName,
-        companyPhone: order.createdBy.companyProfile?.companyPhone,
-        companyLogo: order.createdBy.companyProfile?.companyLogo,
+        companyName: order.clientBy.companyProfile?.companyName,
+        companyPhone: order.clientBy.companyProfile?.companyPhone,
+        companyLogo: order.clientBy.companyProfile?.companyLogo,
       },
     },
     assignedDriver: order.assignedDriver
@@ -144,7 +144,7 @@ const useOrders = () => {
           fullname: 'Не назначен',
           phone: '—',
         },
-    plateNumber: order.assignedDriver?.plateNumber || undefined,
+    plateNumber: order.plateNumber || undefined,
     tariff: {
       name: order.tariff.name,
       vehicleType: order.tariff.vehicleType,

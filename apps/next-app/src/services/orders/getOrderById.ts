@@ -3,7 +3,6 @@ import { prisma } from '@shared/prisma/prisma-client';
 import debug from 'debug';
 
 const logError = debug('app:services:orders:error');
-const log = debug('app:services:orders');
 
 export async function getOrderById(uuid: string): Promise<{ order: any; formattedOrder: any }> {
   try {
@@ -16,7 +15,7 @@ export async function getOrderById(uuid: string): Promise<{ order: any; formatte
     const order = await prisma.order.findUnique({
       where: { uuid },
       include: {
-        createdBy: true,
+        clientBy: true,
         tariff: {
           include: {
             tariffAdditionalServices: {
@@ -98,11 +97,11 @@ export async function getOrderById(uuid: string): Promise<{ order: any; formatte
     // Форматируем заказ по образцу
     const formattedOrder = {
       uuid: order.uuid,
-      createdBy: order.createdBy
+      clientBy: order.clientBy
         ? {
-            uuid: order.createdBy.uuid,
-            fullName: order.createdBy.fullName,
-            phone: order.createdBy.phone,
+            uuid: order.clientBy.uuid,
+            fullName: order.clientBy.fullName,
+            phone: order.clientBy.phone,
           }
         : null,
       tariffUuid: order.tariffUuid,
@@ -149,7 +148,6 @@ export async function getOrderById(uuid: string): Promise<{ order: any; formatte
       additionalServices,
     };
 
-    log(`✓ Заказ с UUID ${uuid} успешно получен и отформатирован`);
     return { order, formattedOrder };
   } catch (error) {
     logError('× Ошибка при получении заказа');

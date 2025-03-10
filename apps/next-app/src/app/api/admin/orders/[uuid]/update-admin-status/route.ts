@@ -7,16 +7,13 @@ import { UpdateOrderStatusDTO } from '@next-app/src/dto/orders/order-status.dto'
 import { Params } from '@next-app/src/interface/interface';
 
 const logError = debug('app:api:orders:update-status-admin:error');
-const log = debug('app:orders:update-status-admin');
 
 // PATCH: Обновление статуса заказа
 export async function PATCH(req: NextRequest, { params }: { params: Params }) {
   try {
     const { uuid } = await params;
-    log(`Обновление статуса для заказа UUID: ${uuid}`);
 
     if (!uuid) {
-      log('Order UUID is missing');
       return NextResponse.json(
         { status: 'error', message: 'Order UUID is required' },
         { status: 400 },
@@ -65,7 +62,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Params }) {
       throw serviceError;
     }
   } catch (error) {
-    log('Ошибка при обновлении статуса заказа:', error);
     const errorMessage = error instanceof Error ? error.message : String(error);
     return NextResponse.json({ status: 'error', message: errorMessage }, { status: 500 });
   }

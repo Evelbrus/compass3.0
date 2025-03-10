@@ -20,8 +20,8 @@ enum DriverAcceptanceStatus {
 
 model Order {
   uuid                          String                           @id @default(uuid()) @map("uuid")
-  createdById                   String                           @map("created_by_id")
-  createdBy                     User                             @relation("created_orders", fields: [createdById], references: [uuid], onDelete: Cascade)
+  clientById                    String                           @map("client_by_od")
+  clientBy                      User                             @relation("client_orders", fields: [clientById], references: [uuid], onDelete: Cascade)
   tariffUuid                    String                           @map("tariff_id")
   tariff                        Tariff                           @relation("tariffs", fields: [tariffUuid], references: [uuid], onDelete: Cascade)
   departurePointId              String                           @map("departure_point_id")
@@ -42,6 +42,7 @@ model Order {
   description                   String?                          @map("description")
   flightNumber                  String?                          @map("flight_number")
   waitingTimeMinutes            Int                              @default(0) @map("waiting_time_minutes")
+  notifications                 Notification[]
 
   @@map("orders")
 }

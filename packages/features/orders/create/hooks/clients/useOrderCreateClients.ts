@@ -45,7 +45,7 @@ export const useOrderCreateClients = ({
         if (client) {
           setSelectedClientInfo(client);
           setSavedClientInfo(client);
-          setValue('createdBy', { uuid: client.uuid } as any);
+          setValue('clientBy', { uuid: client.uuid } as any);
           setValue('phone', client.phone || '');
           setClientInitialized(true);
         }
@@ -87,12 +87,12 @@ export const useOrderCreateClients = ({
           setSavedClientInfo(selectedClientInfo);
         }
         setSelectedClientInfo(null);
-        setValue('createdBy', { uuid: '' } as any);
+        setValue('clientBy', { uuid: '' } as any);
         setValue('phone', '');
       } else {
         setSelectedClientInfo(client);
         setSavedClientInfo(client);
-        setValue('createdBy', { uuid: client.uuid } as any);
+        setValue('clientBy', { uuid: client.uuid } as any);
         setValue('phone', client.phone || '');
       }
     },

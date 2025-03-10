@@ -142,11 +142,11 @@ const OrderDetailDriverModal = () => {
             <div className="flex w-full gap-4">
               <DetailItem
                 label="Клиент"
-                value={orderData.createdBy ? orderData.createdBy.fullName : 'Не указан'}
+                value={orderData.clientBy ? orderData.clientBy.fullName : 'Не указан'}
               />
               <DetailItem
                 label="Телефон"
-                value={orderData.createdBy ? orderData.createdBy.phone : 'Не указан'}
+                value={orderData.clientBy ? orderData.clientBy.phone : 'Не указан'}
               />
             </div>
           </div>

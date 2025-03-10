@@ -12,7 +12,7 @@ import {
 import { OrderData } from '@features/orders/create/types/types';
 
 export interface FormOrderValues {
-  createdBy: Pick<Order, 'uuid'>;
+  clientBy: Pick<Order, 'uuid'>;
   tariffUuid: Pick<Tariff, 'uuid'> | null;
   departurePoint: Pick<Point, 'uuid'> | null;
   arrivalPoint: Pick<Point, 'uuid'> | null;
@@ -41,7 +41,7 @@ export const useCreateAdminOrderLogic = (
   const formMethods: UseFormReturn<FormOrderValues> = useForm<FormOrderValues>({
     mode: 'onBlur',
     defaultValues: {
-      createdBy: orderData?.createdBy ? { uuid: orderData.createdBy.uuid } : undefined,
+      clientBy: orderData?.clientBy ? { uuid: orderData.clientBy.uuid } : undefined,
       tariffUuid: orderData?.tariff ? { uuid: orderData.tariff.uuid } : null,
       departurePoint: orderData?.departurePoint || null,
       arrivalPoint: orderData?.arrivalPoint || null,

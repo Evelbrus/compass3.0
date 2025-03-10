@@ -2,11 +2,14 @@
 
 import { io } from 'socket.io-client';
 
-const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_ORIGIN;
-
-export const socket = io(SOCKET_URL, {
+export const socket = io(process.env.NEXT_PUBLIC_SOCKET_ORIGIN, {
   transports: ['websocket'],
   path: '/socket.io',
   withCredentials: true,
-  autoConnect: true,
+  autoConnect: false,
+  reconnection: true,
+  reconnectionAttempts: 5,
+  reconnectionDelay: 1000,
+  reconnectionDelayMax: 5000,
+  timeout: 20000,
 });

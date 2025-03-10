@@ -73,6 +73,13 @@ export const useClientsAdminSubmit = ({
           birthPlace: data.driverProfile.birthPlace,
           yearsOfDriving: data.driverProfile.yearsOfDriving,
           changingDriver: data.driverProfile.changingDriver,
+          citizenship: data.driverProfile.citizenship,
+          identityDocument: data.driverProfile.identityDocument,
+          actualAddress: data.driverProfile.actualAddress,
+          bankName: data.driverProfile.bankName,
+          bankAccountNumber: data.driverProfile.bankAccountNumber,
+          bankBic: data.driverProfile.bankBic,
+          cardNumber: data.driverProfile.cardNumber,
         };
       }
 

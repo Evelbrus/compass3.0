@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useUnit } from 'effector-react';
-import { OrderStatus, DriverAcceptanceStatus, Action, UserRole } from '@prisma/client';
+import { OrderStatus, DriverAcceptanceStatus, UserRole } from '@prisma/client';
 import AnimatedComponent from '@shared/components/animated/CommonAnimated/AnimatedComponent';
 import { showToast } from '@shared/components/toast/ToastManager';
 import {
-  markDriverNotificationAsRead,
+  markNotificationAsRead,
   updateDriverOrderStatus,
 } from '@widgets/modal/order-management/api/apiOrderModel';
 import { useOrderData } from '@widgets/modal/order-management/hooks/useOrderData';
@@ -26,6 +26,9 @@ import ClientInfo from '@widgets/modal/order-management/components/ClientInfo';
 import OrderLoadError from '@widgets/modal/order-management/components/OrderLoadError';
 import { $activeNotification } from '@shared/lib/effector/state/state';
 
+// Безопасная функция для строк
+const safeStr = (str: string | null): string => str || '';
+
 interface OrderDriverModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -36,6 +39,8 @@ const OrderDriverModal: React.FC<OrderDriverModalProps> = ({ isOpen, onClose }) 
 
   // Получаем уведомление напрямую из хранилища Effector
   const notification = useUnit($activeNotification);
+
+  console.log('notification в OrderDriverModal:', notification);
 
   // Если нет уведомления или модальное окно закрыто, не рендерим компонент
   if (!notification || !isOpen) return null;
@@ -52,12 +57,33 @@ const OrderDriverModal: React.FC<OrderDriverModalProps> = ({ isOpen, onClose }) 
     setCurrentStage,
     setOrderStatus,
     setError,
-  } = useOrderData(notification.orderId, isOpen);
+  } = useOrderData(safeStr(notification.orderId), isOpen);
+
+  useEffect(() => {
+    // Получаем данные из orderData, так как orderData содержит все необходимые данные о заказе
+    if (
+      orderData &&
+      orderData.status === OrderStatus.CANCELLED &&
+      orderStatus !== OrderStatus.CANCELLED
+    ) {
+      console.log('Получено уведомление об отмене заказа, изменяем статус');
+      setOrderStatus(OrderStatus.CANCELLED);
+      setCurrentStage(DriverAcceptanceStatus.PENDING);
+    } else if (
+      orderData &&
+      orderData.status === OrderStatus.COMPLETED &&
+      orderStatus !== OrderStatus.COMPLETED
+    ) {
+      console.log('Получено уведомление о завершении заказа, изменяем статус');
+      setOrderStatus(OrderStatus.COMPLETED);
+      setCurrentStage(DriverAcceptanceStatus.COMPLETED);
+    }
+  }, [orderData, orderStatus, setOrderStatus, setCurrentStage]);
 
   // Обработчик действий водителя (принятие, завершение, отмена заказа)
   const handleDriverAction = async (
     driverStatus: DriverAcceptanceStatus,
-    action: Action,
+    actionOrderStatus: OrderStatus,
     successMessage: string,
     errorMessage: string,
   ) => {
@@ -66,35 +92,42 @@ const OrderDriverModal: React.FC<OrderDriverModalProps> = ({ isOpen, onClose }) 
 
     try {
       const newOrderStatus =
-        action === Action.cancelled
+        actionOrderStatus === OrderStatus.CANCELLED
           ? OrderStatus.CANCELLED
           : driverStatusToOrderStatus[driverStatus];
 
       // Обновление статуса заказа через API
-      await updateDriverOrderStatus({
-        orderUuid: notification.orderId,
-        driverStatus,
-        orderStatus: newOrderStatus,
-        notificationUuid: notification.uuid,
-        userId: notification.userId,
-        createdById: notification.createdById,
-        action,
-        markNotificationAsRead: true,
-      });
+      if (notification.orderId) {
+        await updateDriverOrderStatus({
+          orderUuid: notification.orderId,
+          driverStatus,
+          orderStatus: newOrderStatus,
+          notificationUuid: notification.uuid,
+          userId: safeStr(notification.userId),
+          clientById: safeStr(notification.clientById),
+          driverById: notification.driverById || null,
+        });
 
-      setCurrentStage(driverStatus);
-      setOrderStatus(newOrderStatus);
-      showToast[action === Action.success ? 'success' : 'warn'](successMessage, {
-        position: 'top-right',
-        autoClose: 3000,
-      });
-      onClose();
+        setCurrentStage(driverStatus);
+        setOrderStatus(newOrderStatus);
+        showToast[actionOrderStatus === OrderStatus.COMPLETED ? 'success' : 'warn'](
+          successMessage,
+          {
+            position: 'top-right',
+            autoClose: 3000,
+          },
+        );
+
+        // Закрываем модальное окно, если заказ не отменен
+        if (actionOrderStatus !== OrderStatus.CANCELLED) {
+          onClose();
+        }
+      }
     } catch (err) {
       console.error('Ошибка при обновлении статуса:', err);
       const errorMsg = err instanceof Error ? err.message : String(err);
 
       if (errorMsg.includes('занят другими активными заказами')) {
-        // Создаем сообщение об ошибке на основе сообщения с сервера
         const errorText = 'Вы уже заняты другими заказами. Сначала завершите текущие заказы.';
         setError(errorText);
 
@@ -113,22 +146,26 @@ const OrderDriverModal: React.FC<OrderDriverModalProps> = ({ isOpen, onClose }) 
 
   // Обработчик отметки уведомления как прочитанного
   const handleMarkAsRead = async () => {
+    if (notification.read) {
+      onClose();
+      return;
+    }
+
     setIsProcessing(true);
     try {
-      // Используем специальный метод для отметки уведомления как прочитанного
-      // Он сохранит оригинальный тип действия уведомления
-      await markDriverNotificationAsRead({
-        orderUuid: notification.orderId,
-        notificationUuid: notification.uuid,
-        userId: notification.userId,
-        createdById: notification.createdById,
-        action: notification.action,
-      });
+      const success = await markNotificationAsRead(notification.uuid);
 
-      showToast.success('Уведомление отмечено как прочитанное', {
-        position: 'top-right',
-        autoClose: 3000,
-      });
+      if (success) {
+        showToast.success('Уведомление отмечено как прочитанное', {
+          position: 'top-right',
+          autoClose: 3000,
+        });
+      } else {
+        showToast.error('Не удалось отметить уведомление как прочитанное', {
+          position: 'top-right',
+          autoClose: 3000,
+        });
+      }
       onClose();
     } catch (err) {
       console.error('Ошибка при обновлении уведомления:', err);
@@ -143,7 +180,29 @@ const OrderDriverModal: React.FC<OrderDriverModalProps> = ({ isOpen, onClose }) 
 
   // Обработчик закрытия модального окна с отметкой "прочитано"
   const handleCloseWithMarkAsRead = () => {
-    handleMarkAsRead();
+    // Используем текущий статус заказа из orderData
+    if (orderStatus === OrderStatus.IN_PROGRESS) {
+      onClose();
+      return;
+    }
+
+    if (notification.read) {
+      onClose();
+    } else {
+      if (
+        [
+          OrderStatus.PENDING,
+          OrderStatus.PLANNED,
+          OrderStatus.COMPLETED,
+          OrderStatus.CANCELLED,
+          OrderStatus.OVERDUE,
+        ].includes(orderStatus)
+      ) {
+        handleMarkAsRead();
+      } else {
+        onClose();
+      }
+    }
   };
 
   return (
@@ -156,8 +215,8 @@ const OrderDriverModal: React.FC<OrderDriverModalProps> = ({ isOpen, onClose }) 
           {/* Шапка модального окна */}
           <OrderHeader
             onClose={onClose}
-            orderId={notification.orderId}
-            action={notification.action}
+            orderId={safeStr(notification.orderId)}
+            orderStatus={orderStatus}
             onMarkAsRead={handleCloseWithMarkAsRead}
           />
 
@@ -190,7 +249,7 @@ const OrderDriverModal: React.FC<OrderDriverModalProps> = ({ isOpen, onClose }) 
                       orderData={orderData}
                       intermediateAddresses={intermediateAddresses}
                     />
-                    <ClientInfo createdBy={orderData.createdBy} />
+                    <ClientInfo clientBy={orderData.clientBy} />
                     <OrderPaymentDetails
                       orderData={orderData}
                       intermediateAddresses={intermediateAddresses}
@@ -222,6 +281,7 @@ const OrderDriverModal: React.FC<OrderDriverModalProps> = ({ isOpen, onClose }) 
                 onCancelOrder: () => {},
                 onDriverAction: handleDriverAction,
                 onClose: handleCloseWithMarkAsRead,
+                orderStatus: orderStatus,
               })}
             </div>
           </div>

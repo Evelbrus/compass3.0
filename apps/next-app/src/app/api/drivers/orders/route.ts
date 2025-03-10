@@ -7,7 +7,6 @@ import { authConfig } from '@shared/utils/cookie/get-cookie/auth';
 import { verifyJWT } from '@shared/utils/parse-jwt/parseJwt';
 import { JwtPayload } from '@next-app/src/utils/authenticate/authenticateRequest';
 
-const log = debug('app:drivers/orders');
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -46,7 +45,6 @@ export async function GET(req: NextRequest) {
     sort_order: (searchParams.get('sort_order') as 'asc' | 'desc') || 'asc',
   };
 
-  log('Parsed parameters:', parsedParams);
 
   try {
     const where: { status?: OrderStatus; assignedDriverId: string } = {
@@ -64,7 +62,7 @@ export async function GET(req: NextRequest) {
         [parsedParams.sort_by]: parsedParams.sort_order,
       },
       include: {
-        createdBy: {
+        clientBy: {
           include: {
             companyProfile: true,
           },
@@ -93,20 +91,18 @@ export async function GET(req: NextRequest) {
       where: { assignedDriverId: token.uuid },
     });
 
-    log('Fetched orders:', orders);
-
     const response = orders.map((order) => ({
       ...order,
-      createdBy: {
-        uuid: order.createdBy.uuid,
-        fullName: order.createdBy.fullName,
-        email: order.createdBy.email,
-        phone: order.createdBy.phone,
-        role: order.createdBy.role,
+      clientBy: {
+        uuid: order.clientBy.uuid,
+        fullName: order.clientBy.fullName,
+        email: order.clientBy.email,
+        phone: order.clientBy.phone,
+        role: order.clientBy.role,
         companyProfile: {
-          companyName: order.createdBy.companyProfile?.companyName || null,
-          companyPhone: order.createdBy.companyProfile?.phone || null,
-          companyLogo: order.createdBy.companyProfile?.logoImagePath || null,
+          companyName: order.clientBy.companyProfile?.companyName || null,
+          companyPhone: order.clientBy.companyProfile?.phone || null,
+          companyLogo: order.clientBy.companyProfile?.logoImagePath || null,
         },
       },
       tariff: {

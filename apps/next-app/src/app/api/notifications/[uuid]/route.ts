@@ -2,6 +2,7 @@ import { NextResponse, NextRequest } from 'next/server';
 import debug from 'debug';
 import { prisma } from '@shared/prisma/prisma-client';
 import { Params } from '@next-app/src/interface/interface';
+import { markNotificationAsRead } from '@next-app/src/services/notifications/notificationService';
 
 const log = debug('app:api:notifications');
 
@@ -14,19 +15,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<Params
   const { read } = data;
 
   try {
-    const notification = await prisma.notification.findUnique({
-      where: { uuid: notificationUuid },
-    });
+    // Используем нашу новую функцию для пометки уведомления как прочитанное
+    const updatedNotification = await markNotificationAsRead(notificationUuid, read);
 
-    if (!notification) {
+    if (!updatedNotification) {
       log(`Notification with UUID: ${notificationUuid} not found`);
       return NextResponse.json({ error: 'Notification not found' }, { status: 404 });
     }
-
-    const updatedNotification = await prisma.notification.update({
-      where: { uuid: notificationUuid },
-      data: { read },
-    });
 
     log(`Successfully updated notification with UUID: ${notificationUuid}`);
     return NextResponse.json(updatedNotification);
@@ -59,6 +54,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<Para
   }
 
   try {
+    // Получаем текущее уведомление для проверки
     const notification = await prisma.notification.findUnique({
       where: { uuid: notificationUuid },
     });
@@ -68,22 +64,39 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<Para
       return NextResponse.json({ error: 'Notification not found' }, { status: 404 });
     }
 
-    // Если read уже соответствует запрошенному значению, возвращаем успех без обновления
-    if (read !== undefined && notification.read === read) {
-      log(`Notification ${notificationUuid} already has read: ${read}`);
-      return NextResponse.json(notification, { status: 200 });
+    // Если только read изменяется, используем нашу новую функцию
+    if (read !== undefined && action === undefined) {
+      const updatedNotification = await markNotificationAsRead(notificationUuid, read);
+      return NextResponse.json(updatedNotification);
     }
 
-    const updatedNotification = await prisma.notification.update({
+    // Если изменяется action или оба параметра, используем стандартное обновление + markNotificationAsRead
+    const updatedData: any = {};
+    if (action !== undefined) {
+      updatedData.action = action;
+    }
+
+    // Обновляем action, если он изменяется
+    if (Object.keys(updatedData).length > 0) {
+      await prisma.notification.update({
+        where: { uuid: notificationUuid },
+        data: updatedData,
+      });
+    }
+
+    // Если read тоже изменяется, используем markNotificationAsRead для обновления через WebSocket
+    if (read !== undefined) {
+      const updatedNotification = await markNotificationAsRead(notificationUuid, read);
+      return NextResponse.json(updatedNotification);
+    }
+
+    // Если только action изменялся, получаем обновленное уведомление для ответа
+    const finalNotification = await prisma.notification.findUnique({
       where: { uuid: notificationUuid },
-      data: {
-        ...(read !== undefined && { read }),
-        ...(action !== undefined && { action }),
-      },
     });
 
     log(`Successfully updated notification with UUID: ${notificationUuid}`);
-    return NextResponse.json(updatedNotification);
+    return NextResponse.json(finalNotification);
   } catch (error) {
     log('Error updating notification:', error);
     return NextResponse.json({ error: 'Failed to update notification' }, { status: 500 });

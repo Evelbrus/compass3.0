@@ -1,4 +1,4 @@
-import { DriverAcceptanceStatus, UserRole } from '@prisma/client';
+import { DriverAcceptanceStatus, UserRole, OrderStatus } from '@prisma/client';
 import { Column, TableOrdersRow } from '@shared/components/ui/table';
 import { renderCustomerPhone, renderDateTime } from '@shared/components/ui/table/ui/TableRenders';
 import { driverAcceptanceStatusLabels } from '@shared/lib/effector/orders/options-and-translation/optionsStatusOrder';
@@ -11,13 +11,13 @@ export const ordersColumns: Column<TableOrdersRow, keyof TableOrdersRow>[] = [
     className: 'w-[70px] text-center',
   },
   {
-    accessor: 'createdBy',
+    accessor: 'clientBy',
     header: 'Телефон, заказчик',
     render: (row: TableOrdersRow) => {
-      if (!row.createdBy) return 'Не указано';
+      if (!row.clientBy) return 'Не указано';
 
-      const isCorporate = row.createdBy.role === UserRole.ClientCorp;
-      const companyProfile = row.createdBy.companyProfile;
+      const isCorporate = row.clientBy.role === UserRole.ClientCorp;
+      const companyProfile = row.clientBy.companyProfile;
 
       if (isCorporate) {
         if (companyProfile?.companyLogo) {
@@ -36,18 +36,25 @@ export const ordersColumns: Column<TableOrdersRow, keyof TableOrdersRow>[] = [
         }
 
         return renderCustomerPhone(
-          row.createdBy.phone || 'Не указано',
-          row.createdBy.fullName || 'Не указано',
+          row.clientBy.phone || 'Не указано',
+          row.clientBy.fullName || 'Не указано',
         );
       }
 
       return renderCustomerPhone(
-        row.createdBy.phone || 'Не указано',
-        row.createdBy.fullName || 'Не указано',
+        row.clientBy.phone || 'Не указано',
+        row.clientBy.fullName || 'Не указано',
       );
     },
     sortable: false,
     className: 'w-[250px]',
+  },
+    {
+    accessor: 'departureTime',
+    header: 'Время отправления',
+    render: (row: TableOrdersRow) => renderDateTime(row.departureTime),
+    sortable: false,
+    className: 'w-[200px]',
   },
   {
     accessor: 'assignedDriver',
@@ -115,7 +122,7 @@ export const ordersColumns: Column<TableOrdersRow, keyof TableOrdersRow>[] = [
         <div className="flex items-center gap-1">
           <span
             className={`p-1 rounded-full ${
-              row.status === 'COMPLETED' ? 'bg-green-200' : 'bg-yellow-200'
+              row.status === OrderStatus.COMPLETED ? 'bg-green-200' : 'bg-yellow-200'
             }`}
           ></span>
           <p>{row.status}</p>

@@ -4,7 +4,6 @@ import { stages } from '@features/notifications/lib/useNotifications';
 import {
   getStageIcon,
   getStageIndex,
-  getEstimatedArrivalTime,
 } from '@widgets/modal/order-management/utils/orderUtils';
 import { OrderDetail } from '@widgets/modal/order-management/types/order.types';
 
@@ -25,7 +24,7 @@ const OrderStageHeader: React.FC<OrderStageHeaderProps> = ({ currentStage, order
             <h3 className="font-semibold text-gray-800">{stages[currentStage]}</h3>
             <p className="text-sm text-gray-500">
               {currentStage === DriverAcceptanceStatus.ON_THE_WAY &&
-                `Ожидаемое время прибытия: ${getEstimatedArrivalTime(orderData)}`}
+                `Ожидаемое время прибытия:`}
             </p>
           </div>
         </div>

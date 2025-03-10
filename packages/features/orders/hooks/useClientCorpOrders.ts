@@ -10,7 +10,7 @@ import { useUnit } from 'effector-react';
 import { $updateFlag } from '@shared/lib/effector/state/state';
 
 type OrderWithDetails = Order & {
-  createdBy: User & {
+  clientBy: User & {
     companyProfile: { companyName: string; companyPhone: string; companyLogo: string | null };
   };
   tariff: Tariff;
@@ -105,14 +105,14 @@ const useClientCorpOrders = () => {
   // Добавляем departureTime в tableData
   const tableData: TableOrdersRow[] = orders.map((order, index) => ({
     number: (optimisticPage - 1) * perPage + index + 1,
-    createdBy: {
-      fullName: order.createdBy.fullName || 'Не указано',
-      phone: order.createdBy.phone || 'Не указано',
-      role: order.createdBy.role,
+    clientBy: {
+      fullName: order.clientBy.fullName || 'Не указано',
+      phone: order.clientBy.phone || 'Не указано',
+      role: order.clientBy.role,
       companyProfile: {
-        companyName: order.createdBy.companyProfile?.companyName,
-        companyPhone: order.createdBy.companyProfile?.companyPhone,
-        companyLogo: order.createdBy.companyProfile?.companyLogo,
+        companyName: order.clientBy.companyProfile?.companyName,
+        companyPhone: order.clientBy.companyProfile?.companyPhone,
+        companyLogo: order.clientBy.companyProfile?.companyLogo,
       },
     },
     assignedDriver: {

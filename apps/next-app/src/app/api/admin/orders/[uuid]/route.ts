@@ -1,15 +1,16 @@
 // app/api/admin/orders/[uuid]/route.ts
 import { NextResponse, NextRequest } from 'next/server';
 import debug from 'debug';
-import { Action, UserRole } from '@prisma/client';
+import { UserRole } from '@prisma/client';
 import { authenticateRequest } from '@next-app/src/utils/authenticate/authenticateRequest';
 import { updateOrder } from '@next-app/src/services/orders/updateOrder';
 import { getOrderById } from '@next-app/src/services/orders/getOrderById';
 import { deleteOrder } from '@next-app/src/services/orders/deleteOrder';
 import { CreateOrderDTO } from '@next-app/src/dto/orders/order.dto';
 import { orderQueue } from '@next-app/src/lib/queues/orderQueue';
-import { processNotification } from '@next-app/src/utils/notifications/notifications';
+
 import { Params } from '@next-app/src/interface/interface';
+import { processNotification } from '@next-app/src/services/notifications/notificationService';
 
 const logError = debug('app:api:orders-admin:error');
 const log = debug('app:orders-admin');
@@ -30,7 +31,7 @@ export async function PUT(req: NextRequest, { params }: { params: Params }) {
 
     // Аутентификация запроса
     const jwtPayload = await authenticateRequest(req, allowedRoles);
-    const adminUserId = jwtPayload.uuid;
+    const userId = jwtPayload.uuid;
 
     let data: CreateOrderDTO;
     try {
@@ -50,28 +51,31 @@ export async function PUT(req: NextRequest, { params }: { params: Params }) {
       // Отправляем уведомления
       try {
         await processNotification({
-          userId: adminUserId,
+          userId: userId,
           orderId: updatedOrder.uuid,
-          action: Action.info,
-          templateKey: 'orderUpdatedByAdminToAdmin',
-          createdById: adminUserId,
+          templateKey: 'orderCreatedByAdminToAdmin',
+          clientById: data.clientBy,
+          driverById: data.assignedDriverId,
         });
 
-        await processNotification({
-          userId: data.createdBy,
-          orderId: updatedOrder.uuid,
-          action: Action.noted,
-          templateKey: 'orderUpdatedByAdminToClient',
-          createdById: data.createdBy,
-        });
-
-        if (data.assignedDriverId && data.assignedDriverId !== existingOrder.assignedDriverId) {
+        // Уведомление клиенту, если он указан и отличается от создателя
+        if (data.clientBy) {
           await processNotification({
-            userId: data.assignedDriverId,
+            userId: userId,
             orderId: updatedOrder.uuid,
-            action: Action.noted,
-            templateKey: 'orderUpdatedDriverAssigned',
-            createdById: adminUserId,
+            templateKey: 'orderCreatedByAdminToClient',
+            clientById: data.clientBy,
+            driverById: data.assignedDriverId,
+          });
+        }
+
+        // Уведомление водителю, если он назначен
+        if (data.assignedDriverId) {
+          await processNotification({
+            userId: userId,
+            orderId: updatedOrder.uuid,
+            templateKey: 'orderCreatedDriverAssigned',
+            clientById: data.clientBy,
             driverById: data.assignedDriverId,
           });
         }
@@ -200,8 +204,8 @@ export async function DELETE(req: NextRequest, { params }: { params: Params }) {
 
     // Аутентификация запроса
     const jwtPayload = await authenticateRequest(req, allowedRoles);
-    const adminUserId = jwtPayload.uuid;
-    log('Аутентификация пройдена, adminUserId:', adminUserId);
+    const userId = jwtPayload.uuid;
+    log('Аутентификация пройдена, Admin:', userId);
 
     try {
       // Получаем данные заказа до удаления
@@ -217,32 +221,30 @@ export async function DELETE(req: NextRequest, { params }: { params: Params }) {
 
         // Уведомление админу
         await processNotification({
-          userId: adminUserId,
+          userId: userId,
           orderId: uuid,
-          action: Action.info,
           templateKey: 'orderDeletedByAdminToAdmin',
-          createdById: adminUserId,
+          clientById: userId,
         });
         log('Notification sent to admin');
 
         // Уведомление клиенту
         await processNotification({
-          userId: orderInfo.createdById,
+          userId: userId,
           orderId: uuid,
-          action: Action.info,
           templateKey: 'orderDeletedByAdminToClient',
-          createdById: adminUserId,
+          clientById: orderInfo.clientById,
+          driverById: orderInfo.assignedDriverId,
         });
         log('Notification sent to client');
 
         // Уведомление водителю, если он был назначен
         if (orderInfo.assignedDriverId) {
           await processNotification({
-            userId: orderInfo.assignedDriverId,
+            userId: userId,
             orderId: uuid,
-            action: Action.info,
             templateKey: 'orderDeletedByAdminToDriver',
-            createdById: adminUserId,
+            clientById: orderInfo.clientById,
             driverById: orderInfo.assignedDriverId,
           });
           log('Notification sent to driver');

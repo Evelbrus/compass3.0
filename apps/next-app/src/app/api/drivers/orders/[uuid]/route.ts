@@ -16,7 +16,7 @@ export async function GET(req: Request, { params }: { params: Promise<Params> })
     const order = await prisma.order.findUnique({
       where: { uuid },
       include: {
-        createdBy: true,
+        clientBy: true,
         tariff: true,
         departurePoint: true,
         arrivalPoint: true,
@@ -39,11 +39,11 @@ export async function GET(req: Request, { params }: { params: Promise<Params> })
 
     const response = {
       ...order,
-      createdBy: {
-        uuid: order.createdBy.uuid,
-        fullName: order.createdBy.fullName,
-        email: order.createdBy.email,
-        phone: order.createdBy.phone,
+      clientBy: {
+        uuid: order.clientBy.uuid,
+        fullName: order.clientBy.fullName,
+        email: order.clientBy.email,
+        phone: order.clientBy.phone,
       },
       tariff: {
         uuid: order.tariff.uuid,

@@ -20,14 +20,14 @@ export interface CreateOrderData
     | 'createdAt'
     | 'updatedAt'
     | 'tariff'
-    | 'createdById'
+    | 'clientById'
     | 'basePrice'
     | 'departurePointId'
     | 'assignedDriverId'
     | 'arrivalPointId'
     | 'intermediatePoints'
   > {
-  createdBy: string;
+  clientBy: string;
   tariffUuid: string;
   departurePoint: string;
   arrivalPoint: string;
@@ -44,10 +44,11 @@ export interface CreateOrderData
 
 //Тип данных для детализированного представления заказа
 export interface DetailOrderData extends Order {
-  createdBy: User & { companyProfile: { companyName: string, companyPhone: string, companyLogo: string | null } };
+  clientBy: User & { companyProfile: { companyName: string, companyPhone: string, companyLogo: string | null } };
   tariff: ExtendedTariff;
   driverAcceptanceStatus: DriverAcceptanceStatus | null;
   departurePoint: Point;
   arrivalPoint: Point;
-  assignedDriver: User & { plateNumber: number };
+  assignedDriver: User;
+  plateNumber: number
 }

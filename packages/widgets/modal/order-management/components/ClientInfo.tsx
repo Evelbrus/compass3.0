@@ -2,10 +2,10 @@ import React from 'react';
 import { OrderDetail } from '@widgets/modal/order-management/types/order.types';
 
 interface ClientInfoProps {
-  createdBy: NonNullable<OrderDetail['createdBy']>;
+  clientBy: NonNullable<OrderDetail['clientBy']>;
 }
 
-const ClientInfo: React.FC<ClientInfoProps> = ({ createdBy }) => {
+const ClientInfo: React.FC<ClientInfoProps> = ({ clientBy }) => {
   const cardClass = 'bg-white rounded-xl shadow-sm border border-gray-100 p-4';
 
   return (
@@ -30,15 +30,15 @@ const ClientInfo: React.FC<ClientInfoProps> = ({ createdBy }) => {
 
         {/* Информация о клиенте */}
         <div>
-          <h4 className="font-semibold text-gray-900">{createdBy.fullName}</h4>
-          <p className="text-sm text-gray-600">{createdBy.phone}</p>
+          <h4 className="font-semibold text-gray-900">{clientBy.fullName}</h4>
+          <p className="text-sm text-gray-600">{clientBy.phone}</p>
         </div>
 
         {/* Кнопка звонка */}
-        <a href={`tel:${createdBy.phone}`} className="ml-auto">
+        <a href={`tel:${clientBy.phone}`} className="ml-auto">
           <button
             className="p-2 text-blue-600 bg-blue-50 rounded-full hover:bg-blue-100 transition"
-            aria-label={`Позвонить клиенту ${createdBy.fullName}`}
+            aria-label={`Позвонить клиенту ${clientBy.fullName}`}
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"

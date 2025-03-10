@@ -36,11 +36,11 @@ export async function getOrders(
         [parsedParams.sort_by]: parsedParams.sort_order,
       },
       include: {
-        createdBy: { include: { companyProfile: true } },
+        clientBy: { include: { companyProfile: true } },
         assignedDriver: {
           include: {
             vehicleDriver: {
-              include: { vehicle: { select: { plateNumber: true } } },
+              include: { vehicle: true },
             },
           },
         },
@@ -60,7 +60,42 @@ export async function getOrders(
       _count: { status: true },
     });
 
-    return { orders, total, totalAllOrders, statusesCount };
+    const formattedOrders: OrderResponseDTO[] = orders.map((order) => ({
+      uuid: order.uuid,
+      clientBy: {
+        fullName: order.clientBy?.fullName || 'N/A',
+        phone: order.clientBy?.phone || 'N/A',
+        role: 'Client',
+        companyProfile: order.clientBy?.companyProfile
+          ? {
+              companyName: order.clientBy.companyProfile.companyName,
+              phone: order.clientBy.companyProfile.phone,
+              logoImagePath: order.clientBy.companyProfile.logoImagePath || undefined,
+            }
+          : undefined,
+      },
+      assignedDriver: order.assignedDriver
+        ? { fullname: order.assignedDriver.fullName, phone: order.assignedDriver.phone }
+        : undefined,
+      plateNumber: order.assignedDriver?.vehicleDriver?.vehicle?.plateNumber
+        ? parseInt(order.assignedDriver.vehicleDriver.vehicle.plateNumber)
+        : undefined,
+      tariff: {
+        name: order.tariff.name,
+        vehicleType: order.tariff.vehicleType,
+        serviceLevel: order.tariff.serviceLevel,
+      },
+      driverAcceptanceStatus: order.driverAcceptanceStatus || null,
+      departurePoint: { address: order.departurePoint?.address || 'N/A' },
+      arrivalPoint: { address: order.arrivalPoint?.address || 'N/A' },
+      status: order.status,
+      createdAt: order.createdAt,
+      updatedAt: order.updatedAt,
+      basePrice: Number(order.basePrice),
+      departureTime: order.departureTime,
+    }));
+
+    return { orders: formattedOrders, total, totalAllOrders, statusesCount };
   } catch (error) {
     logError('× Ошибка при получении списка заказов');
     if (error instanceof Error) {

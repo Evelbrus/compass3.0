@@ -11,13 +11,13 @@ export const ordersClientCorpColumns: Column<TableOrdersRow, keyof TableOrdersRo
     className: 'w-[70px] text-center',
   },
   {
-    accessor: 'createdBy',
+    accessor: 'clientBy',
     header: 'Телефон, заказчик',
     render: (row: TableOrdersRow) => {
-      if (!row.createdBy) return 'Не указано';
+      if (!row.clientBy) return 'Не указано';
 
-      const isCorporate = row.createdBy.role === UserRole.ClientCorp;
-      const companyProfile = row.createdBy.companyProfile;
+      const isCorporate = row.clientBy.role === UserRole.ClientCorp;
+      const companyProfile = row.clientBy.companyProfile;
 
       if (isCorporate) {
         if (companyProfile?.companyLogo) {
@@ -36,14 +36,14 @@ export const ordersClientCorpColumns: Column<TableOrdersRow, keyof TableOrdersRo
         }
 
         return renderCustomerPhone(
-          row.createdBy.phone || 'Не указано',
-          row.createdBy.fullName || 'Не указано',
+          row.clientBy.phone || 'Не указано',
+          row.clientBy.fullName || 'Не указано',
         );
       }
 
       return renderCustomerPhone(
-        row.createdBy.phone || 'Не указано',
-        row.createdBy.fullName || 'Не указано',
+        row.clientBy.phone || 'Не указано',
+        row.clientBy.fullName || 'Не указано',
       );
     },
     sortable: false,

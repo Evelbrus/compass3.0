@@ -6,7 +6,7 @@ const logError = debug('app:services:orders:error');
 
 interface OrderInfo {
   uuid: string;
-  createdById: string;
+  clientById: string;
   assignedDriverId: string | null;
   departurePointId: string;
   arrivalPointId: string;
@@ -24,7 +24,7 @@ export async function deleteOrder(uuid: string): Promise<OrderInfo | null> {
       where: { uuid },
       select: {
         uuid: true,
-        createdById: true,
+        clientById: true,
         assignedDriverId: true,
         departurePointId: true,
         arrivalPointId: true,

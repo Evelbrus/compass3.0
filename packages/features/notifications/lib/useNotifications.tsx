@@ -1,15 +1,7 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useSocket } from '@shared/utils/hooks/useSocket';
 import { UserSession } from '@shared/prisma/interface/users/interface';
-import {
-  Action,
-  AdditionalService,
-  DriverAcceptanceStatus,
-  type Notification as PrismaNotification,
-  OrderStatus,
-  TariffOnService,
-  UserRole,
-} from '@prisma/client';
+import { UserRole, OrderStatus, Notification } from '@prisma/client';
 import {
   bulkDeleteNotifications,
   fetchNotifications,
@@ -21,45 +13,90 @@ import {
   setModalType,
   setActiveNotification,
   ModalType,
+  $activeNotification,
 } from '@shared/lib/effector/state/state';
+import {
+  driverAcceptanceStatusLabels,
+  getOrderStatusLabel,
+} from '@shared/lib/effector/orders/options-and-translation/optionsStatusOrder';
 
-export const stages: Record<DriverAcceptanceStatus, string> = {
-  PENDING: 'Ожидание принятия заказа',
-  TAKEN: 'Водитель уведомлен о заказе',
-  ACCEPTED: 'Заказ принят водителем',
-  ON_THE_WAY: 'Еду к клиенту',
-  ARRIVED: 'Прибыл к клиенту',
-  PICKED_UP: 'Клиент в машине, поездка начата',
-  COMPLETED: 'Поездка завершена',
-  TIMEOUT: 'Время ожидания истекло',
+// Расширенный тип уведомления, включающий данные заказа
+export type ExtendedNotification = Notification & {
+  order?: {
+    status: OrderStatus;
+    driverAcceptanceStatus: string | null;
+  } | null;
 };
 
-export interface OrderDetail {
-  departurePoint: { address: string };
-  arrivalPoint: { address: string };
-  createdBy: { fullName: string; phone: string };
-  tariff: { name: string; price: number };
-  departureTime: string;
-  description: string | null;
-  additionalServices?: (TariffOnService & AdditionalService)[];
-  driverAcceptanceStatus?: DriverAcceptanceStatus;
-  status: OrderStatus;
-  assignedDriverId?: string;
-  basePrice?: string | number;
-}
+/**
+ * Получает статус заказа из уведомления
+ */
+export const getOrderStatusFromNotification = (notification: ExtendedNotification): OrderStatus => {
+  // Если есть данные заказа, используем статус из заказа
+  if (notification.order && notification.order.status) {
+    return notification.order.status;
+  }
+  // По умолчанию возвращаем PENDING
+  return OrderStatus.PENDING;
+};
+
+export const stages = driverAcceptanceStatusLabels;
+
+// Функция для определения важных уведомлений
+const isImportantNotification = (status: OrderStatus): boolean => {
+  return status === OrderStatus.CANCELLED || status === OrderStatus.COMPLETED;
+};
+
+// Функция для определения уведомлений, требующих внимания в зависимости от роли
+const shouldShowModalForRole = (
+  notification: ExtendedNotification,
+  userRole: UserRole | undefined,
+): boolean => {
+  if (notification.read) return false;
+
+  const status = getOrderStatusFromNotification(notification);
+
+  switch (userRole) {
+    case UserRole.Driver:
+      // Для водителя показываем модалки только при новом назначении, отмене или завершении
+      return (
+        status === OrderStatus.CANCELLED ||
+        status === OrderStatus.COMPLETED ||
+        status === OrderStatus.PENDING ||
+        status === OrderStatus.PLANNED
+      );
+
+    case UserRole.Admin:
+    case UserRole.Operator:
+      // Для админа/оператора показываем только при критичных статусах
+      return status === OrderStatus.CANCELLED || status === OrderStatus.OVERDUE;
+
+    case UserRole.ClientCorp:
+      // Для клиента скрываем OVERDUE, показываем только важные статусы и новые заказы
+      return (
+        status === OrderStatus.CANCELLED ||
+        status === OrderStatus.COMPLETED ||
+        status === OrderStatus.PENDING ||
+        status === OrderStatus.PLANNED
+      );
+
+    default:
+      return false;
+  }
+};
 
 export interface NotificationIslandProps {
   userSession?: UserSession | null;
 }
 
 export const useNotifications = ({ userSession }: NotificationIslandProps) => {
-  const [notifications, setNotifications] = useState<PrismaNotification[]>([]);
+  const [notifications, setNotifications] = useState<ExtendedNotification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [newNotificationReceived, setNewNotificationReceived] = useState(false);
 
   const openModal = useCallback(
-    (notification: PrismaNotification) => {
+    (notification: ExtendedNotification) => {
       let modalType: ModalType;
       switch (userSession?.role) {
         case UserRole.Driver:
@@ -76,7 +113,8 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
           return;
       }
       setModalType(modalType);
-      setActiveNotification(notification); // Теперь тип PrismaNotification совпадает
+      setActiveNotification(notification);
+      console.log('Установлено активное уведомление:', notification);
     },
     [userSession],
   );
@@ -86,52 +124,86 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
     setActiveNotification(null);
   }, []);
 
-  const handleNotification = useCallback((notification: PrismaNotification) => {
-    console.log('📩 Получено уведомление через сокет:', notification);
-    setNotifications((prev) => {
-      const existingIndex = prev.findIndex((n) => n.uuid === notification.uuid);
-      const updatedNotifications = [...prev];
+  const handleNotification = useCallback(
+    (notification: ExtendedNotification) => {
+      console.log('📩 Получено уведомление через сокет:', notification);
 
-      if (existingIndex !== -1) {
-        console.log(`Обновляем уведомление ${notification.uuid}, read: ${notification.read}`);
-        updatedNotifications[existingIndex] = notification;
-      } else {
-        console.log(`Добавляем новое уведомление ${notification.uuid}, read: ${notification.read}`);
-        updatedNotifications.unshift(notification);
-      }
+      const status = getOrderStatusFromNotification(notification);
+      const important = isImportantNotification(status);
 
-      setNewNotificationReceived(true);
-      return updatedNotifications;
-    });
-  }, []);
+      setNotifications((prev) => {
+        const existingIndex = prev.findIndex((n) => n.uuid === notification.uuid);
+        const updatedNotifications = [...prev];
 
-  // Отдельный useEffect для открытия модального окна при получении нового уведомления
+        if (existingIndex !== -1) {
+          console.log(`Обновляем уведомление ${notification.uuid}, read: ${notification.read}`);
+          updatedNotifications[existingIndex] = notification;
+        } else {
+          console.log(
+            `Добавляем новое уведомление ${notification.uuid}, read: ${notification.read}`,
+          );
+          updatedNotifications.unshift(notification);
+
+          // Проверяем, нужно ли показывать модалку для данной роли
+          if (shouldShowModalForRole(notification, userSession?.role)) {
+            setNewNotificationReceived(true);
+          }
+        }
+
+        if (important) {
+          setTimeout(() => {
+            const currentActiveNotification = $activeNotification.getState();
+            if (
+              currentActiveNotification &&
+              currentActiveNotification.orderId === notification.orderId
+            ) {
+              console.log(
+                `Обновляем активное уведомление при получении ${getOrderStatusLabel(status)}:`,
+                notification,
+              );
+              setActiveNotification(notification);
+              triggerUpdate();
+            }
+          }, 0);
+        }
+
+        return updatedNotifications;
+      });
+    },
+    [userSession],
+  );
+
   useEffect(() => {
     const newestNotification = notifications[0];
     if (newestNotification && newNotificationReceived) {
-      if (!(newestNotification.action === Action.noted && newestNotification.read)) {
+      if (
+        !newestNotification.read &&
+        shouldShowModalForRole(newestNotification, userSession?.role)
+      ) {
         openModal(newestNotification);
       }
       setNewNotificationReceived(false);
+      console.log('Триггерим обновление заказов при новом уведомлении');
+      triggerUpdate();
     }
-  }, [notifications, newNotificationReceived, openModal]);
+  }, [notifications, newNotificationReceived, openModal, userSession?.role]);
 
   const debouncedHandleNotification = useCallback(debounce(handleNotification, 300), [
     handleNotification,
   ]);
 
-  const socket = useSocket<PrismaNotification>('notification', debouncedHandleNotification);
+  const socket = useSocket<ExtendedNotification>('notification', debouncedHandleNotification);
 
   const getDriverNotifications = useCallback(
     (driverId: string) => {
-      return notifications.filter((n) => n.userId === driverId);
+      return notifications.filter((n) => n.driverById === driverId);
     },
     [notifications],
   );
 
   const getClientNotifications = useCallback(
     (clientId: string) => {
-      return notifications.filter((n) => n.userId === clientId);
+      return notifications.filter((n) => n.clientById === clientId);
     },
     [notifications],
   );
@@ -140,15 +212,25 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
     setIsLoading(true);
     setError(null);
     try {
-      const notificationsToDelete = notifications.filter((n) => n.action === Action.info);
+      const notificationsToDelete = notifications.filter((n) => {
+        const status = getOrderStatusFromNotification(n);
+        return status === OrderStatus.PENDING;
+      });
+
       if (notificationsToDelete.length === 0) {
-        console.log('ℹ️ Нет уведомлений с action: "info" для удаления');
+        console.log('ℹ️ Нет информационных уведомлений для удаления');
         setIsLoading(false);
         return;
       }
 
       await bulkDeleteNotifications(notificationsToDelete.map((n) => n.uuid));
-      setNotifications((prev) => prev.filter((n) => n.action !== Action.info));
+
+      setNotifications((prev) =>
+        prev.filter((n) => {
+          const status = getOrderStatusFromNotification(n);
+          return status !== OrderStatus.PENDING;
+        }),
+      );
     } catch (err) {
       console.error('Ошибка при очистке уведомлений:', err);
       setError(err instanceof Error ? err.message : 'Не удалось очистить уведомления');
@@ -159,6 +241,7 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
 
   const markAsRead = useCallback(async (notificationId: string) => {
     try {
+      // Используем обновленную функцию из нашего сервиса
       await markNotificationAsRead(notificationId);
       setNotifications((prev) =>
         prev.map((n) => (n.uuid === notificationId ? { ...n, read: true } : n)),
@@ -169,7 +252,6 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
     }
   }, []);
 
-  // Загрузка уведомлений
   useEffect(() => {
     const loadNotifications = async () => {
       if (!userSession) {
@@ -180,7 +262,7 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
       setError(null);
       try {
         const data = await fetchNotifications(userSession.uuid);
-        setNotifications(data);
+        setNotifications(data as ExtendedNotification[]);
       } catch (err) {
         console.error('Ошибка при загрузке уведомлений:', err);
         setError(err instanceof Error ? err.message : 'Не удалось загрузить уведомления');
@@ -196,7 +278,6 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
       console.log('Нет socket или userSession, регистрация не выполняется');
       return;
     }
-
     socket.on('connect', () => {
       console.log('Фронтенд подключен к WebSocket-серверу:', socket.id);
       socket.emit('register', { userId: userSession.uuid, role: userSession.role });
@@ -222,30 +303,17 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
     };
   }, [userSession, socket]);
 
-  // Отдельный useEffect для открытия модальных окон при загрузке уведомлений
   useEffect(() => {
     if (notifications.length > 0 && !isLoading) {
       const unreadNotification = notifications.find(
-        (n) =>
-          !n.read &&
-          (n.action === Action.noted ||
-            n.action === Action.inProgress ||
-            n.action === Action.warning ||
-            n.action === Action.cancelled),
+        (n) => !n.read && shouldShowModalForRole(n, userSession?.role),
       );
 
       if (unreadNotification) {
         openModal(unreadNotification);
       }
     }
-  }, [notifications, isLoading, openModal]);
-
-  useEffect(() => {
-    if (newNotificationReceived) {
-      console.log('Триггерим обновление заказов при новом уведомлении');
-      triggerUpdate();
-    }
-  }, [newNotificationReceived]);
+  }, [notifications, isLoading, openModal, userSession?.role]);
 
   const unreadCount = useMemo(() => notifications.filter((n) => !n.read).length, [notifications]);
 
@@ -253,6 +321,7 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
     () => (userSession?.role === UserRole.Driver ? getDriverNotifications(userSession.uuid) : []),
     [notifications, userSession, getDriverNotifications],
   );
+
   const driverUnreadCount = useMemo(
     () => driverNotifications.filter((n) => !n.read).length,
     [driverNotifications],
@@ -263,12 +332,11 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
       userSession?.role === UserRole.ClientCorp ? getClientNotifications(userSession.uuid) : [],
     [notifications, userSession, getClientNotifications],
   );
+
   const clientUnreadCount = useMemo(
     () => clientNotifications.filter((n) => !n.read).length,
     [clientNotifications],
   );
-
-  console.log('notifications', notifications);
 
   return {
     notifications,

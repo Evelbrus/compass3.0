@@ -10,7 +10,7 @@ const logError = debug('app:services:orders:error');
 
 export async function updateOrder(uuid: string, data: CreateOrderDTO): Promise<Order> {
   const {
-    createdBy: corpClientId,
+    clientBy: corpClientId,
     tariffUuid,
     departureTime,
     departurePoint,
@@ -38,7 +38,7 @@ export async function updateOrder(uuid: string, data: CreateOrderDTO): Promise<O
       where: { uuid },
       select: {
         uuid: true,
-        createdById: true,
+        clientById: true,
         assignedDriverId: true,
         status: true,
       },
@@ -132,7 +132,7 @@ export async function updateOrder(uuid: string, data: CreateOrderDTO): Promise<O
       const order = await tx.order.update({
         where: { uuid },
         data: {
-          createdById: clientUuid,
+          clientById: clientUuid,
           tariffUuid,
           departureTime: new Date(departureTime),
           departurePointId: departurePoint,

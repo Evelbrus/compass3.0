@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useUnit } from 'effector-react';
-import { OrderStatus, DriverAcceptanceStatus, Action, UserRole } from '@prisma/client';
+import { OrderStatus, DriverAcceptanceStatus, UserRole } from '@prisma/client';
 import {
-  markClientNotificationAsRead,
+  markNotificationAsRead,
   updateClientOrderStatus,
 } from '@widgets/modal/order-management/api/apiOrderModel';
 import AnimatedComponent from '@shared/components/animated/CommonAnimated/AnimatedComponent';
@@ -23,17 +23,21 @@ import OrderNotes from '@widgets/modal/order-management/components/OrderNotes';
 import OrderLoadError from '@widgets/modal/order-management/components/OrderLoadError';
 import { $activeNotification } from '@shared/lib/effector/state/state';
 
+// Безопасная функция для строк
+const safeStr = (str: string | null): string => str || '';
+
 interface OrderTrackingModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
 const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({ isOpen, onClose }) => {
-  const [showAdditionalServices, setShowAdditionalServices] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Получаем уведомление напрямую из хранилища Effector с помощью useUnit
+  // Получаем уведомление напрямую из хранилища Effector
   const notification = useUnit($activeNotification);
+
+  console.log('notification в OrderTrackingModal:', notification);
 
   // Если нет уведомления или модальное окно закрыто, не рендерим компонент
   if (!notification || !isOpen) return null;
@@ -50,7 +54,34 @@ const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({ isOpen, onClose
     setCurrentStage,
     setOrderStatus,
     setError,
-  } = useOrderData(notification.orderId, isOpen);
+  } = useOrderData(safeStr(notification.orderId), isOpen);
+
+  useEffect(() => {
+    // Используем данные из orderData для определения статуса
+    // Для клиента скрываем статус OVERDUE - показываем как IN_PROGRESS
+    if (orderData) {
+      if (orderData.status === OrderStatus.CANCELLED && orderStatus !== OrderStatus.CANCELLED) {
+        console.log('Получено уведомление об отмене заказа, изменяем статус');
+        setOrderStatus(OrderStatus.CANCELLED);
+        setCurrentStage(DriverAcceptanceStatus.PENDING);
+      } else if (
+        orderData.status === OrderStatus.COMPLETED &&
+        orderStatus !== OrderStatus.COMPLETED
+      ) {
+        console.log('Получено уведомление о завершении заказа, изменяем статус');
+        setOrderStatus(OrderStatus.COMPLETED);
+        setCurrentStage(DriverAcceptanceStatus.COMPLETED);
+      } else if (
+        orderData.status === OrderStatus.OVERDUE &&
+        orderStatus !== OrderStatus.IN_PROGRESS
+      ) {
+        // Клиент не должен видеть OVERDUE статус - показываем как IN_PROGRESS
+        console.log('Заказ просрочен, но клиенту показываем IN_PROGRESS');
+        setOrderStatus(OrderStatus.IN_PROGRESS);
+        // Оставляем текущий driverAcceptanceStatus без изменений
+      }
+    }
+  }, [orderData, orderStatus, setOrderStatus, setCurrentStage]);
 
   // Обработчики действий
   const handleCancelOrder = async () => {
@@ -63,10 +94,8 @@ const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({ isOpen, onClose
         driverStatus: DriverAcceptanceStatus.PENDING,
         orderStatus: OrderStatus.CANCELLED,
         notificationUuid: notification.uuid,
-        userId: notification.createdById,
-        createdById: notification.createdById,
-        action: Action.cancelled,
-        markNotificationAsRead: true,
+        userId: safeStr(notification.clientById),
+        clientById: safeStr(notification.clientById),
       });
 
       setOrderStatus(OrderStatus.CANCELLED);
@@ -75,7 +104,6 @@ const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({ isOpen, onClose
         position: 'top-right',
         autoClose: 3000,
       });
-      onClose();
     } catch (err) {
       console.error('Ошибка при отмене заказа:', err);
       setError(err instanceof Error ? err.message : 'Не удалось отменить заказ');
@@ -85,20 +113,28 @@ const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({ isOpen, onClose
   };
 
   const handleMarkAsRead = async () => {
+    // Проверка, если уведомление уже прочитано, просто закрываем модальное окно
+    if (notification.read) {
+      onClose();
+      return;
+    }
+
     setIsProcessing(true);
     try {
-      await markClientNotificationAsRead({
-        orderUuid: notification.orderId,
-        notificationUuid: notification.uuid,
-        userId: notification.createdById,
-        createdById: notification.createdById,
-        action: notification.action,
-      });
+      // Используем простую функцию для отметки уведомления как прочитанного
+      const success = await markNotificationAsRead(notification.uuid);
 
-      showToast.success('Уведомление отмечено как прочитанное', {
-        position: 'top-right',
-        autoClose: 3000,
-      });
+      if (success) {
+        showToast.success('Уведомление отмечено как прочитанное', {
+          position: 'top-right',
+          autoClose: 3000,
+        });
+      } else {
+        showToast.error('Не удалось отметить уведомление как прочитанное', {
+          position: 'top-right',
+          autoClose: 3000,
+        });
+      }
       onClose();
     } catch (err) {
       console.error('Ошибка при обновлении уведомления:', err);
@@ -111,11 +147,33 @@ const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({ isOpen, onClose
     }
   };
 
-  // Обработчик закрытия модального окна с отметкой "прочитано"
   const handleCloseWithMarkAsRead = () => {
-    handleMarkAsRead();
-    onClose();
+    // Используем текущий статус заказа
+    if (orderStatus === OrderStatus.IN_PROGRESS) {
+      onClose();
+      return;
+    }
+
+    if (notification.read) {
+      onClose();
+    } else {
+      if (
+        orderStatus === OrderStatus.PENDING ||
+        orderStatus === OrderStatus.PLANNED ||
+        orderStatus === OrderStatus.COMPLETED ||
+        orderStatus === OrderStatus.CANCELLED ||
+        orderStatus === OrderStatus.OVERDUE
+      ) {
+        handleMarkAsRead();
+      } else {
+        onClose();
+      }
+    }
   };
+
+  // Для отображения клиенту - никогда не показываем OVERDUE статус
+  const displayOrderStatus =
+    orderData?.status === OrderStatus.OVERDUE ? OrderStatus.IN_PROGRESS : orderStatus;
 
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50 p-4">
@@ -127,13 +185,13 @@ const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({ isOpen, onClose
           {/* Фиксированная шапка с динамическим фоном */}
           <OrderHeader
             onClose={onClose}
-            orderId={notification.orderId}
-            action={notification.action}
+            orderId={safeStr(notification.orderId)}
+            orderStatus={displayOrderStatus}
             onMarkAsRead={handleCloseWithMarkAsRead}
           />
 
           {/* Полоска прогресса только для активных заказов */}
-          {!isOrderCancelled(orderStatus) && (
+          {!isOrderCancelled(displayOrderStatus) && (
             <div className="bg-gray-100 h-1 w-full">
               <div
                 className="bg-blue-500 h-1 rounded-r-full transition-all duration-500"
@@ -149,11 +207,14 @@ const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({ isOpen, onClose
                 <div className="w-10 h-10 border-4 border-gray-200 border-t-blue-500 rounded-full animate-spin"></div>
               </div>
             ) : orderData ? (
-              isOrderCancelled(orderStatus) ? (
+              isOrderCancelled(displayOrderStatus) ? (
                 <CancelledOrderView orderData={orderData} />
               ) : (
                 <>
-                  <OrderStageHeader currentStage={currentStage} orderData={orderData} />
+                  <OrderStageHeader
+                    currentStage={currentStage}
+                    orderData={{ ...orderData, status: displayOrderStatus }}
+                  />
                   <OrderMapPreview />
 
                   <div className="p-5 space-y-4">
@@ -194,6 +255,7 @@ const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({ isOpen, onClose
                 onMarkAsRead: handleMarkAsRead,
                 onCancelOrder: handleCancelOrder,
                 onClose: handleCloseWithMarkAsRead,
+                orderStatus: displayOrderStatus,
               })}
             </div>
           </div>

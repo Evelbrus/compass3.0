@@ -29,7 +29,7 @@ export type Driver = Pick<
 
 export type OrderData = {
   uuid: string;
-  createdBy: Client;
+  clientBy: Client;
   tariff: Tariff & { tariffAdditionalServices: TariffOnService[] };
   departurePoint: PointWithoutTimestamps | null;
   arrivalPoint: PointWithoutTimestamps | null;

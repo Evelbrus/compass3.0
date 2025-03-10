@@ -3,9 +3,10 @@ import { OrderDetail } from '@widgets/modal/order-management/types/order.types';
 
 interface CancelledOrderViewProps {
   orderData: OrderDetail;
+  onClose?: () => void;
 }
 
-const CancelledOrderView: React.FC<CancelledOrderViewProps> = ({ orderData }) => {
+const CancelledOrderView: React.FC<CancelledOrderViewProps> = ({ orderData, onClose }) => {
   const cardClass = 'bg-white rounded-xl shadow-sm border border-gray-100 p-4';
 
   return (

@@ -23,7 +23,7 @@ interface ClientCorpOrderPayload {
 
 // Тип для данных заказа для ролей Admin и Operator (создание и редактирование)
 interface AdminOrderPayload {
-  createdBy: string | undefined;
+  clientBy: string | undefined;
   tariffUuid: string | null;
   departureTime: Date;
   departurePoint: string | null;
@@ -61,7 +61,7 @@ export const useOrderSubmit = (
       const errorMessages: string[] = [];
 
       // Проверка на выбор клиента или создание нового
-      if (!orderData?.createdBy?.uuid && !data.createdBy?.uuid && !(data.fullName && data.phone)) {
+      if (!orderData?.clientBy?.uuid && !data.clientBy?.uuid && !(data.fullName && data.phone)) {
         errorMessages.push('Выберите клиента или укажите данные для создания нового');
       }
 
@@ -127,9 +127,9 @@ export const useOrderSubmit = (
 
         const isNewClientMode = !!data.fullName && !!data.phone;
         payload = {
-          createdBy: isNewClientMode
+          clientBy: isNewClientMode
             ? undefined
-            : orderData?.createdBy?.uuid || data.createdBy?.uuid,
+            : orderData?.clientBy?.uuid || data.clientBy?.uuid,
           tariffUuid: selectedTariff?.uuid || orderData?.tariff?.uuid || null,
           departureTime: data.departureTime || new Date(),
           departurePoint: departurePoint?.uuid || data.departurePoint?.uuid || null,

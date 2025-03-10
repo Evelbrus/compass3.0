@@ -8,7 +8,6 @@ import { prisma } from '@shared/prisma/prisma-client';
 import { authenticateRequest } from '@next-app/src/utils/authenticate/authenticateRequest';
 
 const logError = debug('app:api:orders-shared:error');
-const log = debug('app:orders-shared');
 
 // Роли, которые могут управлять заказами
 const allowedRoles = [UserRole.Admin, UserRole.Operator, UserRole.Driver, UserRole.ClientCorp];
@@ -19,10 +18,8 @@ export async function GET(req: NextRequest, { params }: { params: Params }) {
     await authenticateRequest(req, allowedRoles);
 
     const { uuid } = await params;
-    log(`Запрос на получение заказа с UUID: ${uuid}`);
 
     if (!uuid) {
-      log('Order UUID is missing');
       return NextResponse.json({ error: 'Order UUID is required' }, { status: 400 });
     }
 
@@ -44,7 +41,7 @@ export async function GET(req: NextRequest, { params }: { params: Params }) {
       // Формируем ответ
       const response = {
         uuid: formattedOrder.uuid,
-        createdBy: formattedOrder.createdBy,
+        clientBy: formattedOrder.clientBy,
         tariffUuid: formattedOrder.tariffUuid,
         tariff: formattedOrder.tariff,
         departurePointId: formattedOrder.departurePointId,
@@ -71,7 +68,6 @@ export async function GET(req: NextRequest, { params }: { params: Params }) {
         },
       };
 
-      log(`✓ Заказ с UUID ${uuid} успешно получен`);
       return NextResponse.json(response);
     } catch (serviceError) {
       if (serviceError instanceof Error) {

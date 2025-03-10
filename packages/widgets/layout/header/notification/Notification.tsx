@@ -6,7 +6,6 @@ import {
   NotificationIslandProps,
 } from '@features/notifications/lib/useNotifications';
 import UniversalNotificationList from '@widgets/layout/header/notification/UniversalNotificationList';
-import { cn } from '@shared/lib';
 
 const Notification = ({ userSession }: NotificationIslandProps) => {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
@@ -85,13 +84,9 @@ const Notification = ({ userSession }: NotificationIslandProps) => {
         />
         {getUnreadCount() > 0 && (
           <span
-            className={cn(
-              'absolute top-0 right-0 text-white rounded-full w-4 h-4 text-xs flex items-center justify-center',
-              userSession?.role === UserRole.Driver && 'bg-blue-500',
-              userSession?.role === UserRole.ClientCorp && 'bg-green-500',
-              (userSession?.role === UserRole.Admin || userSession?.role === UserRole.Operator) &&
-                'bg-red-500',
-            )}
+            className={
+              'absolute top-0 right-0 text-white rounded-full w-4 h-4 text-xs flex items-center justify-center bg-red-500'
+            }
           >
             {getUnreadCount()}
           </span>

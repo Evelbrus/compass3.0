@@ -44,7 +44,7 @@ const Page = async ({ params }: PageProps): Promise<JSX.Element> => {
     const order = await prisma.order.findUnique({
       where: { uuid },
       include: {
-        createdBy: {
+        clientBy: {
           select: {
             uuid: true,
             fullName: true,
@@ -137,12 +137,12 @@ const Page = async ({ params }: PageProps): Promise<JSX.Element> => {
     // Формирование orderData
     orderData = {
       uuid: order.uuid,
-      createdBy: {
-        uuid: order.createdBy.uuid,
-        fullName: order.createdBy.fullName,
-        email: order.createdBy.email,
-        phone: order.createdBy.phone,
-        role: order.createdBy.role,
+      clientBy: {
+        uuid: order.clientBy.uuid,
+        fullName: order.clientBy.fullName,
+        email: order.clientBy.email,
+        phone: order.clientBy.phone,
+        role: order.clientBy.role,
       },
       tariff: {
         ...order.tariff,

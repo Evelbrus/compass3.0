@@ -6,11 +6,9 @@ import { UpdateOrderStatusDTO } from '@next-app/src/dto/orders/order-status.dto'
 import { Params } from '@next-app/src/interface/interface';
 
 const logError = debug('app:api:orders:update-client-status:error');
-const log = debug('app:orders:update-client-status');
 
 export async function PATCH(req: Request, { params }: { params: Promise<Params> }) {
   const { uuid } = await params;
-  log(`Обновление статуса для заказа UUID: ${uuid} клиентом`);
 
   try {
     let data: UpdateOrderStatusDTO;
@@ -21,20 +19,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<Params> 
       return NextResponse.json({ status: 'error', message: 'Invalid JSON' }, { status: 400 });
     }
 
-    log(`Полученные данные:`, {
-      driverStatus: data.driverStatus ?? 'null',
-      orderStatus: data.orderStatus ?? 'null',
-      userId: data.userId,
-      createdById: data.createdById,
-      notificationUuid: data.notificationUuid,
-      driverById: data.driverById ?? 'null',
-      action: data.action,
-      markNotificationAsRead: data.markNotificationAsRead ?? 'null',
-    });
-
     try {
       const result = await updateOrderStatus(uuid, data);
-      log(`Заказ ${uuid} успешно обновлён клиентом:`, result);
       return NextResponse.json(result, { status: 200 });
     } catch (serviceError) {
       if (serviceError instanceof Error) {
@@ -71,7 +57,6 @@ export async function PATCH(req: Request, { params }: { params: Promise<Params> 
       throw serviceError;
     }
   } catch (error: unknown) {
-    log('Ошибка при обновлении статуса заказа клиентом:', error);
     const errorMessage = error instanceof Error ? error.message : String(error);
     return NextResponse.json({ status: 'error', message: errorMessage }, { status: 500 });
   }

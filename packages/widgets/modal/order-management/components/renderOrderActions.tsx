@@ -1,11 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   UserRole,
-  Action,
+  OrderStatus,
   DriverAcceptanceStatus,
   type Notification as PrismaNotification,
 } from '@prisma/client';
-import { canCancelOrder } from '@widgets/modal/order-management/utils/orderUtils';
 import type { OrderDetail } from '@widgets/modal/order-management/types/order.types';
 
 interface RenderOrderActionsProps {
@@ -15,16 +14,35 @@ interface RenderOrderActionsProps {
   orderData: OrderDetail | null;
   isLoading: boolean;
   onMarkAsRead: () => void;
-  onCancelOrder: () => void;
+  onCancelOrder: () => void; // Теперь onCancelOrder отвечает только за открытие модалки для клиента
   onDriverAction?: (
     driverStatus: DriverAcceptanceStatus,
-    action: Action,
+    orderStatus: OrderStatus,
+    reason: string, // Добавляем параметр reason
     successMessage: string,
     errorMessage: string,
   ) => void;
-  onEditOrder?: () => void; // Добавляем обработчик для редактирования заказа
+  onEditOrder?: () => void;
   onClose: () => void;
+  orderStatus?: OrderStatus;
 }
+
+// Хелпер-функция для обработки null в строках
+const safeStr = (str: string | null): string => str || '';
+
+// Тип для причин отмены (замените на ваш реальный тип)
+type CancellationReason = {
+  id: string;
+  label: string;
+};
+
+const mockCancellationReasons: CancellationReason[] = [
+  { id: 'no_longer_available', label: 'Заказ больше не актуален' },
+  { id: 'technical_issue', label: 'Технические проблемы' },
+  { id: 'client_unavailable', label: 'Клиент не выходит на связь' },
+  { id: 'client_unavailable', label: 'Клиент не выходит на связь' },
+  { id: 'other', label: 'Другая причина' },
+];
 
 export const renderOrderActions = ({
   userRole,
@@ -37,11 +55,95 @@ export const renderOrderActions = ({
   onDriverAction,
   onEditOrder,
   onClose,
+  orderStatus = OrderStatus.PENDING, // По умолчанию PENDING
 }: RenderOrderActionsProps) => {
+  // Используем переданный статус заказа
+  const status = orderStatus;
+
+  // Состояние для отображения модального окна отмены водителем
+  const [isCancellationModalOpen, setIsCancellationModalOpen] = useState(false);
+  const [selectedReason, setSelectedReason] = useState<string | null>(null); // Add state for selected reason
+
+  // Функция для открытия модального окна отмены
+  const openCancellationModal = () => {
+    setIsCancellationModalOpen(true);
+  };
+
+  // Функция для закрытия модального окна отмены
+  const closeCancellationModal = () => {
+    setIsCancellationModalOpen(false);
+    setSelectedReason(null); // Reset selected reason when closing modal
+  };
+
+  // Функция для обработки отмены заказа водителем с указанной причиной
+  const handleDriverCancelOrder = () => {
+    if (!selectedReason) {
+      alert('Пожалуйста, выберите причину отмены'); // Замените на более красивое уведомление
+      return;
+    }
+    if (onDriverAction) {
+      onDriverAction(
+        DriverAcceptanceStatus.PENDING,
+        OrderStatus.CANCELLED,
+        selectedReason, // Pass the selected reason
+        `Заказ #${safeStr(notification.orderId).slice(0, 5)} отменён водителем`,
+        'Не удалось отменить заказ',
+      );
+      closeCancellationModal();
+    }
+  };
+
   // Для администратора
   if (userRole === UserRole.Admin) {
-    switch (notification.action) {
-      case Action.noted:
+    switch (status) {
+      case OrderStatus.PENDING:
+        return notification.read ? (
+          <>
+            <button className="flex-1 py-3 bg-green-500 text-white rounded-xl font-medium hover:bg-green-600 transition">
+              Уведомление прочитано
+            </button>
+            <button
+              onClick={onClose}
+              className="flex-1 py-3 bg-gray-500 text-white rounded-xl font-medium hover:bg-gray-600 transition"
+            >
+              Закрыть
+            </button>
+            {onEditOrder && (
+              <button
+                onClick={onEditOrder}
+                className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition"
+                disabled={isLoading}
+              >
+                Редактировать заказ
+              </button>
+            )}
+          </>
+        ) : (
+          <>
+            <button
+              onClick={onMarkAsRead}
+              className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition"
+            >
+              Ознакомился
+            </button>
+            <button
+              onClick={onClose}
+              className="flex-1 py-3 bg-gray-500 text-white rounded-xl font-medium hover:bg-gray-600 transition"
+            >
+              Закрыть
+            </button>
+            {onEditOrder && (
+              <button
+                onClick={onEditOrder}
+                className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition"
+                disabled={isLoading}
+              >
+                Редактировать заказ
+              </button>
+            )}
+          </>
+        );
+      case OrderStatus.PLANNED:
         return notification.read ? (
           <>
             <button className="flex-1 py-3 bg-green-500 text-white rounded-xl font-medium hover:bg-green-600 transition">
@@ -76,8 +178,7 @@ export const renderOrderActions = ({
             )}
           </>
         );
-      case Action.inProgress:
-      case Action.warning:
+      case OrderStatus.IN_PROGRESS:
         return (
           <>
             {onEditOrder && (
@@ -89,17 +190,23 @@ export const renderOrderActions = ({
                 Редактировать заказ
               </button>
             )}
-            {orderData?.assignedDriver?.phone && (
+          </>
+        );
+      case OrderStatus.OVERDUE:
+        return (
+          <>
+            {onEditOrder && (
               <button
-                className="flex-1 py-3 border border-blue-600 text-blue-600 rounded-xl font-medium hover:bg-blue-50 transition"
-                onClick={() => window.open(`tel:${orderData?.assignedDriver?.phone}`)}
+                onClick={onEditOrder}
+                className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition"
+                disabled={isLoading}
               >
-                Связаться с водителем
+                Редактировать заказ
               </button>
             )}
           </>
         );
-      case Action.success:
+      case OrderStatus.COMPLETED:
         return (
           <>
             <button
@@ -119,7 +226,7 @@ export const renderOrderActions = ({
             )}
           </>
         );
-      case Action.cancelled:
+      case OrderStatus.CANCELLED:
         return (
           <>
             <button
@@ -140,57 +247,88 @@ export const renderOrderActions = ({
           </>
         );
       default:
-        return onEditOrder ? (
-          <button
-            onClick={onEditOrder}
-            className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition"
-            disabled={isLoading}
-          >
-            Редактировать заказ
-          </button>
-        ) : null;
+        return (
+          <>
+            {onEditOrder && (
+              <button
+                onClick={onEditOrder}
+                className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition"
+                disabled={isLoading}
+              >
+                Редактировать заказ
+              </button>
+            )}
+          </>
+        );
     }
   }
 
   // Для клиента корпоративного
   if (userRole === UserRole.ClientCorp) {
-    switch (notification.action) {
-      case Action.noted:
+    switch (status) {
+      case OrderStatus.PENDING:
+      case OrderStatus.PLANNED:
         return notification.read ? (
-          <button className="flex-1 py-3 bg-green-500 text-white rounded-xl font-medium hover:bg-green-600 transition">
-            Уведомление прочитано
-          </button>
-        ) : (
-          <button
-            onClick={onMarkAsRead}
-            className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition"
-          >
-            Ознакомился
-          </button>
-        );
-      case Action.inProgress:
-      case Action.warning:
-        return (
           <>
-            <button
-              className="flex-1 py-3 border border-blue-600 text-blue-600 rounded-xl font-medium hover:bg-blue-50 transition"
-              onClick={() =>
-                orderData?.assignedDriver?.phone &&
-                window.open(`tel:${orderData?.assignedDriver?.phone}`)
-              }
-            >
-              Связаться с водителем
+            <button className="flex-1 py-3 bg-green-500 text-white rounded-xl font-medium hover:bg-green-600 transition">
+              Уведомление прочитано
             </button>
             <button
-              className="flex-1 py-3 bg-red-600 text-white rounded-xl font-medium hover:bg-red-700 transition"
-              onClick={onCancelOrder}
-              disabled={isLoading || !canCancelOrder(currentStage, UserRole.ClientCorp)}
+              onClick={onClose}
+              className="flex-1 py-3 bg-gray-500 text-white rounded-xl font-medium hover:bg-gray-600 transition"
             >
-              {isLoading ? 'Отмена...' : 'Отменить заказ'}
+              Закрыть
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              onClick={onMarkAsRead}
+              className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition"
+            >
+              Ознакомился
+            </button>
+            <button
+              onClick={onClose}
+              className="flex-1 py-3 bg-gray-500 text-white rounded-xl font-medium hover:bg-gray-600 transition"
+            >
+              Закрыть
             </button>
           </>
         );
-      case Action.success:
+      case OrderStatus.IN_PROGRESS:
+        // Клиент может отменить, только если водитель еще не начал поездку
+        if (currentStage < DriverAcceptanceStatus.PICKED_UP) {
+          return (
+            <>
+              <button
+                className="flex-1 py-3 bg-red-600 text-white rounded-xl font-medium hover:bg-red-700 transition"
+                onClick={onCancelOrder}
+                disabled={isLoading}
+              >
+                {isLoading ? 'Отмена...' : 'Отменить заказ'}
+              </button>
+            </>
+          );
+        }
+        return null; // Кнопка отмены не отображается, если водитель уже начал поездку
+      case OrderStatus.OVERDUE:
+        // Клиент может отменить, только если водитель еще не начал поездку
+        if (currentStage < DriverAcceptanceStatus.PICKED_UP) {
+          return (
+            <>
+              <button
+                className="flex-1 py-3 bg-red-600 text-white rounded-xl font-medium hover:bg-red-700 transition"
+                onClick={onCancelOrder}
+                disabled={isLoading}
+              >
+                {isLoading ? 'Отмена...' : 'Отменить заказ'}
+              </button>
+            </>
+          );
+        }
+        return null; // Кнопка отмены не отображается, если водитель уже начал поездку
+      case OrderStatus.COMPLETED:
         return (
           <button
             className="flex-1 py-3 bg-green-600 text-white rounded-xl font-medium hover:bg-green-700 transition"
@@ -199,7 +337,7 @@ export const renderOrderActions = ({
             Поездка завершена
           </button>
         );
-      case Action.cancelled:
+      case OrderStatus.CANCELLED:
         return (
           <button
             className="flex-1 py-3 bg-gray-500 text-white rounded-xl font-medium hover:bg-gray-600 transition"
@@ -215,8 +353,50 @@ export const renderOrderActions = ({
 
   // Для водителя
   if (userRole === UserRole.Driver && onDriverAction) {
-    switch (notification.action) {
-      case Action.inProgress:
+    switch (status) {
+      case OrderStatus.PENDING:
+        return notification.read ? (
+          <>
+            <button className="flex-1 py-3 bg-green-500 text-white rounded-xl font-medium hover:bg-green-600 transition">
+              Уведомление прочитано
+            </button>
+            <button
+              onClick={onClose}
+              className="flex-1 py-3 bg-gray-500 text-white rounded-xl font-medium hover:bg-gray-600 transition"
+            >
+              Закрыть
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              onClick={onMarkAsRead}
+              className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition"
+            >
+              Ознакомился
+            </button>
+            <button
+              onClick={onClose}
+              className="flex-1 py-3 bg-gray-500 text-white rounded-xl font-medium hover:bg-gray-600 transition"
+            >
+              Закрыть
+            </button>
+          </>
+        );
+      case OrderStatus.PLANNED:
+        return notification.read ? (
+          <button className="flex-1 py-3 bg-green-500 text-white rounded-xl font-medium hover:bg-green-600 transition">
+            Уведомление прочитано
+          </button>
+        ) : (
+          <button
+            onClick={onMarkAsRead}
+            className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition"
+          >
+            Ознакомился
+          </button>
+        );
+      case OrderStatus.IN_PROGRESS:
         switch (currentStage) {
           case DriverAcceptanceStatus.PENDING:
           case DriverAcceptanceStatus.TAKEN:
@@ -227,8 +407,9 @@ export const renderOrderActions = ({
                   onClick={() =>
                     onDriverAction(
                       DriverAcceptanceStatus.ACCEPTED,
-                      Action.inProgress,
-                      `Заказ #${notification.orderId?.slice(0, 5)} принят`,
+                      OrderStatus.IN_PROGRESS,
+                      '',
+                      `Заказ #${safeStr(notification.orderId).slice(0, 5)} принят`,
                       'Не удалось принять заказ',
                     )
                   }
@@ -238,14 +419,7 @@ export const renderOrderActions = ({
                 </button>
                 <button
                   className="flex-1 py-3 bg-red-600 text-white rounded-xl font-medium hover:bg-red-700 transition"
-                  onClick={() =>
-                    onDriverAction(
-                      DriverAcceptanceStatus.PENDING,
-                      Action.cancelled,
-                      `Заказ #${notification.orderId?.slice(0, 5)} отклонён`,
-                      'Не удалось отклонить заказ',
-                    )
-                  }
+                  onClick={openCancellationModal}
                   disabled={isLoading}
                 >
                   {isLoading ? 'Отклоняется...' : 'Отклонить'}
@@ -260,7 +434,8 @@ export const renderOrderActions = ({
                   onClick={() =>
                     onDriverAction(
                       DriverAcceptanceStatus.ON_THE_WAY,
-                      Action.inProgress,
+                      OrderStatus.IN_PROGRESS,
+                      '',
                       'Вы поехали к клиенту',
                       'Не удалось обновить статус',
                     )
@@ -271,15 +446,8 @@ export const renderOrderActions = ({
                 </button>
                 <button
                   className="flex-1 py-3 bg-red-600 text-white rounded-xl font-medium hover:bg-red-700 transition"
-                  onClick={() =>
-                    onDriverAction(
-                      DriverAcceptanceStatus.PENDING,
-                      Action.cancelled,
-                      `Заказ #${notification.orderId?.slice(0, 5)} отменён водителем`,
-                      'Не удалось отменить заказ',
-                    )
-                  }
-                  disabled={isLoading || !canCancelOrder(currentStage, UserRole.Driver)}
+                  onClick={openCancellationModal} // Open modal instead of direct cancel
+                  disabled={isLoading}
                 >
                   {isLoading ? 'Отменяется...' : 'Отменить заказ'}
                 </button>
@@ -293,7 +461,8 @@ export const renderOrderActions = ({
                   onClick={() =>
                     onDriverAction(
                       DriverAcceptanceStatus.ARRIVED,
-                      Action.inProgress,
+                      OrderStatus.IN_PROGRESS,
+                      '',
                       'Вы прибыли к клиенту',
                       'Не удалось обновить статус',
                     )
@@ -304,15 +473,8 @@ export const renderOrderActions = ({
                 </button>
                 <button
                   className="flex-1 py-3 bg-red-600 text-white rounded-xl font-medium hover:bg-red-700 transition"
-                  onClick={() =>
-                    onDriverAction(
-                      DriverAcceptanceStatus.PENDING,
-                      Action.cancelled,
-                      `Заказ #${notification.orderId?.slice(0, 5)} отменён водителем`,
-                      'Не удалось отменить заказ',
-                    )
-                  }
-                  disabled={isLoading || !canCancelOrder(currentStage, UserRole.Driver)}
+                  onClick={openCancellationModal} // Open modal instead of direct cancel
+                  disabled={isLoading}
                 >
                   {isLoading ? 'Отменяется...' : 'Отменить заказ'}
                 </button>
@@ -320,37 +482,57 @@ export const renderOrderActions = ({
             );
           case DriverAcceptanceStatus.ARRIVED:
             return (
-              <button
-                className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition"
-                onClick={() =>
-                  onDriverAction(
-                    DriverAcceptanceStatus.PICKED_UP,
-                    Action.inProgress,
-                    'Поездка начата',
-                    'Не удалось начать поездку',
-                  )
-                }
-                disabled={isLoading}
-              >
-                {isLoading ? 'Обновляется...' : 'Начать поездку'}
-              </button>
+              <>
+                <button
+                  className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition"
+                  onClick={() =>
+                    onDriverAction(
+                      DriverAcceptanceStatus.PICKED_UP,
+                      OrderStatus.IN_PROGRESS,
+                      '',
+                      'Поездка начата',
+                      'Не удалось начать поездку',
+                    )
+                  }
+                  disabled={isLoading}
+                >
+                  {isLoading ? 'Обновляется...' : 'Начать поездку'}
+                </button>
+                <button
+                  className="flex-1 py-3 bg-red-600 text-white rounded-xl font-medium hover:bg-red-700 transition"
+                  onClick={openCancellationModal} // Open modal instead of direct cancel
+                  disabled={isLoading}
+                >
+                  {isLoading ? 'Отменяется...' : 'Отменить заказ'}
+                </button>
+              </>
             );
           case DriverAcceptanceStatus.PICKED_UP:
             return (
-              <button
-                className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition"
-                onClick={() =>
-                  onDriverAction(
-                    DriverAcceptanceStatus.COMPLETED,
-                    Action.success,
-                    `Заказ #${notification.orderId?.slice(0, 5)} завершён`,
-                    'Не удалось завершить поездку',
-                  )
-                }
-                disabled={isLoading}
-              >
-                {isLoading ? 'Завершается...' : 'Завершить поездку'}
-              </button>
+              <>
+                <button
+                  className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition"
+                  onClick={() =>
+                    onDriverAction(
+                      DriverAcceptanceStatus.COMPLETED,
+                      OrderStatus.COMPLETED,
+                      '',
+                      `Заказ #${safeStr(notification.orderId).slice(0, 5)} завершён`,
+                      'Не удалось завершить поездку',
+                    )
+                  }
+                  disabled={isLoading}
+                >
+                  {isLoading ? 'Завершается...' : 'Завершить поездку'}
+                </button>
+                <button
+                  className="flex-1 py-3 bg-red-600 text-white rounded-xl font-medium hover:bg-red-700 transition"
+                  onClick={openCancellationModal} // Open modal instead of direct cancel
+                  disabled={isLoading}
+                >
+                  {isLoading ? 'Отменяется...' : 'Отменить заказ'}
+                </button>
+              </>
             );
           case DriverAcceptanceStatus.COMPLETED:
             return (
@@ -363,63 +545,62 @@ export const renderOrderActions = ({
             );
           case DriverAcceptanceStatus.TIMEOUT:
             return (
-              <button
-                className="flex-1 py-3 bg-gray-500 text-white rounded-xl font-medium hover:bg-gray-600 transition"
-                onClick={onClose}
-              >
-                Заказ просрочен
-              </button>
+              <>
+                <button
+                  className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition"
+                  onClick={() =>
+                    onDriverAction(
+                      DriverAcceptanceStatus.ACCEPTED,
+                      OrderStatus.IN_PROGRESS,
+                      '',
+                      `Заказ #${safeStr(notification.orderId).slice(0, 5)} принят`,
+                      'Не удалось принять заказ',
+                    )
+                  }
+                  disabled={isLoading}
+                >
+                  {isLoading ? 'Принимается...' : 'Принять заказ'}
+                </button>
+                <button
+                  className="flex-1 py-3 bg-red-600 text-white rounded-xl font-medium hover:bg-red-700 transition"
+                  onClick={openCancellationModal} // Open modal instead of direct cancel
+                  disabled={isLoading}
+                >
+                  {isLoading ? 'Отклоняется...' : 'Отклонить'}
+                </button>
+              </>
             );
           default:
             return null;
         }
-      case Action.noted:
-        return notification.read ? (
-          <button className="flex-1 py-3 bg-green-500 text-white rounded-xl font-medium hover:bg-green-600 transition">
-            Уведомление прочитано
-          </button>
-        ) : (
-          <button
-            onClick={onMarkAsRead}
-            className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition"
-          >
-            Ознакомился
-          </button>
-        );
-      case Action.warning:
+      case OrderStatus.OVERDUE:
         return (
           <>
             <button
-              className="flex-1 py-3 border border-blue-600 text-blue-600 rounded-xl font-medium hover:bg-blue-50 transition"
+              className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition"
               onClick={() =>
                 onDriverAction(
                   DriverAcceptanceStatus.ACCEPTED,
-                  Action.inProgress,
-                  `Заказ #${notification.orderId?.slice(0, 5)} принят`,
+                  OrderStatus.IN_PROGRESS,
+                  '',
+                  `Заказ #${safeStr(notification.orderId).slice(0, 5)} принят`,
                   'Не удалось принять заказ',
                 )
               }
               disabled={isLoading}
             >
-              {isLoading ? 'Принимается...' : 'Взять заказ'}
+              {isLoading ? 'Принимается...' : 'Принять заказ'}
             </button>
             <button
               className="flex-1 py-3 bg-red-600 text-white rounded-xl font-medium hover:bg-red-700 transition"
-              onClick={() =>
-                onDriverAction(
-                  DriverAcceptanceStatus.PENDING,
-                  Action.cancelled,
-                  `Заказ #${notification.orderId?.slice(0, 5)} отклонён`,
-                  'Не удалось отклонить заказ',
-                )
-              }
+              onClick={openCancellationModal} // Open modal instead of direct cancel
               disabled={isLoading}
             >
               {isLoading ? 'Отклоняется...' : 'Отклонить'}
             </button>
           </>
         );
-      case Action.success:
+      case OrderStatus.COMPLETED:
         return (
           <button
             className="flex-1 py-3 bg-green-600 text-white rounded-xl font-medium hover:bg-green-700 transition"
@@ -428,7 +609,7 @@ export const renderOrderActions = ({
             Поездка завершена
           </button>
         );
-      case Action.cancelled:
+      case OrderStatus.CANCELLED:
         return (
           <button
             className="flex-1 py-3 bg-gray-500 text-white rounded-xl font-medium hover:bg-gray-600 transition"

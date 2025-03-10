@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 
 interface Order {
   uuid: string;
-  createdById: string;
+  clientById: string;
   tariffUuid: string;
   departureTime: string;
   departurePointId: string;
@@ -13,7 +13,7 @@ interface Order {
   status: string;
   assignedDriverId: string | null;
   intermediatePoints: string[];
-  createdBy: {
+  clientBy: {
     uuid: string;
     fullName: string;
     email: string;
@@ -105,7 +105,7 @@ const OrderDetails = ({ orderId }: { orderId: string }) => {
         <strong>Status:</strong> {order.status}
       </p>
       <p>
-        <strong>Created By:</strong> {order.createdBy.fullName} ({order.createdBy.email})
+        <strong>Created By:</strong> {order.clientBy.fullName} ({order.clientBy.email})
       </p>
       {order.assignedDriver && (
         <p>

@@ -125,7 +125,7 @@ export const ClientSelector: FC<ClientSelectorProps> = ({
       <div className="bg-white p-4 border rounded-lg">
         {/* UUID клиента - скрытое поле для формы */}
         <Controller
-          name="createdBy"
+          name="clientBy"
           control={control}
           defaultValue={
             isClientCorp
@@ -275,7 +275,7 @@ export const ClientSelector: FC<ClientSelectorProps> = ({
           <div className="flex flex-col gap-6">
             <div className="flex flex-row gap-6">
               <Controller
-                name="createdBy"
+                name="clientBy"
                 control={control}
                 render={({ fieldState }) => {
                   return (
