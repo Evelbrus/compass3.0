@@ -91,21 +91,22 @@ const OrderDriverModal: React.FC<OrderDriverModalProps> = ({ isOpen, onClose }) 
     setIsProcessing(true);
 
     try {
+      // Если заказ OVERDUE, не используем driverStatusToOrderStatus, а берём actionOrderStatus напрямую
       const newOrderStatus =
-        actionOrderStatus === OrderStatus.CANCELLED
-          ? OrderStatus.CANCELLED
-          : driverStatusToOrderStatus[driverStatus];
+        actionOrderStatus === OrderStatus.OVERDUE
+          ? OrderStatus.OVERDUE
+          : actionOrderStatus === OrderStatus.CANCELLED
+            ? OrderStatus.CANCELLED
+            : driverStatusToOrderStatus[driverStatus];
 
-      // Обновление статуса заказа через API
       if (notification.orderId) {
         await updateDriverOrderStatus({
-          orderUuid: notification.orderId,
-          driverStatus,
+          uuid: notification.uuid,
+          clientId: notification.clientId,
+          driverId: notification.driverId,
+          orderId: notification.orderId,
+          driverStatus: driverStatus,
           orderStatus: newOrderStatus,
-          notificationUuid: notification.uuid,
-          userId: safeStr(notification.userId),
-          clientById: safeStr(notification.clientById),
-          driverById: notification.driverById || null,
         });
 
         setCurrentStage(driverStatus);
@@ -118,19 +119,18 @@ const OrderDriverModal: React.FC<OrderDriverModalProps> = ({ isOpen, onClose }) 
           },
         );
 
-        // Закрываем модальное окно, если заказ не отменен
         if (actionOrderStatus !== OrderStatus.CANCELLED) {
           onClose();
         }
       }
     } catch (err) {
+      // Обработка ошибок остаётся без изменений
       console.error('Ошибка при обновлении статуса:', err);
       const errorMsg = err instanceof Error ? err.message : String(err);
 
       if (errorMsg.includes('занят другими активными заказами')) {
         const errorText = 'Вы уже заняты другими заказами. Сначала завершите текущие заказы.';
         setError(errorText);
-
         showToast.error('Вы уже заняты другими заказами', {
           position: 'top-right',
           autoClose: 5000,
@@ -190,13 +190,11 @@ const OrderDriverModal: React.FC<OrderDriverModalProps> = ({ isOpen, onClose }) 
       onClose();
     } else {
       if (
-        [
-          OrderStatus.PENDING,
-          OrderStatus.PLANNED,
-          OrderStatus.COMPLETED,
-          OrderStatus.CANCELLED,
-          OrderStatus.OVERDUE,
-        ].includes(orderStatus)
+        orderStatus === OrderStatus.PENDING ||
+        orderStatus === OrderStatus.PLANNED ||
+        orderStatus === OrderStatus.COMPLETED ||
+        orderStatus === OrderStatus.CANCELLED ||
+        orderStatus === OrderStatus.OVERDUE
       ) {
         handleMarkAsRead();
       } else {

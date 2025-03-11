@@ -9,7 +9,7 @@ import { CreateClientCorpOrderDTO } from '@next-app/src/dto/orders/client-corp-o
 import {
   processBulkNotifications,
   processNotification,
-} from '@next-app/src/services/notifications/notificationService';
+} from '@next-app/src/services/notifications/notifications';
 
 const log = debug('app:services:orders:client-corp');
 const logError = debug('app:services:orders:client-corp:error');
@@ -117,10 +117,11 @@ export async function createClientCorpOrder(
     try {
       log('Before processNotification');
       await processNotification({
-        userId: clientUuid,
+        createdById: clientUuid,
         orderId: result.uuid,
-        templateKey: 'orderCreatedByCorpClientToClient',
-        clientById: clientUuid,
+        templateKey: 'clientCorpOrderAssigned',
+        clientId: clientUuid,
+        markNotificationAsRead: false,
       });
       log('After processNotification');
 
@@ -131,10 +132,11 @@ export async function createClientCorpOrder(
       if (adminsAndOperators.length > 0) {
         log('Before processBulkNotifications');
         await processBulkNotifications({
-          users: adminsAndOperators,
+          recipients: adminsAndOperators.map((user) => ({ uuid: user.uuid, role: user.role })),
           orderId: result.uuid,
-          templateKey: 'orderCreatedByCorpClientToAdmins',
-          clientById: clientUuid,
+          templateKey: 'orderOverdueAdmin',
+          clientId: clientUuid,
+          markNotificationAsRead: false,
         });
         log('After processBulkNotifications');
       }

@@ -1,6 +1,18 @@
 import { DriverAcceptanceStatus, OrderStatus } from '@prisma/client';
 
 /**
+ * Интерфейс для параметров функций обновления статуса заказа
+ */
+interface OrderStatusUpdateParams {
+  uuid: string; // UUID уведомления
+  orderId: string; // ID заказа
+  clientId: string | null; // ID клиента
+  driverId: string | null; // ID водителя
+  driverStatus?: DriverAcceptanceStatus; // Статус принятия водителем (опционально)
+  orderStatus?: OrderStatus; // Статус заказа (опционально)
+}
+
+/**
  * Помечает уведомление как прочитанное с использованием отдельного API-маршрута
  * @param notificationUuid UUID уведомления
  * @returns Результат операции
@@ -22,35 +34,20 @@ export const markNotificationAsRead = async (notificationUuid: string): Promise<
 
 /**
  * Обновляет статус заказа от имени водителя
+ * @param params Параметры обновления статуса
+ * @returns Результат обновления статуса
  */
-export async function updateDriverOrderStatus({
-  orderUuid,
-  driverStatus,
-  orderStatus,
-  notificationUuid,
-  userId,
-  clientById,
-  driverById,
-}: {
-  orderUuid: string;
-  driverStatus: DriverAcceptanceStatus;
-  orderStatus: OrderStatus;
-  notificationUuid: string;
-  userId: string;
-  clientById: string;
-  driverById: string | null;
-}) {
+export async function updateDriverOrderStatus(params: OrderStatusUpdateParams) {
   try {
-    const response = await fetch(`/api/drivers/orders/${orderUuid}/update-driver-status`, {
+    const response = await fetch(`/api/drivers/orders/${params.orderId}/update-driver-status`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        driverStatus,
-        orderStatus,
-        userId,
-        clientById,
-        driverById,
-        notificationUuid,
+        driverStatus: params.driverStatus,
+        orderStatus: params.orderStatus,
+        clientId: params.clientId,
+        driverId: params.driverId,
+        notificationUuid: params.uuid,
       }),
     });
 
@@ -68,35 +65,20 @@ export async function updateDriverOrderStatus({
 
 /**
  * Обновляет статус заказа от имени клиента
+ * @param params Параметры обновления статуса
+ * @returns Результат обновления статуса
  */
-export async function updateClientOrderStatus({
-  orderUuid,
-  driverStatus,
-  orderStatus,
-  notificationUuid,
-  userId,
-  clientById,
-  driverById,
-}: {
-  orderUuid: string;
-  driverStatus: DriverAcceptanceStatus;
-  orderStatus: OrderStatus;
-  notificationUuid: string;
-  userId: string;
-  clientById: string;
-  driverById: string;
-}) {
+export async function updateClientOrderStatus(params: OrderStatusUpdateParams) {
   try {
-    const response = await fetch(`/api/client-corp/orders/${orderUuid}/update-client-status`, {
+    const response = await fetch(`/api/client-corp/orders/${params.orderId}/update-client-status`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        driverStatus,
-        orderStatus,
-        userId,
-        clientById,
-        driverById,
-        notificationUuid,
+        driverStatus: params.driverStatus,
+        orderStatus: params.orderStatus,
+        clientId: params.clientId,
+        driverId: params.driverId,
+        notificationUuid: params.uuid,
       }),
     });
 

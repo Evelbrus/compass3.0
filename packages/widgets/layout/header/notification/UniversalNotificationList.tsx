@@ -40,9 +40,6 @@ const UniversalNotificationList: React.FC<NotificationListProps> = ({
     );
   };
 
-  console.log('clientNotifications', clientNotifications);
-  console.log('userSession', userSession);
-
   const getActiveNotifications = () => {
     switch (userSession?.role) {
       case UserRole.Driver:

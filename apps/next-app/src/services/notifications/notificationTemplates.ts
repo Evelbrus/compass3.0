@@ -1,484 +1,687 @@
-import { Order, OrderStatus, DriverAcceptanceStatus } from '@prisma/client';
+import { DriverAcceptanceStatus, Order, OrderStatus } from '@prisma/client';
 
-// Интерфейсы для типизации
-interface OrderWithDetails extends Order {
+export interface OrderWithDetails extends Order {
   departurePoint: { address: string };
   arrivalPoint: { address: string };
-  clientBy: { fullName: string };
-  assignedDriver?: { fullName: string } | null;
+  createdBy: { fullName: string };
+  assignedDriver: { fullName: string } | null;
 }
 
-export type NotificationTemplate = {
-  title: (order: OrderWithDetails, departureAddress: string, arrivalAddress: string) => string;
-  message: (
-    order: OrderWithDetails,
-    orderName: string,
-    departureAddress: string,
-    arrivalAddress: string,
-    clientFullName?: string,
-    driverFullName?: string | null,
-  ) => string;
-};
+/**
+ * Шаблоны уведомлений для различных событий системы такси/трансфера
+ */
+export const notificationTemplates = {
+  // Уведомления для водителей
+  driverOrderAssigned: {
+    title: (order: OrderWithDetails) => `Вам назначен новый заказ`,
+    message: (
+      order: OrderWithDetails,
+      orderName: string,
+      departureAddress: string,
+      arrivalAddress: string,
+      clientFullName: string,
+    ) =>
+      `Вам назначен заказ ${orderName} по маршруту ${departureAddress} → ${arrivalAddress}. Клиент: ${clientFullName}. Пожалуйста, примите или отклоните заказ.`,
+  },
 
-// Переводы статусов для использования в шаблонах
-export const orderStatusTranslations: Record<OrderStatus, string> = {
-  PENDING: 'Ожидает подтверждения',
-  PLANNED: 'Запланирован',
-  IN_PROGRESS: 'В процессе выполнения',
-  COMPLETED: 'Завершён',
-  CANCELLED: 'Отменён',
-  OVERDUE: 'Просрочен',
-};
+  // Уведомления для водителей
+  clientCorpOrderAssigned: {
+    title: (order: OrderWithDetails) => `Вам создан заказ`,
+    message: (
+      order: OrderWithDetails,
+      orderName: string,
+      departureAddress: string,
+      arrivalAddress: string,
+      clientFullName: string,
+    ) => `Вам создан заказ ${orderName} по маршруту ${departureAddress} → ${arrivalAddress}.`,
+  },
 
-export const driverAcceptanceStatusTranslations: Record<DriverAcceptanceStatus, string> = {
-  PENDING: 'Ожидает решения водителя',
-  TAKEN: 'Принят к сведению водителем',
-  ACCEPTED: 'Принят водителем',
-  ON_THE_WAY: 'Водитель в пути к клиенту',
-  ARRIVED: 'Водитель прибыл к клиенту',
-  PICKED_UP: 'Водитель забрал клиента',
-  TIMEOUT: 'Водитель не принял вовремя',
-  COMPLETED: 'Поездка завершена',
-};
+  // Уведомления для администратора (создателя заказа)
+  adminOrderAssigned: {
+    title: (order: OrderWithDetails) => `Вы создали заказ`,
+    message: (
+      order: OrderWithDetails,
+      orderName: string,
+      departureAddress: string,
+      arrivalAddress: string,
+      clientFullName: string,
+    ) => `Вами создан заказ ${orderName} по маршруту ${departureAddress} → ${arrivalAddress}.`,
+  },
 
-// Шаблоны уведомлений
-export const notificationTemplates: Record<string, NotificationTemplate> = {
-  orderCreatedByAdminToAdmin: {
-    title: (_order, _departureAddress, _arrivalAddress) => 'Заказ создан',
-    message: (order, orderName, departureAddress, arrivalAddress, clientFullName, driverFullName) =>
-      `<ul>
-        <li>&#8226; Вы создали заказ <strong>${orderName}</strong></li>
-        <li>&#8226; Для клиента <strong>${clientFullName}</strong></li>
-        <li>&#8226; От <strong>${departureAddress}</strong> до <strong>${arrivalAddress}</strong></li>
-        ${driverFullName ? `<li>&#8226; Назначен водитель: <strong>${driverFullName}</strong></li>` : '<li>&#8226; Водитель не назначен</li>'}
-        <li>&#8226; Время отправления: <strong>${order.departureTime.toLocaleString()}</strong></li>
-      </ul>`,
-  },
-  orderCreatedByAdminToClient: {
-    title: (_order, _departureAddress, _arrivalAddress) => 'Заказ создан',
-    message: (order, orderName, departureAddress, arrivalAddress) =>
-      `<ul>
-        <li>&#8226; Вам создан заказ <strong>${orderName}</strong></li>
-        <li>&#8226; От <strong>${departureAddress}</strong> до <strong>${arrivalAddress}</strong></li>
-        <li>&#8226; Время отправления: <strong>${order.departureTime.toLocaleString()}</strong></li>
-      </ul>`,
-  },
-  orderCreatedDriverAssigned: {
-    title: (_order, _departureAddress, _arrivalAddress) => 'Заказ назначен',
-    message: (order, orderName, departureAddress, arrivalAddress) =>
-      `<ul>
-        <li>&#8226; Вам назначен заказ <strong>${orderName}</strong></li>
-        <li>&#8226; От <strong>${departureAddress}</strong> до <strong>${arrivalAddress}</strong></li>
-        <li>&#8226; Время отправления: <strong>${order.departureTime.toLocaleString()}</strong></li>
-      </ul>`,
-  },
-  orderUpdatedByAdminToAdmin: {
-    title: (_order, _departureAddress, _arrivalAddress) => 'Заказ обновлён',
-    message: (order, orderName, departureAddress, arrivalAddress, clientFullName, driverFullName) =>
-      `<ul>
-        <li>&#8226; Вы обновили заказ <strong>${orderName}</strong></li>
-        <li>&#8226; Для клиента <strong>${clientFullName}</strong></li>
-        <li>&#8226; От <strong>${departureAddress}</strong> до <strong>${arrivalAddress}</strong></li>
-        ${driverFullName ? `<li>&#8226; Назначен водитель: <strong>${driverFullName}</strong></li>` : '<li>&#8226; Водитель не назначен</li>'}
-        <li>&#8226; Время отправления: <strong>${order.departureTime.toLocaleString()}</strong></li>
-      </ul>`,
-  },
-  orderSuccesByAdminToAdmin: {
-    title: () => 'Поездка успешно завершена',
+  driverOrderAccepted: {
+    title: (order: OrderWithDetails) => `Вы приняли заказ`,
     message: (
-      order,
-      orderName,
-      departureAddress,
-      arrivalAddress,
-      _clientFullName,
-      driverFullName,
+      order: OrderWithDetails,
+      orderName: string,
+      departureAddress: string,
+      arrivalAddress: string,
+      clientFullName: string,
     ) =>
-      `<ul>
-      <li>• Заказ <strong>${orderName}</strong> успешно завершен</li>
-      <li>• Водитель: <strong>${driverFullName || 'не указан'}</strong></li>
-      <li>• От <strong>${departureAddress}</strong> до <strong>${arrivalAddress}</strong></li>
-      <li>• Время завершения: <strong>${new Date().toLocaleString()}</strong></li>
-    </ul>`,
+      `Вы приняли заказ ${orderName} по маршруту ${departureAddress} → ${arrivalAddress}. Клиент: ${clientFullName}. Направляйтесь к точке отправления.`,
   },
-  orderUpdatedByAdminToClient: {
-    title: (_order, _departureAddress, _arrivalAddress) => 'Заказ обновлён',
-    message: (order, orderName, departureAddress, arrivalAddress) =>
-      `<ul>
-        <li>&#8226; Ваш заказ <strong>${orderName}</strong> обновлён</li>
-        <li>&#8226; От <strong>${departureAddress}</strong> до <strong>${arrivalAddress}</strong></li>
-        <li>&#8226; Время отправления: <strong>${order.departureTime.toLocaleString()}</strong></li>
-      </ul>`,
-  },
-  orderUpdatedDriverReassigned: {
-    title: (_order, _departureAddress, _arrivalAddress) => 'Заказ обновлён',
-    message: (order, orderName, departureAddress, arrivalAddress) =>
-      `<ul>
-        <li>&#8226; Заказ <strong>${orderName}</strong>, на который вы были назначены, был обновлён</li>
-        <li>&#8226; От <strong>${departureAddress}</strong> до <strong>${arrivalAddress}</strong></li>
-        <li>&#8226; Время отправления: <strong>${order.departureTime.toLocaleString()}</strong></li>
-      </ul>`,
-  },
-  orderDriverRemoved: {
-    title: (_order, _departureAddress, _arrivalAddress) => 'Назначение снято',
-    message: (order, orderName, departureAddress, arrivalAddress) =>
-      `<ul>
-        <li>&#8226; Вы больше не назначены на заказ <strong>${orderName}</strong></li>
-        <li>&#8226; От <strong>${departureAddress}</strong> до <strong>${arrivalAddress}</strong></li>
-        <li>&#8226; Время отправления было: <strong>${order.departureTime.toLocaleString()}</strong></li>
-      </ul>`,
-  },
-  orderDeletedByAdminToAdmin: {
-    title: (_order, _departureAddress, _arrivalAddress) => 'Заказ удалён',
-    message: (_order, orderName, departureAddress, arrivalAddress) =>
-      `<ul>
-        <li>&#8226; Вы удалили заказ <strong>${orderName}</strong></li>
-        <li>&#8226; От <strong>${departureAddress}</strong> до <strong>${arrivalAddress}</strong></li>
-      </ul>`,
-  },
-  orderDeletedByAdminToClient: {
-    title: (_order, _departureAddress, _arrivalAddress) => 'Заказ отменён',
-    message: (_order, orderName, departureAddress, arrivalAddress) =>
-      `<ul>
-        <li>&#8226; Ваш заказ <strong>${orderName}</strong> был отменён</li>
-        <li>&#8226; От <strong>${departureAddress}</strong> до <strong>${arrivalAddress}</strong></li>
-      </ul>`,
-  },
-  orderDeletedByAdminToDriver: {
-    title: (_order, _departureAddress, _arrivalAddress) => 'Заказ отменён',
-    message: (_order, orderName, departureAddress, arrivalAddress) =>
-      `<ul>
-        <li>&#8226; Заказ <strong>${orderName}</strong>, на который вы были назначены, был отменён</li>
-         <li>&#8226; От <strong>${departureAddress}</strong> до <strong>${arrivalAddress}</strong></li>
-      </ul>`,
-  },
-  orderCreatedByCorpClientToClient: {
-    title: (_order, _departureAddress, _arrivalAddress) => 'Заказ создан',
-    message: (order, orderName, departureAddress, arrivalAddress) =>
-      `<ul>
-        <li>&#8226; Вы создали заказ <strong>${orderName}</strong></li>
-        <li>&#8226; От <strong>${departureAddress}</strong> до <strong>${arrivalAddress}</strong></li>
-        <li>&#8226; Время отправления: <strong>${order.departureTime.toLocaleString()}</strong></li>
-      </ul>`,
-  },
-  orderCreatedByCorpClientToAdmins: {
-    title: (_order, _departureAddress, _arrivalAddress) => 'Новый заказ',
-    message: (order, orderName, departureAddress, arrivalAddress, clientFullName) =>
-      `<ul>
-        <li>&#8226; Корпоративный клиент <strong>${clientFullName}</strong> создал заказ <strong>${orderName}</strong></li>
-        <li>&#8226; От <strong>${departureAddress}</strong> до <strong>${arrivalAddress}</strong></li>
-        <li>&#8226; Время отправления: <strong>${order.departureTime.toLocaleString()}</strong></li>
-      </ul>`,
-  },
-  orderUpdatedByCorpClientToClient: {
-    title: (_order, _departureAddress, _arrivalAddress) => 'Заказ обновлён',
-    message: (order, orderName, departureAddress, arrivalAddress) =>
-      `<ul>
-        <li>&#8226; Вы обновили заказ <strong>${orderName}</strong></li>
-        <li>&#8226; От <strong>${departureAddress}</strong> до <strong>${arrivalAddress}</strong></li>
-        <li>&#8226; Время отправления: <strong>${order.departureTime.toLocaleString()}</strong></li>
-      </ul>`,
-  },
-  orderUpdatedByCorpClientToAdmins: {
-    title: (_order, _departureAddress, _arrivalAddress) => 'Заказ обновлён',
-    message: (order, orderName, departureAddress, arrivalAddress, clientFullName) =>
-      `<ul>
-        <li>&#8226; Корпоративный клиент <strong>${clientFullName}</strong> обновил заказ <strong>${orderName}</strong></li>
-        <li>&#8226; От <strong>${departureAddress}</strong> до <strong>${arrivalAddress}</strong></li>
-        <li>&#8226; Время отправления: <strong>${order.departureTime.toLocaleString()}</strong></li>
-      </ul>`,
-  },
-  orderCancelledByCorpClientToClient: {
-    title: (_order, _departureAddress, _arrivalAddress) => 'Заказ отменён',
-    message: (_order, orderName, departureAddress, arrivalAddress) =>
-      `<ul>
-        <li>&#8226; Вы отменили заказ <strong>${orderName}</strong></li>
-        <li>&#8226; От <strong>${departureAddress}</strong> до <strong>${arrivalAddress}</strong></li>
-      </ul>`,
-  },
-  orderCancelledByDriverToDriver: {
-    title: (_order, _departureAddress, _arrivalAddress) => 'Заказ отменён',
-    message: (_order, orderName, departureAddress, arrivalAddress) =>
-      `<ul>
-        <li>&#8226; Вы отменили заказ <strong>${orderName}</strong></li>
-        <li>&#8226; От <strong>${departureAddress}</strong> до <strong>${arrivalAddress}</strong></li>
-      </ul>`,
-  },
-  orderCancelledByCorpClientToAdmins: {
-    title: (_order, _departureAddress, _arrivalAddress) => 'Заказ отменён клиентом',
-    message: (_order, orderName, departureAddress, arrivalAddress, clientFullName) =>
-      `<ul>
-        <li>&#8226; Корпоративный клиент <strong>${clientFullName}</strong> отменил заказ <strong>${orderName}</strong></li>
-        <li>&#8226; От <strong>${departureAddress}</strong> до <strong>${arrivalAddress}</strong></li>
-      </ul>`,
-  },
-  orderCancelledByCorpClientToDriver: {
-    title: (_order, _departureAddress, _arrivalAddress) => 'Заказ отменён',
-    message: (_order, orderName, departureAddress, arrivalAddress, clientFullName) =>
-      `<ul>
-        <li>&#8226; Заказ <strong>${orderName}</strong>, на который вы были назначены, был отменён клиентом <strong>${clientFullName}</strong></li>
-        <li>&#8226; От <strong>${departureAddress}</strong> до <strong>${arrivalAddress}</strong></li>
-      </ul>`,
-  },
-  orderStatusChangedToClient: {
-    title: (order, _departureAddress, _arrivalAddress) =>
-      order.status === 'COMPLETED' ? 'Поездка успешно завершена' : 'Статус заказа изменён',
+
+  driverOrderCancelled: {
+    title: (order: OrderWithDetails) => `Заказ отменен`,
     message: (
-      order,
-      orderName,
-      departureAddress,
-      arrivalAddress,
-      _clientFullName,
-      driverFullName,
+      order: OrderWithDetails,
+      orderName: string,
+      departureAddress: string,
+      arrivalAddress: string,
+      clientFullName: string,
     ) =>
-      `<ul>
-        <li>&#8226; Ваш заказ <strong>${orderName}</strong> теперь в статусе "<strong>${orderStatusTranslations[order.status]}</strong>"</li>
-        ${driverFullName ? `<li>&#8226; Статус водителя: "<strong>${driverAcceptanceStatusTranslations[order.driverAcceptanceStatus || 'PENDING']}</strong>"</li>` : ''}
-        <li>&#8226; Время отправления: <strong>${order.departureTime.toLocaleString()}</strong></li>
-      </ul>`,
+      `Заказ ${orderName} по маршруту ${departureAddress} → ${arrivalAddress} был отменен. Клиент: ${clientFullName}.`,
   },
-  orderCancelledByDriverToClient: {
-    title: (_order, _departureAddress, _arrivalAddress) => 'Заказ отменён',
+
+  driverOnTheWay: {
+    title: (order: OrderWithDetails) => `Вы в пути к клиенту`,
     message: (
-      _order,
-      orderName,
-      departureAddress,
-      arrivalAddress,
-      _clientFullName,
-      driverFullName,
+      order: OrderWithDetails,
+      orderName: string,
+      departureAddress: string,
+      arrivalAddress: string,
+      clientFullName: string,
     ) =>
-      `<ul>
-        <li>&#8226; Ваш заказ <strong>${orderName}</strong> был отменён водителем <strong>${driverFullName || 'не указан'}</strong></li>
-        <li>&#8226; От <strong>${departureAddress}</strong> до <strong>${arrivalAddress}</strong></li>
-      </ul>`,
+      `Вы в пути к клиенту для выполнения заказа ${orderName} по маршруту ${departureAddress} → ${arrivalAddress}. Клиент: ${clientFullName}.`,
   },
-  orderCancelledByDriverToAdmins: {
-    title: (_order, _departureAddress, _arrivalAddress) => 'Заказ отменён',
+
+  driverArrived: {
+    title: (order: OrderWithDetails) => `Вы прибыли к клиенту`,
     message: (
-      _order,
-      orderName,
-      departureAddress,
-      arrivalAddress,
-      _clientFullName,
-      driverFullName,
+      order: OrderWithDetails,
+      orderName: string,
+      departureAddress: string,
+      arrivalAddress: string,
+      clientFullName: string,
     ) =>
-      `<ul>
-        <li>&#8226; Водитель <strong>${driverFullName || 'не указан'}</strong> отменил заказ <strong>${orderName}</strong></li>
-        <li>&#8226; От <strong>${departureAddress}</strong> до <strong>${arrivalAddress}</strong></li>
-      </ul>`,
+      `Вы прибыли к точке отправления для заказа ${orderName} (${departureAddress}). Клиент: ${clientFullName}.`,
   },
-  orderInProgressDriver: {
-    title: (_order, _departureAddress, _arrivalAddress) => 'Поездка начинается',
+
+  driverPickedUp: {
+    title: (order: OrderWithDetails) => `Вы забрали клиента`,
     message: (
-      order,
-      orderName,
-      departureAddress,
-      arrivalAddress,
-      _clientFullName,
-      _driverFullName,
+      order: OrderWithDetails,
+      orderName: string,
+      departureAddress: string,
+      arrivalAddress: string,
+      clientFullName: string,
     ) =>
-      `<ul>
-        <li>&#8226; Заказ <strong>${orderName}</strong> в статусе "<strong>${orderStatusTranslations[order.status]}</strong>"</li>
-        <li>&#8226; Ваш текущий статус: "<strong>${driverAcceptanceStatusTranslations[order.driverAcceptanceStatus || 'PENDING']}</strong>"</li>
-        <li>&#8226; Время отправления: <strong>${order.departureTime.toLocaleString()}</strong></li>
-        <li>&#8226; Поездка начнётся через минуту</li>
-      </ul>`,
+      `Вы забрали клиента и начали поездку по заказу ${orderName} с маршрутом ${departureAddress} → ${arrivalAddress}. Клиент: ${clientFullName}.`,
   },
+
+  driverOrderCompleted: {
+    title: (order: OrderWithDetails) => `Заказ выполнен`,
+    message: (
+      order: OrderWithDetails,
+      orderName: string,
+      departureAddress: string,
+      arrivalAddress: string,
+      clientFullName: string,
+    ) =>
+      `Вы успешно выполнили заказ ${orderName} по маршруту ${departureAddress} → ${arrivalAddress}. Клиент: ${clientFullName}.`,
+  },
+
+  driverOrderTimeout: {
+    title: (order: OrderWithDetails) => `Время ответа на заказ истекло`,
+    message: (
+      order: OrderWithDetails,
+      orderName: string,
+      departureAddress: string,
+      arrivalAddress: string,
+    ) =>
+      `Время ответа на заказ ${orderName} по маршруту ${departureAddress} → ${arrivalAddress} истекло. Заказ переназначен другому водителю.`,
+  },
+
+  // Уведомления для клиентов
+  clientOrderCreated: {
+    title: (order: OrderWithDetails) => `Заказ создан`,
+    message: (
+      order: OrderWithDetails,
+      orderName: string,
+      departureAddress: string,
+      arrivalAddress: string,
+    ) =>
+      `Ваш заказ ${orderName} по маршруту ${departureAddress} → ${arrivalAddress} успешно создан. Ожидайте назначения водителя.`,
+  },
+
+  clientOrderPlanned: {
+    title: (order: OrderWithDetails) => `Заказ запланирован`,
+    message: (
+      order: OrderWithDetails,
+      orderName: string,
+      departureAddress: string,
+      arrivalAddress: string,
+    ) =>
+      `Ваш заказ ${orderName} по маршруту ${departureAddress} → ${arrivalAddress} запланирован. Водитель будет назначен ближе к времени поездки.`,
+  },
+
+  clientDriverAssigned: {
+    title: (order: OrderWithDetails) => `Водитель назначен`,
+    message: (
+      order: OrderWithDetails,
+      orderName: string,
+      departureAddress: string,
+      arrivalAddress: string,
+      clientFullName: string,
+      driverFullName: string,
+    ) =>
+      `На ваш заказ ${orderName} назначен водитель ${driverFullName || 'Не указан'}. Маршрут: ${departureAddress} → ${arrivalAddress}.`,
+  },
+
+  clientDriverAccepted: {
+    title: (order: OrderWithDetails) => `Водитель принял заказ`,
+    message: (
+      order: OrderWithDetails,
+      orderName: string,
+      departureAddress: string,
+      arrivalAddress: string,
+      clientFullName: string,
+      driverFullName: string,
+    ) =>
+      `Водитель ${driverFullName || 'Не указан'} принял ваш заказ ${orderName} по маршруту ${departureAddress} → ${arrivalAddress}. Водитель направляется к точке отправления.`,
+  },
+
+  clientDriverOnTheWay: {
+    title: (order: OrderWithDetails) => `Водитель в пути`,
+    message: (
+      order: OrderWithDetails,
+      orderName: string,
+      departureAddress: string,
+      arrivalAddress: string,
+      clientFullName: string,
+      driverFullName: string,
+    ) =>
+      `Водитель ${driverFullName || 'Не указан'} в пути к точке отправления (${departureAddress}) для вашего заказа ${orderName}.`,
+  },
+
+  clientDriverArrived: {
+    title: (order: OrderWithDetails) => `Водитель прибыл`,
+    message: (
+      order: OrderWithDetails,
+      orderName: string,
+      departureAddress: string,
+      arrivalAddress: string,
+      clientFullName: string,
+      driverFullName: string,
+    ) =>
+      `Водитель ${driverFullName || 'Не указан'} прибыл к точке отправления (${departureAddress}) для вашего заказа ${orderName}.`,
+  },
+
+  clientDriverPickedUp: {
+    title: (order: OrderWithDetails) => `Поездка началась`,
+    message: (
+      order: OrderWithDetails,
+      orderName: string,
+      departureAddress: string,
+      arrivalAddress: string,
+      clientFullName: string,
+      driverFullName: string,
+    ) =>
+      `Ваша поездка по заказу ${orderName} началась. Водитель: ${driverFullName || 'Не указан'}. Маршрут: ${departureAddress} → ${arrivalAddress}.`,
+  },
+
+  clientOrderCompleted: {
+    title: (order: OrderWithDetails) => `Поездка завершена`,
+    message: (
+      order: OrderWithDetails,
+      orderName: string,
+      departureAddress: string,
+      arrivalAddress: string,
+      clientFullName: string,
+      driverFullName: string,
+    ) =>
+      `Ваша поездка по заказу ${orderName} по маршруту ${departureAddress} → ${arrivalAddress} успешно завершена. Спасибо за использование нашего сервиса!`,
+  },
+
+  clientOrderCancelled: {
+    title: (order: OrderWithDetails) => `Заказ отменен`,
+    message: (
+      order: OrderWithDetails,
+      orderName: string,
+      departureAddress: string,
+      arrivalAddress: string,
+      clientFullName: string,
+      driverFullName: string,
+    ) =>
+      `Ваш заказ ${orderName} по маршруту ${departureAddress} → ${arrivalAddress} был отменен${driverFullName ? ` водителем ${driverFullName}` : ''}.`,
+  },
+
+  clientDriverTimeout: {
+    title: (order: OrderWithDetails) => `Заказ переназначается`,
+    message: (
+      order: OrderWithDetails,
+      orderName: string,
+      departureAddress: string,
+      arrivalAddress: string,
+    ) =>
+      `Водитель не ответил вовремя на ваш заказ ${orderName} по маршруту ${departureAddress} → ${arrivalAddress}. Заказ переназначается другому водителю.`,
+  },
+
+  // Уведомления для администраторов
+  adminOrderCreated: {
+    title: (order: OrderWithDetails) => `Создан новый заказ`,
+    message: (
+      order: OrderWithDetails,
+      orderName: string,
+      departureAddress: string,
+      arrivalAddress: string,
+      clientFullName: string,
+    ) =>
+      `Создан новый заказ ${orderName} по маршруту ${departureAddress} → ${arrivalAddress}. Клиент: ${clientFullName}.`,
+  },
+
+  adminOrderPlanned: {
+    title: (order: OrderWithDetails) => `Заказ запланирован`,
+    message: (
+      order: OrderWithDetails,
+      orderName: string,
+      departureAddress: string,
+      arrivalAddress: string,
+      clientFullName: string,
+    ) =>
+      `Заказ ${orderName} запланирован по маршруту ${departureAddress} → ${arrivalAddress}. Клиент: ${clientFullName}.`,
+  },
+
+  adminDriverAssigned: {
+    title: (order: OrderWithDetails) => `Водитель назначен на заказ`,
+    message: (
+      order: OrderWithDetails,
+      orderName: string,
+      departureAddress: string,
+      arrivalAddress: string,
+      clientFullName: string,
+      driverFullName: string,
+    ) =>
+      `Водитель ${driverFullName || 'Не указан'} назначен на заказ ${orderName} по маршруту ${departureAddress} → ${arrivalAddress}. Клиент: ${clientFullName}.`,
+  },
+
+  adminDriverAccepted: {
+    title: (order: OrderWithDetails) => `Водитель принял заказ`,
+    message: (
+      order: OrderWithDetails,
+      orderName: string,
+      departureAddress: string,
+      arrivalAddress: string,
+      clientFullName: string,
+      driverFullName: string,
+    ) =>
+      `Водитель ${driverFullName || 'Не указан'} принял заказ ${orderName} по маршруту ${departureAddress} → ${arrivalAddress}. Клиент: ${clientFullName}.`,
+  },
+
+  adminDriverOnTheWay: {
+    title: (order: OrderWithDetails) => `Водитель в пути к клиенту`,
+    message: (
+      order: OrderWithDetails,
+      orderName: string,
+      departureAddress: string,
+      arrivalAddress: string,
+      clientFullName: string,
+      driverFullName: string,
+    ) =>
+      `Водитель ${driverFullName || 'Не указан'} в пути к клиенту для заказа ${orderName} по маршруту ${departureAddress} → ${arrivalAddress}. Клиент: ${clientFullName}.`,
+  },
+
+  adminDriverArrived: {
+    title: (order: OrderWithDetails) => `Водитель прибыл к клиенту`,
+    message: (
+      order: OrderWithDetails,
+      orderName: string,
+      departureAddress: string,
+      arrivalAddress: string,
+      clientFullName: string,
+      driverFullName: string,
+    ) =>
+      `Водитель ${driverFullName || 'Не указан'} прибыл к клиенту для заказа ${orderName} в точке ${departureAddress}. Клиент: ${clientFullName}.`,
+  },
+
+  adminDriverPickedUp: {
+    title: (order: OrderWithDetails) => `Поездка началась`,
+    message: (
+      order: OrderWithDetails,
+      orderName: string,
+      departureAddress: string,
+      arrivalAddress: string,
+      clientFullName: string,
+      driverFullName: string,
+    ) =>
+      `Водитель ${driverFullName || 'Не указан'} забрал клиента и начал поездку по заказу ${orderName}. Маршрут: ${departureAddress} → ${arrivalAddress}. Клиент: ${clientFullName}.`,
+  },
+
+  adminOrderCompleted: {
+    title: (order: OrderWithDetails) => `Заказ выполнен`,
+    message: (
+      order: OrderWithDetails,
+      orderName: string,
+      departureAddress: string,
+      arrivalAddress: string,
+      clientFullName: string,
+      driverFullName: string,
+    ) =>
+      `Заказ ${orderName} по маршруту ${departureAddress} → ${arrivalAddress} успешно выполнен. Клиент: ${clientFullName}. Водитель: ${driverFullName || 'Не указан'}.`,
+  },
+
+  adminOrderCancelled: {
+    title: (order: OrderWithDetails) => `Заказ отменен`,
+    message: (
+      order: OrderWithDetails,
+      orderName: string,
+      departureAddress: string,
+      arrivalAddress: string,
+      clientFullName: string,
+      driverFullName: string,
+    ) =>
+      `Заказ ${orderName} по маршруту ${departureAddress} → ${arrivalAddress} был отменен. Клиент: ${clientFullName}. Водитель: ${driverFullName || 'Не указан'}.`,
+  },
+
+  adminOrderTimeout: {
+    title: (order: OrderWithDetails) => `Водитель не ответил на заказ`,
+    message: (
+      order: OrderWithDetails,
+      orderName: string,
+      departureAddress: string,
+      arrivalAddress: string,
+      clientFullName: string,
+      driverFullName: string,
+    ) =>
+      `Водитель ${driverFullName || 'Не указан'} не ответил на заказ ${orderName} в течение отведенного времени. Клиент: ${clientFullName}. Требуется переназначение водителя.`,
+  },
+
+  // Системные уведомления
+  systemOrderOverdue: {
+    title: (order: OrderWithDetails) => `Заказ просрочен`,
+    message: (
+      order: OrderWithDetails,
+      orderName: string,
+      departureAddress: string,
+      arrivalAddress: string,
+      clientFullName: string,
+      driverFullName: string,
+    ) =>
+      `Заказ ${orderName} по маршруту ${departureAddress} → ${arrivalAddress} просрочен. Клиент: ${clientFullName}. Водитель: ${driverFullName || 'Не указан'}.`,
+  },
+
+  systemDriverNoShow: {
+    title: (order: OrderWithDetails) => `Водитель не прибыл`,
+    message: (
+      order: OrderWithDetails,
+      orderName: string,
+      departureAddress: string,
+      arrivalAddress: string,
+      clientFullName: string,
+      driverFullName: string,
+    ) =>
+      `Водитель ${driverFullName || 'Не указан'} не прибыл для выполнения заказа ${orderName} по маршруту ${departureAddress} → ${arrivalAddress}. Клиент: ${clientFullName}.`,
+  },
+
   orderInProgressClient: {
-    title: (_order, _departureAddress, _arrivalAddress) => 'Поездка начинается',
+    title: (order: OrderWithDetails) => `Ваш заказ в процессе выполнения. Водитель уже в пути.`,
     message: (
-      order,
-      orderName,
-      departureAddress,
-      arrivalAddress,
-      _clientFullName,
-      driverFullName,
+      order: OrderWithDetails,
+      orderName: string,
+      departureAddress: string,
+      arrivalAddress: string,
+      clientFullName: string,
+      driverFullName: string,
     ) =>
-      `<ul>
-        <li>&#8226; Ваш заказ <strong>${orderName}</strong> в статусе "<strong>${orderStatusTranslations[order.status]}</strong>"</li>
-        <li>&#8226; Водитель: <strong>${driverFullName || 'не указан'}</strong></li>
-        <li>&#8226; Статус водителя: "<strong>${driverAcceptanceStatusTranslations[order.driverAcceptanceStatus || 'PENDING']}</strong>"</li>
-        <li>&#8226; Время отправления: <strong>${order.departureTime.toLocaleString()}</strong></li>
-        <li>&#8226; Поездка скоро начнётся</li>
-      </ul>`,
+      `Ваш заказ ${orderName} по маршруту ${departureAddress} → ${arrivalAddress} находится в процессе выполнения. Водитель ${driverFullName || 'Не указан'} уже в пути.`,
   },
+
+  orderInProgressDriver: {
+    title: (order: OrderWithDetails) =>
+      `Выполнение заказа начнется через 1 минуту. Возьмите заказ в работу.`,
+    message: (
+      order: OrderWithDetails,
+      orderName: string,
+      departureAddress: string,
+      arrivalAddress: string,
+      clientFullName: string,
+      driverFullName: string,
+    ) =>
+      `Заказ ${orderName} по маршруту ${departureAddress} → ${arrivalAddress} начнется через 1 минуту, возьмите его в работу. Клиент: ${clientFullName}.`,
+  },
+
   orderOverdueDriver: {
-    title: (_order, _departureAddress, _arrivalAddress) => 'Просроченный заказ',
-    message: (order, orderName, departureAddress, arrivalAddress) =>
-      `<ul>
-        <li>&#8226; Заказ <strong>${orderName}</strong> просрочен</li>
-        <li>&#8226; Ваш статус: "<strong>${driverAcceptanceStatusTranslations[order.driverAcceptanceStatus || 'TIMEOUT']}</strong>"</li>
-        <li>&#8226; Время отправления было: <strong>${order.departureTime.toLocaleString()}</strong></li>
-      </ul>`,
+    title: (order: OrderWithDetails) => `Заказ просрочен`,
+    message: (
+      order: OrderWithDetails,
+      orderName: string,
+      departureAddress: string,
+      arrivalAddress: string,
+      clientFullName: string,
+      driverFullName: string,
+    ) =>
+      `Время выполнения заказа ${orderName} по маршруту ${departureAddress} → ${arrivalAddress} уже наступило. Клиент ${clientFullName} ожидает вас в ${new Date(order.departureTime).toLocaleTimeString()}.`,
   },
+
+  // Шаблон для администратора о просроченном заказе
   orderOverdueAdmin: {
-    title: (_order, _departureAddress, _arrivalAddress) => 'Просроченный заказ',
+    title: (order: OrderWithDetails) => `Заказ просрочен`,
     message: (
-      order,
-      orderName,
-      departureAddress,
-      arrivalAddress,
-      _clientFullName,
-      driverFullName,
+      order: OrderWithDetails,
+      orderName: string,
+      departureAddress: string,
+      arrivalAddress: string,
+      clientFullName: string,
+      driverFullName: string,
     ) =>
-      `<ul>
-        <li>&#8226; Заказ <strong>${orderName}</strong> просрочен</li>
-        <li>&#8226; Водитель <strong>${driverFullName || 'не указан'}</strong> не принял заказ вовремя (статус: "<strong>${driverAcceptanceStatusTranslations[order.driverAcceptanceStatus || 'TIMEOUT']}</strong>")</li>
-        <li>&#8226; Время отправления было: <strong>${order.departureTime.toLocaleString()}</strong></li>
-      </ul>`,
+      `Заказ ${orderName} по маршруту ${departureAddress} → ${arrivalAddress} просрочен. Клиент: ${clientFullName}. Водитель: ${driverFullName || 'Не назначен'}. Время отправления: ${new Date(order.departureTime).toLocaleString()}. Примите действия!`,
   },
-  orderOverdueAcceptedByDriverToAdmins: {
-    title: (_order, _departureAddress, _arrivalAddress) => 'Просроченный заказ принят',
+  clientOrderNotified: {
+    title: (order: OrderWithDetails) => `Напоминание о вашем заказе`,
     message: (
-      order,
-      orderName,
-      departureAddress,
-      arrivalAddress,
-      _clientFullName,
-      driverFullName,
+      order: OrderWithDetails,
+      orderName: string,
+      departureAddress: string,
+      arrivalAddress: string,
+      clientFullName: string,
+      driverFullName: string,
     ) =>
-      `<ul>
-        <li>&#8226; Водитель <strong>${driverFullName || 'не указан'}</strong> принял просроченный заказ <strong>${orderName}</strong></li>
-        <li>&#8226; Статус водителя: "<strong>${driverAcceptanceStatusTranslations[order.driverAcceptanceStatus || 'ACCEPTED']}</strong>"</li>
-        <li>&#8226; Время отправления было: <strong>${order.departureTime.toLocaleString()}</strong></li>
-      </ul>`,
+      `Напоминаем о вашем заказе ${orderName} по маршруту ${departureAddress} → ${arrivalAddress}. Время отправления: ${new Date(order.departureTime).toLocaleString()}. ${driverFullName ? `Ваш водитель: ${driverFullName}.` : 'Водитель будет назначен в ближайшее время.'}`,
   },
-  orderNotedByDriver: {
-    title: (_order, _departureAddress, _arrivalAddress) => 'Уведомление',
-    message: (order, orderName, departureAddress, arrivalAddress) =>
-      `<ul>
-        <li>&#8226; Вы отметили уведомление о заказе <strong>${orderName}</strong> как прочитанное</li>
-        <li>&#8226; От <strong>${departureAddress}</strong> до <strong>${arrivalAddress}</strong></li>
-        <li>&#8226; Время отправления: <strong>${order.departureTime.toLocaleString()}</strong></li>
-      </ul>`,
-  },
-  orderNotedByClient: {
-    title: (_order, _departureAddress, _arrivalAddress) => 'Уведомление',
-    message: (order, orderName, departureAddress, arrivalAddress) =>
-      `<ul>
-        <li>&#8226; Вы отметили уведомление о заказе <strong>${orderName}</strong> как прочитанное</li>
-        <li>&#8226; От <strong>${departureAddress}</strong> до <strong>${arrivalAddress}</strong></li>
-        <li>&#8226; Время отправления: <strong>${order.departureTime.toLocaleString()}</strong></li>
-      </ul>`,
-  },
-  orderNotedByAdmin: {
-    title: (_order, _departureAddress, _arrivalAddress) => 'Уведомление',
-    message: (order, orderName, departureAddress, arrivalAddress) =>
-      `<ul>
-        <li>&#8226; Вы отметили уведомление о заказе <strong>${orderName}</strong> как прочитанное</li>
-        <li>&#8226; От <strong>${departureAddress}</strong> до <strong>${arrivalAddress}</strong></li>
-        <li>&#8226; Время отправления: <strong>${order.departureTime.toLocaleString()}</strong></li>
-      </ul>`,
-  },
-  orderUpdatedByDriverToAdmins: {
-    title: (_order, _departureAddress, _arrivalAddress) => 'Заказ принят водителем',
+
+  // Шаблон для водителя о предстоящем заказе
+  driverOrderNotified: {
+    title: (order: OrderWithDetails) => `Напоминание о заказе`,
     message: (
-      order,
-      orderName,
-      departureAddress,
-      arrivalAddress,
-      _clientFullName,
-      driverFullName,
+      order: OrderWithDetails,
+      orderName: string,
+      departureAddress: string,
+      arrivalAddress: string,
+      clientFullName: string,
+      driverFullName: string,
     ) =>
-      `<ul>
-      <li>&#8226; Водитель <strong>${driverFullName || 'не указан'}</strong> принял заказ <strong>${orderName}</strong></li>
-      <li>&#8226; От <strong>${departureAddress}</strong> до <strong>${arrivalAddress}</strong></li>
-      <li>&#8226; Статус водителя: "<strong>${driverAcceptanceStatusTranslations[order.driverAcceptanceStatus || 'ACCEPTED']}</strong>"</li>
-      <li>&#8226; Время отправления: <strong>${order.departureTime.toLocaleString()}</strong></li>
-    </ul>`,
+      `Напоминаем о назначенном вам заказе ${orderName} по маршруту ${departureAddress} → ${arrivalAddress}. Клиент: ${clientFullName}. Время отправления: ${new Date(order.departureTime).toLocaleString()}.`,
   },
-  orderCompletedByDriverToAdmins: {
-    title: (_order, _departureAddress, _arrivalAddress) => 'Заказ выполнен',
-    message: (order, orderName, departureAddress, arrivalAddress, clientFullName, driverFullName) =>
-      `<ul>
-      <li>&#8226; Водитель <strong>${driverFullName || 'не указан'}</strong> успешно выполнил заказ <strong>${orderName}</strong></li>
-      <li>&#8226; Для клиента <strong>${clientFullName}</strong></li>
-      <li>&#8226; От <strong>${departureAddress}</strong> до <strong>${arrivalAddress}</strong></li>
-      <li>&#8226; Время завершения: <strong>${new Date().toLocaleString()}</strong></li>
-    </ul>`,
-  },
-  orderAutoCancelledAdmin: {
-    title: (_order, _departureAddress, _arrivalAddress) => 'Заказ автоматически отменен',
-    message: (order, orderName, departureAddress, arrivalAddress, clientFullName, driverFullName) =>
-      `<ul>
-      <li>&#8226; Заказ <strong>${orderName}</strong> был автоматически отменен системой из-за истечения времени ожидания</li>
-      <li>&#8226; Клиент: <strong>${clientFullName}</strong></li>
-      <li>&#8226; От <strong>${departureAddress}</strong> до <strong>${arrivalAddress}</strong></li>
-      ${driverFullName ? `<li>&#8226; Назначенный водитель: <strong>${driverFullName}</strong></li>` : ''}
-      <li>&#8226; Время отмены: <strong>${new Date().toLocaleString()}</strong></li>
-    </ul>`,
-  },
-  orderCancelledClient: {
-    title: (_order, _departureAddress, _arrivalAddress) => 'Заказ отменен',
-    message: (_order, orderName, departureAddress, arrivalAddress) =>
-      `<ul>
-      <li>&#8226; Ваш заказ <strong>${orderName}</strong> был отменен из-за длительного простоя</li>
-      <li>&#8226; От <strong>${departureAddress}</strong> до <strong>${arrivalAddress}</strong></li>
-      <li>&#8226; Время отмены: <strong>${new Date().toLocaleString()}</strong></li>
-    </ul>`,
-  },
-  orderCancelledDriver: {
-    title: (_order, _departureAddress, _arrivalAddress) => 'Заказ отменен',
-    message: (_order, orderName, departureAddress, arrivalAddress) =>
-      `<ul>
-      <li>&#8226; Заказ <strong>${orderName}</strong> был отменен из-за длительного простоя</li>
-      <li>&#8226; От <strong>${departureAddress}</strong> до <strong>${arrivalAddress}</strong></li>
-      <li>&#8226; Время отмены: <strong>${new Date().toLocaleString()}</strong></li>
-    </ul>`,
-  },
-  orderAcceptedByDriverToAdmins: {
-    title: (_order, _departureAddress, _arrivalAddress) => 'Заказ принят водителем',
-    message: (order, orderName, departureAddress, arrivalAddress, clientFullName, driverFullName) =>
-      `<ul>
-      <li>&#8226; Водитель <strong>${driverFullName || 'не указан'}</strong> принял заказ <strong>${orderName}</strong></li>
-      <li>&#8226; Для клиента <strong>${clientFullName}</strong></li>
-      <li>&#8226; От <strong>${departureAddress}</strong> до <strong>${arrivalAddress}</strong></li>
-      <li>&#8226; Статус водителя: "<strong>${driverAcceptanceStatusTranslations[order.driverAcceptanceStatus || 'ACCEPTED']}</strong>"</li>
-      <li>&#8226; Время отправления: <strong>${order.departureTime.toLocaleString()}</strong></li>
-    </ul>`,
-  },
-  orderAutoCancelledClient: {
-    title: (_order, _departureAddress, _arrivalAddress) => 'Заказ отменен',
-    message: (_order, orderName, departureAddress, arrivalAddress) =>
-      `<ul>
-      <li>&#8226; Ваш заказ <strong>${orderName}</strong> был автоматически отменен</li>
-      <li>&#8226; От <strong>${departureAddress}</strong> до <strong>${arrivalAddress}</strong></li>
-      <li>&#8226; Причина: заказ не был обработан вовремя</li>
-    </ul>`,
-  },
-  orderAutoCancelledDriver: {
-    title: (_order, _departureAddress, _arrivalAddress) => 'Заказ отменен',
-    message: (_order, orderName, departureAddress, arrivalAddress) =>
-      `<ul>
-      <li>&#8226; Заказ <strong>${orderName}</strong> был автоматически отменен</li>
-      <li>&#8226; От <strong>${departureAddress}</strong> до <strong>${arrivalAddress}</strong></li>
-      <li>&#8226; Причина: длительное отсутствие активности</li>
-    </ul>`,
-  },
-  orderCompletedByDriver: {
-    title: () => 'Поездка завершена',
-    message: (order, orderName, departureAddress, arrivalAddress, clientFullName) =>
-      `<ul>
-      <li>• Вы успешно завершили заказ <strong>${orderName}</strong></li>
-      <li>• Для клиента <strong>${clientFullName}</strong></li>
-      <li>• От <strong>${departureAddress}</strong> до <strong>${arrivalAddress}</strong></li>
-      <li>• Время завершения: <strong>${new Date().toLocaleString()}</strong></li>
-    </ul>`,
-  },
-  orderCompletedToClient: {
-    title: () => 'Поездка успешно завершена',
+
+  // Шаблон для администратора о предстоящем заказе
+  adminOrderNotified: {
+    title: (order: OrderWithDetails) => `Напоминание о заказе`,
     message: (
-      order,
-      orderName,
-      departureAddress,
-      arrivalAddress,
-      _clientFullName,
-      driverFullName,
+      order: OrderWithDetails,
+      orderName: string,
+      departureAddress: string,
+      arrivalAddress: string,
+      clientFullName: string,
+      driverFullName: string,
     ) =>
-      `<ul>
-      <li>• Ваш заказ <strong>${orderName}</strong> успешно завершен</li>
-      <li>• Водитель: <strong>${driverFullName || 'не указан'}</strong></li>
-      <li>• От <strong>${departureAddress}</strong> до <strong>${arrivalAddress}</strong></li>
-      <li>• Время завершения: <strong>${new Date().toLocaleString()}</strong></li>
-    </ul>`,
+      `Обратите внимание на заказ ${orderName} по маршруту ${departureAddress} → ${arrivalAddress}. Клиент: ${clientFullName}. ${driverFullName ? `Водитель: ${driverFullName}.` : 'Водитель не назначен.'} Время отправления: ${new Date(order.departureTime).toLocaleString()}.`,
+  },
+  driverAcceptedOverdue: {
+    title: (order: OrderWithDetails) => `Вы приняли просроченный заказ №${order.uuid}`,
+    message: (
+      order: OrderWithDetails,
+      orderName: string,
+      departureAddress: string,
+      arrivalAddress: string,
+      clientFullName: string,
+    ) =>
+      `Вы приняли просроченный заказ ${orderName}. Маршрут: ${departureAddress} → ${arrivalAddress}. Клиент: ${clientFullName}. Пожалуйста, свяжитесь с администратором для уточнения деталей.`,
+  },
+
+  adminDriverAcceptedOverdue: {
+    title: (order: OrderWithDetails) => `Водитель принял просроченный заказ №${order.uuid}`,
+    message: (
+      order: OrderWithDetails,
+      orderName: string,
+      departureAddress: string,
+      arrivalAddress: string,
+      clientFullName: string,
+      driverFullName: string,
+    ) =>
+      `Водитель ${driverFullName || 'Не указан'} принял просроченный заказ ${orderName}. Маршрут: ${departureAddress} → ${arrivalAddress}. Клиент: ${clientFullName}. Пожалуйста, проверьте статус заказа.`,
   },
 };
+
+/**
+ * Получает шаблон уведомления на основе статуса заказа и водителя
+ * @param orderStatus Статус заказа
+ * @param driverStatus Статус принятия заказа водителем
+ * @param forRole Роль получателя уведомления (driver, client, admin)
+ * @returns Ключ шаблона уведомления
+ */
+export function getNotificationTemplateKey(
+  orderStatus: OrderStatus,
+  driverStatus: DriverAcceptanceStatus,
+  forRole: 'driver' | 'client' | 'admin',
+  previousDriverStatus?: DriverAcceptanceStatus | null,
+): keyof typeof notificationTemplates {
+  console.log('orderStatus', orderStatus);
+  console.log('driverStatus', driverStatus);
+  console.log('previousDriverStatus', previousDriverStatus);
+
+  // Специальный случай: заказ был просрочен (TIMEOUT), и теперь принят
+  if (
+    previousDriverStatus === DriverAcceptanceStatus.TIMEOUT &&
+    orderStatus === OrderStatus.IN_PROGRESS && // После timeout заказ переходит в IN_PROGRESS
+    driverStatus === DriverAcceptanceStatus.ACCEPTED // Водитель принял заказ
+  ) {
+    if (forRole === 'driver') {
+      return 'driverAcceptedOverdue'; // "Вы приняли просроченный заказ"
+    }
+    if (forRole === 'admin') {
+      return 'adminDriverAcceptedOverdue'; // "Водитель принял просроченный заказ"
+    }
+  }
+
+  // Проверяем статус NOTIFIED
+  if (driverStatus === DriverAcceptanceStatus.NOTIFIED) {
+    if (forRole === 'driver') return 'driverOrderNotified';
+    else if (forRole === 'client') return 'clientOrderNotified';
+    else return 'adminOrderNotified';
+  }
+
+  // Для водителя
+  if (forRole === 'driver') {
+    switch (orderStatus) {
+      case OrderStatus.PENDING:
+        return 'driverOrderAssigned';
+      case OrderStatus.PLANNED:
+        return 'driverOrderAssigned';
+      case OrderStatus.IN_PROGRESS:
+        if (driverStatus === DriverAcceptanceStatus.ACCEPTED) return 'driverOrderAccepted';
+        else if (driverStatus === DriverAcceptanceStatus.ON_THE_WAY) return 'driverOnTheWay';
+        else if (driverStatus === DriverAcceptanceStatus.ARRIVED) return 'driverArrived';
+        else if (driverStatus === DriverAcceptanceStatus.PICKED_UP) return 'driverPickedUp';
+        else return 'driverOrderAccepted';
+      case OrderStatus.COMPLETED:
+        return 'driverOrderCompleted';
+      case OrderStatus.CANCELLED:
+        return 'driverOrderCancelled';
+      case OrderStatus.OVERDUE:
+        return 'systemOrderOverdue';
+      default:
+        return 'driverOrderAssigned';
+    }
+  }
+
+  // Для клиента
+  if (forRole === 'client') {
+    switch (orderStatus) {
+      case OrderStatus.PENDING:
+        if (driverStatus === DriverAcceptanceStatus.PENDING || driverStatus === null)
+          return 'clientOrderCreated';
+        if (driverStatus === DriverAcceptanceStatus.TIMEOUT) return 'clientDriverTimeout';
+        return 'clientDriverAssigned';
+      case OrderStatus.PLANNED:
+        return 'clientOrderPlanned';
+      case OrderStatus.IN_PROGRESS:
+        if (driverStatus === DriverAcceptanceStatus.ACCEPTED) return 'clientDriverAccepted';
+        else if (driverStatus === DriverAcceptanceStatus.ON_THE_WAY) return 'clientDriverOnTheWay';
+        else if (driverStatus === DriverAcceptanceStatus.ARRIVED) return 'clientDriverArrived';
+        else if (driverStatus === DriverAcceptanceStatus.PICKED_UP) return 'clientDriverPickedUp';
+        return 'clientDriverAssigned';
+      case OrderStatus.COMPLETED:
+        return 'clientOrderCompleted';
+      case OrderStatus.CANCELLED:
+        return 'clientOrderCancelled';
+      case OrderStatus.OVERDUE:
+        return 'systemOrderOverdue';
+      default:
+        return 'clientOrderCreated';
+    }
+  }
+
+  // Для администратора
+  if (forRole === 'admin') {
+    switch (orderStatus) {
+      case OrderStatus.PENDING:
+        if (driverStatus === DriverAcceptanceStatus.PENDING || driverStatus === null)
+          return 'adminOrderCreated';
+        if (driverStatus === DriverAcceptanceStatus.TIMEOUT) return 'adminOrderTimeout';
+        return 'adminDriverAssigned';
+      case OrderStatus.PLANNED:
+        return 'adminOrderPlanned';
+      case OrderStatus.IN_PROGRESS:
+        if (driverStatus === DriverAcceptanceStatus.ACCEPTED) return 'adminDriverAccepted';
+        else if (driverStatus === DriverAcceptanceStatus.ON_THE_WAY) return 'adminDriverOnTheWay';
+        else if (driverStatus === DriverAcceptanceStatus.ARRIVED) return 'adminDriverArrived';
+        else if (driverStatus === DriverAcceptanceStatus.PICKED_UP) return 'adminDriverPickedUp';
+        return 'adminDriverAssigned';
+      case OrderStatus.COMPLETED:
+        return 'adminOrderCompleted';
+      case OrderStatus.CANCELLED:
+        return 'adminOrderCancelled';
+      case OrderStatus.OVERDUE:
+        return 'systemOrderOverdue';
+      default:
+        return 'adminOrderCreated';
+    }
+  }
+
+  return 'driverOrderAssigned'; // Значение по умолчанию
+}
+
+/**
+ * Определяет должно ли уведомление быть отмечено как прочитанное по умолчанию
+ * @param templateKey Ключ шаблона уведомления
+ * @param forRole Роль получателя
+ * @returns Должно ли уведомление быть отмечено как прочитанное
+ */
+export function shouldMarkAsRead(
+  templateKey: keyof typeof notificationTemplates,
+  forRole: 'driver' | 'client' | 'admin',
+): boolean {
+  // Для администраторов все уведомления непрочитанные по умолчанию
+  if (forRole === 'admin') return false;
+
+  // Для водителей большинство требует действия, поэтому устанавливаем как непрочитанные
+  if (forRole === 'driver') {
+    const automaticallyReadTemplates = [
+      'driverOrderCancelled',
+      'driverOrderCompleted',
+      'driverOrderTimeout',
+    ];
+    return automaticallyReadTemplates.includes(templateKey as string);
+  }
+
+  // Для клиентов информационные уведомления автоматически отмечаются как прочитанные
+  if (forRole === 'client') {
+    const requireActionTemplates = [
+      'clientDriverArrived',
+      'clientOrderCompleted',
+      'clientDriverPickedUp',
+    ];
+    return !requireActionTemplates.includes(templateKey as string);
+  }
+
+  return false;
+}

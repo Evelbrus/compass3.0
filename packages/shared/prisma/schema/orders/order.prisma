@@ -9,13 +9,15 @@ enum OrderStatus {
 
 enum DriverAcceptanceStatus {
   PENDING    @map("pending") // Ожидание решения водителя
-  TAKEN      @map("taken") // Водитель принял к сведению (готов к выполнению)
-  ACCEPTED   @map("accepted") // Водитель принял заказ
-  ON_THE_WAY @map("on_the_way") // Водитель в пути к клиенту
-  ARRIVED    @map("arrived") // Водитель прибыл к клиенту
-  PICKED_UP  @map("picked_up") // Водитель забрал клиента
-  TIMEOUT    @map("timeout") // Водитель не принял заказ вовремя
-  COMPLETED  @map("completed") // Водитель успешно завершил поездку
+  NOTIFIED   @map("notified") // Участники уведомлены о заказе
+  ACCEPTED   @map("accepted") // Заказ принят водителем
+  ON_THE_WAY @map("on_the_way") // В пути к клиенту
+  ARRIVED    @map("arrived") // Прибыл к клиенту
+  PICKED_UP  @map("picked_up") // Клиент подобран
+  TIMEOUT    @map("timeout") // Время ожидания истекло (не принял заказ вовремя)
+  COMPLETED  @map("completed") // Поездка завершена
+  REJECTED   @map("rejected") // Заказ отклонён
+  CANCELLED  @map("cancelled") // Заказ отменён
 }
 
 model Order {

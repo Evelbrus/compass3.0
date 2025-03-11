@@ -69,7 +69,7 @@ const shouldShowModalForRole = (
     case UserRole.Admin:
     case UserRole.Operator:
       // Для админа/оператора показываем только при критичных статусах
-      return status === OrderStatus.CANCELLED || status === OrderStatus.OVERDUE;
+      return status === OrderStatus.PENDING || status === OrderStatus.CANCELLED || status === OrderStatus.OVERDUE;
 
     case UserRole.ClientCorp:
       // Для клиента скрываем OVERDUE, показываем только важные статусы и новые заказы
@@ -196,14 +196,14 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
 
   const getDriverNotifications = useCallback(
     (driverId: string) => {
-      return notifications.filter((n) => n.driverById === driverId);
+      return notifications.filter((n) => n.driverId === driverId);
     },
     [notifications],
   );
 
   const getClientNotifications = useCallback(
     (clientId: string) => {
-      return notifications.filter((n) => n.clientById === clientId);
+      return notifications.filter((n) => n.clientId === clientId);
     },
     [notifications],
   );

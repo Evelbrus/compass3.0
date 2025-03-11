@@ -90,12 +90,10 @@ const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({ isOpen, onClose
     setIsProcessing(true);
     try {
       await updateClientOrderStatus({
-        orderUuid: notification.orderId,
-        driverStatus: DriverAcceptanceStatus.PENDING,
-        orderStatus: OrderStatus.CANCELLED,
-        notificationUuid: notification.uuid,
-        userId: safeStr(notification.clientById),
-        clientById: safeStr(notification.clientById),
+        uuid: notification.uuid,
+        clientId: notification.clientId,
+        driverId: notification.driverId,
+        orderId: notification.orderId,
       });
 
       setOrderStatus(OrderStatus.CANCELLED);

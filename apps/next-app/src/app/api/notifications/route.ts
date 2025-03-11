@@ -1,34 +1,32 @@
-// app/api/notifications/route.ts
+import { NextResponse, NextRequest } from 'next/server'
+import debug from 'debug'
+import { prisma } from '@shared/prisma/prisma-client'
 
-import { NextResponse, NextRequest } from 'next/server';
-import debug from 'debug';
-import { getUserNotifications } from '@next-app/src/services/notifications/notificationService';
+// Включаем логи только для ошибок
+const logError = debug('app:api:notifications:error')
 
-// Логгер только для ошибок
-const logError = debug('app:api:notifications:error');
-
-/**
- * GET обработчик для получения уведомлений
- */
 export async function GET(request: NextRequest) {
   try {
-    const userId = request.nextUrl.searchParams.get('userId');
-    if (!userId) {
-      logError('× Параметр userId не передан');
-      return NextResponse.json({ error: 'Missing userId parameter' }, { status: 400 });
+    const createdById = request.nextUrl.searchParams.get('userId')
+    if (!createdById) {
+      logError('× Параметр userId не передан')
+      return NextResponse.json({ error: 'Missing userId parameter' }, { status: 400 })
     }
 
-    // Получаем уведомления пользователя
-    const notifications = await getUserNotifications(userId);
+    const notifications = await prisma.notification.findMany({
+      where: { createdById },
+      orderBy: { createdAt: 'desc' },
+    })
 
-    // Возвращаем результат
-    return NextResponse.json(notifications);
+    // Успешный результат (без логирования)
+    return NextResponse.json(notifications)
   } catch (error) {
-    logError('× Ошибка при получении уведомлений');
+    // Логируем только при реальной ошибке (серверной)
+    logError('× Ошибка при получении уведомлений')
     if (error instanceof Error) {
-      logError('Error message:', error.message);
-      logError('Error stack:', error.stack);
+      logError('Error message:', error.message)
+      logError('Error stack:', error.stack)
     }
-    return NextResponse.json({ error: 'Failed to fetch notifications' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to fetch notifications' }, { status: 500 })
   }
 }

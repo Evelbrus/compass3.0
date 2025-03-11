@@ -10,7 +10,7 @@ import { CreateOrderDTO } from '@next-app/src/dto/orders/order.dto';
 import { orderQueue } from '@next-app/src/lib/queues/orderQueue';
 
 import { Params } from '@next-app/src/interface/interface';
-import { processNotification } from '@next-app/src/services/notifications/notificationService';
+import { processNotification } from '@next-app/src/services/notifications/notifications';
 
 const logError = debug('app:api:orders-admin:error');
 const log = debug('app:orders-admin');
@@ -51,32 +51,23 @@ export async function PUT(req: NextRequest, { params }: { params: Params }) {
       // Отправляем уведомления
       try {
         await processNotification({
-          userId: userId,
+          createdById: updatedOrder.clientById,
           orderId: updatedOrder.uuid,
-          templateKey: 'orderCreatedByAdminToAdmin',
-          clientById: data.clientBy,
-          driverById: data.assignedDriverId,
+          templateKey: 'clientCorpOrderAssigned',
+          clientId: updatedOrder.clientById,
+          driverId: updatedOrder.assignedDriverId,
+          markNotificationAsRead: false,
         });
-
-        // Уведомление клиенту, если он указан и отличается от создателя
-        if (data.clientBy) {
-          await processNotification({
-            userId: userId,
-            orderId: updatedOrder.uuid,
-            templateKey: 'orderCreatedByAdminToClient',
-            clientById: data.clientBy,
-            driverById: data.assignedDriverId,
-          });
-        }
 
         // Уведомление водителю, если он назначен
         if (data.assignedDriverId) {
           await processNotification({
-            userId: userId,
+            createdById: updatedOrder.assignedDriverId!,
             orderId: updatedOrder.uuid,
-            templateKey: 'orderCreatedDriverAssigned',
-            clientById: data.clientBy,
-            driverById: data.assignedDriverId,
+            templateKey: 'driverOrderAssigned',
+            clientId: updatedOrder.clientById,
+            driverId: updatedOrder.assignedDriverId,
+            markNotificationAsRead: false,
           });
         }
       } catch (notifyErr) {
@@ -221,31 +212,34 @@ export async function DELETE(req: NextRequest, { params }: { params: Params }) {
 
         // Уведомление админу
         await processNotification({
-          userId: userId,
+          createdById: userId,
           orderId: uuid,
-          templateKey: 'orderDeletedByAdminToAdmin',
-          clientById: userId,
+          templateKey: 'adminOrderCreated',
+          clientId: orderInfo.clientById,
+          driverId: orderInfo.assignedDriverId,
+          markNotificationAsRead: false,
         });
         log('Notification sent to admin');
 
         // Уведомление клиенту
         await processNotification({
-          userId: userId,
+          createdById: userId,
           orderId: uuid,
-          templateKey: 'orderDeletedByAdminToClient',
-          clientById: orderInfo.clientById,
-          driverById: orderInfo.assignedDriverId,
+          templateKey: 'adminOrderCreated',
+          clientId: orderInfo.clientById,
+          driverId: orderInfo.assignedDriverId,
+          markNotificationAsRead: false,
         });
         log('Notification sent to client');
 
         // Уведомление водителю, если он был назначен
         if (orderInfo.assignedDriverId) {
           await processNotification({
-            userId: userId,
+            createdById: userId,
             orderId: uuid,
-            templateKey: 'orderDeletedByAdminToDriver',
-            clientById: orderInfo.clientById,
-            driverById: orderInfo.assignedDriverId,
+            templateKey: 'driverOrderAssigned',
+            clientId: orderInfo.clientById,
+            driverId: orderInfo.assignedDriverId,
           });
           log('Notification sent to driver');
         }

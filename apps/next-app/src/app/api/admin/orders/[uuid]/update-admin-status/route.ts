@@ -2,9 +2,11 @@
 import { NextResponse, NextRequest } from 'next/server';
 import debug from 'debug';
 
-import { updateOrderStatus } from '@next-app/src/services/orders/updateOrderStatus';
-import { UpdateOrderStatusDTO } from '@next-app/src/dto/orders/order-status.dto';
 import { Params } from '@next-app/src/interface/interface';
+import {
+  UpdateOrderStatusDTO,
+  updateOrderStatusService,
+} from '@next-app/src/services/orders/managment/admin-order-service';
 
 const logError = debug('app:api:orders:update-status-admin:error');
 
@@ -29,7 +31,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Params }) {
     }
 
     try {
-      const result = await updateOrderStatus(uuid, data);
+      const result = await updateOrderStatusService(uuid, data);
 
       return NextResponse.json(result, { status: 200 });
     } catch (serviceError) {

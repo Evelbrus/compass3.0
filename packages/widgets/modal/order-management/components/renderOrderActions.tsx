@@ -14,11 +14,11 @@ interface RenderOrderActionsProps {
   orderData: OrderDetail | null;
   isLoading: boolean;
   onMarkAsRead: () => void;
-  onCancelOrder: () => void; // Теперь onCancelOrder отвечает только за открытие модалки для клиента
+  onCancelOrder: () => void;
   onDriverAction?: (
     driverStatus: DriverAcceptanceStatus,
     orderStatus: OrderStatus,
-    reason: string, // Добавляем параметр reason
+    reason: string,
     successMessage: string,
     errorMessage: string,
   ) => void;
@@ -95,172 +95,19 @@ export const renderOrderActions = ({
 
   // Для администратора
   if (userRole === UserRole.Admin) {
-    switch (status) {
-      case OrderStatus.PENDING:
-        return notification.read ? (
-          <>
-            <button className="flex-1 py-3 bg-green-500 text-white rounded-xl font-medium hover:bg-green-600 transition">
-              Уведомление прочитано
-            </button>
-            <button
-              onClick={onClose}
-              className="flex-1 py-3 bg-gray-500 text-white rounded-xl font-medium hover:bg-gray-600 transition"
-            >
-              Закрыть
-            </button>
-            {onEditOrder && (
-              <button
-                onClick={onEditOrder}
-                className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition"
-                disabled={isLoading}
-              >
-                Редактировать заказ
-              </button>
-            )}
-          </>
-        ) : (
-          <>
-            <button
-              onClick={onMarkAsRead}
-              className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition"
-            >
-              Ознакомился
-            </button>
-            <button
-              onClick={onClose}
-              className="flex-1 py-3 bg-gray-500 text-white rounded-xl font-medium hover:bg-gray-600 transition"
-            >
-              Закрыть
-            </button>
-            {onEditOrder && (
-              <button
-                onClick={onEditOrder}
-                className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition"
-                disabled={isLoading}
-              >
-                Редактировать заказ
-              </button>
-            )}
-          </>
-        );
-      case OrderStatus.PLANNED:
-        return notification.read ? (
-          <>
-            <button className="flex-1 py-3 bg-green-500 text-white rounded-xl font-medium hover:bg-green-600 transition">
-              Уведомление прочитано
-            </button>
-            {onEditOrder && (
-              <button
-                onClick={onEditOrder}
-                className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition"
-                disabled={isLoading}
-              >
-                Редактировать заказ
-              </button>
-            )}
-          </>
-        ) : (
-          <>
-            <button
-              onClick={onMarkAsRead}
-              className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition"
-            >
-              Ознакомился
-            </button>
-            {onEditOrder && (
-              <button
-                onClick={onEditOrder}
-                className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition"
-                disabled={isLoading}
-              >
-                Редактировать заказ
-              </button>
-            )}
-          </>
-        );
-      case OrderStatus.IN_PROGRESS:
-        return (
-          <>
-            {onEditOrder && (
-              <button
-                onClick={onEditOrder}
-                className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition"
-                disabled={isLoading}
-              >
-                Редактировать заказ
-              </button>
-            )}
-          </>
-        );
-      case OrderStatus.OVERDUE:
-        return (
-          <>
-            {onEditOrder && (
-              <button
-                onClick={onEditOrder}
-                className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition"
-                disabled={isLoading}
-              >
-                Редактировать заказ
-              </button>
-            )}
-          </>
-        );
-      case OrderStatus.COMPLETED:
-        return (
-          <>
-            <button
-              className="flex-1 py-3 bg-green-600 text-white rounded-xl font-medium hover:bg-green-700 transition"
-              onClick={onClose}
-            >
-              Поездка завершена
-            </button>
-            {onEditOrder && (
-              <button
-                onClick={onEditOrder}
-                className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition"
-                disabled={isLoading}
-              >
-                Редактировать заказ
-              </button>
-            )}
-          </>
-        );
-      case OrderStatus.CANCELLED:
-        return (
-          <>
-            <button
-              className="flex-1 py-3 bg-gray-500 text-white rounded-xl font-medium hover:bg-gray-600 transition"
-              onClick={onClose}
-            >
-              Заказ отменен
-            </button>
-            {onEditOrder && (
-              <button
-                onClick={onEditOrder}
-                className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition"
-                disabled={isLoading}
-              >
-                Редактировать заказ
-              </button>
-            )}
-          </>
-        );
-      default:
-        return (
-          <>
-            {onEditOrder && (
-              <button
-                onClick={onEditOrder}
-                className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition"
-                disabled={isLoading}
-              >
-                Редактировать заказ
-              </button>
-            )}
-          </>
-        );
-    }
+    return (
+      <>
+        {onEditOrder && (
+          <button
+            onClick={onEditOrder}
+            className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition"
+            disabled={isLoading}
+          >
+            Редактировать заказ
+          </button>
+        )}
+      </>
+    );
   }
 
   // Для клиента корпоративного
@@ -399,7 +246,7 @@ export const renderOrderActions = ({
       case OrderStatus.IN_PROGRESS:
         switch (currentStage) {
           case DriverAcceptanceStatus.PENDING:
-          case DriverAcceptanceStatus.TAKEN:
+          case DriverAcceptanceStatus.NOTIFIED:
             return (
               <>
                 <button
@@ -550,7 +397,7 @@ export const renderOrderActions = ({
                   className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition"
                   onClick={() =>
                     onDriverAction(
-                      DriverAcceptanceStatus.ACCEPTED,
+                      DriverAcceptanceStatus.TIMEOUT,
                       OrderStatus.IN_PROGRESS,
                       '',
                       `Заказ #${safeStr(notification.orderId).slice(0, 5)} принят`,

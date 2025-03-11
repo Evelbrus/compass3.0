@@ -9,7 +9,7 @@ import { getOrders } from '@next-app/src/services/orders/getOrders';
 import { parseParams } from '@next-app/src/utils/parsed-params/parseParams';
 import { CreateOrderDTO, GetOrdersRequestDTO } from '@next-app/src/dto/orders/order.dto';
 import { orderQueue } from '@next-app/src/lib/queues/orderQueue';
-import { processNotification } from '@next-app/src/services/notifications/notificationService';
+import { processNotification } from '@next-app/src/services/notifications/notifications';
 
 const logError = debug('app:api:orders:error');
 
@@ -70,36 +70,32 @@ export async function POST(req: NextRequest) {
 
     // Отправляем уведомления
     try {
-      // Уведомление админу или оператору (создателю заказа)
       await processNotification({
-        userId: userId,
+        createdById: createdOrder.clientById,
         orderId: createdOrder.uuid,
-        templateKey: 'orderCreatedByAdminToAdmin',
-        clientById: data.clientBy,
-        driverById: data.assignedDriverId,
+        templateKey: 'clientCorpOrderAssigned',
+        clientId: createdOrder.clientById,
+        driverId: createdOrder.assignedDriverId || undefined,
+        markNotificationAsRead: false,
       });
-
-      // Уведомление клиенту, если он указан и отличается от создателя
-      if (data.clientBy) {
-        await processNotification({
-          userId: userId,
-          orderId: createdOrder.uuid,
-          templateKey: 'orderCreatedByAdminToClient',
-          clientById: data.clientBy,
-          driverById: data.assignedDriverId,
-        });
-      }
-
-      // Уведомление водителю, если он назначен
       if (data.assignedDriverId) {
         await processNotification({
-          userId: userId,
+          createdById: data.assignedDriverId,
           orderId: createdOrder.uuid,
-          templateKey: 'orderCreatedDriverAssigned',
-          clientById: data.clientBy,
-          driverById: data.assignedDriverId,
+          templateKey: 'driverOrderAssigned',
+          clientId: createdOrder.clientById,
+          driverId: data.assignedDriverId,
+          markNotificationAsRead: false,
         });
       }
+      await processNotification({
+        createdById: userId,
+        orderId: createdOrder.uuid,
+        templateKey: 'adminOrderAssigned',
+        clientId: createdOrder.clientById,
+        driverId: createdOrder.assignedDriverId || undefined,
+        markNotificationAsRead: false,
+      });
     } catch (notifyErr) {
       logError('× Ошибка при отправке уведомления (не критично для создания заказа)');
       console.error(notifyErr);

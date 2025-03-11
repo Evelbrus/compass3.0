@@ -1,9 +1,12 @@
 // app/api/clients/orders/[uuid]/update-client-status/route.ts
 import { NextResponse } from 'next/server';
 import debug from 'debug';
-import { updateOrderStatus } from '@next-app/src/services/orders/updateOrderStatus';
-import { UpdateOrderStatusDTO } from '@next-app/src/dto/orders/order-status.dto';
+
 import { Params } from '@next-app/src/interface/interface';
+import {
+  UpdateClientOrderStatusDTO,
+  updateClientOrderStatusService,
+} from '@next-app/src/services/orders/managment/client-order-service';
 
 const logError = debug('app:api:orders:update-client-status:error');
 
@@ -11,7 +14,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<Params> 
   const { uuid } = await params;
 
   try {
-    let data: UpdateOrderStatusDTO;
+    let data: UpdateClientOrderStatusDTO;
     try {
       data = await req.json();
     } catch (error) {
@@ -20,7 +23,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<Params> 
     }
 
     try {
-      const result = await updateOrderStatus(uuid, data);
+      const result = await updateClientOrderStatusService(uuid, data);
       return NextResponse.json(result, { status: 200 });
     } catch (serviceError) {
       if (serviceError instanceof Error) {

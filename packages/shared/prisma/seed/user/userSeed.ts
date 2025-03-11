@@ -32,7 +32,7 @@ async function main() {
         gender: Gender.Male,
         address: '123 Admin St',
         profilePhotoPath: null,
-        availability: false,
+        availability: true,
       },
       {
         uuid: uuidv4(),
