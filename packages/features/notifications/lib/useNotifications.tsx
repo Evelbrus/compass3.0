@@ -114,7 +114,6 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
       }
       setModalType(modalType);
       setActiveNotification(notification);
-      console.log('Установлено активное уведомление:', notification);
     },
     [userSession],
   );

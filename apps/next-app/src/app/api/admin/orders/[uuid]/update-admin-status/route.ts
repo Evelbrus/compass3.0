@@ -7,11 +7,13 @@ import {
   UpdateOrderStatusDTO,
   updateOrderStatusService,
 } from '@next-app/src/services/orders/managment/admin-order-service';
+import { UserRole } from '@prisma/client';
+import { authenticateRequest } from '@next-app/src/utils/authenticate/authenticateRequest';
 
 const logError = debug('app:api:orders:update-status-admin:error');
 
 // PATCH: Обновление статуса заказа
-export async function PATCH(req: NextRequest, { params }: { params: Params }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<Params> }) {
   try {
     const { uuid } = await params;
 
@@ -22,7 +24,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Params }) {
       );
     }
 
-    let data: UpdateOrderStatusDTO;
+    // Authenticate the request and retrieve user information from JWT token
+    const jwtPayload = await authenticateRequest(req, [UserRole.Admin, UserRole.Operator]);
+    const userId = jwtPayload.uuid;
+
+    let data: Omit<UpdateOrderStatusDTO, 'createdById'>;
     try {
       data = await req.json();
     } catch (error) {
@@ -30,8 +36,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Params }) {
       return NextResponse.json({ status: 'error', message: 'Invalid JSON' }, { status: 400 });
     }
 
+    // Add the authenticated user's ID from JWT token to the request data
+    const completeData: UpdateOrderStatusDTO = {
+      ...data,
+      createdById: userId,
+    };
+
+    console.log('completeData', completeData);
+
     try {
-      const result = await updateOrderStatusService(uuid, data);
+      const result = await updateOrderStatusService(uuid, completeData);
 
       return NextResponse.json(result, { status: 200 });
     } catch (serviceError) {
@@ -63,8 +77,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Params }) {
       }
       throw serviceError;
     }
-  } catch (error) {
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      logError('Unauthorized access attempt');
+      return NextResponse.json({ status: 'error', message: 'Unauthorized' }, { status: 401 });
+    }
+
     const errorMessage = error instanceof Error ? error.message : String(error);
+    logError(`Internal server error: ${errorMessage}`);
     return NextResponse.json({ status: 'error', message: errorMessage }, { status: 500 });
   }
 }

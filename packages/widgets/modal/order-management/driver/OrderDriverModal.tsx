@@ -40,8 +40,6 @@ const OrderDriverModal: React.FC<OrderDriverModalProps> = ({ isOpen, onClose }) 
   // Получаем уведомление напрямую из хранилища Effector
   const notification = useUnit($activeNotification);
 
-  console.log('notification в OrderDriverModal:', notification);
-
   // Если нет уведомления или модальное окно закрыто, не рендерим компонент
   if (!notification || !isOpen) return null;
 

@@ -660,28 +660,6 @@ export function shouldMarkAsRead(
   templateKey: keyof typeof notificationTemplates,
   forRole: 'driver' | 'client' | 'admin',
 ): boolean {
-  // Для администраторов все уведомления непрочитанные по умолчанию
-  if (forRole === 'admin') return false;
-
-  // Для водителей большинство требует действия, поэтому устанавливаем как непрочитанные
-  if (forRole === 'driver') {
-    const automaticallyReadTemplates = [
-      'driverOrderCancelled',
-      'driverOrderCompleted',
-      'driverOrderTimeout',
-    ];
-    return automaticallyReadTemplates.includes(templateKey as string);
-  }
-
-  // Для клиентов информационные уведомления автоматически отмечаются как прочитанные
-  if (forRole === 'client') {
-    const requireActionTemplates = [
-      'clientDriverArrived',
-      'clientOrderCompleted',
-      'clientDriverPickedUp',
-    ];
-    return !requireActionTemplates.includes(templateKey as string);
-  }
-
+  // Возвращаем false для всех уведомлений, чтобы все были непрочитанными по умолчанию
   return false;
 }

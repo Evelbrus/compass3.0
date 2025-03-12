@@ -35,7 +35,7 @@ export async function updateClientOrderStatusService(
 
   // Проверка наличия обязательных полей
   if (!orderStatus || !createdById || !clientId) {
-    throw new Error('Отсутствуют обязательные поля: orderStatus, userId, clientById');
+    throw new Error('Отсутствуют обязательные поля: orderStatus, createdById, clientId');
   }
 
   // Найти заказ

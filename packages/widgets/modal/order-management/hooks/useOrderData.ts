@@ -46,8 +46,6 @@ export const useOrderData = (orderId: string, isOpen: boolean, userRole?: UserRo
   // Немедленное обновление статуса заказа при изменении в данных заказа
   useEffect(() => {
     if (orderData) {
-      console.log('Проверка статуса заказа:', orderData.status);
-
       // Особая логика для клиентов - они не должны видеть статус OVERDUE
       if (userRole === UserRole.ClientCorp && orderData.status === OrderStatus.OVERDUE) {
         console.log('Клиенту скрываем статус OVERDUE, показываем IN_PROGRESS');

@@ -94,6 +94,8 @@ const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({ isOpen, onClose
         clientId: notification.clientId,
         driverId: notification.driverId,
         orderId: notification.orderId,
+        orderStatus: OrderStatus.CANCELLED, // Обязательно добавьте статус
+        driverStatus: DriverAcceptanceStatus.CANCELLED,
       });
 
       setOrderStatus(OrderStatus.CANCELLED);
