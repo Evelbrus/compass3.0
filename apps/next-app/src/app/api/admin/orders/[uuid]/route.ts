@@ -56,7 +56,7 @@ export async function PUT(req: NextRequest, { params }: { params: Params }) {
           orderId: updatedOrder.uuid,
           templateKey: 'clientCorpOrderAssigned', // Здесь можно использовать другой шаблон
           clientId: updatedOrder.clientById,
-          driverId: updatedOrder.assignedDriverId,
+          driverId: updatedOrder.assignedDriverId || undefined,
           markNotificationAsRead: false,
         });
 
@@ -67,7 +67,7 @@ export async function PUT(req: NextRequest, { params }: { params: Params }) {
             orderId: updatedOrder.uuid,
             templateKey: 'driverOrderAssigned',
             clientId: updatedOrder.clientById,
-            driverId: updatedOrder.assignedDriverId,
+            driverId: updatedOrder.assignedDriverId || undefined,
             markNotificationAsRead: false,
           });
         }
@@ -209,7 +209,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Params }) {
           orderId: uuid,
           templateKey: 'adminOrderCreated',
           clientId: orderInfo.clientById,
-          driverId: orderInfo.assignedDriverId,
+          driverId: orderInfo.assignedDriverId || undefined,
           markNotificationAsRead: false,
         });
         log('Notification sent to admin');
@@ -220,7 +220,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Params }) {
           orderId: uuid,
           templateKey: 'adminOrderCreated',
           clientId: orderInfo.clientById,
-          driverId: orderInfo.assignedDriverId,
+          driverId: orderInfo.assignedDriverId || undefined,
           markNotificationAsRead: false,
         });
         log('Notification sent to client');
