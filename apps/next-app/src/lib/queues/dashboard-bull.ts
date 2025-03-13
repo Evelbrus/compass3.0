@@ -9,17 +9,30 @@ import { prisma } from '@shared/prisma/prisma-client';
 import {
   processBulkNotifications,
   processNotification,
-  socket,
   ensureSocketConnection,
 } from '@next-app/src/services/notifications/notifications';
 import { sendDriverTimeoutNotification } from '@next-app/src/services/notifications/sendDriverNotifications';
+import { socket } from '@next-app/src/lib/websocket/websocket-client';
+
+// Включаем детальное логирование для отладки
+const DEBUG = true;
+function log(...args: any[]) {
+  if (DEBUG) {
+    console.log(new Date().toISOString(), ...args);
+  }
+}
+
+// Вспомогательная функция для преобразования null в undefined
+function nullToUndefined<T>(value: T | null): T | undefined {
+  return value === null ? undefined : value;
+}
 
 dotenv.config();
 
 // Подключаем WebSocket при запуске BullMQ
 ensureSocketConnection();
 socket.on('connect', () => {
-  console.log('BullMQ connected to WebSocket server:', socket.id);
+  log('BullMQ connected to WebSocket server:', socket.id);
 });
 socket.on('connect_error', (err) => {
   console.error('BullMQ WebSocket connection error:', err);
@@ -61,14 +74,28 @@ const worker = new Worker(
         throw new Error('UUID заказа отсутствует в данных задачи');
       }
 
+      log(`[Job ${job.name}] Обработка задачи для заказа ${job.data.orderUuid}`);
+
       const order = await prisma.order.findUnique({
         where: { uuid: job.data.orderUuid },
-        include: { departurePoint: true, arrivalPoint: true },
+        include: {
+          departurePoint: true,
+          arrivalPoint: true,
+          clientBy: true,
+          assignedDriver: true,
+        },
       });
 
       if (!order) {
         throw new Error(`Заказ ${job.data.orderUuid} не найден`);
       }
+
+      log(`[Job ${job.name}] Текущее состояние заказа:`, {
+        uuid: order.uuid,
+        status: order.status,
+        driverStatus: order.driverAcceptanceStatus,
+        driverId: order.assignedDriverId,
+      });
 
       if (job.name.toLowerCase() === 'notification') {
         await processNotificationJob(order);
@@ -77,19 +104,41 @@ const worker = new Worker(
       } else if (job.name.toLowerCase() === 'checkcancelled') {
         await processCheckCancelledJob(order);
       }
+
+      log(`[Job ${job.name}] Завершена обработка задачи для заказа ${job.data.orderUuid}`);
     } catch (error) {
+      console.error(`[Job ${job.name}] Ошибка:`, error);
       throw error;
     }
   },
   { connection: redisOptions },
 );
 
-worker.on('completed', () => {});
-worker.on('failed', () => {});
+worker.on('completed', (job) => {
+  log(`Задача ${job.name} для заказа ${job.data.orderUuid} успешно выполнена`);
+});
+
+worker.on('failed', (job, error) => {
+  console.error(
+    `Задача ${job?.name} для заказа ${job?.data?.orderUuid} завершилась с ошибкой:`,
+    error,
+  );
+});
 
 async function processNotificationJob(order: Order) {
   try {
+    log(`[processNotificationJob] Обработка уведомления для заказа ${order.uuid}`);
+
+    // Проверяем текущее состояние заказа перед изменением
+    if (order.status !== OrderStatus.PENDING && order.status !== OrderStatus.PLANNED) {
+      log(
+        `[processNotificationJob] Заказ ${order.uuid} уже не в статусе PENDING/PLANNED, пропускаем обработку`,
+      );
+      return;
+    }
+
     await prisma.$transaction(async (prismaTx) => {
+      // Обновляем статус заказа
       const updatedOrder = await prismaTx.order.update({
         where: { uuid: order.uuid },
         data: {
@@ -104,11 +153,23 @@ async function processNotificationJob(order: Order) {
         },
       });
 
+      log(`[processNotificationJob] Заказ обновлен:`, {
+        uuid: updatedOrder.uuid,
+        status: updatedOrder.status,
+        driverStatus: updatedOrder.driverAcceptanceStatus,
+        driverId: updatedOrder.assignedDriverId,
+      });
+
       if (!updatedOrder) {
-        throw new Error(`Заказ ${order.uuid} не найден`);
+        throw new Error(`Заказ ${order.uuid} не найден при обновлении`);
       }
 
+      // Отправляем уведомление водителю, если он назначен
       if (updatedOrder.assignedDriverId) {
+        log(
+          `[processNotificationJob] Отправка уведомления водителю ${updatedOrder.assignedDriverId}`,
+        );
+
         await processNotification({
           createdById: updatedOrder.assignedDriverId,
           orderId: updatedOrder.uuid,
@@ -119,172 +180,356 @@ async function processNotificationJob(order: Order) {
         });
       }
 
+      // Отправляем уведомление клиенту
+      log(`[processNotificationJob] Отправка уведомления клиенту ${updatedOrder.clientById}`);
+
       await processNotification({
         createdById: updatedOrder.clientById,
         orderId: updatedOrder.uuid,
         templateKey: 'orderInProgressClient',
         clientId: updatedOrder.clientById,
-        driverId: updatedOrder.assignedDriverId || undefined,
+        driverId: nullToUndefined(updatedOrder.assignedDriverId),
         markNotificationAsRead: false,
       });
     });
   } catch (error) {
+    console.error('[processNotificationJob] Ошибка:', error);
     throw error;
   }
 }
 
 async function processCheckoverdueJob(order: Order) {
-  const freshOrder = await prisma.order.findUnique({
-    where: { uuid: order.uuid },
-    include: { departurePoint: true, clientBy: true, assignedDriver: true },
-  });
+  try {
+    log(`[processCheckoverdueJob] Проверка просрочки для заказа ${order.uuid}`);
 
-  if (!freshOrder) {
-    throw new Error(`Заказ ${order.uuid} не найден`);
-  }
+    // Получаем свежие данные о заказе
+    const freshOrder = await prisma.order.findUnique({
+      where: { uuid: order.uuid },
+      include: {
+        departurePoint: true,
+        arrivalPoint: true,
+        clientBy: true,
+        assignedDriver: true,
+      },
+    });
 
-  if (
-    freshOrder.status === OrderStatus.PENDING ||
-    freshOrder.status === OrderStatus.PLANNED ||
-    (freshOrder.status === OrderStatus.IN_PROGRESS &&
-      freshOrder.driverAcceptanceStatus === DriverAcceptanceStatus.PENDING)
-  ) {
-    await prisma.$transaction(async (prismaTx) => {
-      await prismaTx.order.update({
-        where: { uuid: freshOrder.uuid },
-        data: {
-          status: OrderStatus.OVERDUE,
-          driverAcceptanceStatus: DriverAcceptanceStatus.TIMEOUT,
-        },
-      });
+    if (!freshOrder) {
+      throw new Error(`Заказ ${order.uuid} не найден`);
+    }
 
-      if (freshOrder.assignedDriverId) {
-        const driverId = freshOrder.assignedDriverId;
-        const systemUserId = process.env.SYSTEM_USER_ID;
+    log(`[processCheckoverdueJob] Текущее состояние заказа:`, {
+      uuid: freshOrder.uuid,
+      status: freshOrder.status,
+      driverStatus: freshOrder.driverAcceptanceStatus,
+      driverId: freshOrder.assignedDriverId,
+    });
 
-        await sendDriverTimeoutNotification(
-          freshOrder.uuid,
-          driverId,
-          systemUserId || '',
-          freshOrder.clientById,
-        );
+    // Проверяем, нужно ли пометить заказ как просроченный
+    // Заказ считается просроченным, если:
+    // 1. Находится в статусе PENDING или PLANNED
+    // 2. Или в статусе IN_PROGRESS с driverAcceptanceStatus = PENDING (водитель не принял заказ)
+    const shouldMarkAsOverdue =
+      freshOrder.status === OrderStatus.PENDING ||
+      freshOrder.status === OrderStatus.PLANNED ||
+      (freshOrder.status === OrderStatus.IN_PROGRESS &&
+        freshOrder.driverAcceptanceStatus === DriverAcceptanceStatus.PENDING);
 
-        await processNotification({
-          createdById: driverId,
-          orderId: freshOrder.uuid,
-          templateKey: 'orderOverdueDriver',
-          clientId: freshOrder.clientById,
-          driverId: driverId,
-          markNotificationAsRead: false,
+    if (!shouldMarkAsOverdue) {
+      log(`[processCheckoverdueJob] Заказ ${freshOrder.uuid} не требует пометки как просроченный`);
+      return;
+    }
+
+    // Сохраняем текущие значения для использования в уведомлениях
+    const originalDriverId = freshOrder.assignedDriverId;
+    const clientId = freshOrder.clientById;
+    const systemUserId = process.env.SYSTEM_USER_ID || '';
+
+    log(`[processCheckoverdueJob] Помечаем заказ ${freshOrder.uuid} как просроченный`);
+
+    // Получаем админов и операторов до транзакции, чтобы сократить время выполнения транзакции
+    const adminsAndOperators = await prisma.user.findMany({
+      where: { role: { in: [UserRole.Operator, UserRole.Admin] }, availability: true },
+    });
+
+    // Увеличиваем timeout для транзакции до 30 секунд
+    await prisma.$transaction(
+      async (prismaTx) => {
+        // Обновляем заказ: меняем статус на OVERDUE и driverAcceptanceStatus на TIMEOUT
+        // Важно! Не обнуляем assignedDriverId на этом этапе
+        const updatedOrder = await prismaTx.order.update({
+          where: { uuid: freshOrder.uuid },
+          data: {
+            status: OrderStatus.OVERDUE,
+            driverAcceptanceStatus: DriverAcceptanceStatus.TIMEOUT,
+            // НЕ обнуляем assignedDriverId здесь
+          },
         });
-      }
 
-      const adminsAndOperators = await prismaTx.user.findMany({
-        where: { role: { in: [UserRole.Operator, UserRole.Admin] } },
-      });
+        log(`[processCheckoverdueJob] Заказ обновлен:`, {
+          uuid: updatedOrder.uuid,
+          status: updatedOrder.status,
+          driverStatus: updatedOrder.driverAcceptanceStatus,
+          driverId: updatedOrder.assignedDriverId,
+        });
 
-      if (adminsAndOperators.length > 0) {
-        const validUsers = adminsAndOperators.filter(
-          (user) => user.uuid && typeof user.uuid === 'string',
-        );
-        if (validUsers.length > 0) {
-          await processBulkNotifications({
-            recipients: validUsers.map((user) => ({ uuid: user.uuid, role: user.role })),
+        // Отправляем уведомления только если был назначен водитель
+        if (originalDriverId) {
+          log(
+            `[processCheckoverdueJob] Отправка уведомления о таймауте водителю ${originalDriverId}`,
+          );
+
+          // Отправляем уведомление о таймауте
+          await sendDriverTimeoutNotification(
+            freshOrder.uuid,
+            originalDriverId,
+            systemUserId,
+            clientId,
+          );
+
+          log(
+            `[processCheckoverdueJob] Отправка уведомления о просрочке водителю ${originalDriverId}`,
+          );
+
+          // Отправляем уведомление о просрочке
+          await processNotification({
+            createdById: originalDriverId,
             orderId: freshOrder.uuid,
-            templateKey: 'orderOverdueAdmin',
+            templateKey: 'orderOverdueDriver',
+            clientId: clientId,
+            driverId: originalDriverId,
             markNotificationAsRead: false,
           });
         }
-      }
 
-      await orderQueue.add(
-        'checkcancelled',
-        { orderUuid: freshOrder.uuid },
-        {
-          delay: 10 * 60 * 1000, // 10 минут
-          attempts: 3,
-          backoff: { type: 'exponential', delay: 1000 },
-          jobId: `checkcancelled-${freshOrder.uuid}`,
-        },
-      );
-    });
+        // Используем предварительно полученных админов и операторов
+        if (adminsAndOperators.length > 0) {
+          const validUsers = adminsAndOperators.filter(
+            (user) => user.uuid && typeof user.uuid === 'string',
+          );
+
+          if (validUsers.length > 0) {
+            log(
+              `[processCheckoverdueJob] Отправка уведомлений ${validUsers.length} админам/операторам`,
+            );
+
+            await processBulkNotifications({
+              recipients: validUsers.map((user) => ({ uuid: user.uuid, role: user.role })),
+              orderId: freshOrder.uuid,
+              templateKey: 'orderOverdueAdmin',
+              driverId: nullToUndefined(originalDriverId),
+              clientId: clientId,
+              markNotificationAsRead: false,
+            });
+          }
+        }
+
+        // После отправки всех уведомлений обнуляем водителя
+        if (originalDriverId) {
+          log(
+            `[processCheckoverdueJob] Отвязываем водителя ${originalDriverId} от заказа ${freshOrder.uuid}`,
+          );
+
+          const finalOrder = await prismaTx.order.update({
+            where: { uuid: freshOrder.uuid },
+            data: {
+              assignedDriverId: null,
+            },
+          });
+
+          log(`[processCheckoverdueJob] Заказ финально обновлен:`, {
+            uuid: finalOrder.uuid,
+            status: finalOrder.status,
+            driverStatus: finalOrder.driverAcceptanceStatus,
+            driverId: finalOrder.assignedDriverId,
+          });
+        }
+      },
+      {
+        timeout: 30000, // Увеличиваем таймаут до 30 секунд
+      },
+    );
+
+    // Добавляем задачу на проверку отмены через 10 минут
+    await orderQueue.add(
+      'checkcancelled',
+      { orderUuid: freshOrder.uuid },
+      {
+        delay: 10 * 60 * 1000, // 10 минут
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 1000 },
+        jobId: `checkcancelled-${freshOrder.uuid}`,
+      },
+    );
+
+    log(
+      `[processCheckoverdueJob] Добавлена задача на отмену заказа ${freshOrder.uuid} через 10 минут`,
+    );
+  } catch (error) {
+    console.error('[processCheckoverdueJob] Ошибка:', error);
+    throw error;
   }
 }
 
 async function processCheckCancelledJob(order: Order) {
-  const freshOrder = await prisma.order.findUnique({
-    where: { uuid: order.uuid },
-    include: { departurePoint: true, clientBy: true, assignedDriver: true },
-  });
+  try {
+    log(`[processCheckCancelledJob] Проверка необходимости отмены заказа ${order.uuid}`);
 
-  if (!freshOrder) {
-    throw new Error(`Заказ ${order.uuid} не найден`);
-  }
+    // Получаем свежие данные о заказе
+    const freshOrder = await prisma.order.findUnique({
+      where: { uuid: order.uuid },
+      include: {
+        departurePoint: true,
+        arrivalPoint: true,
+        clientBy: true,
+        assignedDriver: true,
+      },
+    });
 
-  if (freshOrder.status === OrderStatus.OVERDUE) {
-    await prisma.$transaction(async (prismaTx) => {
-      await prismaTx.order.update({
-        where: { uuid: freshOrder.uuid },
-        data: {
-          status: OrderStatus.CANCELLED,
-          driverAcceptanceStatus: DriverAcceptanceStatus.REJECTED,
-        },
-      });
+    if (!freshOrder) {
+      throw new Error(`Заказ ${order.uuid} не найден`);
+    }
 
-      await processNotification({
-        createdById: freshOrder.clientById,
-        orderId: freshOrder.uuid,
-        templateKey: 'clientOrderCancelled',
-        clientId: freshOrder.clientById,
-        driverId: freshOrder.assignedDriverId || undefined,
-        markNotificationAsRead: false,
-      });
+    log(`[processCheckCancelledJob] Текущее состояние заказа:`, {
+      uuid: freshOrder.uuid,
+      status: freshOrder.status,
+      driverStatus: freshOrder.driverAcceptanceStatus,
+      driverId: freshOrder.assignedDriverId,
+    });
 
-      if (freshOrder.assignedDriverId) {
-        const driverId = freshOrder.assignedDriverId;
+    // Проверяем, находится ли заказ всё ещё в статусе OVERDUE
+    // Если статус изменился, значит кто-то взял заказ в работу, отменять не нужно
+    if (freshOrder.status !== OrderStatus.OVERDUE) {
+      log(
+        `[processCheckCancelledJob] Заказ ${freshOrder.uuid} уже не в статусе OVERDUE, пропускаем отмену`,
+      );
+      return;
+    }
+
+    log(`[processCheckCancelledJob] Отменяем просроченный заказ ${freshOrder.uuid}`);
+
+    const clientId = freshOrder.clientById;
+    const systemUserId = process.env.SYSTEM_USER_ID || '';
+
+    // Сохраняем ID водителя (если есть) для уведомлений
+    const originalDriverId = freshOrder.assignedDriverId;
+
+    // Получаем админов и операторов до транзакции
+    const adminsAndOperators = await prisma.user.findMany({
+      where: { role: { in: [UserRole.Operator, UserRole.Admin] }, availability: true },
+    });
+
+    // Увеличиваем таймаут транзакции до 30 секунд
+    await prisma.$transaction(
+      async (prismaTx) => {
+        // Обновляем заказ: устанавливаем статус CANCELLED и REJECTED
+        const updatedOrder = await prismaTx.order.update({
+          where: { uuid: freshOrder.uuid },
+          data: {
+            status: OrderStatus.CANCELLED,
+            driverAcceptanceStatus: DriverAcceptanceStatus.REJECTED,
+            // Не обнуляем assignedDriverId здесь - сделаем это после отправки уведомлений
+          },
+        });
+
+        log(`[processCheckCancelledJob] Заказ обновлен:`, {
+          uuid: updatedOrder.uuid,
+          status: updatedOrder.status,
+          driverStatus: updatedOrder.driverAcceptanceStatus,
+          driverId: updatedOrder.assignedDriverId,
+        });
+
+        // Отправляем уведомление клиенту с указанием, что это системная отмена
+        log(`[processCheckCancelledJob] Отправка уведомления клиенту ${clientId}`);
 
         await processNotification({
-          createdById: driverId,
+          createdById: systemUserId,
           orderId: freshOrder.uuid,
-          templateKey: 'driverOrderCancelled',
-          clientId: freshOrder.clientById,
-          driverId: driverId,
+          templateKey: 'clientOrderCancelled',
+          clientId: clientId,
+          driverId: nullToUndefined(originalDriverId),
           markNotificationAsRead: false,
         });
-      }
 
-      const adminsAndOperators = await prismaTx.user.findMany({
-        where: { role: { in: [UserRole.Operator, UserRole.Admin] } },
-      });
+        // Отправляем уведомление водителю, если он был назначен
+        if (originalDriverId) {
+          log(`[processCheckCancelledJob] Отправка уведомления водителю ${originalDriverId}`);
 
-      if (adminsAndOperators.length > 0) {
-        const validUsers = adminsAndOperators.filter(
-          (user) => user.uuid && typeof user.uuid === 'string',
-        );
-        if (validUsers.length > 0) {
-          await processBulkNotifications({
-            recipients: validUsers.map((user) => ({ uuid: user.uuid, role: user.role })),
+          await processNotification({
+            createdById: systemUserId,
             orderId: freshOrder.uuid,
-            templateKey: 'adminOrderCancelled',
+            templateKey: 'driverOrderCancelled',
+            clientId: clientId,
+            driverId: originalDriverId,
             markNotificationAsRead: false,
           });
         }
-      }
-    });
+
+        // Используем предварительно полученных админов и операторов
+        if (adminsAndOperators.length > 0) {
+          const validUsers = adminsAndOperators.filter(
+            (user) => user.uuid && typeof user.uuid === 'string',
+          );
+
+          if (validUsers.length > 0) {
+            log(
+              `[processCheckCancelledJob] Отправка уведомлений ${validUsers.length} админам/операторам`,
+            );
+
+            await processBulkNotifications({
+              recipients: validUsers.map((user) => ({ uuid: user.uuid, role: user.role })),
+              orderId: freshOrder.uuid,
+              templateKey: 'adminOrderCancelled',
+              driverId: nullToUndefined(originalDriverId),
+              clientId: clientId,
+              markNotificationAsRead: false,
+            });
+          }
+        }
+
+        // После отправки всех уведомлений обнуляем водителя, если он был назначен
+        if (originalDriverId) {
+          log(
+            `[processCheckCancelledJob] Отвязываем водителя ${originalDriverId} от заказа ${freshOrder.uuid}`,
+          );
+
+          const finalOrder = await prismaTx.order.update({
+            where: { uuid: freshOrder.uuid },
+            data: {
+              assignedDriverId: null,
+            },
+          });
+
+          log(`[processCheckCancelledJob] Заказ финально обновлен:`, {
+            uuid: finalOrder.uuid,
+            status: finalOrder.status,
+            driverStatus: finalOrder.driverAcceptanceStatus,
+            driverId: finalOrder.assignedDriverId,
+          });
+        }
+      },
+      {
+        timeout: 30000, // Увеличиваем таймаут до 30 секунд
+      },
+    );
+  } catch (error) {
+    console.error('[processCheckCancelledJob] Ошибка:', error);
+    throw error;
   }
 }
 
 const port = process.env.PORT || 3000;
 app.listen(port, () => {
-  console.log(`BullMQ worker running on port ${port}`);
+  log(`BullMQ worker running on port ${port}`);
 });
 
 process.on('SIGTERM', async () => {
+  log('Получен сигнал SIGTERM, закрываем соединения');
   await worker.close();
   process.exit(0);
 });
 
 process.on('SIGINT', async () => {
+  log('Получен сигнал SIGINT, закрываем соединения');
   await worker.close();
   process.exit(0);
 });

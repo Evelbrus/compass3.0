@@ -9,6 +9,7 @@ import {
   sendDriverCompletedNotification,
   sendDriverCancelledNotification,
   sendDriverTimeoutNotification,
+  CancellationSource,
 } from '@next-app/src/services/notifications/sendDriverNotifications';
 
 export interface UpdateDriverOrderStatusDTO {
@@ -19,6 +20,7 @@ export interface UpdateDriverOrderStatusDTO {
   driverId: string | null; // ID водителя
   driverStatus?: DriverAcceptanceStatus; // Статус принятия водителем (опционально)
   orderStatus?: OrderStatus; // Статус заказа (опционально)
+  cancel?: CancellationSource; // Флаг, указывающий, что заказ отменен клиентом
 }
 
 /**
@@ -38,6 +40,7 @@ export async function updateDriverOrderStatusService(
     clientId,
     driverId,
     uuid: notificationUuid,
+    cancel = CancellationSource.DRIVER,
   } = data;
 
   console.log('updateDriverOrderStatusService', data);
@@ -109,7 +112,13 @@ export async function updateDriverOrderStatusService(
     switch (driverStatus) {
       case DriverAcceptanceStatus.ACCEPTED:
         // Передаем исходный статус заказа (order.status)
-        await sendDriverAcceptedNotification(orderId, driverId, createdById, clientId, order.driverAcceptanceStatus);
+        await sendDriverAcceptedNotification(
+          orderId,
+          driverId,
+          createdById,
+          clientId,
+          order.driverAcceptanceStatus,
+        );
         break;
       case DriverAcceptanceStatus.ARRIVED:
         await sendDriverArrivedNotification(orderId, driverId, createdById, clientId);
@@ -129,7 +138,7 @@ export async function updateDriverOrderStatusService(
     }
 
     if (orderStatus === OrderStatus.CANCELLED) {
-      await sendDriverCancelledNotification(orderId, driverId, createdById, clientId);
+      await sendDriverCancelledNotification(orderId, driverId, createdById, clientId, cancel);
     } else if (orderStatus === OrderStatus.OVERDUE) {
       await sendDriverTimeoutNotification(orderId, driverId, createdById, clientId);
     }

@@ -1,8 +1,8 @@
 import { v4 as uuidv4 } from 'uuid';
 import { prisma } from '@shared/prisma/prisma-client';
-import { Order, Notification, UserRole } from '@prisma/client';
-import { io } from 'socket.io-client';
+import { Order, Notification } from '@prisma/client';
 import { notificationTemplates } from '@next-app/src/services/notifications/notificationTemplates';
+import { socket } from '@next-app/src/lib/websocket/websocket-client';
 
 export interface ProcessNotificationParams {
   createdById?: string;
@@ -22,11 +22,6 @@ export interface ProcessBulkNotificationsParams {
   markNotificationAsRead?: boolean;
 }
 
-export const socket = io(process.env.NEXT_PUBLIC_SOCKET_ORIGIN, {
-  path: '/socket.io',
-  transports: ['websocket'],
-  autoConnect: false, // Оставляем false для явного управления подключением
-});
 
 let listenersInitialized = false;
 

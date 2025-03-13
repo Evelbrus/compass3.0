@@ -1,4 +1,5 @@
 import { DriverAcceptanceStatus, Order, OrderStatus } from '@prisma/client';
+import { CancellationSource } from '@next-app/src/services/notifications/sendDriverNotifications';
 
 export interface OrderWithDetails extends Order {
   departurePoint: { address: string };
@@ -529,6 +530,60 @@ export const notificationTemplates = {
     ) =>
       `Водитель ${driverFullName || 'Не указан'} принял просроченный заказ ${orderName}. Маршрут: ${departureAddress} → ${arrivalAddress}. Клиент: ${clientFullName}. Пожалуйста, проверьте статус заказа.`,
   },
+  // Шаблон уведомления для водителя, когда клиент отменил заказ
+  driverOrderCancelledByClient: {
+    title: (order: OrderWithDetails) => `Клиент отменил заказ`,
+    message: (
+      order: OrderWithDetails,
+      orderName: string,
+      departureAddress: string,
+      arrivalAddress: string,
+      clientFullName: string,
+    ) =>
+      `Клиент ${clientFullName} отменил заказ ${orderName} по маршруту ${departureAddress} → ${arrivalAddress}. Этот заказ больше не отображается в вашем списке активных заказов.`,
+  },
+
+  // Шаблон уведомления для администратора, когда клиент отменил заказ
+  adminOrderCancelledByClient: {
+    title: (order: OrderWithDetails) => `Клиент отменил заказ`,
+    message: (
+      order: OrderWithDetails,
+      orderName: string,
+      departureAddress: string,
+      arrivalAddress: string,
+      clientFullName: string,
+      driverFullName: string,
+    ) =>
+      `Клиент ${clientFullName} отменил заказ ${orderName} по маршруту ${departureAddress} → ${arrivalAddress}. ${driverFullName ? `Назначенный водитель: ${driverFullName}` : 'Водитель не был назначен'}. Время отмены: ${new Date().toLocaleString()}.`,
+  },
+
+  // Шаблон уведомления для клиента, когда водитель отменил заказ
+  clientOrderCancelledByDriver: {
+    title: (order: OrderWithDetails) => `Водитель отменил ваш заказ`,
+    message: (
+      order: OrderWithDetails,
+      orderName: string,
+      departureAddress: string,
+      arrivalAddress: string,
+      clientFullName: string,
+      driverFullName: string,
+    ) =>
+      `Водитель ${driverFullName || 'Не указан'} отменил ваш заказ ${orderName} по маршруту ${departureAddress} → ${arrivalAddress}. Система автоматически переназначит заказ другому доступному водителю. Приносим извинения за неудобства.`,
+  },
+
+  // Шаблон уведомления для администратора, когда водитель отменил заказ
+  adminOrderCancelledByDriver: {
+    title: (order: OrderWithDetails) => `Водитель отменил заказ клиента`,
+    message: (
+      order: OrderWithDetails,
+      orderName: string,
+      departureAddress: string,
+      arrivalAddress: string,
+      clientFullName: string,
+      driverFullName: string,
+    ) =>
+      `Водитель ${driverFullName || 'Не указан'} отменил заказ ${orderName} по маршруту ${departureAddress} → ${arrivalAddress}. Клиент: ${clientFullName}. Пожалуйста, назначьте нового водителя или свяжитесь с клиентом для уточнения деталей. Время отмены: ${new Date().toLocaleString()}.`,
+  },
 };
 
 /**
@@ -543,123 +598,205 @@ export function getNotificationTemplateKey(
   driverStatus: DriverAcceptanceStatus,
   forRole: 'driver' | 'client' | 'admin',
   previousDriverStatus?: DriverAcceptanceStatus | null,
+  cancel?: CancellationSource,
 ): keyof typeof notificationTemplates {
-  console.log('orderStatus', orderStatus);
-  console.log('driverStatus', driverStatus);
-  console.log('previousDriverStatus', previousDriverStatus);
+  console.log('getNotificationTemplateKey - Вход:', {
+    orderStatus,
+    driverStatus,
+    forRole,
+    previousDriverStatus,
+    cancel
+  });
+
+  // Специальная обработка для таймаута (TIMEOUT)
+  if (driverStatus === DriverAcceptanceStatus.TIMEOUT) {
+    console.log('getNotificationTemplateKey - Обнаружен TIMEOUT');
+
+    if (forRole === 'driver') {
+      console.log('getNotificationTemplateKey - Возвращаем driverOrderTimeout');
+      return 'driverOrderTimeout';
+    }
+    else if (forRole === 'client') {
+      console.log('getNotificationTemplateKey - Возвращаем clientDriverTimeout');
+      return 'clientDriverTimeout';
+    }
+    else {
+      console.log('getNotificationTemplateKey - Возвращаем adminOrderTimeout');
+      return 'adminOrderTimeout';
+    }
+  }
 
   // Специальный случай: заказ был просрочен (TIMEOUT), и теперь принят
   if (
     previousDriverStatus === DriverAcceptanceStatus.TIMEOUT &&
-    orderStatus === OrderStatus.IN_PROGRESS && // После timeout заказ переходит в IN_PROGRESS
-    driverStatus === DriverAcceptanceStatus.ACCEPTED // Водитель принял заказ
+    orderStatus === OrderStatus.IN_PROGRESS &&
+    driverStatus === DriverAcceptanceStatus.ACCEPTED
   ) {
+    console.log('getNotificationTemplateKey - Обработка просроченного заказа, который был принят');
+
     if (forRole === 'driver') {
+      console.log('getNotificationTemplateKey - Возвращаем driverAcceptedOverdue');
       return 'driverAcceptedOverdue'; // "Вы приняли просроченный заказ"
     }
+
     if (forRole === 'admin') {
+      console.log('getNotificationTemplateKey - Возвращаем adminDriverAcceptedOverdue');
       return 'adminDriverAcceptedOverdue'; // "Водитель принял просроченный заказ"
     }
   }
 
   // Проверяем статус NOTIFIED
   if (driverStatus === DriverAcceptanceStatus.NOTIFIED) {
-    if (forRole === 'driver') return 'driverOrderNotified';
-    else if (forRole === 'client') return 'clientOrderNotified';
-    else return 'adminOrderNotified';
+    console.log('getNotificationTemplateKey - Обнаружен NOTIFIED');
+
+    if (forRole === 'driver') {
+      console.log('getNotificationTemplateKey - Возвращаем driverOrderNotified');
+      return 'driverOrderNotified';
+    }
+    else if (forRole === 'client') {
+      console.log('getNotificationTemplateKey - Возвращаем clientOrderNotified');
+      return 'clientOrderNotified';
+    }
+    else {
+      console.log('getNotificationTemplateKey - Возвращаем adminOrderNotified');
+      return 'adminOrderNotified';
+    }
   }
+
+  // Обрабатываем случай отмены заказа с учетом cancel
+  if (orderStatus === OrderStatus.CANCELLED) {
+    console.log('getNotificationTemplateKey - Обнаружен CANCELLED с источником:', cancel);
+
+    if (cancel === CancellationSource.CLIENT) {
+      // Если заказ отменен клиентом
+      if (forRole === 'driver') {
+        console.log('getNotificationTemplateKey - Возвращаем driverOrderCancelledByClient');
+        return 'driverOrderCancelledByClient';
+      }
+      else if (forRole === 'admin') {
+        console.log('getNotificationTemplateKey - Возвращаем adminOrderCancelledByClient');
+        return 'adminOrderCancelledByClient';
+      }
+      // Для клиента всегда используем один шаблон, так как он сам отменил
+      else {
+        console.log('getNotificationTemplateKey - Возвращаем clientOrderCancelled');
+        return 'clientOrderCancelled';
+      }
+    } else if (cancel === CancellationSource.DRIVER) {
+      // Если заказ отменен водителем
+      if (forRole === 'client') {
+        console.log('getNotificationTemplateKey - Возвращаем clientOrderCancelledByDriver');
+        return 'clientOrderCancelledByDriver';
+      }
+      else if (forRole === 'admin') {
+        console.log('getNotificationTemplateKey - Возвращаем adminOrderCancelledByDriver');
+        return 'adminOrderCancelledByDriver';
+      }
+      // Для водителя всегда используем один шаблон, так как он сам отменил
+      else {
+        console.log('getNotificationTemplateKey - Возвращаем driverOrderCancelled');
+        return 'driverOrderCancelled';
+      }
+    }
+    // Если источник отмены не указан, используем стандартные шаблоны отмены
+    console.log('getNotificationTemplateKey - Источник отмены не указан, используем стандартные шаблоны');
+  }
+
+  // Стандартная логика для остальных статусов
+  let result: keyof typeof notificationTemplates;
 
   // Для водителя
   if (forRole === 'driver') {
     switch (orderStatus) {
       case OrderStatus.PENDING:
-        return 'driverOrderAssigned';
+        result = 'driverOrderAssigned';
+        break;
       case OrderStatus.PLANNED:
-        return 'driverOrderAssigned';
+        result = 'driverOrderAssigned';
+        break;
       case OrderStatus.IN_PROGRESS:
-        if (driverStatus === DriverAcceptanceStatus.ACCEPTED) return 'driverOrderAccepted';
-        else if (driverStatus === DriverAcceptanceStatus.ON_THE_WAY) return 'driverOnTheWay';
-        else if (driverStatus === DriverAcceptanceStatus.ARRIVED) return 'driverArrived';
-        else if (driverStatus === DriverAcceptanceStatus.PICKED_UP) return 'driverPickedUp';
-        else return 'driverOrderAccepted';
+        if (driverStatus === DriverAcceptanceStatus.ACCEPTED) result = 'driverOrderAccepted';
+        else if (driverStatus === DriverAcceptanceStatus.ON_THE_WAY) result = 'driverOnTheWay';
+        else if (driverStatus === DriverAcceptanceStatus.ARRIVED) result = 'driverArrived';
+        else if (driverStatus === DriverAcceptanceStatus.PICKED_UP) result = 'driverPickedUp';
+        else result = 'driverOrderAccepted';
+        break;
       case OrderStatus.COMPLETED:
-        return 'driverOrderCompleted';
+        result = 'driverOrderCompleted';
+        break;
       case OrderStatus.CANCELLED:
-        return 'driverOrderCancelled';
+        result = 'driverOrderCancelled';
+        break;
       case OrderStatus.OVERDUE:
-        return 'systemOrderOverdue';
+        result = 'systemOrderOverdue';
+        break;
       default:
-        return 'driverOrderAssigned';
+        result = 'driverOrderAssigned';
     }
   }
-
   // Для клиента
-  if (forRole === 'client') {
+  else if (forRole === 'client') {
     switch (orderStatus) {
       case OrderStatus.PENDING:
         if (driverStatus === DriverAcceptanceStatus.PENDING || driverStatus === null)
-          return 'clientOrderCreated';
-        if (driverStatus === DriverAcceptanceStatus.TIMEOUT) return 'clientDriverTimeout';
-        return 'clientDriverAssigned';
+          result = 'clientOrderCreated';
+        else result = 'clientDriverAssigned';
+        break;
       case OrderStatus.PLANNED:
-        return 'clientOrderPlanned';
+        result = 'clientOrderPlanned';
+        break;
       case OrderStatus.IN_PROGRESS:
-        if (driverStatus === DriverAcceptanceStatus.ACCEPTED) return 'clientDriverAccepted';
-        else if (driverStatus === DriverAcceptanceStatus.ON_THE_WAY) return 'clientDriverOnTheWay';
-        else if (driverStatus === DriverAcceptanceStatus.ARRIVED) return 'clientDriverArrived';
-        else if (driverStatus === DriverAcceptanceStatus.PICKED_UP) return 'clientDriverPickedUp';
-        return 'clientDriverAssigned';
+        if (driverStatus === DriverAcceptanceStatus.ACCEPTED) result = 'clientDriverAccepted';
+        else if (driverStatus === DriverAcceptanceStatus.ON_THE_WAY) result = 'clientDriverOnTheWay';
+        else if (driverStatus === DriverAcceptanceStatus.ARRIVED) result = 'clientDriverArrived';
+        else if (driverStatus === DriverAcceptanceStatus.PICKED_UP) result = 'clientDriverPickedUp';
+        else result = 'clientDriverAssigned';
+        break;
       case OrderStatus.COMPLETED:
-        return 'clientOrderCompleted';
+        result = 'clientOrderCompleted';
+        break;
       case OrderStatus.CANCELLED:
-        return 'clientOrderCancelled';
+        result = 'clientOrderCancelled';
+        break;
       case OrderStatus.OVERDUE:
-        return 'systemOrderOverdue';
+        result = 'systemOrderOverdue';
+        break;
       default:
-        return 'clientOrderCreated';
+        result = 'clientOrderCreated';
     }
   }
-
   // Для администратора
-  if (forRole === 'admin') {
+  else {
     switch (orderStatus) {
       case OrderStatus.PENDING:
         if (driverStatus === DriverAcceptanceStatus.PENDING || driverStatus === null)
-          return 'adminOrderCreated';
-        if (driverStatus === DriverAcceptanceStatus.TIMEOUT) return 'adminOrderTimeout';
-        return 'adminDriverAssigned';
+          result = 'adminOrderCreated';
+        else result = 'adminDriverAssigned';
+        break;
       case OrderStatus.PLANNED:
-        return 'adminOrderPlanned';
+        result = 'adminOrderPlanned';
+        break;
       case OrderStatus.IN_PROGRESS:
-        if (driverStatus === DriverAcceptanceStatus.ACCEPTED) return 'adminDriverAccepted';
-        else if (driverStatus === DriverAcceptanceStatus.ON_THE_WAY) return 'adminDriverOnTheWay';
-        else if (driverStatus === DriverAcceptanceStatus.ARRIVED) return 'adminDriverArrived';
-        else if (driverStatus === DriverAcceptanceStatus.PICKED_UP) return 'adminDriverPickedUp';
-        return 'adminDriverAssigned';
+        if (driverStatus === DriverAcceptanceStatus.ACCEPTED) result = 'adminDriverAccepted';
+        else if (driverStatus === DriverAcceptanceStatus.ON_THE_WAY) result = 'adminDriverOnTheWay';
+        else if (driverStatus === DriverAcceptanceStatus.ARRIVED) result = 'adminDriverArrived';
+        else if (driverStatus === DriverAcceptanceStatus.PICKED_UP) result = 'adminDriverPickedUp';
+        else result = 'adminDriverAssigned';
+        break;
       case OrderStatus.COMPLETED:
-        return 'adminOrderCompleted';
+        result = 'adminOrderCompleted';
+        break;
       case OrderStatus.CANCELLED:
-        return 'adminOrderCancelled';
+        result = 'adminOrderCancelled';
+        break;
       case OrderStatus.OVERDUE:
-        return 'systemOrderOverdue';
+        result = 'systemOrderOverdue';
+        break;
       default:
-        return 'adminOrderCreated';
+        result = 'adminOrderCreated';
     }
   }
 
-  return 'driverOrderAssigned'; // Значение по умолчанию
-}
-
-/**
- * Определяет должно ли уведомление быть отмечено как прочитанное по умолчанию
- * @param templateKey Ключ шаблона уведомления
- * @param forRole Роль получателя
- * @returns Должно ли уведомление быть отмечено как прочитанное
- */
-export function shouldMarkAsRead(
-  templateKey: keyof typeof notificationTemplates,
-  forRole: 'driver' | 'client' | 'admin',
-): boolean {
-  // Возвращаем false для всех уведомлений, чтобы все были непрочитанными по умолчанию
-  return false;
+  console.log(`getNotificationTemplateKey - Результат для forRole=${forRole}, orderStatus=${orderStatus}, driverStatus=${driverStatus}:`, result);
+  return result;
 }

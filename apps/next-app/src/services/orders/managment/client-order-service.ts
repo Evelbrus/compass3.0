@@ -1,7 +1,10 @@
 import { prisma } from '@shared/prisma/prisma-client';
 import { DriverAcceptanceStatus, OrderStatus } from '@prisma/client';
 import { markNotificationAsRead } from '@next-app/src/services/notifications/markNotificationAsRead';
-import { sendDriverCancelledNotification } from '@next-app/src/services/notifications/sendDriverNotifications';
+import {
+  CancellationSource,
+  sendDriverCancelledNotification,
+} from '@next-app/src/services/notifications/sendDriverNotifications';
 
 export interface UpdateClientOrderStatusDTO {
   uuid: string; // UUID уведомления
@@ -11,6 +14,7 @@ export interface UpdateClientOrderStatusDTO {
   driverId: string | null; // ID водителя
   driverStatus?: DriverAcceptanceStatus; // Статус принятия водителем (опционально)
   orderStatus?: OrderStatus; // Статус заказа (опционально)
+  cancel?: CancellationSource; // Флаг, указывающий, что заказ отменен клиентом
 }
 
 /**
@@ -31,11 +35,12 @@ export async function updateClientOrderStatusService(
     clientId,
     driverId,
     uuid: notificationUuid,
+    cancel = CancellationSource.CLIENT,
   } = data;
 
   // Проверка наличия обязательных полей
-  if (!orderStatus || !createdById || !clientId) {
-    throw new Error('Отсутствуют обязательные поля: orderStatus, createdById, clientId');
+  if (!orderStatus || !createdById || !clientId || !driverId) {
+    throw new Error('Отсутствуют обязательные поля: orderStatus, createdById, clientId, driverId');
   }
 
   // Найти заказ
@@ -51,10 +56,10 @@ export async function updateClientOrderStatusService(
     throw new Error('Заказ не найден');
   }
 
-  // Проверка, является ли пользователь создателем заказа
-  if (order.clientById !== clientId) {
-    throw new Error('Клиент не найден или не является создателем заказа');
-  }
+  // // Проверка, является ли пользователь создателем заказа
+  // if (order.clientById !== clientId) {
+  //   throw new Error('Клиент не найден или не является создателем заказа');
+  // }
 
   try {
     // Обновление заказа в транзакции
@@ -82,7 +87,25 @@ export async function updateClientOrderStatusService(
 
     // Если заказ отменен клиентом, отправляем уведомление водителю
     if (orderStatus === OrderStatus.CANCELLED && order.assignedDriverId) {
-      await sendDriverCancelledNotification(orderId, order.assignedDriverId, createdById, clientId);
+      const driverId = order.assignedDriverId;
+
+      // Проверяем, что у нас есть все необходимые ID
+      if (driverId && clientId && createdById) {
+        // Используем функцию с отметкой, что отмена от клиента (последний параметр)
+        await sendDriverCancelledNotification(
+          orderId,
+          driverId,
+          createdById,
+          clientId,
+          cancel,
+        );
+      } else {
+        console.error('Недостаточно данных для отправки уведомления:', {
+          driverId,
+          clientId,
+          createdById,
+        });
+      }
     }
 
     return {

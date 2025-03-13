@@ -3,8 +3,14 @@ import { DriverAcceptanceStatus, OrderStatus, UserRole } from '@prisma/client';
 import { processBulkNotifications } from '@next-app/src/services/notifications/notifications';
 import {
   getNotificationTemplateKey,
-  shouldMarkAsRead,
+  notificationTemplates,
 } from '@next-app/src/services/notifications/notificationTemplates';
+
+export enum CancellationSource {
+  CLIENT = 'client',
+  DRIVER = 'driver',
+  ADMIN = 'admin',
+}
 
 export interface NotificationRecipient {
   uuid: string;
@@ -30,6 +36,8 @@ export interface SendDriverNotificationParams {
   clientId: string; // ID клиента
   delay?: number; // Задержка отправки уведомления (опционально)
   previousDriverStatus?: DriverAcceptanceStatus | null; // Делаем nullable
+  cancel?: CancellationSource;
+  skipStatusUpdate?: boolean; // Флаг для пропуска обновления статуса заказа
 }
 
 /**
@@ -50,9 +58,27 @@ export async function sendDriverNotifications(
   params: SendDriverNotificationParams,
 ): Promise<NotificationResult> {
   try {
-    const { orderId, driverId, actionType, createdById, clientId, previousDriverStatus } = params;
+    const {
+      orderId,
+      driverId,
+      actionType,
+      createdById,
+      clientId,
+      previousDriverStatus,
+      cancel,
+      skipStatusUpdate = false,
+    } = params;
 
-    console.log('params', params);
+    console.log('sendDriverNotifications - params:', {
+      orderId,
+      driverId,
+      actionType,
+      createdById,
+      clientId,
+      previousDriverStatus,
+      cancel,
+      skipStatusUpdate,
+    });
 
     const order = await prisma.order.findUnique({
       where: { uuid: orderId },
@@ -63,23 +89,39 @@ export async function sendDriverNotifications(
     });
 
     if (!order) {
+      console.error(`sendDriverNotifications - Заказ ${orderId} не найден`);
       return { success: false, error: 'Заказ не найден' };
     }
 
     const { orderStatus, driverStatus } = getStatusesFromAction(actionType);
 
-    await prisma.order.update({
-      where: { uuid: orderId },
-      data: {
-        status: orderStatus,
-        driverAcceptanceStatus: driverStatus,
-        ...(actionType === 'accept'
-          ? { assignedDriverId: driverId }
-          : actionType === 'cancel' || actionType === 'timeout'
-            ? { assignedDriverId: null }
-            : {}),
-      },
+    console.log('sendDriverNotifications - Статусы для действия:', {
+      actionType,
+      orderStatus,
+      driverStatus,
     });
+
+    // Обновляем статус заказа только если не указан флаг пропуска обновления
+    if (!skipStatusUpdate) {
+      console.log('sendDriverNotifications - Обновляем статус заказа');
+
+      await prisma.order.update({
+        where: { uuid: orderId },
+        data: {
+          status: orderStatus,
+          driverAcceptanceStatus: driverStatus,
+          ...(actionType === 'accept'
+            ? { assignedDriverId: driverId }
+            : actionType === 'cancel' || actionType === 'timeout'
+              ? { assignedDriverId: null }
+              : {}),
+        },
+      });
+    } else {
+      console.log(
+        'sendDriverNotifications - Пропускаем обновление статуса заказа (skipStatusUpdate=true)',
+      );
+    }
 
     const admins = await prisma.user.findMany({
       where: { role: UserRole.Admin, availability: true },
@@ -114,6 +156,11 @@ export async function sendDriverNotifications(
       }
     }
 
+    console.log(
+      'sendDriverNotifications - Получатели уведомлений:',
+      recipients.map((r) => ({ uuid: r.uuid, role: r.role })),
+    );
+
     const notificationPromises = ['driver', 'client', 'admin'].map(async (role) => {
       const roleRecipients = recipients.filter((r) => {
         if (role === 'driver') return r.role === UserRole.Driver;
@@ -124,14 +171,25 @@ export async function sendDriverNotifications(
 
       if (roleRecipients.length === 0) return null;
 
-      const templateKey = getNotificationTemplateKey(
-        orderStatus,
-        driverStatus,
-        role as 'driver' | 'client' | 'admin',
-        previousDriverStatus,
-      );
+      // Для действия timeout добавляем специальную обработку
+      let templateKey: keyof typeof notificationTemplates;
+      if (actionType === 'timeout') {
+        // При таймауте всегда используем специальные шаблоны таймаута
+        if (role === 'driver') templateKey = 'driverOrderTimeout';
+        else if (role === 'client') templateKey = 'clientDriverTimeout';
+        else templateKey = 'adminOrderTimeout';
+      } else {
+        // Для других действий используем обычную логику выбора шаблона
+        templateKey = getNotificationTemplateKey(
+          orderStatus,
+          driverStatus,
+          role as 'driver' | 'client' | 'admin',
+          previousDriverStatus,
+          cancel,
+        );
+      }
 
-      const markAsRead = shouldMarkAsRead(templateKey, role as 'driver' | 'client' | 'admin');
+      console.log(`sendDriverNotifications - Шаблон для роли ${role}:`, templateKey);
 
       try {
         await processBulkNotifications({
@@ -140,7 +198,7 @@ export async function sendDriverNotifications(
           templateKey,
           driverId,
           clientId,
-          markNotificationAsRead: markAsRead,
+          markNotificationAsRead: false,
         });
 
         return { success: true, uuid: orderId };
@@ -153,7 +211,7 @@ export async function sendDriverNotifications(
     const results = await Promise.all(notificationPromises);
     const successfulResults = results.filter(Boolean);
 
-    console.log('results', results);
+    console.log('sendDriverNotifications - Результаты отправки уведомлений:', results);
 
     return {
       success: successfulResults.length > 0,
@@ -168,6 +226,9 @@ export async function sendDriverNotifications(
   }
 }
 
+/**
+ * Получает статусы заказа и водителя для указанного действия
+ */
 function getStatusesFromAction(actionType: SendDriverNotificationParams['actionType']): {
   orderStatus: OrderStatus;
   driverStatus: DriverAcceptanceStatus;
@@ -205,8 +266,8 @@ function getStatusesFromAction(actionType: SendDriverNotificationParams['actionT
       };
     case 'timeout':
       return {
-        orderStatus: OrderStatus.IN_PROGRESS,
-        driverStatus: DriverAcceptanceStatus.ACCEPTED,
+        orderStatus: OrderStatus.OVERDUE,
+        driverStatus: DriverAcceptanceStatus.TIMEOUT,
       };
     case 'notify':
       return {
@@ -231,6 +292,14 @@ export async function sendDriverAcceptedNotification(
   clientId: string,
   previousDriverStatus?: DriverAcceptanceStatus | null,
 ): Promise<NotificationResult> {
+  console.log('sendDriverAcceptedNotification:', {
+    orderId,
+    driverId,
+    createdById,
+    clientId,
+    previousDriverStatus,
+  });
+
   return sendDriverNotifications({
     orderId,
     driverId,
@@ -250,6 +319,13 @@ export async function sendDriverArrivedNotification(
   createdById: string,
   clientId: string,
 ): Promise<NotificationResult> {
+  console.log('sendDriverArrivedNotification:', {
+    orderId,
+    driverId,
+    createdById,
+    clientId,
+  });
+
   return sendDriverNotifications({
     orderId,
     driverId,
@@ -268,6 +344,13 @@ export async function sendDriverStartedNotification(
   createdById: string,
   clientId: string,
 ): Promise<NotificationResult> {
+  console.log('sendDriverStartedNotification:', {
+    orderId,
+    driverId,
+    createdById,
+    clientId,
+  });
+
   return sendDriverNotifications({
     orderId,
     driverId,
@@ -286,6 +369,13 @@ export async function sendDriverPickedUpNotification(
   createdById: string,
   clientId: string,
 ): Promise<NotificationResult> {
+  console.log('sendDriverPickedUpNotification:', {
+    orderId,
+    driverId,
+    createdById,
+    clientId,
+  });
+
   return sendDriverNotifications({
     orderId,
     driverId,
@@ -304,6 +394,13 @@ export async function sendDriverCompletedNotification(
   createdById: string,
   clientId: string,
 ): Promise<NotificationResult> {
+  console.log('sendDriverCompletedNotification:', {
+    orderId,
+    driverId,
+    createdById,
+    clientId,
+  });
+
   return sendDriverNotifications({
     orderId,
     driverId,
@@ -321,19 +418,29 @@ export async function sendDriverCancelledNotification(
   driverId: string,
   createdById: string,
   clientId: string,
+  cancel: CancellationSource = CancellationSource.DRIVER,
 ): Promise<NotificationResult> {
+  console.log('sendDriverCancelledNotification:', {
+    orderId,
+    driverId,
+    createdById,
+    clientId,
+    cancel,
+  });
+
   return sendDriverNotifications({
     orderId,
     driverId,
     actionType: 'cancel',
     createdById,
     clientId,
-    delay: 0,
+    cancel,
   });
 }
 
 /**
  * Отправляет уведомление о истечении времени ожидания
+ * ВАЖНО: Не меняет статус заказа, только отправляет уведомления
  */
 export async function sendDriverTimeoutNotification(
   orderId: string,
@@ -341,11 +448,37 @@ export async function sendDriverTimeoutNotification(
   createdById: string,
   clientId: string,
 ): Promise<NotificationResult> {
-  return sendDriverNotifications({
+  console.log('sendDriverTimeoutNotification:', {
     orderId,
     driverId,
-    actionType: 'timeout',
     createdById,
     clientId,
   });
+
+  // Проверяем, что все необходимые параметры предоставлены
+  if (!orderId || !driverId || !createdById || !clientId) {
+    console.error('sendDriverTimeoutNotification - Отсутствуют обязательные параметры');
+    return {
+      success: false,
+      error: 'Отсутствуют необходимые параметры для отправки уведомления',
+    };
+  }
+
+  try {
+    // Используем skipStatusUpdate=true, чтобы не менять статус заказа в sendDriverNotifications
+    return await sendDriverNotifications({
+      orderId,
+      driverId,
+      actionType: 'timeout',
+      createdById,
+      clientId,
+      skipStatusUpdate: true, // НЕ обновлять статус заказа
+    });
+  } catch (error) {
+    console.error('sendDriverTimeoutNotification - Ошибка:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Неизвестная ошибка при отправке уведомления',
+    };
+  }
 }

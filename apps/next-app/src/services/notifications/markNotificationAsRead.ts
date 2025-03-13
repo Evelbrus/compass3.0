@@ -1,5 +1,6 @@
 import { prisma } from '@shared/prisma/prisma-client';
-import { socket, ensureSocketConnection } from '@next-app/src/services/notifications/notifications';
+import { ensureSocketConnection } from '@next-app/src/services/notifications/notifications';
+import { socket } from '@next-app/src/lib/websocket/websocket-client';
 
 /**
  * Отмечает уведомление как прочитанное
