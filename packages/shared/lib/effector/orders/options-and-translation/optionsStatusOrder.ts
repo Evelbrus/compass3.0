@@ -21,13 +21,15 @@ export const orderStatusTranslations: Record<OrderStatus, string> = {
 // Перевод статусов принятия заказа водителем
 export const driverAcceptanceStatusOptions = [
   { label: 'Ожидание решения водителя', value: DriverAcceptanceStatus.PENDING },
-  { label: 'Водитель принял к сведению', value: DriverAcceptanceStatus.TAKEN },
+  { label: 'Водитель уведомлен', value: DriverAcceptanceStatus.NOTIFIED },
   { label: 'Водитель принял заказ', value: DriverAcceptanceStatus.ACCEPTED },
   { label: 'Водитель в пути к клиенту', value: DriverAcceptanceStatus.ON_THE_WAY },
   { label: 'Водитель прибыл к клиенту', value: DriverAcceptanceStatus.ARRIVED },
   { label: 'Клиент в машине, поездка начата', value: DriverAcceptanceStatus.PICKED_UP },
-  { label: 'Время для принятия заказа', value: DriverAcceptanceStatus.TIMEOUT },
+  { label: 'Время для принятия заказа истекло', value: DriverAcceptanceStatus.TIMEOUT },
   { label: 'Поездка завершена', value: DriverAcceptanceStatus.COMPLETED },
+  { label: 'Водитель отклонил заказ', value: DriverAcceptanceStatus.REJECTED },
+  { label: 'Заказ отменен', value: DriverAcceptanceStatus.CANCELLED },
 ];
 
 // Справочники для получения перевода по значению enum
@@ -42,13 +44,15 @@ export const orderStatusLabels: Record<OrderStatus, string> = {
 
 export const driverAcceptanceStatusLabels: Record<DriverAcceptanceStatus, string> = {
   [DriverAcceptanceStatus.PENDING]: 'Ожидание решения водителя',
-  [DriverAcceptanceStatus.TAKEN]: 'Водитель принял к сведению',
+  [DriverAcceptanceStatus.NOTIFIED]: 'Водитель уведомлен',
   [DriverAcceptanceStatus.ACCEPTED]: 'Водитель принял заказ',
   [DriverAcceptanceStatus.ON_THE_WAY]: 'Водитель в пути к клиенту',
   [DriverAcceptanceStatus.ARRIVED]: 'Водитель прибыл к клиенту',
   [DriverAcceptanceStatus.PICKED_UP]: 'Клиент в машине, поездка начата',
-  [DriverAcceptanceStatus.TIMEOUT]: 'Время для принятия заказа',
+  [DriverAcceptanceStatus.TIMEOUT]: 'Время для принятия заказа истекло',
   [DriverAcceptanceStatus.COMPLETED]: 'Поездка завершена',
+  [DriverAcceptanceStatus.REJECTED]: 'Водитель отклонил заказ',
+  [DriverAcceptanceStatus.CANCELLED]: 'Заказ отменен',
 };
 
 // Вспомогательная функция для получения человекочитаемого статуса заказа

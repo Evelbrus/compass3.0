@@ -17,9 +17,9 @@ enum Color {
 enum VehicleType {
   Sedan    @map("sedan")
   Minivan  @map("minivan")
-  Microbus @map("microbus") // Микроавтобус
+  Microbus @map("microbus")
   Bus      @map("bus")
-  SUV      @map("suv") // Внедорожник
+  SUV      @map("suv")
   None     @map("none")
 }
 

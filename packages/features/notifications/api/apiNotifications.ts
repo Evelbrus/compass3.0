@@ -14,22 +14,6 @@ export const fetchNotifications = async (userId: string): Promise<Notification[]
 };
 
 /**
- * Удаление нескольких уведомлений
- * @param notificationIds - Массив UUID уведомлений для удаления
- * @returns Promise<void>
- */
-export const bulkDeleteNotifications = async (notificationIds: string[]): Promise<void> => {
-  const response = await fetch('/api/notifications/bulk-delete', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ notificationIds }),
-  });
-  if (!response.ok) {
-    throw new Error(`Не удалось удалить уведомления: ${response.statusText}`);
-  }
-};
-
-/**
  * Пометка уведомления как прочитанного
  * @param notificationId - UUID уведомления
  * @returns Promise<void>

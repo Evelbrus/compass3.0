@@ -1,6 +1,6 @@
 import { countryData } from '@shared/components/ui/inputs/phone';
 
-const validatePhoneNumber = (value: string): true | string => {
+const validatePhoneNumber = (value: string | undefined): true | string => {
   if (!value) return 'Номер телефона обязателен';
   const matchedCountry = countryData.find((country) => value.startsWith(country.dialCode));
   if (!matchedCountry) {

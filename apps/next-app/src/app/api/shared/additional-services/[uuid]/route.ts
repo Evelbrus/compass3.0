@@ -2,10 +2,11 @@
 import { NextResponse, NextRequest } from 'next/server';
 import debug from 'debug';
 import { getAdditionalServiceById } from '@next-app/src/services/additional-services/getAdditionalServiceById';
+import { Params } from '@next-app/src/interface/interface';
 
 const logError = debug('app:api:additional-services-shared:error');
 
-export async function GET(req: NextRequest, { params }: { params: { uuid: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Params }) {
   try {
     const { uuid } = params;
 

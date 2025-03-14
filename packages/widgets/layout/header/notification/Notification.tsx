@@ -18,7 +18,6 @@ const Notification = ({ userSession }: NotificationIslandProps) => {
     driverUnreadCount,
     clientNotifications,
     clientUnreadCount,
-    clearNotifications,
     markAsRead,
     openModal,
   } = useNotifications({ userSession });
@@ -101,7 +100,6 @@ const Notification = ({ userSession }: NotificationIslandProps) => {
             driverNotifications={driverNotifications}
             clientNotifications={clientNotifications}
             onClose={() => setIsNotificationOpen(false)}
-            onClear={clearNotifications}
             markAsRead={markAsRead}
             openModal={openModal}
           />

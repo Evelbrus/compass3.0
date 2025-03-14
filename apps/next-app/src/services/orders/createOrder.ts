@@ -5,6 +5,7 @@ import debug from 'debug';
 import { v4 as uuidv4 } from 'uuid';
 import { Decimal } from 'decimal.js';
 import { CreateOrderDTO } from '@next-app/src/dto/orders/order.dto';
+import { generateOrderNumber } from '@shared/prisma/utils/generateOrderNumber';
 
 const logError = debug('app:services:orders:error');
 
@@ -94,9 +95,16 @@ export async function createOrder(data: CreateOrderDTO, orderStatus: OrderStatus
         }
       }
 
+      // Генерируем номер заказа на основе типа автомобиля и класса обслуживания из тарифа
+      const orderNumber = await generateOrderNumber(
+        tariffRecord.vehicleType || 'X',
+        tariffRecord.serviceLevel || 'X',
+      );
+
       const order = await tx.order.create({
         data: {
           uuid: uuidv4(),
+          orderNumber, // Автоматически генерируем номер заказа
           clientById: clientUuid,
           tariffUuid,
           departureTime: new Date(departureTime),

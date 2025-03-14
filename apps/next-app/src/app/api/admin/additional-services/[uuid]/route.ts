@@ -19,7 +19,7 @@ export async function PUT(req: NextRequest, { params }: { params: Params }) {
     // Аутентификация запроса
     await authenticateRequest(req, allowedRoles);
 
-    const { uuid } = params;
+    const { uuid } =  params;
     const data: UpdateAdditionalServiceDTO = await req.json();
 
     try {

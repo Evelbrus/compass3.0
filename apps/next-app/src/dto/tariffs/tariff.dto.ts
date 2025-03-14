@@ -1,9 +1,14 @@
 // app/src/dto/tariffs/tariff.dto.ts
 import { VehicleType, ServiceLevels, Tariff, TariffOnService, AdditionalService } from '@prisma/client';
 
-export interface CreateTariffDTO extends Tariff { tariffAdditionalServices: TariffOnService } {}
+export interface CreateTariffDTO extends Tariff {
+  tariffAdditionalServices: TariffOnService[]
+}
 
-export interface UpdateTariffDTO extends Tariff { tariffIds: string, tariffAdditionalServices: TariffOnService } {}
+export interface UpdateTariffDTO extends Tariff {
+  tariffIds: string,
+  tariffAdditionalServices: TariffOnService[]
+}
 
 export interface GetTariffsRequestDTO {
   page: number;
@@ -15,5 +20,5 @@ export interface GetTariffsRequestDTO {
 }
 
 export interface TariffResponseDTO extends Tariff {
-  tariffAdditionalServices: TariffOnService & { service: AdditionalService }[];
+  tariffAdditionalServices: (TariffOnService & { service: AdditionalService })[];
 }

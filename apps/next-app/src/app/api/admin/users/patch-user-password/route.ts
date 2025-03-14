@@ -2,7 +2,6 @@
 import { NextResponse, NextRequest } from 'next/server';
 import debug from 'debug';
 import { UserRole } from '@prisma/client';
-
 import { authenticateRequest } from '@next-app/src/utils/authenticate/authenticateRequest';
 import { adminResetUserPassword } from '@next-app/src/services/users/adminResetUserPassword';
 import { AdminUpdatePasswordDTO } from '@next-app/src/dto/users/password.dto';

@@ -223,15 +223,19 @@ const TariffCard: React.FC<TariffCardProps> = ({
   }, [selectedServiceLevel]);
 
   const seatInfo = useMemo(() => {
+    if (!selectedVehicleType) return '';
+
     switch (selectedVehicleType) {
-      case 'Sedan':
+      case VehicleType.Sedan:
         return '4 пас. места';
-      case 'Minivan':
+      case VehicleType.Minivan:
         return '6-7 пас. мест';
-      case 'Sprinter':
+      case VehicleType.Microbus:
         return 'до 18 пас. мест';
-      case 'Bus':
+      case VehicleType.Bus:
         return '27-30 пас. мест';
+      case VehicleType.SUV:
+        return '4-5 пас. мест';
       default:
         return '';
     }

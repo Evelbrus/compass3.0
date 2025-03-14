@@ -22,7 +22,7 @@ const RegisterStepFour: React.FC<RegisterStepFourProps> = ({ previewLogo, setPre
           <div>
             <ImageUploadWithCrop
               label="Логотип компании"
-              initialSrc={previewLogo}
+              initialImage={previewLogo}
               required={false}
               error={!!fieldState.error}
               errorMessage={fieldState.error?.message || ''}
@@ -37,8 +37,6 @@ const RegisterStepFour: React.FC<RegisterStepFourProps> = ({ previewLogo, setPre
                   setPreviewLogo(undefined);
                 }
               }}
-              containerWidth={400}
-              containerHeight={350}
               aspect={1}
             />
             {fieldState.error && <p className="text-red-500 text-sm">{fieldState.error.message}</p>}

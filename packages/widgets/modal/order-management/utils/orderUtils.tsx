@@ -9,7 +9,7 @@ import { DriverAcceptanceStatus, OrderStatus, UserRole } from '@prisma/client';
 export const getStageIcon = (stage: DriverAcceptanceStatus): JSX.Element => {
   switch (stage) {
     case DriverAcceptanceStatus.PENDING:
-    case DriverAcceptanceStatus.TAKEN:
+    case DriverAcceptanceStatus.NOTIFIED:
       return (
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -129,6 +129,42 @@ export const getStageIcon = (stage: DriverAcceptanceStatus): JSX.Element => {
           />
         </svg>
       );
+    case DriverAcceptanceStatus.REJECTED:
+      // Иконка для отклоненного заказа
+      return (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          className="h-6 w-6"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2"
+            d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
+        </svg>
+      );
+    case DriverAcceptanceStatus.CANCELLED:
+      // Иконка для отмененного заказа
+      return (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          className="h-6 w-6"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2"
+            d="M6 18L18 6M6 6l12 12"
+          />
+        </svg>
+      );
     default:
       return (
         <svg
@@ -157,13 +193,15 @@ export const getStageIcon = (stage: DriverAcceptanceStatus): JSX.Element => {
 export const getStageIndex = (currentStage: DriverAcceptanceStatus): number => {
   const validStages = [
     DriverAcceptanceStatus.PENDING,
-    DriverAcceptanceStatus.TAKEN,
+    DriverAcceptanceStatus.NOTIFIED,
     DriverAcceptanceStatus.ACCEPTED,
     DriverAcceptanceStatus.ON_THE_WAY,
     DriverAcceptanceStatus.ARRIVED,
     DriverAcceptanceStatus.PICKED_UP,
     DriverAcceptanceStatus.COMPLETED,
     DriverAcceptanceStatus.TIMEOUT,
+    DriverAcceptanceStatus.REJECTED,
+    DriverAcceptanceStatus.CANCELLED,
   ];
   const currentIndex = validStages.indexOf(currentStage);
   return currentIndex > -1 ? currentIndex + 1 : 1;
@@ -200,13 +238,15 @@ export const getHeaderBackground = (orderStatus: OrderStatus): string => {
 export const calculateProgress = (currentStage: DriverAcceptanceStatus): number => {
   const validStages = [
     DriverAcceptanceStatus.PENDING,
-    DriverAcceptanceStatus.TAKEN,
+    DriverAcceptanceStatus.NOTIFIED,
     DriverAcceptanceStatus.ACCEPTED,
     DriverAcceptanceStatus.ON_THE_WAY,
     DriverAcceptanceStatus.ARRIVED,
     DriverAcceptanceStatus.PICKED_UP,
     DriverAcceptanceStatus.COMPLETED,
     DriverAcceptanceStatus.TIMEOUT,
+    DriverAcceptanceStatus.REJECTED,
+    DriverAcceptanceStatus.CANCELLED,
   ];
 
   const currentIndex = validStages.indexOf(currentStage);
@@ -224,13 +264,15 @@ export const calculateProgress = (currentStage: DriverAcceptanceStatus): number 
  */
 export const driverStatusToOrderStatus: Record<DriverAcceptanceStatus, OrderStatus> = {
   [DriverAcceptanceStatus.PENDING]: OrderStatus.PENDING,
-  [DriverAcceptanceStatus.TAKEN]: OrderStatus.PENDING,
+  [DriverAcceptanceStatus.NOTIFIED]: OrderStatus.PENDING,
   [DriverAcceptanceStatus.ACCEPTED]: OrderStatus.IN_PROGRESS,
   [DriverAcceptanceStatus.ON_THE_WAY]: OrderStatus.IN_PROGRESS,
   [DriverAcceptanceStatus.ARRIVED]: OrderStatus.IN_PROGRESS,
   [DriverAcceptanceStatus.PICKED_UP]: OrderStatus.IN_PROGRESS,
   [DriverAcceptanceStatus.COMPLETED]: OrderStatus.COMPLETED,
   [DriverAcceptanceStatus.TIMEOUT]: OrderStatus.OVERDUE,
+  [DriverAcceptanceStatus.REJECTED]: OrderStatus.CANCELLED,
+  [DriverAcceptanceStatus.CANCELLED]: OrderStatus.CANCELLED,
 };
 
 /**
@@ -247,7 +289,7 @@ export const canCancelOrder = (
     // Клиент может отменить заказ до тех пор, пока водитель не начал поездку
     return (
       currentStage === DriverAcceptanceStatus.PENDING ||
-      currentStage === DriverAcceptanceStatus.TAKEN ||
+      currentStage === DriverAcceptanceStatus.NOTIFIED ||
       currentStage === DriverAcceptanceStatus.ACCEPTED ||
       currentStage === DriverAcceptanceStatus.ON_THE_WAY ||
       currentStage === DriverAcceptanceStatus.ARRIVED ||

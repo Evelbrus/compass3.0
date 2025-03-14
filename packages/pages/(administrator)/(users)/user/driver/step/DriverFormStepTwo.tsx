@@ -317,25 +317,30 @@ const DriverFormStepTwo: React.FC<DriverFormStepTwoProps> = ({
                     <Controller
                       name="partnerCompany"
                       control={control}
-                      defaultValue="NONE"
+                      defaultValue={PartnerCompany.NONE}
                       rules={{ required: 'Партнер обязателен' }}
                       render={({ field, fieldState }) => {
+                        // Преобразуем partnerOptions, чтобы быть уверенными, что типы соответствуют
+                        const typedPartnerOptions: SelectOption<PartnerCompany>[] =
+                          partnerOptions.map((opt) => ({
+                            value: opt.value as PartnerCompany,
+                            label: String(opt.label),
+                          }));
+
                         const selectedOption =
-                          (partnerOptions.find(
-                            (opt) => opt.value === (field.value as PartnerCompany),
-                          ) as SelectOption<PartnerCompany> | null) || null;
+                          typedPartnerOptions.find((opt) => opt.value === field.value) || null;
 
                         const handleSelectChange = (
                           option: SelectOption<PartnerCompany> | null,
                         ) => {
                           clearErrors('partnerCompany');
-                          field.onChange(option?.value ?? 'NONE');
+                          field.onChange(option?.value ?? PartnerCompany.NONE);
                         };
 
                         return (
                           <SelectSingle
                             label="Партнер"
-                            options={partnerOptions}
+                            options={typedPartnerOptions}
                             value={selectedOption}
                             onChange={handleSelectChange}
                             onFocus={() => clearErrors('partnerCompany')}

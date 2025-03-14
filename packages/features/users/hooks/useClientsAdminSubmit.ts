@@ -17,6 +17,15 @@ interface UseClientsAdminSubmitProps {
     | null;
 }
 
+interface FilePaths {
+  profilePhotoPath?: string;
+  logoImagePath?: string;
+  passportPhotoPath?: string;
+  driverProfilePhotoPath?: string;
+  licensePhotoPath?: string;
+  [key: string]: string | undefined;
+}
+
 export const useClientsAdminSubmit = ({
   mode,
   finalRole,
@@ -135,7 +144,7 @@ export const useClientsAdminSubmit = ({
           }
         }
 
-        let filePaths = {};
+        let filePaths: FilePaths = {};
         if (hasFiles) {
           const uploadResponse = await fetch('/api/upload', {
             method: 'POST',
@@ -153,21 +162,21 @@ export const useClientsAdminSubmit = ({
         // 3. PATCH для записи путей в базу
         if (hasFiles) {
           const patchPayload: any = { uuid: userUuid };
-          if (filePaths['profilePhotoPath']) {
-            patchPayload.profilePhotoPath = filePaths['profilePhotoPath'];
+          if (filePaths.profilePhotoPath) {
+            patchPayload.profilePhotoPath = filePaths.profilePhotoPath;
           }
-          if (filePaths['logoImagePath']) {
-            patchPayload.companyProfile = { logoImagePath: filePaths['logoImagePath'] };
+          if (filePaths.logoImagePath) {
+            patchPayload.companyProfile = { logoImagePath: filePaths.logoImagePath };
           }
           if (
-            filePaths['passportPhotoPath'] ||
-            filePaths['driverProfilePhotoPath'] ||
-            filePaths['licensePhotoPath']
+            filePaths.passportPhotoPath ||
+            filePaths.driverProfilePhotoPath ||
+            filePaths.licensePhotoPath
           ) {
             patchPayload.driverProfile = {
-              passportPhotoPath: filePaths['passportPhotoPath'],
-              profilePhotoPath: filePaths['driverProfilePhotoPath'],
-              licensePhotoPath: filePaths['licensePhotoPath'],
+              passportPhotoPath: filePaths.passportPhotoPath,
+              profilePhotoPath: filePaths.driverProfilePhotoPath,
+              licensePhotoPath: filePaths.licensePhotoPath,
             };
           }
 

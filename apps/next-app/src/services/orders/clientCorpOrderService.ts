@@ -10,6 +10,7 @@ import {
   processBulkNotifications,
   processNotification,
 } from '@next-app/src/services/notifications/notifications';
+import { generateOrderNumber } from '@shared/prisma/utils/generateOrderNumber';
 
 const log = debug('app:services:orders:client-corp');
 const logError = debug('app:services:orders:client-corp:error');
@@ -69,10 +70,18 @@ export async function createClientCorpOrder(
       }
       log('Arrival point found:', arrivalPointRecord);
 
+      // Генерируем номер заказа на основе типа автомобиля и класса обслуживания из тарифа
+      const orderNumber = await generateOrderNumber(
+        tariffRecord.vehicleType || 'X',
+        tariffRecord.serviceLevel || 'X',
+      );
+      log('Generated order number:', orderNumber);
+
       // Создаем заказ
       const order = await prismaTx.order.create({
         data: {
           uuid: uuidv4(),
+          orderNumber, // Добавляем сгенерированный номер заказа
           clientById: clientUuid,
           tariffUuid,
           departureTime: new Date(departureTime),

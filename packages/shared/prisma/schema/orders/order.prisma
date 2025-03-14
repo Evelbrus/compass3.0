@@ -22,6 +22,7 @@ enum DriverAcceptanceStatus {
 
 model Order {
   uuid                          String                           @id @default(uuid()) @map("uuid")
+  orderNumber                   String                           @unique @map("order_number")
   clientById                    String                           @map("client_by_od")
   clientBy                      User                             @relation("client_orders", fields: [clientById], references: [uuid], onDelete: Cascade)
   tariffUuid                    String                           @map("tariff_id")

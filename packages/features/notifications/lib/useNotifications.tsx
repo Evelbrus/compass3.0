@@ -3,7 +3,6 @@ import { useSocket } from '@shared/utils/hooks/useSocket';
 import { UserSession } from '@shared/prisma/interface/users/interface';
 import { UserRole, OrderStatus, Notification } from '@prisma/client';
 import {
-  bulkDeleteNotifications,
   fetchNotifications,
   markNotificationAsRead,
 } from '@features/notifications/api/apiNotifications';
@@ -207,37 +206,6 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
     [notifications],
   );
 
-  const clearNotifications = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const notificationsToDelete = notifications.filter((n) => {
-        const status = getOrderStatusFromNotification(n);
-        return status === OrderStatus.PENDING;
-      });
-
-      if (notificationsToDelete.length === 0) {
-        console.log('ℹ️ Нет информационных уведомлений для удаления');
-        setIsLoading(false);
-        return;
-      }
-
-      await bulkDeleteNotifications(notificationsToDelete.map((n) => n.uuid));
-
-      setNotifications((prev) =>
-        prev.filter((n) => {
-          const status = getOrderStatusFromNotification(n);
-          return status !== OrderStatus.PENDING;
-        }),
-      );
-    } catch (err) {
-      console.error('Ошибка при очистке уведомлений:', err);
-      setError(err instanceof Error ? err.message : 'Не удалось очистить уведомления');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [notifications]);
-
   const markAsRead = useCallback(async (notificationId: string) => {
     try {
       // Используем обновленную функцию из нашего сервиса
@@ -350,7 +318,6 @@ export const useNotifications = ({ userSession }: NotificationIslandProps) => {
     error,
     openModal,
     closeModal,
-    clearNotifications,
     markAsRead,
   };
 };

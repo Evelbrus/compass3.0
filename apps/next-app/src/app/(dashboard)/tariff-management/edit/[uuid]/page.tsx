@@ -1,8 +1,7 @@
 import { getLayoutData } from '@shared/utils/cookie/layout-data/getLayoutData';
-import { DetailTariffData } from '@shared/prisma/interface/tariff/interface';
 import TariffForm from '@pages/(administrator)/tariff/TariffFormPage';
 import Loading from '@entities/loading/loading';
-import { UserRole } from '@prisma/client';
+import { UserRole, Tariff, TariffOnService } from '@prisma/client';
 import { prisma } from '@shared/prisma/prisma-client';
 import { redirect } from 'next/navigation';
 import { publicRoutes } from '@shared/utils/routing';
@@ -16,7 +15,7 @@ export const revalidate = 60;
 
 const TariffEditPage = async ({ params }: PageProps): Promise<JSX.Element> => {
   const { role, refreshToken } = await getLayoutData();
-  //Ожидаем разрешения промиса params
+  // Ожидаем разрешения промиса params
   const resolvedParams = await params;
   const { uuid } = resolvedParams;
 
@@ -37,20 +36,35 @@ const TariffEditPage = async ({ params }: PageProps): Promise<JSX.Element> => {
         return <Loading />;
       }
 
-      const tariffData: DetailTariffData = {
-        ...tariff,
-        tariffAdditionalServices: tariff.tariffAdditionalServices.map((serviceRelation) => ({
-          uuid: serviceRelation.uuid,
-          service: serviceRelation.service,
-          serviceUuid: serviceRelation.serviceUuid,
-          price: serviceRelation.price,
-          isAvailable: serviceRelation.isAvailable,
-          createdAt: serviceRelation.createdAt,
-          updatedAt: serviceRelation.updatedAt,
+      // Преобразуем данные в нужный формат, соответствующий ожидаемому типу в TariffFormPage
+      const formattedTariff: Tariff & { tariffAdditionalServices: TariffOnService[] } = {
+        // Базовые поля из тарифа
+        uuid: tariff.uuid,
+        name: tariff.name,
+        description: tariff.description,
+        price: tariff.price,
+        serviceLevel: tariff.serviceLevel,
+        vehicleType: tariff.vehicleType,
+        freeWaitTimeBishkek: tariff.freeWaitTimeBishkek,
+        pricePerMinuteAfterBishkek: tariff.pricePerMinuteAfterBishkek,
+        freeWaitTimeAirport: tariff.freeWaitTimeAirport,
+        pricePerMinuteAfterAirport: tariff.pricePerMinuteAfterAirport,
+        createdAt: tariff.createdAt,
+        updatedAt: tariff.updatedAt,
+
+        // Преобразуем массив tariffAdditionalServices в нужный формат
+        tariffAdditionalServices: tariff.tariffAdditionalServices.map((relation) => ({
+          uuid: relation.uuid,
+          tariffUuid: relation.tariffUuid,
+          serviceUuid: relation.serviceUuid,
+          price: relation.price,
+          isAvailable: relation.isAvailable,
+          createdAt: relation.createdAt,
+          updatedAt: relation.updatedAt,
         })),
       };
 
-      return <TariffForm tariffData={tariffData} mode="edit" />;
+      return <TariffForm tariffData={formattedTariff} mode="edit" />;
     } else {
       return <Loading />;
     }
