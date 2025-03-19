@@ -32,10 +32,22 @@ const OrderDetailDriverModal = () => {
         setLoading(true);
         try {
           const response = await fetch(`/api/drivers/orders/${orderUuid}`);
+          const data = await response.json();
+
+          // Важно: останавливаем все дальнейшие операции, если есть редирект
+          if (data && data.redirectTo) {
+            // Устанавливаем loading в false до редиректа
+            setLoading(false);
+            // Затем выполняем редирект
+            window.location.href = data.redirectTo;
+            return;
+          }
+
+          // Если ответ не ok и не произошел редирект, бросаем ошибку
           if (!response.ok) {
             throw new Error(`Failed to fetch order details: ${response.status}`);
           }
-          const data = await response.json();
+
           setOrderData(data);
           setError(null);
         } catch (error) {
@@ -97,6 +109,23 @@ const OrderDetailDriverModal = () => {
           {' '}
           <div className="bg-white rounded-3xl p-8 w-full max-w-3xl h-[600px]">
             <p>Error: {error}</p>
+            <IButton onClick={closeModalHandler}>Close</IButton>
+          </div>
+        </AnimatedComponent>
+      </div>
+    );
+  }
+
+  // Дополнительная защита от рендеринга с null данными
+  if (!orderData) {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50 p-4">
+        <AnimatedComponent
+          duration={500}
+          className={'w-[580px] h-full max-h-[800px] flex justify-center'}
+        >
+          <div className="bg-white rounded-3xl p-8 w-full max-w-3xl">
+            <p>Загрузка данных...</p>
             <IButton onClick={closeModalHandler}>Close</IButton>
           </div>
         </AnimatedComponent>

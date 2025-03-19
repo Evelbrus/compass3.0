@@ -2,7 +2,7 @@ import React, { JSX } from 'react';
 import { getLayoutData } from '@shared/utils/cookie/layout-data/getLayoutData';
 import CreateUserAdminPage from '@pages/(administrator)/(users)/user/CreateUserAdminPage';
 import Loading from '@entities/loading/loading';
-import { CompanyProfile, DriverExperience, DriverProfile, User, UserRole } from '@prisma/client';
+import { User, UserRole } from '@prisma/client';
 import { redirect } from 'next/navigation';
 import { publicRoutes } from '@shared/utils/routing';
 import convertPrismaData from '@shared/prisma/utils/converterBigIntToString';
@@ -13,6 +13,9 @@ import {
   getDriverData,
   getOperatorData,
   getUserRole,
+  UserWithAll,
+  UserWithCompany,
+  UserWithVehicle,
 } from './userQueries';
 
 interface PageProps {
@@ -40,12 +43,7 @@ const Page = async ({ params }: PageProps): Promise<JSX.Element> => {
       return <Loading />;
     }
 
-    let userData:
-      | (User & {
-          companyProfile?: CompanyProfile | null;
-          driverProfile?: (DriverProfile & { driverExperience?: DriverExperience | null }) | null;
-        })
-      | null;
+    let userData: User | UserWithCompany | UserWithVehicle | UserWithAll | null = null;
 
     switch (userRole) {
       case UserRole.Client:

@@ -62,6 +62,7 @@ export async function getOrders(
 
     const formattedOrders: OrderResponseDTO[] = orders.map((order) => ({
       uuid: order.uuid,
+      orderNumber: order.orderNumber,
       clientBy: {
         fullName: order.clientBy?.fullName || 'N/A',
         phone: order.clientBy?.phone || 'N/A',
@@ -75,7 +76,7 @@ export async function getOrders(
           : undefined,
       },
       assignedDriver: order.assignedDriver
-        ? { fullname: order.assignedDriver.fullName, phone: order.assignedDriver.phone }
+        ? { fullName: order.assignedDriver.fullName, phone: order.assignedDriver.phone }
         : undefined,
       plateNumber: order.assignedDriver?.vehicleDriver?.vehicle?.plateNumber
         ? parseInt(order.assignedDriver.vehicleDriver.vehicle.plateNumber)

@@ -17,14 +17,14 @@ const BaseLayout = async ({ children }: RootLayoutProps): Promise<JSX.Element> =
     <>
       <SocketProvider>
         {/* Контейнер с фиксированной максимальной шириной */}
-        <div className="grid grid-cols-[300px_minmax(0,_1fr)] min-h-screen w-full mx-auto">
+        <div className="w-full flex flex-row flex-shrink-0 min-h-screen mx-auto">
           {/* Сайдбар с фиксированной шириной в 300px */}
-          <div className="bg-gradient-to-r to-indigo-700/5 from-blue-600/15">
+          <div className="w-[200px]   flex bg-gradient-to-r to-indigo-700/5 from-blue-600/15">
             <Sidebar role={role} />
           </div>
 
           {/* Контент с автоматической шириной (оставшееся пространство до 1920px) */}
-          <div className="relative flex flex-col">
+          <div className="relative w-full flex flex-col">
             {/* Хедер с sticky-поведением */}
             <div className="sticky top-0 z-30 w-full">
               <Header userSession={userSession} />
@@ -39,7 +39,7 @@ const BaseLayout = async ({ children }: RootLayoutProps): Promise<JSX.Element> =
             </div>
           </div>
         </div>
-        {role && <ModalManagerComponent role={role} userSession={userSession} />}
+        {role && <ModalManagerComponent role={role} />}
       </SocketProvider>
     </>
   );

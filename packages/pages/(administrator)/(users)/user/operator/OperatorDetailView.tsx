@@ -81,7 +81,7 @@ const OperatorDetailView = ({ userData }: OperatorDetailViewProps): JSX.Element 
   const noop = () => {};
 
   return (
-    <div className="w-full flex flex-col">
+    <div className="w-full flex flex-col p-5">
       <div className="flex items-center justify-end">
         <button
           onClick={handleEdit}

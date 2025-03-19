@@ -1,4 +1,3 @@
-// app/src/services/vehicles/getVehiclesForAdmin.ts
 import { prisma } from '@shared/prisma/prisma-client';
 import debug from 'debug';
 import { parseParams } from '@next-app/src/utils/parsed-params/parseParams';
@@ -21,12 +20,21 @@ export async function getVehiclesForAdmin(
   parsedParams: ReturnType<typeof parseParams<GetVehiclesRequestDTO>>,
 ): Promise<GetVehiclesResult> {
   try {
-    const whereFilter = {
+    const whereFilter: any = {
       vehicleType: parsedParams.vehicleType || undefined,
       serviceLevels: parsedParams.serviceLevel || undefined,
       color: parsedParams.color || undefined,
       isAvailable: parsedParams.availability !== null ? parsedParams.availability : undefined,
     };
+
+    // Добавляем поиск по марке, модели или номеру
+    if (parsedParams.search) {
+      whereFilter.OR = [
+        { brand: { contains: parsedParams.search, mode: 'insensitive' } },
+        { model: { contains: parsedParams.search, mode: 'insensitive' } },
+        { plateNumber: { contains: parsedParams.search, mode: 'insensitive' } },
+      ];
+    }
 
     const [vehicles, total, totalAllVehicles, vehicleTypeCounts] = await Promise.all([
       prisma.vehicle.findMany({
@@ -68,7 +76,6 @@ export async function getVehiclesForAdmin(
       }),
     ]);
 
-    // Формируем дополнительное поле drivers для удобства
     const response = vehicles.map((vehicle) => ({
       ...vehicle,
       drivers: vehicle.vehicleDrivers.map((vd) => ({
@@ -90,7 +97,7 @@ export async function getVehiclesForAdmin(
       vehicleTypeCounts: typeCounts,
     };
   } catch (error) {
-    logError('× Ошибка при получении автомобилей для администратора');
+    logError('× Ошибка при получении автомобилей');
     if (error instanceof Error) {
       logError('Error message:', error.message);
       logError('Error stack:', error.stack);

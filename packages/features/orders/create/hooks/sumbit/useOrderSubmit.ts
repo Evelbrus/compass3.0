@@ -5,6 +5,7 @@ import { UserRole, OrderStatus, TariffOnService, Point, Tariff } from '@prisma/c
 import { FormOrderValues } from '@features/orders/create/hooks/useCreateAdminOrderLogic';
 import { Driver, OrderData } from '@features/orders/create/types/types';
 import { Decimal } from 'decimal.js';
+import { checkAndHandleRedirect } from '@shared/api'; // Добавляем импорт
 
 // Тип для данных заказа для роли ClientCorp (только создание)
 interface ClientCorpOrderPayload {
@@ -109,7 +110,7 @@ export const useOrderSubmit = (
           basePrice: data.basePrice ? Number(data.basePrice) : totalPrice?.toNumber() || 0,
           selectedServices: (selectedServices || orderData?.selectedServices || []).map(
             (service) => service.uuid,
-          ), // Передаём только UUID
+          ),
           description: data.description.description || '',
           flightNumber: data.flightNumber.flightNumber || '',
           waitingTimeMinutes: waitTime || 0,
@@ -127,9 +128,7 @@ export const useOrderSubmit = (
 
         const isNewClientMode = !!data.fullName && !!data.phone;
         payload = {
-          clientBy: isNewClientMode
-            ? undefined
-            : orderData?.clientBy?.uuid || data.clientBy?.uuid,
+          clientBy: isNewClientMode ? undefined : orderData?.clientBy?.uuid || data.clientBy?.uuid,
           tariffUuid: selectedTariff?.uuid || orderData?.tariff?.uuid || null,
           departureTime: data.departureTime || new Date(),
           departurePoint: departurePoint?.uuid || data.departurePoint?.uuid || null,
@@ -141,7 +140,7 @@ export const useOrderSubmit = (
           basePrice: data.basePrice ? Number(data.basePrice) : totalPrice?.toNumber() || 0,
           selectedServices: (selectedServices || orderData?.selectedServices || []).map(
             (service) => service.uuid,
-          ), // Передаём только UUID
+          ),
           assignedDriverId: selectedDriverInfo?.uuid || data.assignedDriverId || null,
           description: data.description.description || '',
           flightNumber: data.flightNumber.flightNumber || '',
@@ -170,6 +169,9 @@ export const useOrderSubmit = (
           );
           router.push('/orders');
         } else {
+          if (checkAndHandleRedirect(responseData)) {
+            return; // Редирект обработан, выходим
+          }
           const errorMessage = responseData.message || 'Неизвестная ошибка при сохранении заказа';
           showToast.error(`Ошибка: ${errorMessage}`);
         }

@@ -17,38 +17,34 @@ export async function POST(request: NextRequest) {
   try {
     if (!authConfig.accessToken.secret || !authConfig.refreshToken.secret) {
       console.error('[REFRESH] JWT секреты не настроены');
-      throw new Error('Конфигурация JWT не настроена');
+      return errorResponse(request, 'Конфигурация сервера не настроена', 500);
     }
 
-    // Извлечение refresh-токена из тела запроса
     const requestBody = await request.json();
-
     const { refreshToken: receivedRefreshToken } = requestBody;
+
+    console.log('[REFRESH] Получен refresh-токен:', {
+      tokenLength: receivedRefreshToken?.length || 0,
+    });
+
     if (!receivedRefreshToken) {
-      const response = NextResponse.json(
-        { message: 'Отсутствует токен обновления' },
-        { status: 400 },
-      );
-      response.cookies.delete(ACCESS_TOKEN_COOKIE);
-      response.cookies.delete(REFRESH_TOKEN_COOKIE);
-      return response;
+      console.log('[REFRESH] Ошибка: Отсутствует токен обновления');
+      return errorResponse(request, 'Отсутствует токен обновления', 400);
     }
 
-    // Верификация refresh-токена
     let payload: RefreshTokenPayload;
     try {
       payload = await verifyJWT<RefreshTokenPayload>(
         receivedRefreshToken,
         authConfig.refreshToken.secret,
       );
+      console.log('[REFRESH] Токен верифицирован, UUID:', payload.uuid);
     } catch (error) {
-      const response = NextResponse.json({ message: 'Неверный токен обновления' }, { status: 401 });
-      response.cookies.delete(ACCESS_TOKEN_COOKIE);
-      response.cookies.delete(REFRESH_TOKEN_COOKIE);
-      return response;
+      console.log('[REFRESH] Ошибка верификации токена:', error);
+      return errorResponse(request, 'Неверный токен обновления', 401);
     }
 
-    // Поиск пользователя по uuid и проверка наличия refresh-токена в базе
+    console.log('[REFRESH] Поиск пользователя в базе...');
     const user = await prisma.user.findFirst({
       where: {
         uuid: payload.uuid,
@@ -63,14 +59,15 @@ export async function POST(request: NextRequest) {
     });
 
     if (!user) {
-      const response = NextResponse.json({ message: 'Неверный токен обновления' }, { status: 401 });
-      response.cookies.delete(ACCESS_TOKEN_COOKIE);
-      response.cookies.delete(REFRESH_TOKEN_COOKIE);
-      deleteAllCookies(response, request);
-      return response;
+      console.log('[REFRESH] Пользователь не найден или токен отсутствует в списке:', {
+        uuid: payload.uuid,
+        refreshToken: payload.refreshToken,
+      });
+      return errorResponse(request, 'Неверный токен обновления', 401);
     }
 
-    // Генерация нового access-токена
+    console.log('[REFRESH] Пользователь найден:', { email: user.email, role: user.role });
+
     const newAccessToken = await createJWT(
       {
         uuid: user.uuid,
@@ -82,7 +79,6 @@ export async function POST(request: NextRequest) {
       authConfig.accessToken.expiresIn,
     );
 
-    // Генерация нового refresh-токена с новым UUID
     const newRefreshTokenUUID = uuidv4();
     const newRefreshToken = await createJWT(
       {
@@ -94,7 +90,7 @@ export async function POST(request: NextRequest) {
       authConfig.refreshToken.expiresIn,
     );
 
-    // Обновление массива refresh-токенов: удаление использованного и добавление нового
+    console.log('[REFRESH] Обновление токенов в базе...');
     const updatedRefreshTokens = user.refreshTokens
       .filter((token) => token !== payload.refreshToken)
       .concat(newRefreshTokenUUID);
@@ -107,36 +103,43 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Формирование ответа с новыми токенами
-    const response = NextResponse.json(
-      {
-        message: 'Токены успешно обновлены',
-        accessToken: newAccessToken,
-        refreshToken: newRefreshToken,
-      },
-      { status: 200 },
-    );
-
-    // Установка новых cookie
-    const cookieOptions = getCookieOptions(request);
-    response.cookies.set(ACCESS_TOKEN_COOKIE, newAccessToken, {
-      ...cookieOptions,
-      maxAge: authConfig.accessToken.maxAge,
-    });
-    response.cookies.set(REFRESH_TOKEN_COOKIE, newRefreshToken, {
-      ...cookieOptions,
-      maxAge: authConfig.refreshToken.maxAge,
-    });
-
-    return response;
+    console.log('[REFRESH] Токены успешно обновлены');
+    return successResponse(request, newAccessToken, newRefreshToken);
   } catch (error) {
     console.error('[REFRESH] Неожиданная ошибка:', error);
-    const response = NextResponse.json(
-      { message: 'Внутренняя ошибка сервера, попробуйте позже' },
-      { status: 500 },
-    );
-    response.cookies.delete(ACCESS_TOKEN_COOKIE);
-    response.cookies.delete(REFRESH_TOKEN_COOKIE);
-    return response;
+    return errorResponse(request, 'Внутренняя ошибка сервера, попробуйте позже', 500);
   }
+}
+
+function errorResponse(request: NextRequest, message: string, status: number): NextResponse {
+  const response = NextResponse.json({ message }, { status });
+  deleteAllCookies(response, request); // Удаляем все куки
+  return response;
+}
+
+function successResponse(
+  request: NextRequest,
+  accessToken: string,
+  refreshToken: string,
+): NextResponse {
+  const response = NextResponse.json(
+    {
+      message: 'Токены успешно обновлены',
+      accessToken,
+      refreshToken,
+    },
+    { status: 200 },
+  );
+
+  const cookieOptions = getCookieOptions(request);
+  response.cookies.set(ACCESS_TOKEN_COOKIE, accessToken, {
+    ...cookieOptions,
+    maxAge: authConfig.accessToken.maxAge,
+  });
+  response.cookies.set(REFRESH_TOKEN_COOKIE, refreshToken, {
+    ...cookieOptions,
+    maxAge: authConfig.refreshToken.maxAge,
+  });
+
+  return response;
 }

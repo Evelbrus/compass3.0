@@ -1,5 +1,28 @@
 import { prisma } from '@shared/prisma/prisma-client';
-import { User, UserRole } from '@prisma/client';
+import { CompanyProfile, DriverExperience, DriverProfile, User, UserRole } from '@prisma/client';
+
+export interface UserWithVehicle extends User {
+  assignedVehicleId?: string | null;
+  driverProfile?:
+    | (DriverProfile & {
+        driverExperience?: DriverExperience[];
+      })
+    | null;
+}
+
+export interface UserWithCompany extends User {
+  companyProfile?: CompanyProfile | null;
+}
+
+export interface UserWithAll extends User {
+  assignedVehicleId?: string | null;
+  driverProfile?:
+    | (DriverProfile & {
+        driverExperience?: DriverExperience[];
+      })
+    | null;
+  companyProfile?: CompanyProfile | null;
+}
 
 export const getUserRole = async (uuid: string): Promise<UserRole | null> => {
   const user = await prisma.user.findUnique({
@@ -9,122 +32,70 @@ export const getUserRole = async (uuid: string): Promise<UserRole | null> => {
   return user ? user.role : null;
 };
 
-export const getClientData = async (uuid: string) => {
-  return (await prisma.user.findUnique({
+export const getClientData = async (uuid: string): Promise<User | null> => {
+  // Используем findUnique без select для получения всех полей
+  return await prisma.user.findUnique({
     where: { uuid },
-    select: {
-      uuid: true,
-      email: true,
-      role: true,
-      fullName: true,
-      phone: true,
-      gender: true,
-      address: true,
-      profilePhotoPath: true,
-      availability: true,
-      lastActive: true,
-      isBlocked: true,
-      createdAt: true,
-      updatedAt: true,
-    },
-  })) as User | null;
+  });
 };
 
-export const getClientCorpData = async (uuid: string) => {
-  return (await prisma.user.findUnique({
+export const getClientCorpData = async (uuid: string): Promise<UserWithCompany | null> => {
+  // Используем findUnique с включением связанных данных
+  const user = await prisma.user.findUnique({
     where: { uuid },
-    select: {
-      uuid: true,
-      email: true,
-      role: true,
-      fullName: true,
-      phone: true,
-      gender: true,
-      address: true,
-      profilePhotoPath: true,
-      availability: true,
-      lastActive: true,
-      isBlocked: true,
-      createdAt: true,
-      updatedAt: true,
+    include: {
       companyProfile: true,
     },
-  })) as User | null;
+  });
+
+  return user as UserWithCompany | null;
 };
 
-export const getDriverData = async (uuid: string) => {
-  return (await prisma.user.findUnique({
+export const getDriverData = async (uuid: string): Promise<UserWithVehicle | null> => {
+  // Используем findUnique с включением связанных данных
+  const driver = await prisma.user.findUnique({
     where: { uuid },
-    select: {
-      uuid: true,
-      email: true,
-      role: true,
-      fullName: true,
-      phone: true,
-      gender: true,
-      address: true,
-      profilePhotoPath: true,
-      availability: true,
-      lastActive: true,
-      isBlocked: true,
-      createdAt: true,
-      updatedAt: true,
-      driverStatus: true,
-      partnerCompany: true,
-      individualSalaryRate: true,
-      individualCurrency: true,
+    include: {
       driverProfile: {
         include: {
           driverExperience: true,
         },
       },
     },
-  })) as User | null;
+  });
+
+  if (!driver) return null;
+
+  // Затем получаем связанные автомобили для этого водителя
+  const vehicleDriver = await prisma.vehicleDriver.findFirst({
+    where: { driverId: uuid },
+    include: { vehicle: true },
+  });
+
+  // Объединяем данные с приведением типа
+  return {
+    ...driver,
+    assignedVehicleId: vehicleDriver?.vehicleId || null,
+  } as UserWithVehicle;
 };
 
-export const getOperatorData = async (uuid: string) => {
-  return (await prisma.user.findUnique({
+export const getOperatorData = async (uuid: string): Promise<UserWithCompany | null> => {
+  // Используем findUnique с включением связанных данных
+  const user = await prisma.user.findUnique({
     where: { uuid },
-    select: {
-      uuid: true,
-      email: true,
-      role: true,
-      fullName: true,
-      phone: true,
-      gender: true,
-      address: true,
-      profilePhotoPath: true,
-      availability: true,
-      lastActive: true,
-      isBlocked: true,
-      createdAt: true,
-      updatedAt: true,
+    include: {
       companyProfile: true,
     },
-  })) as User | null;
+  });
+
+  return user as UserWithCompany | null;
 };
 
-export const getAdminData = async (uuid: string) => {
-  return (await prisma.user.findUnique({
+export const getAdminData = async (uuid: string): Promise<UserWithAll | null> => {
+  // Используем findUnique с включением всех связанных данных
+  const user = await prisma.user.findUnique({
     where: { uuid },
-    select: {
-      uuid: true,
-      email: true,
-      role: true,
-      fullName: true,
-      phone: true,
-      gender: true,
-      address: true,
-      profilePhotoPath: true,
-      availability: true,
-      lastActive: true,
-      isBlocked: true,
-      createdAt: true,
-      updatedAt: true,
-      driverStatus: true,
-      partnerCompany: true,
-      individualSalaryRate: true,
-      individualCurrency: true,
+    include: {
       driverProfile: {
         include: {
           driverExperience: true,
@@ -132,5 +103,23 @@ export const getAdminData = async (uuid: string) => {
       },
       companyProfile: true,
     },
-  })) as User | null;
+  });
+
+  if (!user) return null;
+
+  // Затем получаем связанные автомобили для этого водителя, если он имеет роль Driver
+  let assignedVehicleId: string | null = null;
+  if (user.role === UserRole.Driver) {
+    const vehicleDriver = await prisma.vehicleDriver.findFirst({
+      where: { driverId: uuid },
+      include: { vehicle: true },
+    });
+    assignedVehicleId = vehicleDriver?.vehicleId || null;
+  }
+
+  // Объединяем данные с приведением типа
+  return {
+    ...user,
+    assignedVehicleId,
+  } as UserWithAll;
 };

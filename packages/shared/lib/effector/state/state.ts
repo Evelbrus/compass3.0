@@ -14,7 +14,6 @@ export type ModalType =
   | 'createPointModal'
   | 'orderInfoModal'
   | 'orderProgressModal'
-  | 'warningModal' // Уже есть, оставляем
   | 'warningAdminModal'
   | 'orderDriverModal'
   | 'orderTrackingModal'
@@ -51,7 +50,6 @@ export const $entityToDelete = createStore<EntityToDelete>(null)
 export const $modalType = createStore<ModalType | null>(null)
   .on(openModal, (_, modalType) => modalType)
   .on(setModalType, (_, modalType) => modalType)
-  .on(openWarningModal, () => 'warningModal') // Устанавливаем тип при вызове WarningModal
   .reset(closeModal);
 
 // Хранилище для активного уведомления с типом PrismaNotification

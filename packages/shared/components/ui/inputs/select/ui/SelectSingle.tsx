@@ -207,11 +207,22 @@ export const SelectSingle = <T extends string | number>({
       {open && (
         <div
           className={cn(
-            'absolute left-0 z-[1000] mt-1',
+            'fixed z-[1000]', // Изменено с 'absolute' на 'fixed'
             'bg-white rounded-md border border-gray-200 shadow-lg',
             widthOpen,
           )}
-          style={{ maxHeight: '300px', overflowY: 'auto' }}
+          style={{
+            maxHeight: '300px',
+            overflowY: 'auto',
+            // Расчет позиции выпадающего меню относительно текущего положения селектора
+            top: selectRef.current
+              ? window.scrollY + selectRef.current.getBoundingClientRect().bottom + 5
+              : 0,
+            left: selectRef.current
+              ? window.scrollX + selectRef.current.getBoundingClientRect().left
+              : 0,
+            width: selectRef.current ? selectRef.current.offsetWidth : 'auto',
+          }}
           role="listbox"
         >
           {/* Поле поиска (если включено) */}

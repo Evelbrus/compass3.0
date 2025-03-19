@@ -3,12 +3,12 @@ import { User, UserRole } from '@prisma/client';
 import { TableUsersRow } from '@shared/components/ui/table';
 import { renderActions } from '@shared/components/ui/table/ui/TableRenders';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { checkAndHandleRedirect } from '@shared/api'; // Добавляем импорт
 
 const useUsers = () => {
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  //Устанавливаем состояние напрямую через searchParams
   const [page, setPage] = useState<number>(Number(searchParams.get('page')) || 1);
   const [roleFilter, setRoleFilter] = useState<UserRole | 'all'>(
     (searchParams.get('role') as UserRole) || 'all',
@@ -16,8 +16,6 @@ const useUsers = () => {
   const [sortBy, setSortBy] = useState<keyof TableUsersRow | null>(
     (searchParams.get('sort_by') as keyof TableUsersRow) || null,
   );
-
-  //ИЗМЕНЕНИЕ ЗДЕСЬ: убрали `| undefined` и задали значение по умолчанию
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | undefined>(
     (searchParams.get('sort_order') as 'asc' | 'desc' | undefined) || 'desc',
   );
@@ -49,13 +47,22 @@ const useUsers = () => {
       }
       const response = await fetch(url.toString());
       if (!response.ok) throw new Error('Сетевой ответ был неудачным');
-      const { status, message, data } = await response.json();
+
+      const data = await response.json();
+
+      // Добавляем проверку на редирект
+      if (checkAndHandleRedirect(data)) {
+        return; // Прерываем выполнение если произошел редирект
+      }
+
+      const { status, message, data: responseData } = data;
       if (status !== 'success') throw new Error(message);
-      setUsers(data.users);
-      setTotal(data.total);
-      setTotalAllRoles(data.totalAllRoles);
-      const roleCountsData: Record<string, number> = { all: data.totalAllRoles };
-      data.roleCounts.forEach((item: { role: UserRole; _count: { role: number } }) => {
+
+      setUsers(responseData.users);
+      setTotal(responseData.total);
+      setTotalAllRoles(responseData.totalAllRoles);
+      const roleCountsData: Record<string, number> = { all: responseData.totalAllRoles };
+      responseData.roleCounts.forEach((item: { role: UserRole; _count: { role: number } }) => {
         roleCountsData[item.role] = item._count.role;
       });
       setRoleCounts(roleCountsData);
@@ -87,8 +94,8 @@ const useUsers = () => {
 
   const handleRoleFilterChange = (newRole: UserRole | 'all') => {
     setRoleFilter(newRole);
-    setOptimisticPage(1); // Сбрасываем на первую страницу
-    setPage(1); // Обновляем текущую страницу
+    setOptimisticPage(1);
+    setPage(1);
   };
 
   const tableData: TableUsersRow[] = users.map((user, index) => ({

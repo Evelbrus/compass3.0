@@ -9,6 +9,7 @@ import {
   VehicleType,
 } from '@prisma/client';
 import { showToast } from '@shared/components/toast/ToastManager';
+import { checkAndHandleRedirect } from '@shared/api'; // Добавляем импорт
 
 export interface TariffFormData
   extends Omit<Tariff, 'clientTypes' | 'vehicleType' | 'serviceLevel' | 'createdAt' | 'updatedAt'> {
@@ -26,7 +27,6 @@ interface UseTariffFormProps {
 }
 
 export const useTariffCreateForm = ({ tariffData }: UseTariffFormProps) => {
-  // Инициализируем форму
   const formMethods: UseFormReturn<TariffFormData> = useForm<TariffFormData>({
     mode: 'onChange',
     defaultValues: tariffData,
@@ -34,18 +34,13 @@ export const useTariffCreateForm = ({ tariffData }: UseTariffFormProps) => {
 
   const { watch, setValue } = formMethods;
 
-  // Состояния для модальных окон
   const [showWarningModal, setShowWarningModal] = useState(false);
-
-  // Состояния для дополнительных услуг
   const [additionalServices, setAdditionalServices] = useState<AdditionalService[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
 
-  // Проверка наличия дополнительных услуг
   const hasAdditionalServices = (watch('tariffAdditionalServices')?.length || 0) > 0;
 
   useEffect(() => {
-    // Загрузка дополнительных услуг при монтировании компонента
     const fetchAdditionalServices = async () => {
       setLoading(true);
       try {
@@ -53,6 +48,11 @@ export const useTariffCreateForm = ({ tariffData }: UseTariffFormProps) => {
           '/api/shared/additional-services?page=1&per_page=100&sort_by=name&sort_order=asc',
         );
         if (!response.ok) {
+          const data = await response.json();
+          if (checkAndHandleRedirect(data)) {
+            setAdditionalServices([]); // Очищаем услуги при редиректе
+            return; // Прерываем выполнение после редиректа
+          }
           throw new Error('Failed to fetch additional services');
         }
         const data = await response.json();
@@ -128,7 +128,6 @@ export const useTariffCreateForm = ({ tariffData }: UseTariffFormProps) => {
     return numberValue <= 60 ? numberValue : 60;
   };
 
-  // Перейти к выбору услуг
   const handleGoToServicesSelection = () => {
     setShowWarningModal(false);
   };

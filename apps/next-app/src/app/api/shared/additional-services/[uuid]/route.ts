@@ -3,10 +3,13 @@ import { NextResponse, NextRequest } from 'next/server';
 import debug from 'debug';
 import { getAdditionalServiceById } from '@next-app/src/services/additional-services/getAdditionalServiceById';
 import { Params } from '@next-app/src/interface/interface';
+import { authenticateRequest } from '@next-app/src/utils/authenticate/authenticateRequest';
 
 const logError = debug('app:api:additional-services-shared:error');
 
 export async function GET(req: NextRequest, { params }: { params: Params }) {
+  await authenticateRequest(req);
+
   try {
     const { uuid } = params;
 

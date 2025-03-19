@@ -22,7 +22,7 @@ export async function GET(req: NextRequest, { params }: { params: Params }) {
     // Аутентификация запроса
     await authenticateRequest(req, allowedRoles);
 
-    const { uuid } = params;
+    const { uuid } = await params;
 
     try {
       const vehicle = await getVehicleById(uuid);
@@ -61,7 +61,7 @@ export async function PUT(req: NextRequest, { params }: { params: Params }) {
     // Аутентификация запроса
     await authenticateRequest(req, allowedRoles);
 
-    const { uuid } = params;
+    const { uuid } = await params;
     const data: UpdateVehicleDTO = await req.json();
 
     try {
@@ -112,7 +112,7 @@ export async function PUT(req: NextRequest, { params }: { params: Params }) {
 export async function PATCH(req: NextRequest, { params }: { params: Params }) {
   try {
     await authenticateRequest(req, allowedRoles);
-    const { uuid } = params;
+    const { uuid } = await params;
     const data = await req.json();
 
     const result = await patchVehicle(uuid, data);
@@ -145,7 +145,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Params }) {
     // Аутентификация запроса
     await authenticateRequest(req, allowedRoles);
 
-    const { uuid } = params;
+    const { uuid } = await params;
 
     try {
       const result = await deleteVehicle(uuid);

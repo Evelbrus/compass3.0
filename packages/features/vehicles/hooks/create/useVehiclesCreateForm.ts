@@ -6,11 +6,8 @@ import { useForm, UseFormReturn } from 'react-hook-form';
 import { Vehicle, User, VehicleDriver } from '@prisma/client';
 import { showToast } from '@shared/components/toast/ToastManager';
 import { fetchDrivers } from '@features/vehicles/api/vehicles.api';
+import { checkAndHandleRedirect } from '@shared/api'; // Добавляем импорт
 
-/**
- * Интерфейс для данных автомобиля, используемых в форме.
- * Поле vehicleDrivers представляет массив объектов, в которых обязательно есть driver типа User.
- */
 export interface VehicleData extends Omit<Vehicle, 'photoPath'> {
   photoImage?: File | null;
   photoPath: string | null;
@@ -28,17 +25,13 @@ export const useVehiclesCreateForm = ({ vehicleData }: UseVehiclesFormProps) => 
   });
   const { watch, setValue } = formMethods;
 
-  // Состояния для модальных окон
   const [showWarningModal, setShowWarningModal] = useState(false);
-
-  // Предпросмотр изображения: если уже имеется сохранённый путь, формируем URL
   const [previewImage, setPreviewImage] = useState<string | null>(
     vehicleData?.photoPath
       ? `/api/images/${encodeURIComponent(vehicleData.photoPath.split('/').pop()!)}?type=vehicle`
       : null,
   );
 
-  // Состояния для списка доступных водителей
   const [drivers, setDrivers] = useState<User[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [total, setTotal] = useState<number>(0);
@@ -48,34 +41,23 @@ export const useVehiclesCreateForm = ({ vehicleData }: UseVehiclesFormProps) => 
   const [debouncedSearch, setDebouncedSearch] = useState<string>('');
   const perPage = 10;
 
-  // Проверка наличия выбранных водителей
   const hasSelectedDrivers = (watch('vehicleDrivers')?.length || 0) > 0;
-
-  // Рефы для бесконечной прокрутки списка водителей
   const observerRef = useRef<HTMLDivElement | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 
-  // Debounce механизм для поискового запроса
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchTerm);
     }, 500);
-
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  // Сброс и загрузка водителей при изменении поискового запроса
   useEffect(() => {
     setPage(1);
     setHasMore(true);
     loadDrivers(true);
   }, [debouncedSearch]);
 
-  /**
-   * Функция загрузки водителей.
-   * Если reset=true – сбрасываем страницу и загружаем первую страницу,
-   * иначе – подгружаем данные для текущей страницы.
-   */
   const loadDrivers = useCallback(
     async (reset = false) => {
       if (loading) return;
@@ -83,16 +65,19 @@ export const useVehiclesCreateForm = ({ vehicleData }: UseVehiclesFormProps) => 
       if (!hasMore && !reset) return;
       setLoading(true);
       try {
-        // Отправляем запрос
         const response = await fetchDrivers(
-          null, // serviceLevel
-          undefined, // vehicleType
-          debouncedSearch, // searchQuery
+          null,
+          undefined,
+          debouncedSearch,
           String(currentPage),
           String(perPage),
         );
 
-        // Получаем водителей из response.data.users
+        // Добавляем проверку на редирект
+        if (checkAndHandleRedirect(response)) {
+          return; // Прерываем выполнение если произошел редирект
+        }
+
         const fetchedDrivers = response.data.users || [];
         const newTotal = response.total;
         const totalPages = Math.ceil(newTotal / perPage);
@@ -119,12 +104,10 @@ export const useVehiclesCreateForm = ({ vehicleData }: UseVehiclesFormProps) => 
     [loading, page, perPage, hasMore, debouncedSearch],
   );
 
-  // Первоначальная загрузка водителей при монтировании компонента
   useEffect(() => {
     loadDrivers(true);
   }, []);
 
-  // Обновление предпросмотра изображения при выборе нового файла
   useEffect(() => {
     const watchedPhotoFile = watch('photoImage');
     if (watchedPhotoFile && watchedPhotoFile instanceof File) {
@@ -134,7 +117,6 @@ export const useVehiclesCreateForm = ({ vehicleData }: UseVehiclesFormProps) => 
     }
   }, [watch('photoImage')]);
 
-  // Обработчик выбора водителя — используем поле vehicleDrivers
   const onSelectDriver = (driver: User) => {
     const currentDrivers: (VehicleDriver & { driver: User })[] = watch('vehicleDrivers') || [];
     if (!currentDrivers.some((d) => d.driver.uuid === driver.uuid)) {
@@ -147,7 +129,6 @@ export const useVehiclesCreateForm = ({ vehicleData }: UseVehiclesFormProps) => 
     }
   };
 
-  // Обработчик удаления водителя
   const onRemoveDriver = (uuid: string) => {
     const currentDrivers: (VehicleDriver & { driver: User })[] = watch('vehicleDrivers') || [];
     setValue(
@@ -156,17 +137,14 @@ export const useVehiclesCreateForm = ({ vehicleData }: UseVehiclesFormProps) => 
     );
   };
 
-  // Обработчик изменения поискового запроса
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
   };
 
-  // Перейти к выбору водителя
   const handleGoToDriverSelection = () => {
     setShowWarningModal(false);
   };
 
-  // Intersection Observer для бесконечной прокрутки списка водителей
   useEffect(() => {
     if (!observerRef.current || !scrollContainerRef.current) return;
     const observer = new IntersectionObserver(

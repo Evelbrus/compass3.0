@@ -19,7 +19,7 @@ type RootLayoutProps = {
 const RootLayout = async ({ children }: RootLayoutProps): Promise<JSX.Element> => {
   const locale = await getLocale();
   const messages = await getMessages();
-  const { userSession, accessToken, refreshToken } = await getLayoutData();
+  const { userSession } = await getLayoutData();
 
   return (
     <html lang={locale}>
@@ -31,8 +31,6 @@ const RootLayout = async ({ children }: RootLayoutProps): Promise<JSX.Element> =
       <body>
         <SessionProvider
           userSession={userSession}
-          accessToken={accessToken}
-          refreshToken={refreshToken}
         >
           <NextIntlClientProvider locale={locale} messages={messages}>
             {children}

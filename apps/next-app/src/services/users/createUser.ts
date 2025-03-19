@@ -20,6 +20,10 @@ export async function createUser(data: CreateUserDTO, hashedPassword: string): P
     individualSalaryRate,
     defaultSalaryId,
     availability = true,
+    assignedVehicleId,
+    createNewVehicle,
+    newVehicle,
+    newVehiclePhotoPath,
   } = data;
 
   const userUuid = uuidv4();
@@ -89,10 +93,26 @@ export async function createUser(data: CreateUserDTO, hashedPassword: string): P
           driverProfileData.licensePhotoPath = null;
         }
 
+        // Добавляем поле даты выдачи прав и расчет стажа на основе этой даты
+        let yearsOfDriving = driverProfileData.yearsOfDriving;
+
+        // Если есть дата выдачи прав, рассчитываем стаж
+        if (driverProfileData.licensePhotoPath && (!yearsOfDriving || yearsOfDriving === 0)) {
+          const issueDate = new Date(driverProfileData.licensePhotoPath);
+          const currentDate = new Date();
+          yearsOfDriving = Math.floor(
+            (currentDate.getTime() - issueDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000),
+          );
+
+          // Убеждаемся, что стаж не меньше 0
+          if (yearsOfDriving < 0) yearsOfDriving = 0;
+        }
+
         await prisma.driverProfile.create({
           data: {
             ...driverProfileData,
             userId: createdUser.uuid,
+            yearsOfDriving: yearsOfDriving || 0,
             driverExperience: {
               create:
                 data.driverProfile.driverExperience?.map((experience) => ({
@@ -107,6 +127,80 @@ export async function createUser(data: CreateUserDTO, hashedPassword: string): P
             },
           },
         });
+
+        // Вариант 1: Если выбран существующий автомобиль
+        if (assignedVehicleId && !createNewVehicle) {
+          try {
+            // Проверяем, чтобы водитель не был привязан к другому автомобилю
+            const existingAssignment = await prisma.vehicleDriver.findFirst({
+              where: { driverId: createdUser.uuid },
+            });
+            if (existingAssignment) {
+              logError(`× Водитель уже привязан к другому автомобилю`);
+              throw new Error('Driver is already assigned to another vehicle');
+            }
+
+            await prisma.vehicleDriver.create({
+              data: {
+                vehicleId: assignedVehicleId,
+                driverId: createdUser.uuid,
+                assignmentDate: new Date(),
+              },
+            });
+          } catch (vehicleError) {
+            logError('× Ошибка при назначении автомобиля водителю:', vehicleError);
+            throw vehicleError; // Выбрасываем ошибку, чтобы сломать транзакцию
+          }
+        }
+
+        // Вариант 2: Если создается новый автомобиль
+        else if (createNewVehicle && newVehicle) {
+          try {
+            // Проверяем, существует ли автомобиль с таким номером
+            const existingVehicle = await prisma.vehicle.findUnique({
+              where: { plateNumber: newVehicle.plateNumber },
+            });
+            if (existingVehicle) {
+              logError(`× Автомобиль с номером ${newVehicle.plateNumber} уже существует`);
+              throw new Error(
+                `Vehicle with license plate ${newVehicle.plateNumber} already exists`,
+              );
+            }
+
+            // Создаем новый автомобиль
+            const newVehicleUuid = uuidv4();
+            const yearDate = newVehicle.year ? new Date(newVehicle.year.toString()) : undefined;
+
+            const createdVehicle = await prisma.vehicle.create({
+              data: {
+                uuid: newVehicleUuid,
+                vehicleType: newVehicle.vehicleType,
+                brand: newVehicle.brand,
+                model: newVehicle.model,
+                year: yearDate,
+                color: newVehicle.color,
+                plateNumber: newVehicle.plateNumber,
+                serviceLevels: newVehicle.serviceLevels,
+                photoPath: newVehiclePhotoPath,
+                isAvailable: newVehicle.isAvailable || true,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              },
+            });
+
+            // Привязываем водителя к новому автомобилю
+            await prisma.vehicleDriver.create({
+              data: {
+                vehicleId: createdVehicle.uuid,
+                driverId: createdUser.uuid,
+                assignmentDate: new Date(),
+              },
+            });
+          } catch (vehicleError) {
+            logError('× Ошибка при создании автомобиля:', vehicleError);
+            throw vehicleError; // Выбрасываем ошибку, чтобы сломать транзакцию
+          }
+        }
       } else if (role !== UserRole.Client && role !== UserRole.Admin) {
         logError(`× Недопустимая роль ${role} (400)`);
         throw new Error('Invalid role');

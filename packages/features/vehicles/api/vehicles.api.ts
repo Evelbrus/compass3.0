@@ -1,4 +1,5 @@
 import { User, DriverProfile } from '@prisma/client';
+import { checkAndHandleRedirect } from '@shared/api'; // Добавляем импорт
 
 export interface DriversResponse {
   data: {
@@ -36,10 +37,20 @@ export const fetchDrivers = async (
     search,
   });
 
-  const response = await fetch(`/api/admin/users?role=Driver&include=driverProfile&${params.toString()}`);
+  const response = await fetch(
+    `/api/admin/users?role=Driver&include=driverProfile&${params.toString()}`,
+  );
   if (!response.ok) {
     const error = await response.text();
     throw new Error(error || 'Failed to fetch drivers');
   }
-  return response.json();
+
+  const data = await response.json();
+
+  // Добавляем проверку на редирект
+  if (checkAndHandleRedirect(data)) {
+    throw new Error('Redirect occurred'); // Бросаем ошибку после редиректа
+  }
+
+  return data;
 };

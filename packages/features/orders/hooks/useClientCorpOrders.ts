@@ -8,6 +8,7 @@ import { renderOrderDriverActions } from '@shared/components/ui/table/ui/TableRe
 import { orderStatusTranslations } from '@shared/lib/effector/orders/options-and-translation/optionsStatusOrder';
 import { useUnit } from 'effector-react';
 import { $updateFlag } from '@shared/lib/effector/state/state';
+import { checkAndHandleRedirect } from '@shared/api'; // Добавляем импорт
 
 type OrderWithDetails = Order & {
   clientBy: User & {
@@ -33,9 +34,7 @@ const useClientCorpOrders = () => {
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>(
     (searchParams.get('status') as OrderStatus) || 'all',
   );
-  // Меняем sortBy на departureTime по умолчанию
   const [sortBy, setSortBy] = useState<keyof TableOrdersRow | null>('departureTime');
-  // Меняем sortOrder на asc по умолчанию
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | undefined>('asc');
   const [total, setTotal] = useState(0);
   const [statusesCount, setStatusesCount] = useState<Record<string, number>>({});
@@ -60,7 +59,15 @@ const useClientCorpOrders = () => {
       const response = await fetch(url.toString(), {
         credentials: 'include',
       });
-      if (!response.ok) throw new Error('Network response was not ok');
+      if (!response.ok) {
+        const data = await response.json();
+        if (checkAndHandleRedirect(data)) {
+          setOrders([]); // Очищаем заказы при редиректе
+          setTotal(0);
+          return; // Прерываем выполнение после редиректа
+        }
+        throw new Error('Network response was not ok');
+      }
 
       const data = await response.json();
       setOrders(data.orders || []);
@@ -102,9 +109,8 @@ const useClientCorpOrders = () => {
     setOptimisticPage(1);
   };
 
-  // Добавляем departureTime в tableData
   const tableData: TableOrdersRow[] = orders.map((order, index) => ({
-    number: (optimisticPage - 1) * perPage + index + 1,
+    orderNumber: order.orderNumber,
     clientBy: {
       fullName: order.clientBy.fullName || 'Не указано',
       phone: order.clientBy.phone || 'Не указано',
@@ -135,7 +141,7 @@ const useClientCorpOrders = () => {
     status: orderStatusTranslations[order.status],
     createdAt: order.createdAt,
     updatedAt: order.updatedAt,
-    departureTime: order.departureTime, // Добавляем поле
+    departureTime: order.departureTime,
     basePrice: parseFloat(order.basePrice.toString()),
     actions: renderOrderDriverActions({ entity: 'orders', uuid: order.uuid }),
   }));

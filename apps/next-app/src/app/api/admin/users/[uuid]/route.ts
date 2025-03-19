@@ -3,13 +3,13 @@ import { NextResponse, NextRequest } from 'next/server';
 import debug from 'debug';
 
 import { getUser } from '@next-app/src/services/users/getUser';
-import { updateUser } from '@next-app/src/services/users/updateUser';
 import { patchUser } from '@next-app/src/services/users/patchUser';
 import { deleteUser } from '@next-app/src/services/users/deleteUser';
 import { UpdateUserDTO, UserDetailResponseDTO } from '@next-app/src/dto/users/user.dto';
 import { ErrorResponseDTO } from '@next-app/src/dto/error/error.dto';
 import { SuccessResponseDTO } from '@next-app/src/dto/succes/succes.dto';
 import { Params } from '@next-app/src/interface/interface';
+import { updateUser } from '@next-app/src/services/users/updateUser';
 
 const logError = debug('app:user-routes:error');
 
@@ -48,17 +48,37 @@ export async function PUT(
   { params }: { params: Params },
 ): Promise<NextResponse<SuccessResponseDTO | ErrorResponseDTO>> {
   try {
-    const { uuid } = params;
-    const data: UpdateUserDTO = await req.json();
+    const { uuid } = await params;
+    const requestData: UpdateUserDTO = await req.json();
 
     // Убедимся, что UUID из пути соответствует UUID в теле запроса
-    if (!data.uuid) {
-      data.uuid = uuid;
-    } else if (data.uuid !== uuid) {
+    if (!requestData.uuid) {
+      requestData.uuid = uuid;
+    } else if (requestData.uuid !== uuid) {
       return NextResponse.json(
         { status: 'error', message: 'UUID in path and body do not match' },
         { status: 400 },
       );
+    }
+
+    // Преобразуем типы для соответствия интерфейсу updateUser
+    const data = JSON.parse(JSON.stringify(requestData));
+
+    // Для companyProfile заменяем null на undefined
+    if (data.companyProfile) {
+      if (data.companyProfile.companyPin === null) data.companyProfile.companyPin = undefined;
+      if (data.companyProfile.website === null) data.companyProfile.website = undefined;
+      if (data.companyProfile.logoImagePath === null) data.companyProfile.logoImagePath = undefined;
+    }
+
+    // Для driverProfile тоже заменяем null на undefined
+    if (data.driverProfile) {
+      if (data.driverProfile.passportPhotoPath === null)
+        data.driverProfile.passportPhotoPath = undefined;
+      if (data.driverProfile.profilePhotoPath === null)
+        data.driverProfile.profilePhotoPath = undefined;
+      if (data.driverProfile.licensePhotoPath === null)
+        data.driverProfile.licensePhotoPath = undefined;
     }
 
     const updatedUser = await updateUser(data);
@@ -95,10 +115,8 @@ export async function PUT(
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: Params },
 ): Promise<NextResponse<SuccessResponseDTO | ErrorResponseDTO>> {
   try {
-    const { uuid } = params;
     const data = await req.json();
 
     const updatedUser = await patchUser(data);

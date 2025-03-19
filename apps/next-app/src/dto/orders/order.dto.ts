@@ -29,6 +29,7 @@ export interface GetOrdersRequestDTO {
 }
 
 export interface OrderResponseDTO {
+  orderNumber: string;
   clientBy: {
     fullName: string;
     phone: string;
@@ -39,7 +40,7 @@ export interface OrderResponseDTO {
       logoImagePath?: string | null;
     } | undefined;
   };
-  assignedDriver?: { fullname: string; phone: string } | undefined;
+  assignedDriver?: { fullName: string; phone: string } | undefined;
   plateNumber?: number | undefined;
   tariff: { name: string; vehicleType: VehicleType; serviceLevel: ServiceLevels };
   driverAcceptanceStatus?: DriverAcceptanceStatus | null;

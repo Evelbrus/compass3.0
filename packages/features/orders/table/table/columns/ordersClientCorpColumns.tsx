@@ -5,7 +5,7 @@ import { driverAcceptanceStatusLabels } from '@shared/lib/effector/orders/option
 
 export const ordersClientCorpColumns: Column<TableOrdersRow, keyof TableOrdersRow>[] = [
   {
-    accessor: 'number',
+    accessor: 'orderNumber',
     header: '№',
     sortable: false,
     className: 'w-[70px] text-center',

@@ -1,5 +1,5 @@
 # Название проекта
-
+npx prisma migrate dev --name change_years_of_driving_to_float
 ## Запуск и миграция Prisma
 
 1. yarn add cross-env

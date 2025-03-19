@@ -5,6 +5,7 @@ import { showToast } from '@shared/components/toast/ToastManager';
 import { IButton } from '@shared/components/ui/buttons';
 import { CloseIcon } from 'next/dist/client/components/react-dev-overlay/internal/icons/CloseIcon';
 import AnimatedComponent from '@shared/components/animated/CommonAnimated/AnimatedComponent';
+import { checkAndHandleRedirect } from '@shared/api/httpClient';
 
 interface DeleteModalProps {
   onClose: () => void;
@@ -64,8 +65,13 @@ const DeleteModal: React.FC<DeleteModalProps> = ({ onClose }) => {
         showToast.success(successMessage);
         triggerUpdate();
       } else {
-        const errorData = await response.json();
-        const errorMessageFromServer = errorData?.error || response.statusText;
+        const data = await response.json();
+
+        if (checkAndHandleRedirect(data)) {
+          return;
+        }
+
+        const errorMessageFromServer = data?.error || response.statusText;
         showToast.error(errorMessageFromServer || errorMessage);
         console.error(
           `Ошибка удаления ${entityToDelete.entity}:`,

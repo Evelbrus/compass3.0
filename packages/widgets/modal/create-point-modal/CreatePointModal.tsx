@@ -9,6 +9,7 @@ import { CloseIcon } from 'next/dist/client/components/react-dev-overlay/interna
 import { $pointUuid, setPointUuid, triggerUpdate } from '@shared/lib/effector/state/state';
 import { showToast } from '@shared/components/toast/ToastManager';
 import { YMaps, Map, Placemark, useYMaps } from '@pbe/react-yandex-maps';
+import { checkAndHandleRedirect } from '@shared/api/httpClient';
 
 interface CreatePointModalProps {
   onClose: () => void;
@@ -365,6 +366,11 @@ const CreatePointModal: React.FC<CreatePointModalProps> = ({ onClose }) => {
       });
 
       const data = await response.json();
+
+      // Проверяем на редирект
+      if (checkAndHandleRedirect(data)) {
+        return;
+      }
 
       if (!response.ok) {
         throw new Error(data.message || `Ошибка ${uuid ? 'обновления' : 'создания'} точки`);

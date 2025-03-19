@@ -5,6 +5,7 @@ import { TableAdditionalServicesRow } from '@shared/components/ui/table';
 import { renderActions } from '@shared/components/ui/table/ui/TableRenders';
 import { AdditionalService } from '@prisma/client';
 import { $updateFlag } from '@shared/lib/effector/state/state';
+import { checkAndHandleRedirect } from '@shared/api';
 
 const useAdditionalServices = () => {
   const searchParams = useSearchParams();
@@ -42,10 +43,27 @@ const useAdditionalServices = () => {
         url.searchParams.append('sort_order', sortOrder);
       }
 
-      const response = await fetch(url.toString());
-      if (!response.ok) throw new Error('Ошибка при загрузке данных');
+      const response = await fetch(url.toString(), {
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+
+        // Проверяем на редирект
+        if (checkAndHandleRedirect(errorData)) {
+          return;
+        }
+
+        throw new Error('Ошибка при загрузке данных');
+      }
 
       const { data } = await response.json();
+
+      // Проверяем на редирект в успешном ответе
+      if (checkAndHandleRedirect(data)) {
+        return;
+      }
 
       // Преобразуем данные в формат таблицы
       setAdditionalServices(
@@ -72,12 +90,12 @@ const useAdditionalServices = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, perPage, sortBy, sortOrder, optimisticPage]); // Добавили optimisticPage в зависимости
+  }, [page, perPage, sortBy, sortOrder, optimisticPage, router]);
 
   // Эффект для загрузки данных при изменении параметров или флага обновления
   useEffect(() => {
     fetchAdditionalServices();
-  }, [fetchAdditionalServices, updateFlag]); // Добавили updateFlag в зависимости
+  }, [fetchAdditionalServices, updateFlag]);
 
   // Функция смены страницы
   const handlePageChange = (newPage: number) => {

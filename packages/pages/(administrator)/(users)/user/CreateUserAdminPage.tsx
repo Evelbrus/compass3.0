@@ -21,7 +21,7 @@ interface ClientsAdminPageProps {
   userData?:
     | (User & {
         companyProfile?: CompanyProfile | null;
-        driverProfile?: (DriverProfile & { driverExperience?: DriverExperience | null }) | null;
+        driverProfile?: (DriverProfile & { driverExperience?: DriverExperience[] }) | null;
       })
     | null;
 }
@@ -29,7 +29,7 @@ interface ClientsAdminPageProps {
 const CreateUserAdminPage: React.FC<ClientsAdminPageProps> = ({ mode, role, userData }) => {
   const router = useRouter();
 
-  console.log('userData', userData);
+  console.log('userData', userData)
 
   // Использование хука для управления формой
   const {
@@ -42,6 +42,7 @@ const CreateUserAdminPage: React.FC<ClientsAdminPageProps> = ({ mode, role, user
     driverProfilePhotoPreview,
     passportPreview,
     licensePreview,
+    vehicleImagePreview,
     handleNextStep,
     handleTabChange,
     customValidateAndSubmit,
@@ -50,11 +51,12 @@ const CreateUserAdminPage: React.FC<ClientsAdminPageProps> = ({ mode, role, user
     setDriverProfilePhotoPreview,
     setPassportPreview,
     setLicensePreview,
+    setVehicleImagePreview,
     finalRole,
   } = useClientsAdminForm({ mode, role, userData });
 
   // Использование хука для отправки формы
-  const { handleSubmit } = useClientsAdminSubmit({ mode, userData, finalRole });
+  const { handleSubmit } = useClientsAdminSubmit({ mode, finalRole, userData });
 
   const formProps = { mode, control: formMethods.control, profilePhotoPath: previewImage };
 
@@ -120,11 +122,13 @@ const CreateUserAdminPage: React.FC<ClientsAdminPageProps> = ({ mode, role, user
             driverProfilePhotoSrc={driverProfilePhotoPreview}
             passportPhotoSrc={passportPreview}
             licenseSrc={licensePreview}
+            vehicleImageSrc={vehicleImagePreview}
             currentStep={currentStep}
             setImagePreview={setPreviewImage}
             setDriverProfilePhotoPreview={setDriverProfilePhotoPreview}
             setPassportPreview={setPassportPreview}
             setLicensePreview={setLicensePreview}
+            setVehicleImagePreview={setVehicleImagePreview}
           />
         );
       case UserRole.Operator:

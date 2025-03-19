@@ -5,6 +5,7 @@ import { CloseIcon } from 'next/dist/client/components/react-dev-overlay/interna
 import AnimatedComponent from '@shared/components/animated/CommonAnimated/AnimatedComponent';
 import { $userUuid, $userFullName } from '@shared/lib/effector';
 import { IButton } from '@shared/components/ui/buttons';
+import { checkAndHandleRedirect } from '@shared/api/httpClient';
 
 interface ChangePasswordModalProps {
   onClose: () => void;
@@ -52,6 +53,11 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ onClose }) =>
       });
 
       const data = await response.json();
+
+      // Проверяем на редирект
+      if (checkAndHandleRedirect(data)) {
+        return;
+      }
 
       if (!response.ok) {
         setError(data.error || 'Ошибка обновления пароля');

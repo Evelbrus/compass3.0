@@ -5,11 +5,9 @@ import { useUnit } from 'effector-react';
 import {
   $modalType,
   $activeNotification,
-  $warningModalProps,
   closeModal,
 } from '@shared/lib/effector';
 import { UserRole} from '@prisma/client';
-import { UserSession } from '@shared/prisma/interface/users/interface';
 import {
   CreateUserModal,
   OrderDetailDriverModal,
@@ -21,18 +19,15 @@ import {
   OrderDriverModal,
   OrderTrackingModal,
   OrderAdminModal,
-  WarningModal,
 } from '@widgets/modal/index';
 
 interface ModalManagerComponentProps {
   role: UserRole;
-  userSession: UserSession | null;
 }
 
-const ModalManagerComponent: React.FC<ModalManagerComponentProps> = ({ role, userSession }) => {
+const ModalManagerComponent: React.FC<ModalManagerComponentProps> = ({ role }) => {
   const modalType = useUnit($modalType);
   const activeNotification = useUnit($activeNotification);
-  const warningModalProps = useUnit($warningModalProps); // Добавляем получение пропсов для WarningModal
 
   return (
     <>
@@ -74,17 +69,6 @@ const ModalManagerComponent: React.FC<ModalManagerComponentProps> = ({ role, use
             onClose={closeModal}
           />
         )}
-      {modalType === 'warningModal' && warningModalProps && (
-        <WarningModal
-          isOpen={true}
-          title={warningModalProps.title}
-          message={warningModalProps.message}
-          confirmButtonText={warningModalProps.confirmButtonText}
-          cancelButtonText={warningModalProps.cancelButtonText}
-          onConfirm={warningModalProps.onConfirm}
-          onCancel={warningModalProps.onCancel}
-        />
-      )}
     </>
   );
 };

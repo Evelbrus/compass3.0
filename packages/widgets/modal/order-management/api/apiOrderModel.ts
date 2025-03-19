@@ -1,4 +1,5 @@
 import { DriverAcceptanceStatus, OrderStatus } from '@prisma/client';
+import { checkAndHandleRedirect } from '@shared/api';
 
 /**
  * Интерфейс для параметров функций обновления статуса заказа
@@ -24,6 +25,14 @@ export const markNotificationAsRead = async (notificationUuid: string): Promise<
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ read: true }),
     });
+
+    // Если статус не OK, проверяем на редирект
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      if (checkAndHandleRedirect(data)) {
+        return false;
+      }
+    }
 
     return response.ok;
   } catch (error) {
@@ -53,10 +62,23 @@ export async function updateDriverOrderStatus(params: OrderStatusUpdateParams) {
 
     if (!response.ok) {
       const data = await response.json().catch(() => ({}));
+
+      // Проверяем на редирект
+      if (checkAndHandleRedirect(data)) {
+        return null;
+      }
+
       throw new Error(data.message || 'Не удалось обновить статус заказа');
     }
 
-    return await response.json();
+    const data = await response.json();
+
+    // Дополнительная проверка на редирект в успешном ответе
+    if (checkAndHandleRedirect(data)) {
+      return null;
+    }
+
+    return data;
   } catch (error) {
     console.error('Ошибка при обновлении статуса заказа водителем:', error);
     throw error;
@@ -84,10 +106,23 @@ export async function updateClientOrderStatus(params: OrderStatusUpdateParams) {
 
     if (!response.ok) {
       const data = await response.json().catch(() => ({}));
+
+      // Проверяем на редирект
+      if (checkAndHandleRedirect(data)) {
+        return null;
+      }
+
       throw new Error(data.message || 'Не удалось обновить статус заказа');
     }
 
-    return await response.json();
+    const data = await response.json();
+
+    // Дополнительная проверка на редирект в успешном ответе
+    if (checkAndHandleRedirect(data)) {
+      return null;
+    }
+
+    return data;
   } catch (error) {
     console.error('Ошибка при обновлении статуса заказа клиентом:', error);
     throw error;

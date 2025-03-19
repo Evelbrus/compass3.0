@@ -21,7 +21,7 @@ export interface ITableProps<T> {
 }
 
 export interface TableOrdersRow {
-  number: number;
+  orderNumber: string;
   clientBy: {
     fullName: string;
     phone: string;

@@ -10,8 +10,8 @@ import {
   formatDate,
   formatDateCreateAuto,
 } from '@shared/components/ui/inputs/date/functions/formatDate';
+import { checkAndHandleRedirect } from '@shared/api'; // Добавляем импорт
 
-// Определяем тип для ответа API, учитывая поле drivers
 type VehicleWithDrivers = Vehicle & {
   vehicleDrivers: { driver: { uuid: string; fullName: string; phone: string } }[];
   drivers: { userUuid: string; fullName: string; phone: string }[];
@@ -61,14 +61,22 @@ const useDriverVehicles = () => {
         credentials: 'include', // Для отправки cookies с токеном
       });
       if (!response.ok) throw new Error('Сетевой ответ был неудачным');
-      const { status, message, data } = await response.json();
+
+      const data = await response.json();
+
+      // Проверка на редирект
+      if (checkAndHandleRedirect(data)) {
+        return; // Прерываем выполнение если произошел редирект
+      }
+
+      const { status, message, data: responseData } = data;
       if (status !== 'success') throw new Error(message);
 
-      setVehicles(data.vehicles || []);
-      setTotal(data.total);
-      setTotalAllVehicles(data.totalAllVehicles);
-      const vehicleTypeCountsData: Record<string, number> = { all: data.totalAllVehicles };
-      data.vehicleTypeCounts?.forEach((item: { type: VehicleType; count: number }) => {
+      setVehicles(responseData.vehicles || []);
+      setTotal(responseData.total);
+      setTotalAllVehicles(responseData.totalAllVehicles);
+      const vehicleTypeCountsData: Record<string, number> = { all: responseData.totalAllVehicles };
+      responseData.vehicleTypeCounts?.forEach((item: { type: VehicleType; count: number }) => {
         vehicleTypeCountsData[item.type] = item.count;
       });
       setVehicleTypeCounts(vehicleTypeCountsData);

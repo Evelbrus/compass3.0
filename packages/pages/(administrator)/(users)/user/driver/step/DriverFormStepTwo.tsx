@@ -124,8 +124,8 @@ const DriverFormStepTwo: React.FC<DriverFormStepTwoProps> = ({
                       render={({ field, fieldState }) => (
                         <TextInput
                           label="Номер паспорта"
-                          placeholder="Введите номер паспорта"
-                          type="number"
+                          placeholder="Введите номер паспорта (ID или AN)"
+                          type="text"
                           value={field.value}
                           onChange={(newValue) => {
                             clearErrors('driverProfile.passportId');

@@ -7,6 +7,7 @@ import { DetailOrderData } from '@shared/prisma/interface/orders/interface';
 import { orderStatusTranslations } from '@shared/lib/effector/orders/options-and-translation/optionsStatusOrder';
 import { useUnit } from 'effector-react';
 import { $updateFlag } from '@shared/lib/effector/state/state';
+import { checkAndHandleRedirect } from '@shared/api'; // Добавляем импорт
 
 // Константа для статуса по умолчанию
 const DEFAULT_STATUS = 'PENDING' as OrderStatus;
@@ -16,7 +17,6 @@ const useOrders = () => {
   const router = useRouter();
   const updateFlag = useUnit($updateFlag);
 
-  // Берем статус из URL ИЛИ используем PENDING - сразу, без передачи 'all' вначале
   const statusFromUrl = searchParams.get('status') as OrderStatus | null;
   const initialStatus = statusFromUrl || DEFAULT_STATUS;
 
@@ -33,7 +33,6 @@ const useOrders = () => {
     (searchParams.get('sort_order') as 'asc' | 'desc') || 'asc',
   );
 
-  // Устанавливаем PENDING как начальное значение
   const [statusFilter, setStatusFilter] = useState<OrderStatus>(initialStatus);
 
   const [total, setTotal] = useState(0);
@@ -46,10 +45,7 @@ const useOrders = () => {
       const url = new URL('/api/admin/orders', window.location.origin);
       url.searchParams.append('page', page.toString());
       url.searchParams.append('per_page', perPage.toString());
-
-      // Всегда добавляем статус в запрос
       url.searchParams.append('status', statusFilter);
-
       if (sortBy !== null) {
         url.searchParams.append('sort_by', sortBy as string);
       }
@@ -60,6 +56,12 @@ const useOrders = () => {
 
       const response = await fetch(url.toString());
       if (!response.ok) {
+        const data = await response.json();
+        if (checkAndHandleRedirect(data)) {
+          setOrders([]); // Очищаем заказы при редиректе
+          setTotal(0);
+          return; // Прерываем выполнение после редиректа
+        }
         throw new Error('Network response was not ok');
       }
 
@@ -67,22 +69,17 @@ const useOrders = () => {
       setOrders(data.orders);
       setTotal(data.total);
 
-      // Обрабатываем статусы
       const statusesArray: OrderStatus[] = [];
       const statusesCountData: Record<string, number> = {};
 
       data.statusesCount.forEach((item: { status: OrderStatus; _count: { status: number } }) => {
         statusesCountData[item.status] = item._count.status;
-
-        // Добавляем все статусы в массив
         statusesArray.push(item.status);
       });
 
       setStatusesCount(statusesCountData);
       setAvailableStatuses(statusesArray);
 
-      // Если текущий статус не имеет заказов, но есть другие статусы с заказами,
-      // выбираем первый доступный статус с заказами
       if (statusesCountData[statusFilter] === 0) {
         const firstAvailableStatus = data.statusesCount.find(
           (item: { status: OrderStatus; _count: { status: number } }) => item._count.status > 0,
@@ -124,7 +121,7 @@ const useOrders = () => {
   };
 
   const tableData: TableOrdersRow[] = orders.map((order, index) => ({
-    number: (optimisticPage - 1) * perPage + index + 1,
+    orderNumber: order.orderNumber,
     clientBy: {
       fullName: order.clientBy.fullName,
       phone: order.clientBy.phone,

@@ -4,10 +4,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { VehicleType, Vehicle, VehicleDriver, User } from '@prisma/client';
 import { TableVehicleRow } from '@shared/components/ui/table';
-import {
-  renderVehicleActions,
-} from '@shared/components/ui/table/ui/TableRenders';
+import { renderVehicleActions } from '@shared/components/ui/table/ui/TableRenders';
 import { formatDate } from '@shared/components/ui/inputs/date/functions/formatDate';
+import { checkAndHandleRedirect } from '@shared/api'; // Добавляем импорт
 
 type VehicleWithDrivers = Vehicle & {
   vehicleDrivers: (VehicleDriver & { driver: User | null })[];
@@ -58,15 +57,23 @@ const useVehicles = () => {
 
       const response = await fetch(url.toString());
       if (!response.ok) throw new Error('Сетевой ответ был неудачным');
-      const { status, message, data } = await response.json();
+
+      const data = await response.json();
+
+      // Добавляем проверку на редирект
+      if (checkAndHandleRedirect(data)) {
+        return; // Прерываем выполнение если произошел редирект
+      }
+
+      const { status, message, data: responseData } = data;
       if (status !== 'success') throw new Error(message);
 
-      setVehicles(data.vehicles || []);
-      setTotal(data.total);
-      setTotalAllVehicles(data.totalAllVehicles);
+      setVehicles(responseData.vehicles || []);
+      setTotal(responseData.total);
+      setTotalAllVehicles(responseData.totalAllVehicles);
 
-      const vehicleTypeCountsData: Record<string, number> = { all: data.totalAllVehicles };
-      data.vehicleTypeCounts?.forEach((item: { type: VehicleType; count: number }) => {
+      const vehicleTypeCountsData: Record<string, number> = { all: responseData.totalAllVehicles };
+      responseData.vehicleTypeCounts?.forEach((item: { type: VehicleType; count: number }) => {
         vehicleTypeCountsData[item.type] = item.count;
       });
       setVehicleTypeCounts(vehicleTypeCountsData);

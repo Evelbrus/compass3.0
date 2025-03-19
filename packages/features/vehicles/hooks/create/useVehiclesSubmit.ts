@@ -3,7 +3,8 @@
 import { useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { showToast } from '@shared/components/toast/ToastManager';
-import { VehicleData } from './useVehiclesCreateForm';
+import { VehicleData } from '@features/vehicles/hooks/create/useVehiclesCreateForm';
+import { checkAndHandleRedirect } from '@shared/api'; // Добавляем импорт
 
 interface UseVehiclesSubmitProps {
   mode: 'create' | 'edit';
@@ -19,20 +20,16 @@ export const useVehiclesSubmit = ({ mode, vehicleData }: UseVehiclesSubmitProps)
         let vehicleUuid = vehicleData?.uuid;
         const action = mode === 'create' ? 'создано' : 'обновлено';
 
-        // Преобразуем vehicleDrivers в массив идентификаторов водителей (driverIds)
         const driverIds = data.vehicleDrivers?.map((item) => item.driver.uuid) || [];
-
-        // Убираем поля, используемые только на клиенте: photoImage и vehicleDrivers
         const { photoImage, vehicleDrivers, ...vehicleDataRest } = data;
-
-        // Формируем payload для POST/PUT без photoPath
         const payload = { ...vehicleDataRest, driverIds };
         if (mode === 'edit' && vehicleUuid) {
           payload.uuid = vehicleUuid;
         }
 
         // 1. POST или PUT для создания/обновления автомобиля
-        const apiUrl = mode === 'create' ? '/api/admin/vehicles' : `/api/admin/vehicles/${vehicleUuid}`;
+        const apiUrl =
+          mode === 'create' ? '/api/admin/vehicles' : `/api/admin/vehicles/${vehicleUuid}`;
         const response = await fetch(apiUrl, {
           method: mode === 'create' ? 'POST' : 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -47,6 +44,12 @@ export const useVehiclesSubmit = ({ mode, vehicleData }: UseVehiclesSubmitProps)
         }
 
         const result = await response.json();
+
+        // Проверка на редирект после создания/обновления
+        if (checkAndHandleRedirect(result)) {
+          return;
+        }
+
         vehicleUuid = result.uuid;
         if (!vehicleUuid) throw new Error('Сервер не вернул UUID автомобиля');
 
@@ -69,7 +72,13 @@ export const useVehiclesSubmit = ({ mode, vehicleData }: UseVehiclesSubmitProps)
           }
 
           const uploadData = await uploadResponse.json();
-          photoPath = uploadData.filePaths.photoPath; // Получаем сгенерированный путь
+
+          // Проверка на редирект после загрузки фото
+          if (checkAndHandleRedirect(uploadData)) {
+            return;
+          }
+
+          photoPath = uploadData.filePaths.photoPath;
         }
 
         // 3. PATCH для записи пути фото, если оно было загружено
@@ -86,6 +95,13 @@ export const useVehiclesSubmit = ({ mode, vehicleData }: UseVehiclesSubmitProps)
             const patchErrorMessage =
               patchError.error?.message || 'Error updating vehicle photo path';
             throw new Error(patchErrorMessage);
+          }
+
+          const patchResult = await patchResponse.json();
+
+          // Проверка на редирект после обновления пути фото
+          if (checkAndHandleRedirect(patchResult)) {
+            return;
           }
         }
 

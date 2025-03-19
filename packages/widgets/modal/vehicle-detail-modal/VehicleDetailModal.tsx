@@ -7,6 +7,7 @@ import { IButton } from '@shared/components/ui/buttons';
 import { CloseIcon } from 'next/dist/client/components/react-dev-overlay/internal/icons/CloseIcon';
 import AnimatedComponent from '@shared/components/animated/CommonAnimated/AnimatedComponent';
 import { TextInput } from '@shared/components/ui/inputs';
+import { checkAndHandleRedirect } from '@shared/api/httpClient';
 
 const VehicleDetailModal = () => {
   const vehicleUuid = useUnit($vehicleUuid);
@@ -24,6 +25,9 @@ const VehicleDetailModal = () => {
             throw new Error(`Не удалось загрузить данные автомобиля: ${response.status}`);
           }
           const data = await response.json();
+          if (checkAndHandleRedirect(data)) {
+            return;
+          }
           setVehicleData(data.data); // Извлекаем вложенный объект data
           setError(null);
         } catch (error) {
@@ -54,7 +58,10 @@ const VehicleDetailModal = () => {
   if (!vehicleUuid) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50 p-4">
-        <AnimatedComponent duration={500} className="w-[580px] h-full max-h-[800px] flex justify-center">
+        <AnimatedComponent
+          duration={500}
+          className="w-[580px] h-full max-h-[800px] flex justify-center"
+        >
           <div className="bg-white rounded-3xl p-8">
             <p>Автомобиль не выбран.</p>
             <IButton onClick={closeModalHandler}>Закрыть</IButton>
@@ -67,7 +74,10 @@ const VehicleDetailModal = () => {
   if (loading) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50 p-4">
-        <AnimatedComponent duration={500} className="w-[580px] h-full max-h-[800px] flex justify-center">
+        <AnimatedComponent
+          duration={500}
+          className="w-[580px] h-full max-h-[800px] flex justify-center"
+        >
           <div className="bg-white rounded-3xl p-8 w-full max-w-3xl">
             <p>Загрузка...</p>
           </div>
@@ -79,7 +89,10 @@ const VehicleDetailModal = () => {
   if (error) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50 p-4">
-        <AnimatedComponent duration={500} className="w-[580px] h-full max-h-[800px] flex justify-center">
+        <AnimatedComponent
+          duration={500}
+          className="w-[580px] h-full max-h-[800px] flex justify-center"
+        >
           <div className="bg-white rounded-3xl p-8 w-full max-w-3xl h-[600px]">
             <p>Ошибка: {error}</p>
             <IButton onClick={closeModalHandler}>Закрыть</IButton>
@@ -100,7 +113,10 @@ const VehicleDetailModal = () => {
 
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50 p-4">
-      <AnimatedComponent duration={500} className="w-[580px] h-full max-h-[800px] flex justify-center">
+      <AnimatedComponent
+        duration={500}
+        className="w-[580px] h-full max-h-[800px] flex justify-center"
+      >
         <div className="bg-white rounded-3xl p-8 relative w-full max-w-3xl overflow-auto">
           <IButton
             variant="close"
@@ -126,7 +142,10 @@ const VehicleDetailModal = () => {
             <DetailItem label="Цвет" value={vehicleData.color || 'Не указано'} />
             <DetailItem label="Номерной знак" value={vehicleData.plateNumber || 'Не указано'} />
             <DetailItem label="Доступность" value={vehicleData.isAvailable ? 'Да' : 'Нет'} />
-            <DetailItem label="Тип транспортного средства" value={vehicleData.vehicleType || 'Не указано'} />
+            <DetailItem
+              label="Тип транспортного средства"
+              value={vehicleData.vehicleType || 'Не указано'}
+            />
             <DetailItem label="Уровень сервиса" value={vehicleData.serviceLevels || 'Не указано'} />
             {vehicleData.vehicleDrivers?.[0]?.driver && (
               <DetailItem

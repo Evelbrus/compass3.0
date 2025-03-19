@@ -1,13 +1,64 @@
-// app/api/admin/users/[uuid]/updateUser.ts
-import { User, UserRole, PartnerCompany } from '@prisma/client';
+import {
+  User,
+  UserRole,
+  PartnerCompany,
+  VehicleType,
+  ServiceLevels,
+  Prisma,
+  ChangingDriver,
+} from '@prisma/client';
 import { prisma } from '@shared/prisma/prisma-client';
 import debug from 'debug';
 import { v4 as uuidv4 } from 'uuid';
-import { UpdateUserDTO } from '@next-app/src/dto/users/user.dto';
 
 const logError = debug('app:user-put-admin:error');
 
-// Полное обновление пользователя (PUT)
+export interface UpdateUserDTO extends Omit<User, 'password'> {
+  companyProfile?: {
+    companyName: string;
+    address?: string;
+    companyPin?: string;
+    email?: string;
+    phone?: string;
+    website?: string;
+    logoImagePath?: string;
+  };
+  driverProfile?: {
+    passportId: string | number;
+    passportIssueDate: string | Date;
+    passportIssued: string;
+    birthDate: string | Date;
+    permanentAddress: string;
+    birthPlace: string;
+    yearsOfDriving?: number;
+    changingDriver?: string;
+    passportPhotoPath?: string;
+    profilePhotoPath?: string;
+    licensePhotoPath?: string;
+    driverExperience?: Array<{
+      companyName: string;
+      position: string;
+      from: string | Date;
+      to: string | Date;
+    }>;
+  };
+  assignedVehicleId?: string;
+  createNewVehicle?: boolean;
+  newVehicle?: {
+    vehicleType: VehicleType;
+    brand: string;
+    model: string;
+    year: string | number;
+    color: string;
+    plateNumber: string;
+    serviceLevels: ServiceLevels;
+    ownership: string;
+    isAvailable?: boolean;
+  };
+  newVehiclePhotoPath?: string;
+  removeVehicleAssignments?: boolean;
+}
+
 export async function updateUser(data: UpdateUserDTO): Promise<User> {
   const {
     uuid,
@@ -23,6 +74,11 @@ export async function updateUser(data: UpdateUserDTO): Promise<User> {
     partnerCompany,
     individualSalaryRate,
     defaultSalaryId,
+    assignedVehicleId,
+    createNewVehicle,
+    newVehicle,
+    newVehiclePhotoPath,
+    removeVehicleAssignments,
   } = data;
 
   const now = new Date();
@@ -45,6 +101,7 @@ export async function updateUser(data: UpdateUserDTO): Promise<User> {
 
   try {
     await prisma.$transaction(async (prisma) => {
+      // Обновляем пользователя
       updatedUser = await prisma.user.update({
         where: { uuid },
         data: userUpdates,
@@ -77,8 +134,11 @@ export async function updateUser(data: UpdateUserDTO): Promise<User> {
           throw new Error('Driver profile is required for Driver role');
         }
 
-        const driverUpdateData = {
-          passportId: driverProfile.passportId,
+        const driverUpdateInput: Prisma.DriverProfileUpdateInput = {
+          passportId:
+            typeof driverProfile.passportId === 'string'
+              ? Number(driverProfile.passportId)
+              : driverProfile.passportId,
           passportIssueDate: driverProfile.passportIssueDate
             ? typeof driverProfile.passportIssueDate === 'string'
               ? new Date(driverProfile.passportIssueDate)
@@ -93,32 +153,103 @@ export async function updateUser(data: UpdateUserDTO): Promise<User> {
           permanentAddress: driverProfile.permanentAddress,
           birthPlace: driverProfile.birthPlace,
           yearsOfDriving: driverProfile.yearsOfDriving,
-          changingDriver: driverProfile.changingDriver,
+          changingDriver: driverProfile.changingDriver
+            ? { set: driverProfile.changingDriver as ChangingDriver }
+            : undefined,
           passportPhotoPath: driverProfile.passportPhotoPath,
           profilePhotoPath: driverProfile.profilePhotoPath,
           licensePhotoPath: driverProfile.licensePhotoPath,
           updatedAt: now,
+          driverExperience: {
+            deleteMany: {},
+            create:
+              driverProfile.driverExperience?.map((experience) => ({
+                companyName: experience.companyName,
+                position: experience.position,
+                from:
+                  typeof experience.from === 'string' ? new Date(experience.from) : experience.from,
+                to: typeof experience.to === 'string' ? new Date(experience.to) : experience.to,
+              })) || [],
+          },
         };
 
         await prisma.driverProfile.update({
           where: { userId: uuid },
-          data: {
-            ...driverUpdateData,
-            driverExperience: {
-              deleteMany: {},
-              create:
-                driverProfile.driverExperience?.map((experience) => ({
-                  companyName: experience.companyName,
-                  position: experience.position,
-                  from:
-                    typeof experience.from === 'string'
-                      ? new Date(experience.from)
-                      : experience.from,
-                  to: typeof experience.to === 'string' ? new Date(experience.to) : experience.to,
-                })) || [],
-            },
-          },
+          data: driverUpdateInput,
         });
+
+        // Обработка связей с автомобилями
+        if (removeVehicleAssignments) {
+          await prisma.vehicleDriver.deleteMany({
+            where: { driverId: uuid },
+          });
+        }
+
+        if (assignedVehicleId && !createNewVehicle) {
+          const vehicleExists = await prisma.vehicle.findUnique({
+            where: { uuid: assignedVehicleId },
+          });
+          if (!vehicleExists) {
+            logError(`× Автомобиль с ID ${assignedVehicleId} не существует`);
+            throw new Error(`Vehicle with ID ${assignedVehicleId} does not exist`);
+          }
+
+          await prisma.vehicleDriver.deleteMany({
+            where: { driverId: uuid },
+          });
+
+          await prisma.vehicleDriver.create({
+            data: {
+              vehicleId: assignedVehicleId,
+              driverId: uuid,
+              assignmentDate: now,
+            },
+          });
+        } else if (createNewVehicle && newVehicle) {
+          const existingVehicle = await prisma.vehicle.findUnique({
+            where: { plateNumber: newVehicle.plateNumber },
+          });
+
+          if (existingVehicle) {
+            logError(`× Автомобиль с номером ${newVehicle.plateNumber} уже существует`);
+            throw new Error(`Vehicle with license plate ${newVehicle.plateNumber} already exists`);
+          }
+
+          const newVehicleUuid = uuidv4();
+          const yearDate = newVehicle.year ? new Date(newVehicle.year.toString()) : undefined;
+
+          // Создаём новый автомобиль
+          const createdVehicle = await prisma.vehicle.create({
+            data: {
+              uuid: newVehicleUuid,
+              vehicleType: newVehicle.vehicleType,
+              brand: newVehicle.brand,
+              model: newVehicle.model,
+              year: yearDate,
+              color: newVehicle.color,
+              plateNumber: newVehicle.plateNumber,
+              serviceLevels: newVehicle.serviceLevels,
+              photoPath: newVehiclePhotoPath,
+              isAvailable: newVehicle.isAvailable || true,
+              createdAt: now,
+              updatedAt: now,
+            },
+          });
+
+          // Удаляем старые привязки
+          await prisma.vehicleDriver.deleteMany({
+            where: { driverId: uuid },
+          });
+
+          // Привязываем водителя к новому автомобилю
+          await prisma.vehicleDriver.create({
+            data: {
+              vehicleId: createdVehicle.uuid,
+              driverId: uuid,
+              assignmentDate: now,
+            },
+          });
+        }
       } else if (role !== UserRole.Client && role !== UserRole.Admin) {
         logError(`× Недопустимая роль ${role} (400)`);
         throw new Error('Invalid role');

@@ -3,8 +3,10 @@ import {
   CompanyProfile,
   DriverProfile,
   PartnerCompany,
+  ServiceLevels,
   User,
   UserRole,
+  VehicleType,
 } from '@prisma/client';
 
 // DTO для создания пользователя
@@ -18,7 +20,22 @@ export interface CreateUserDTO extends User {
       from: string | Date;
       to: string | Date;
     }>;
+    licenseIssueDate?: string;
   };
+  assignedVehicleId?: string;
+  createNewVehicle?: boolean;
+  newVehicle?: {
+    vehicleType: VehicleType;
+    brand: string;
+    model: string;
+    year: string | number;
+    color: string;
+    plateNumber: string;
+    serviceLevels: ServiceLevels;
+    ownership: string;
+    isAvailable?: boolean;
+  };
+  newVehiclePhotoPath?: string;
 }
 
 // DTO для запроса пользователей с фильтрацией

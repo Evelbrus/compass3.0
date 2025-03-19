@@ -3,6 +3,7 @@ import { DriverProfile, User } from '@prisma/client';
 import { TableDriversRow } from '@shared/components/ui/table';
 import { renderActions } from '@shared/components/ui/table/ui/TableRenders';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { checkAndHandleRedirect } from '@shared/api'; // Добавляем импорт
 
 const useDrivers = () => {
   const searchParams = useSearchParams();
@@ -46,12 +47,19 @@ const useDrivers = () => {
       const response = await fetch(url.toString());
       if (!response.ok) throw new Error('Network response was not ok');
 
-      const { status, message, data } = await response.json();
+      const data = await response.json();
+
+      // Добавляем проверку на редирект
+      if (checkAndHandleRedirect(data)) {
+        return; // Прерываем выполнение если произошел редирект
+      }
+
+      const { status, message, data: responseData } = data;
 
       if (status !== 'success') throw new Error(message || 'Error fetching drivers');
 
-      setUsers(data.users);
-      setTotal(data.total);
+      setUsers(responseData.users);
+      setTotal(responseData.total);
     } catch (error) {
       console.error('Error fetching drivers:', error);
       setError('Error fetching drivers');

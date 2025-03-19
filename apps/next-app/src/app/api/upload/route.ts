@@ -17,7 +17,9 @@ export async function POST(req: Request) {
         pathKey: 'driverProfilePhotoPath',
       },
       { fileKey: 'licenseImage', pathPrefix: '/drivers/license', pathKey: 'licensePhotoPath' },
-      { fileKey: 'photoImage', pathPrefix: '/vehicle', pathKey: 'photoPath' },
+      // Добавляем поддержку обоих ключей (vehicleImage и photoImage) с одинаковым результатом
+      { fileKey: 'vehicleImage', pathPrefix: '/vehicle', pathKey: 'vehiclePhotoPath' },
+      { fileKey: 'photoImage', pathPrefix: '/vehicle', pathKey: 'vehiclePhotoPath' },
     ];
 
     const filePaths: { [key: string]: string } = {};

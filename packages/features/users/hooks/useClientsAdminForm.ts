@@ -13,7 +13,8 @@ interface UseClientsAdminFormProps {
   userData?:
     | (User & {
         companyProfile?: CompanyProfile | null;
-        driverProfile?: (DriverProfile & { driverExperience?: DriverExperience | null }) | null;
+        driverProfile?: (DriverProfile & { driverExperience?: DriverExperience[] }) | null;
+        assignedVehicleId?: string;
       })
     | null;
 }
@@ -23,6 +24,7 @@ interface UseClientsAdminFormProps {
  * - инициализация и валидация формы
  * - определение количества шагов
  * - предпросмотр изображений
+ * - обработка редиректов при запросах (гипотетически)
  */
 export default function useClientsAdminForm({
   mode,
@@ -86,12 +88,19 @@ export default function useClientsAdminForm({
       : null,
   );
 
-  /** Инициализация react-hook-form в вашем стиле */
+  // Добавляем состояние для изображения автомобиля с правильным путем
+  const [vehicleImagePreview, setVehicleImagePreview] = useState<string | null>(null);
+
+  /** Инициализация react-hook-form */
   const formMethods = useForm<userFormData>({
     mode: 'onSubmit',
-    defaultValues: (userData || {}) as userFormData,
+    defaultValues: {
+      ...(userData || {}),
+      assignedVehicleId: userData?.assignedVehicleId || null,
+      createNewVehicle: false,
+    } as userFormData,
   });
-  const { watch, trigger } = formMethods;
+  const { watch, trigger, setValue } = formMethods;
 
   /** Обновление предпросмотра для файлов */
   const watchedProfilePhotoFile = watch('profilePhotoPath') as any;
@@ -120,7 +129,6 @@ export default function useClientsAdminForm({
     }
   }, [watchedLogoFile]);
 
-  // Использование Any чтобы обойти типизацию для полей, которых нет в интерфейсе
   const watchedPassportFile = watch('driverProfile.passportImage' as any) as any;
   useEffect(() => {
     if (watchedPassportFile && watchedPassportFile instanceof File) {
@@ -160,6 +168,20 @@ export default function useClientsAdminForm({
     }
   }, [watchedLicenseFile]);
 
+  // Добавляем обработчик для изображения автомобиля
+  const watchedVehicleFile = watch('newVehicle.photoImage' as any) as any;
+  useEffect(() => {
+    if (watchedVehicleFile && watchedVehicleFile instanceof File) {
+      try {
+        const url = URL.createObjectURL(watchedVehicleFile);
+        setVehicleImagePreview(url);
+        return () => URL.revokeObjectURL(url);
+      } catch (error) {
+        showToast.error('Ошибка при загрузке изображения автомобиля.');
+      }
+    }
+  }, [watchedVehicleFile]);
+
   /**
    * Единая функция для получения полей, которые нужно валидировать
    */
@@ -197,6 +219,23 @@ export default function useClientsAdminForm({
       }
     } else if (currentStepNum === 3 && finalRole === UserRole.Driver) {
       fieldsToValidate = ['driverProfile.yearsOfDriving'];
+
+      // Добавляем проверку для полей нового автомобиля, если пользователь выбрал создание нового
+      const createNewVehicle = watch('createNewVehicle');
+      if (createNewVehicle) {
+        fieldsToValidate.push(
+          'newVehicle.brand',
+          'newVehicle.model',
+          'newVehicle.year',
+          'newVehicle.color',
+          'newVehicle.plateNumber',
+          'newVehicle.vehicleType',
+          'newVehicle.serviceLevels',
+          'newVehicle.ownership',
+        );
+      } else {
+        fieldsToValidate.push('assignedVehicleId');
+      }
     }
 
     return fieldsToValidate;
@@ -274,6 +313,8 @@ export default function useClientsAdminForm({
     setPassportPreview,
     licensePreview,
     setLicensePreview,
+    vehicleImagePreview,
+    setVehicleImagePreview,
     handleNextStep,
     handleTabChange,
     customValidateAndSubmit,

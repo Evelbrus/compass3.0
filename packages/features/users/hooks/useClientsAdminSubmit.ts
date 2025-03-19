@@ -5,12 +5,18 @@ import { useRouter } from 'next/navigation';
 import { CompanyProfile, DriverProfile, User, UserRole } from '@prisma/client';
 import { showToast } from '@shared/components/toast/ToastManager';
 import { userFormData } from '@shared/prisma/interfaceForm/user/userFormData';
+import { checkAndHandleRedirect } from '@shared/api';
+
+// Создаем расширенный интерфейс для User
+interface UserWithVehicle extends User {
+  assignedVehicleId?: string | null;
+}
 
 interface UseClientsAdminSubmitProps {
   mode: 'create' | 'edit';
   finalRole: UserRole;
   userData?:
-    | (User & {
+    | (UserWithVehicle & {
         companyProfile?: CompanyProfile | null;
         driverProfile?: DriverProfile | null;
       })
@@ -23,6 +29,7 @@ interface FilePaths {
   passportPhotoPath?: string;
   driverProfilePhotoPath?: string;
   licensePhotoPath?: string;
+  vehiclePhotoPath?: string;
   [key: string]: string | undefined;
 }
 
@@ -89,11 +96,36 @@ export const useClientsAdminSubmit = ({
           bankAccountNumber: data.driverProfile.bankAccountNumber,
           bankBic: data.driverProfile.bankBic,
           cardNumber: data.driverProfile.cardNumber,
+          licensePhotoPath: data.driverProfile.licensePhotoPath,
         };
       }
 
       if (data.partnerCompany) {
         payload.partnerCompany = data.partnerCompany;
+      }
+
+      // Добавляем данные об автомобиле и выборе пользователя
+      if (finalRole === UserRole.Driver) {
+        // Если выбран существующий автомобиль
+        if (data.assignedVehicleId && !data.createNewVehicle) {
+          payload.assignedVehicleId = data.assignedVehicleId;
+        }
+
+        // Если выбрано создание нового автомобиля
+        if (data.createNewVehicle && data.newVehicle) {
+          payload.createNewVehicle = true;
+          payload.newVehicle = {
+            vehicleType: data.newVehicle.vehicleType,
+            brand: data.newVehicle.brand,
+            model: data.newVehicle.model,
+            year: data.newVehicle.year,
+            color: data.newVehicle.color,
+            plateNumber: data.newVehicle.plateNumber,
+            serviceLevels: data.newVehicle.serviceLevels,
+            ownership: data.newVehicle.ownership,
+            isAvailable: true,
+          };
+        }
       }
 
       try {
@@ -109,12 +141,15 @@ export const useClientsAdminSubmit = ({
 
         const responseData = await response.json();
         if (!response.ok) {
+          if (checkAndHandleRedirect(responseData)) {
+            return; // Прерываем выполнение после редиректа
+          }
           throw new Error(
             `Не удалось ${mode === 'create' ? 'создать' : 'обновить'} пользователя: ${responseData.message || 'Ошибка сервера'}`,
           );
         }
 
-        const userUuid = responseData.uuid;
+        const userUuid = responseData.uuid || userData?.uuid;
         if (!userUuid) throw new Error('Сервер не вернул UUID пользователя');
 
         // 2. UPLOAD файлов — отправляем только файлы, сервер вернёт пути
@@ -144,6 +179,13 @@ export const useClientsAdminSubmit = ({
           }
         }
 
+        // Добавляем изображение автомобиля, если создаем новый
+        if (data.createNewVehicle && data.newVehicle?.photoImage instanceof File) {
+          // Используем vehicleImage вместо photoImage для соответствия серверному API
+          uploadFormData.append('vehicleImage', data.newVehicle.photoImage);
+          hasFiles = true;
+        }
+
         let filePaths: FilePaths = {};
         if (hasFiles) {
           const uploadResponse = await fetch('/api/upload', {
@@ -153,6 +195,9 @@ export const useClientsAdminSubmit = ({
 
           const uploadData = await uploadResponse.json();
           if (!uploadResponse.ok) {
+            if (checkAndHandleRedirect(uploadData)) {
+              return; // Прерываем выполнение после редиректа
+            }
             throw new Error(uploadData.message || 'Ошибка при загрузке файлов');
           }
 
@@ -180,6 +225,11 @@ export const useClientsAdminSubmit = ({
             };
           }
 
+          // Добавляем путь к изображению автомобиля, если есть и создаем новый автомобиль
+          if (filePaths.vehiclePhotoPath && data.createNewVehicle) {
+            patchPayload.newVehiclePhotoPath = filePaths.vehiclePhotoPath;
+          }
+
           const patchResponse = await fetch(`/api/admin/users/${userUuid}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
@@ -188,12 +238,17 @@ export const useClientsAdminSubmit = ({
 
           const patchData = await patchResponse.json();
           if (!patchResponse.ok) {
+            if (checkAndHandleRedirect(patchData)) {
+              return; // Прерываем выполнение после редиректа
+            }
             throw new Error(patchData.message || 'Ошибка при обновлении путей');
           }
         }
 
         showToast.success(`Пользователь успешно ${mode === 'create' ? 'создан' : 'обновлён'}!`);
-        router.push(`/user/detail/${userUuid}`);
+
+        // Перенаправляем пользователя обратно на список пользователей
+        router.back();
       } catch (error: any) {
         showToast.error(`Ошибка: ${error.message}`);
         console.error(`Ошибка при ${mode === 'create' ? 'создании' : 'обновлении'}:`, error);

@@ -19,7 +19,7 @@ export async function PUT(req: NextRequest, { params }: { params: Params }) {
     // Аутентификация запроса
     await authenticateRequest(req, allowedRoles);
 
-    const { uuid } = params;
+    const { uuid } = await params;
     const data: UpdatePointDTO = await req.json();
 
     try {
@@ -55,7 +55,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Params }) {
     // Аутентификация запроса
     await authenticateRequest(req, allowedRoles);
 
-    const { uuid } = params;
+    const { uuid } = await params;
 
     try {
       await deletePoint(uuid);

@@ -37,6 +37,7 @@ export interface GetVehiclesRequestDTO {
   availability?: boolean | null;
   sort_by?: string;
   sort_order?: 'asc' | 'desc';
+  search?: string; // Добавляем свойство для поиска
 }
 
 export interface DriverInfo {

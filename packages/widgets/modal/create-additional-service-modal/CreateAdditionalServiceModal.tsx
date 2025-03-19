@@ -4,8 +4,13 @@ import { IButton } from '@shared/components/ui/buttons';
 import { TextInput } from '@shared/components/ui/inputs';
 import AnimatedComponent from '@shared/components/animated/CommonAnimated/AnimatedComponent';
 import { CloseIcon } from 'next/dist/client/components/react-dev-overlay/internal/icons/CloseIcon';
-import { $additionalServiceUuid, setAdditionalServiceUuid, triggerUpdate } from '@shared/lib/effector/state/state';
+import {
+  $additionalServiceUuid,
+  setAdditionalServiceUuid,
+  triggerUpdate,
+} from '@shared/lib/effector/state/state';
 import { showToast } from '@shared/components/toast/ToastManager';
+import { checkAndHandleRedirect } from '@shared/api/httpClient';
 
 interface CreateAdditionalServiceModalProps {
   onClose: () => void;
@@ -55,7 +60,9 @@ const CreateAdditionalServiceModal: React.FC<CreateAdditionalServiceModalProps> 
 
     try {
       const method = uuid ? 'PUT' : 'POST';
-      const url = uuid ? `/api/admin/additional-services/${uuid}` : '/api/admin/additional-services';
+      const url = uuid
+        ? `/api/admin/additional-services/${uuid}`
+        : '/api/admin/additional-services';
       const body = JSON.stringify({ name: serviceName });
 
       const response = await fetch(url, {
@@ -66,6 +73,11 @@ const CreateAdditionalServiceModal: React.FC<CreateAdditionalServiceModalProps> 
       });
 
       const data = await response.json();
+
+      // Проверяем на редирект
+      if (checkAndHandleRedirect(data)) {
+        return;
+      }
 
       if (!response.ok) {
         throw new Error(data.message || `Ошибка ${uuid ? 'обновления' : 'создания'} услуги`);

@@ -1,6 +1,7 @@
 //hooks/useAvailabilityUpdater.ts
 import { useState } from 'react';
 import { showToast } from '@shared/components/toast/ToastManager';
+import { checkAndHandleRedirect } from '@shared/api'; // Добавляем импорт
 
 interface UpdateAvailabilityResponse {
   uuid: string;
@@ -28,10 +29,17 @@ export const useAvailabilityUpdater = () => {
       });
 
       const result = await response.json();
+
+      // Проверка на редирект
+      if (checkAndHandleRedirect(result)) {
+        return null; // Прерываем выполнение если произошел редирект
+      }
+
       if (!response.ok) {
         showToast.error(result.error?.message || 'Ошибка обновления доступности');
         return null;
       }
+
       showToast.success('Доступность обновлена');
       return result.data;
     } catch (error) {

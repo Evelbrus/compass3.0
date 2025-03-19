@@ -11,12 +11,14 @@ interface DriverFormProps {
   driverProfilePhotoSrc?: string | null;
   passportPhotoSrc?: string | null;
   licenseSrc?: string | null;
+  vehicleImageSrc?: string | null; // Добавляем фото автомобиля
   currentStep: number;
   setCurrentStep?: React.Dispatch<React.SetStateAction<number>>;
   setImagePreview: (url: string) => void;
   setDriverProfilePhotoPreview: (url: string) => void;
   setPassportPreview: (url: string) => void;
   setLicensePreview: (url: string) => void;
+  setVehicleImagePreview?: (url: string) => void; // Добавляем метод для обновления фото автомобиля
 }
 
 const DriverForm: React.FC<DriverFormProps> = ({
@@ -25,11 +27,13 @@ const DriverForm: React.FC<DriverFormProps> = ({
   driverProfilePhotoSrc,
   passportPhotoSrc,
   licenseSrc,
+  vehicleImageSrc,
   currentStep,
   setImagePreview,
   setDriverProfilePhotoPreview,
   setPassportPreview,
   setLicensePreview,
+  setVehicleImagePreview,
 }) => {
   return (
     <div className="">
@@ -51,7 +55,12 @@ const DriverForm: React.FC<DriverFormProps> = ({
           />
         )}
         {currentStep === 3 && (
-          <DriverFormStepThree licenseSrc={licenseSrc} setLicensePreview={setLicensePreview} />
+          <DriverFormStepThree
+            licenseSrc={licenseSrc}
+            setLicensePreview={setLicensePreview}
+            vehicleImageSrc={vehicleImageSrc}
+            setVehicleImagePreview={setVehicleImagePreview}
+          />
         )}
         {currentStep === 4 && <DriverFormStepFour mode={mode} />}
         {currentStep === 5 && <DriverFormStepFive />}

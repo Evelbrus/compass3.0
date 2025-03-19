@@ -8,4 +8,3 @@ export { default as VehicleDetailModal } from './vehicle-detail-modal/VehicleDet
 export { default as OrderTrackingModal } from './order-management/client-corp/OrderTrackingModal';
 export { default as OrderDriverModal } from './order-management/driver/OrderDriverModal';
 export { default as OrderAdminModal } from './order-management/admin/OrderAdminModal';
-export { default as WarningModal } from './warning-modal/WarningModal';

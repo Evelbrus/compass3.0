@@ -14,7 +14,7 @@ export const handleDetail = (
   } else if (entity === 'orders') {
     path = `/order/detail/${uuid}`;
   } else {
-    path = `/login`;
+    return;
   }
 
   navigate(path);

@@ -5,10 +5,10 @@ import { driverAcceptanceStatusLabels } from '@shared/lib/effector/orders/option
 
 export const ordersColumns: Column<TableOrdersRow, keyof TableOrdersRow>[] = [
   {
-    accessor: 'number',
+    accessor: 'orderNumber',
     header: '№',
     sortable: false,
-    className: 'w-[70px] text-center',
+    className: 'w-[120px] text-center',
   },
   {
     accessor: 'clientBy',
@@ -49,7 +49,7 @@ export const ordersColumns: Column<TableOrdersRow, keyof TableOrdersRow>[] = [
     sortable: false,
     className: 'w-[250px]',
   },
-    {
+  {
     accessor: 'departureTime',
     header: 'Время отправления',
     render: (row: TableOrdersRow) => renderDateTime(row.departureTime),
@@ -118,7 +118,7 @@ export const ordersColumns: Column<TableOrdersRow, keyof TableOrdersRow>[] = [
     accessor: 'status',
     header: 'Статус',
     render: (row: TableOrdersRow) => (
-      <section>
+      <section className={'flex flex-col gap-2'}>
         <div className="flex items-center gap-1">
           <span
             className={`p-1 rounded-full ${
@@ -128,21 +128,28 @@ export const ordersColumns: Column<TableOrdersRow, keyof TableOrdersRow>[] = [
           <p>{row.status}</p>
         </div>
         <p
-          className={`text-sm ${row.driverAcceptanceStatus === 'COMPLETED' ? 'text-green-500' : 'text-yellow-500'}`}
+          className={`${row.driverAcceptanceStatus === 'COMPLETED' ? 'text-green-500' : 'text-yellow-500'}`}
         >
           {driverAcceptanceStatusLabels[row.driverAcceptanceStatus as DriverAcceptanceStatus] || ''}
         </p>
       </section>
     ),
     sortable: true,
-    className: 'w-[150px] text-center',
+    className: 'w-[200px] text-center',
+  },
+  {
+    accessor: 'basePrice',
+    header: 'Цена',
+    render: (row: TableOrdersRow) => <span>{row.basePrice} сом</span>,
+    sortable: true,
+    className: 'w-[200px]',
   },
   {
     accessor: 'createdAt',
     header: 'Дата создания',
     render: (row: TableOrdersRow) => renderDateTime(row.createdAt),
     sortable: true,
-    className: 'w-[200px]',
+    className: 'flex-grow text-center',
   },
   {
     accessor: 'updatedAt',
@@ -150,13 +157,6 @@ export const ordersColumns: Column<TableOrdersRow, keyof TableOrdersRow>[] = [
     render: (row: TableOrdersRow) => renderDateTime(row.updatedAt),
     sortable: true,
     className: 'w-[200px]',
-  },
-  {
-    accessor: 'basePrice',
-    header: 'Цена',
-    render: (row: TableOrdersRow) => <span>{row.basePrice} сом</span>,
-    sortable: true,
-    className: 'flex-grow text-center',
   },
   {
     accessor: 'actions',
