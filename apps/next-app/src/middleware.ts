@@ -33,7 +33,7 @@ const isPublicApiPath = (path: string) =>
 export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
   const isApiRequest = path.startsWith('/api/');
-
+  
   console.log('[MIDDLEWARE] Обработка запроса:', {
     path,
     method: request.method,
@@ -41,27 +41,27 @@ export async function middleware(request: NextRequest) {
     hasAccessToken: !!request.cookies.get(ACCESS_TOKEN_COOKIE)?.value,
     hasRefreshToken: !!request.cookies.get(REFRESH_TOKEN_COOKIE)?.value,
   });
-
+  
   // ВАЖНО: полностью исключаем API обновления токенов из middleware
   if (isRefreshPath(path)) {
     console.log('[MIDDLEWARE] Полное исключение API обновления токенов из middleware');
     return NextResponse.next();
   }
-
+  
   // Проверяем, является ли путь публичным (не API)
   const isPublicPath = publicPaths.some(
     (publicPath) => path === publicPath || path.startsWith(publicPath + '/'),
   );
-
+  
   if (isPublicPath || isPublicApiPath(path)) {
     console.log('[MIDDLEWARE] Обнаружен публичный маршрут');
-
+    
     // Для страницы логина нужна специальная обработка
     if (path === '/login') {
       console.log('[MIDDLEWARE] Обработка логин-страницы');
       const refreshToken = request.cookies.get(REFRESH_TOKEN_COOKIE)?.value;
       const accessToken = request.cookies.get(ACCESS_TOKEN_COOKIE)?.value;
-
+      
       // Если есть токены, проверяем их валидность
       if (refreshToken) {
         console.log('[MIDDLEWARE] Найден refresh токен на странице логина');
@@ -70,7 +70,7 @@ export async function middleware(request: NextRequest) {
           console.log('[MIDDLEWARE] Проверка refresh токена...');
           await verifyJWT<RefreshTokenPayload>(refreshToken, authConfig.refreshToken.secret);
           console.log('[MIDDLEWARE] Refresh токен валиден');
-
+          
           // Проверяем accessToken
           if (accessToken) {
             console.log('[MIDDLEWARE] Проверка access токена...');
@@ -89,7 +89,7 @@ export async function middleware(request: NextRequest) {
               return NextResponse.redirect(refreshReturnUrl);
             }
           }
-
+          
           console.log('[MIDDLEWARE] Access токен отсутствует, но refresh валиден');
           // Если нет access токена, но есть валидный refresh - перенаправляем на API для обновления
           const returnUrl = encodeURIComponent('/');
@@ -106,7 +106,7 @@ export async function middleware(request: NextRequest) {
           return response;
         }
       }
-
+      
       console.log('[MIDDLEWARE] Токены отсутствуют, показываем страницу логина');
       // Нет токенов, просто отображаем страницу логина
       return NextResponse.next();

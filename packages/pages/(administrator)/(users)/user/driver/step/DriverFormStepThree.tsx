@@ -26,7 +26,7 @@ const DriverFormStepThree: React.FC<DriverFormStepThreeProps> = ({
   vehicleImageSrc,
   setVehicleImagePreview,
 }) => {
-  const { control, clearErrors, setValue, watch } = useFormContext<userFormData>();
+  const { control, clearErrors, setValue, watch, getValues } = useFormContext<userFormData>();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [drivingExperienceYears, setDrivingExperienceYears] = useState<number | null>(null);
@@ -217,7 +217,7 @@ const DriverFormStepThree: React.FC<DriverFormStepThreeProps> = ({
         console.error('Ошибка при расчете стажа:', error);
       }
     }
-  }, [licenseIssueDate, setValue]);
+  }, [licenseIssueDate]);
 
   // Отслеживание флага создания автомобиля
   useEffect(() => {
@@ -299,22 +299,22 @@ const DriverFormStepThree: React.FC<DriverFormStepThreeProps> = ({
     if (drivingExperienceYears === null || drivingExperienceMonths === null) {
       return '0 месяцев';
     }
-
+    
     // Если оба значения нулевые
     if (drivingExperienceYears === 0 && drivingExperienceMonths === 0) {
       return '0 месяцев';
     }
-
+    
     const years =
-      drivingExperienceYears > 0
-        ? `${drivingExperienceYears} ${getYearsText(drivingExperienceYears)}`
-        : '';
-
+    drivingExperienceYears > 0
+    ? `${drivingExperienceYears} ${getYearsText(drivingExperienceYears)}`
+    : '';
+    
     const months =
-      drivingExperienceMonths > 0
-        ? `${drivingExperienceMonths} ${getMonthsText(drivingExperienceMonths)}`
-        : '';
-
+    drivingExperienceMonths > 0
+    ? `${drivingExperienceMonths} ${getMonthsText(drivingExperienceMonths)}`
+    : '';
+    
     if (years && months) {
       return `${years} ${months}`;
     } else if (years) {
@@ -371,7 +371,9 @@ const DriverFormStepThree: React.FC<DriverFormStepThreeProps> = ({
                         value={field.value ?? ''}
                         onChange={(newValue) => {
                           clearErrors('driverProfile.licenseIssueDate');
+                          setLicenseIssueDate(String(newValue));
                           field.onChange(newValue);
+
                         }}
                         error={!!fieldState.error}
                         message={fieldState.error?.message || ''}
