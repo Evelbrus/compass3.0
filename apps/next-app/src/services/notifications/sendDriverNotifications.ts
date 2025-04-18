@@ -4,6 +4,7 @@ import { processBulkNotifications } from '@next-app/src/services/notifications/n
 import {
   getNotificationTemplateKey,
   notificationTemplates,
+  Role,
 } from '@next-app/src/services/notifications/notificationTemplates';
 
 export enum CancellationSource {
@@ -183,7 +184,7 @@ export async function sendDriverNotifications(
         templateKey = getNotificationTemplateKey(
           orderStatus,
           driverStatus,
-          role as 'driver' | 'client' | 'admin',
+          role as Role,
           previousDriverStatus,
           cancel,
         );

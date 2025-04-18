@@ -8,6 +8,12 @@ export interface OrderWithDetails extends Order {
   assignedDriver: { fullName: string } | null;
 }
 
+export enum Role {
+  DRIVER = 'driver',
+  CLIENT = 'client',
+  ADMIN = 'admin',
+}
+
 /**
  * Шаблоны уведомлений для различных событий системы такси/трансфера
  */
@@ -590,13 +596,13 @@ export const notificationTemplates = {
  * Получает шаблон уведомления на основе статуса заказа и водителя
  * @param orderStatus Статус заказа
  * @param driverStatus Статус принятия заказа водителем
- * @param forRole Роль получателя уведомления (driver, client, admin)
+ * @param forRole Роль получателя уведомления (водитель, клиент, администратор)
  * @returns Ключ шаблона уведомления
  */
 export function getNotificationTemplateKey(
   orderStatus: OrderStatus,
   driverStatus: DriverAcceptanceStatus,
-  forRole: 'driver' | 'client' | 'admin',
+  forRole: Role,
   previousDriverStatus?: DriverAcceptanceStatus | null,
   cancel?: CancellationSource,
 ): keyof typeof notificationTemplates {
@@ -612,11 +618,11 @@ export function getNotificationTemplateKey(
   if (driverStatus === DriverAcceptanceStatus.TIMEOUT) {
     console.log('getNotificationTemplateKey - Обнаружен TIMEOUT');
 
-    if (forRole === 'driver') {
+    if (forRole === Role.DRIVER) {
       console.log('getNotificationTemplateKey - Возвращаем driverOrderTimeout');
       return 'driverOrderTimeout';
     }
-    else if (forRole === 'client') {
+    else if (forRole === Role.CLIENT) {
       console.log('getNotificationTemplateKey - Возвращаем clientDriverTimeout');
       return 'clientDriverTimeout';
     }
@@ -634,12 +640,12 @@ export function getNotificationTemplateKey(
   ) {
     console.log('getNotificationTemplateKey - Обработка просроченного заказа, который был принят');
 
-    if (forRole === 'driver') {
+    if (forRole === Role.DRIVER) {
       console.log('getNotificationTemplateKey - Возвращаем driverAcceptedOverdue');
       return 'driverAcceptedOverdue'; // "Вы приняли просроченный заказ"
     }
 
-    if (forRole === 'admin') {
+    if (forRole === Role.ADMIN) {
       console.log('getNotificationTemplateKey - Возвращаем adminDriverAcceptedOverdue');
       return 'adminDriverAcceptedOverdue'; // "Водитель принял просроченный заказ"
     }
@@ -649,11 +655,11 @@ export function getNotificationTemplateKey(
   if (driverStatus === DriverAcceptanceStatus.NOTIFIED) {
     console.log('getNotificationTemplateKey - Обнаружен NOTIFIED');
 
-    if (forRole === 'driver') {
+    if (forRole === Role.DRIVER) {
       console.log('getNotificationTemplateKey - Возвращаем driverOrderNotified');
       return 'driverOrderNotified';
     }
-    else if (forRole === 'client') {
+    else if (forRole === Role.CLIENT) {
       console.log('getNotificationTemplateKey - Возвращаем clientOrderNotified');
       return 'clientOrderNotified';
     }
@@ -669,11 +675,11 @@ export function getNotificationTemplateKey(
 
     if (cancel === CancellationSource.CLIENT) {
       // Если заказ отменен клиентом
-      if (forRole === 'driver') {
+      if (forRole === Role.DRIVER) {
         console.log('getNotificationTemplateKey - Возвращаем driverOrderCancelledByClient');
         return 'driverOrderCancelledByClient';
       }
-      else if (forRole === 'admin') {
+      else if (forRole === Role.ADMIN) {
         console.log('getNotificationTemplateKey - Возвращаем adminOrderCancelledByClient');
         return 'adminOrderCancelledByClient';
       }
@@ -684,11 +690,11 @@ export function getNotificationTemplateKey(
       }
     } else if (cancel === CancellationSource.DRIVER) {
       // Если заказ отменен водителем
-      if (forRole === 'client') {
+      if (forRole === Role.CLIENT) {
         console.log('getNotificationTemplateKey - Возвращаем clientOrderCancelledByDriver');
         return 'clientOrderCancelledByDriver';
       }
-      else if (forRole === 'admin') {
+      else if (forRole === Role.ADMIN) {
         console.log('getNotificationTemplateKey - Возвращаем adminOrderCancelledByDriver');
         return 'adminOrderCancelledByDriver';
       }
@@ -706,7 +712,7 @@ export function getNotificationTemplateKey(
   let result: keyof typeof notificationTemplates;
 
   // Для водителя
-  if (forRole === 'driver') {
+  if (forRole === Role.DRIVER) {
     switch (orderStatus) {
       case OrderStatus.PENDING:
         result = 'driverOrderAssigned';
@@ -735,7 +741,7 @@ export function getNotificationTemplateKey(
     }
   }
   // Для клиента
-  else if (forRole === 'client') {
+  else if (forRole === Role.CLIENT) {
     switch (orderStatus) {
       case OrderStatus.PENDING:
         if (driverStatus === DriverAcceptanceStatus.PENDING || driverStatus === null)

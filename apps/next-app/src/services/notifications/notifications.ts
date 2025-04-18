@@ -192,7 +192,13 @@ export async function processNotification({
     
 
     if (ensureSocketConnection()) {
+      if (notification.title === 'Заказ отменен') {
+        console.log('notification.title', notification.title);
+      }
       if (createdById) {
+        if (notification.title === 'Заказ отменен') {
+          console.log('notification.title - inside', notification.title);
+        }
         console.log(`Отправка уведомления пользователю ${createdById}:`, notificationData);
         socket.emit('notification', {
           userId: createdById,

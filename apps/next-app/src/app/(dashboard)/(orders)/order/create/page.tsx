@@ -1,6 +1,6 @@
 import React, { JSX } from 'react';
 import { getLayoutData } from '@shared/utils/cookie/layout-data/getLayoutData';
-import OrderCreateView from '@pages/(administrator)/orders/create/OrderCreate.view';
+import { OrderCreateView } from '@pages/(administrator)/orders/create/OrderCreate.view';
 import OrderCreateClientCorp from '@pages/(client-corp)/orders/create/OrderCreateClientCorp';
 import Loading from '@entities/loading/loading';
 import { UserRole } from '@prisma/client';
