@@ -1,39 +1,39 @@
 'use client';
 
-import React, { FC, useState, useCallback } from 'react';
-import { FormProvider } from 'react-hook-form';
-import { Decimal } from 'decimal.js';
-import { Point, UserRole } from '@prisma/client';
-import { OrderData, PointWithoutTimestamps } from '@features/orders/create/types/types';
 import {
   useAdditionalServices,
   useAllAdditionalServices,
   useAllPoints,
   useCreateAdminOrderLogic,
+  useOrderCreateClients,
   useOrderCreateDrivers,
+  useOrderSubmit,
   usePointSelectionHandlers,
   usePointSelector,
   useTariffs,
   useTotalPrice,
   useWaitTime,
-  useOrderCreateClients,
-  useOrderSubmit,
 } from '@features/orders/create/hooks';
+import { AdditionalPoints, PointSelector } from '@features/orders/create/inputs';
+import PointDropdown from '@features/orders/create/inputs/PointDropdown';
+import { OrderData, PointWithoutTimestamps } from '@features/orders/create/types/types';
 import {
   AdditionalServicesList,
   ClientSelector,
   RouteInfo,
   RouteMap,
-  WaitTimeSelector,
   TariffCheckbox,
+  WaitTimeSelector,
 } from '@features/orders/create/ui';
 import DateTimeSelector from '@features/orders/create/ui/client/DateTimeSelector';
+import { OrderStepConfig, OrderStepSection } from '@features/orders/create/ui/OrderStepSection';
+import { Point, UserRole } from '@prisma/client';
 import { UserSession } from '@shared/prisma/interface/users/interface';
-import PointDropdown from '@features/orders/create/inputs/PointDropdown';
 import DriversNearby from '@widgets/drivers-nearby/ui/DriversNearby';
 import MapDriver from '@widgets/map/ui/MapDriver';
-import { AdditionalPoints, PointSelector } from '@features/orders/create/inputs';
-import { OrderStepSection, OrderStepConfig } from '@features/orders/create/ui/OrderStepSection';
+import { Decimal } from 'decimal.js';
+import { FC, useCallback, useState, useMemo, useRef } from 'react';
+import { FormProvider } from 'react-hook-form';
 
 // Пропсы компонента
 interface OrderProps {
@@ -44,12 +44,11 @@ interface OrderProps {
   steps: OrderStepConfig[];
 }
 
-const OrderCreateView: FC<OrderProps> = ({ role, mode, orderData, userSession, steps }) => {
+export const OrderCreateView: FC<OrderProps> = ({ role, mode, orderData, userSession, steps }) => {
   // Хуки для данных
-  const tariffAndServices = useTariffs();
+  const { tariffs } = useTariffs();
   const { allPoints } = useAllPoints();
   const { allServices } = useAllAdditionalServices();
-  const tariffs = tariffAndServices.tariffs;
 
   // Состояние маршрута
   const [routeDistance, setRouteDistance] = useState<number>(0);
@@ -90,6 +89,40 @@ const OrderCreateView: FC<OrderProps> = ({ role, mode, orderData, userSession, s
     userSession,
   });
 
+  // Мемоизируем параметры для хука водителей для предотвращения лишних ререндеров
+  const initialMountRef = useRef(true);
+  
+  const driverParams = useMemo(() => {
+    // При первом рендере даем пустые значения для предотвращения лишних запросов
+    if (initialMountRef.current) {
+      initialMountRef.current = false;
+      return {
+        assignedDriverId: orderData?.assignedDriver?.uuid ?? null,
+        setValue,
+        selectedVehicleType: null,  // Изначально не отправляем конкретные значения
+        selectedServiceLevel: null, // Изначально не отправляем конкретные значения
+        setSelectedVehicleType: handleVehicleTypeChange,
+        setSelectedServiceLevel: handleServiceLevelChange,
+      };
+    }
+    
+    return {
+      assignedDriverId: orderData?.assignedDriver?.uuid ?? null,
+      setValue,
+      selectedVehicleType,
+      selectedServiceLevel,
+      setSelectedVehicleType: handleVehicleTypeChange,
+      setSelectedServiceLevel: handleServiceLevelChange,
+    };
+  }, [
+    orderData?.assignedDriver?.uuid,
+    setValue,
+    selectedVehicleType,
+    selectedServiceLevel,
+    handleVehicleTypeChange,
+    handleServiceLevelChange,
+  ]);
+
   // Водители
   const {
     drivers,
@@ -103,14 +136,7 @@ const OrderCreateView: FC<OrderProps> = ({ role, mode, orderData, userSession, s
     handleSearchDriverChange,
     handleDriverClick,
     handlePageChange,
-  } = useOrderCreateDrivers({
-    assignedDriverId: orderData?.assignedDriver?.uuid ?? null,
-    setValue,
-    selectedVehicleType,
-    selectedServiceLevel,
-    setSelectedVehicleType: handleVehicleTypeChange,
-    setSelectedServiceLevel: handleServiceLevelChange,
-  });
+  } = useOrderCreateDrivers(driverParams);
 
   // Селекторы точек
   const {
@@ -173,9 +199,9 @@ const OrderCreateView: FC<OrderProps> = ({ role, mode, orderData, userSession, s
     allPoints,
     initialSelectedPoints: orderData?.intermediatePoints
       ? [
-          ...orderData.intermediatePoints,
-          ...Array(5 - orderData.intermediatePoints.length).fill(null),
-        ]
+        ...orderData.intermediatePoints,
+        ...Array(5 - orderData.intermediatePoints.length).fill(null),
+      ]
       : Array(5).fill(null),
   });
 
@@ -422,7 +448,7 @@ const OrderCreateView: FC<OrderProps> = ({ role, mode, orderData, userSession, s
                       name="intermediatePoints"
                       onOpenSelect={onAdditionalOpenSelect}
                       selectedPoints={additionalPoints ?? []}
-                      onRemovePoint={onRemovePoint || (() => {})}
+                      onRemovePoint={onRemovePoint || (() => { })}
                       onChangeOrder={onChangeOrder}
                       setAdditionalActiveIndex={setAdditionalActiveIndex}
                       activeIndex={additionalActiveIndex}
@@ -534,5 +560,3 @@ const OrderCreateView: FC<OrderProps> = ({ role, mode, orderData, userSession, s
     </FormProvider>
   );
 };
-
-export default OrderCreateView;

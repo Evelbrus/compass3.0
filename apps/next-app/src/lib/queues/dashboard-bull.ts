@@ -441,6 +441,14 @@ async function processCheckCancelledJob(order: Order) {
         // Отправляем уведомление клиенту с указанием, что это системная отмена
         log(`[processCheckCancelledJob] Отправка уведомления клиенту ${clientId}`);
 
+        
+        log('orderCanceledJob', {
+          originalDriverId,
+          orderId: freshOrder.uuid,
+          clientId,
+          driverId: originalDriverId,
+        });
+
         await processNotification({
           createdById: systemUserId,
           orderId: freshOrder.uuid,

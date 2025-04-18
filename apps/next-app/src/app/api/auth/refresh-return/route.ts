@@ -116,8 +116,8 @@ export async function GET(request: NextRequest) {
       maxAge: authConfig.refreshToken.maxAge,
     });
 
-    processingTokens.delete(refreshToken);
-    console.log('[REFRESH-RETURN] Успешное обновление токенов, перенаправление на:', returnUrl);
+    // processingTokens.delete(refreshToken);
+    // console.log('[REFRESH-RETURN] Успешное обновление токенов, перенаправление на:', returnUrl);
     return response;
   } catch (error) {
     console.error('[REFRESH-RETURN] ОШИБКА:', error);

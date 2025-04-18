@@ -1,6 +1,6 @@
 import React, { JSX } from 'react';
 import { getLayoutData } from '@shared/utils/cookie/layout-data/getLayoutData';
-import OrderCreateView from '@pages/(administrator)/orders/create/OrderCreate.view';
+import { OrderCreateView } from '@pages/(administrator)/orders/create/OrderCreate.view';
 import Loading from '@entities/loading/loading';
 import { UserRole } from '@prisma/client';
 import { redirect } from 'next/navigation';
@@ -176,31 +176,31 @@ const Page = async ({ params }: PageProps): Promise<JSX.Element> => {
       },
       assignedDriver: order.assignedDriver
         ? {
-            uuid: order.assignedDriver.uuid,
-            fullName: order.assignedDriver.fullName,
-            email: order.assignedDriver.email,
-            phone: order.assignedDriver.phone,
-            role: order.assignedDriver.role,
-            profilePhotoPath: order.assignedDriver.profilePhotoPath,
-            lastActive: order.assignedDriver.lastActive,
-            vehicleDriver: order.assignedDriver.vehicleDriver
-              ? {
-                  uuid: order.assignedDriver.vehicleDriver.uuid,
-                  createdAt: order.assignedDriver.vehicleDriver.createdAt,
-                  updatedAt: order.assignedDriver.vehicleDriver.updatedAt,
-                  driverId: order.assignedDriver.vehicleDriver.driverId,
-                  vehicleId: order.assignedDriver.vehicleDriver.vehicleId,
-                  assignmentDate: order.assignedDriver.vehicleDriver.assignmentDate,
-                  vehicle: {
-                    uuid: order.assignedDriver.vehicleDriver.vehicle.uuid,
-                    vehicleType: order.assignedDriver.vehicleDriver.vehicle.vehicleType,
-                    serviceLevels: order.assignedDriver.vehicleDriver.vehicle.serviceLevels,
-                    plateNumber: order.assignedDriver.vehicleDriver.vehicle.plateNumber,
-                    isAvailable: order.assignedDriver.vehicleDriver.vehicle.isAvailable,
-                  },
-                }
-              : undefined,
-          }
+          uuid: order.assignedDriver.uuid,
+          fullName: order.assignedDriver.fullName,
+          email: order.assignedDriver.email,
+          phone: order.assignedDriver.phone,
+          role: order.assignedDriver.role,
+          profilePhotoPath: order.assignedDriver.profilePhotoPath,
+          lastActive: order.assignedDriver.lastActive,
+          vehicleDriver: order.assignedDriver.vehicleDriver
+            ? {
+              uuid: order.assignedDriver.vehicleDriver.uuid,
+              createdAt: order.assignedDriver.vehicleDriver.createdAt,
+              updatedAt: order.assignedDriver.vehicleDriver.updatedAt,
+              driverId: order.assignedDriver.vehicleDriver.driverId,
+              vehicleId: order.assignedDriver.vehicleDriver.vehicleId,
+              assignmentDate: order.assignedDriver.vehicleDriver.assignmentDate,
+              vehicle: {
+                uuid: order.assignedDriver.vehicleDriver.vehicle.uuid,
+                vehicleType: order.assignedDriver.vehicleDriver.vehicle.vehicleType,
+                serviceLevels: order.assignedDriver.vehicleDriver.vehicle.serviceLevels,
+                plateNumber: order.assignedDriver.vehicleDriver.vehicle.plateNumber,
+                isAvailable: order.assignedDriver.vehicleDriver.vehicle.isAvailable,
+              },
+            }
+            : undefined,
+        }
         : undefined,
       departureTime: order.departureTime
         ? order.departureTime.toISOString()
