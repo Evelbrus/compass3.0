@@ -71,9 +71,6 @@ export const useCreateAdminOrderLogic = (
   const selectedServiceLevel = watch('serviceLevel');
   const selectedVehicleType = watch('vehicleType');
 
-  const [selectedTariff, setSelectedTariff] = useState<
-    (Tariff & { tariffAdditionalServices: TariffOnService[] }) | null
-  >(null);
   const serviceLevelMapRef = useRef<Partial<Record<VehicleType, ServiceLevels>>>({});
   const initializedRef = useRef(false);
 
@@ -85,41 +82,43 @@ export const useCreateAdminOrderLogic = (
   }, [initialVehicleType, initialServiceLevel]);
 
   useEffect(() => {
+    console.log('[useEffect] selectedServiceLevel:', selectedServiceLevel);
+    console.log('[useEffect] selectedVehicleType:', selectedVehicleType);
+    console.log('[useEffect] tariffs:', tariffs.map(t => ({ uuid: t.uuid, serviceLevel: t.serviceLevel, vehicleType: t.vehicleType })));
     if (selectedServiceLevel && selectedVehicleType && tariffs.length > 0) {
       const matchingTariff = tariffs.find(
         (tariff) =>
           tariff.serviceLevel === selectedServiceLevel &&
           tariff.vehicleType === selectedVehicleType,
       );
-      setSelectedTariff(matchingTariff || null);
-      if (matchingTariff) {
-        setValue('tariffUuid', { uuid: matchingTariff.uuid });
-      }
-    } else {
-      setSelectedTariff(null);
+      console.log('[useEffect] matchingTariff:', matchingTariff);
     }
-  }, [selectedServiceLevel, selectedVehicleType, tariffs, setValue]);
+  }, [selectedServiceLevel, selectedVehicleType, tariffs]);
 
   useEffect(() => {
     if (tariffs.length > 0 && orderData?.tariff && !initializedRef.current) {
       initializedRef.current = true;
       const initialTariff = tariffs.find((t) => t.uuid === orderData.tariff.uuid);
       if (initialTariff) {
-        setValue('serviceLevel', initialTariff.serviceLevel);
-        setValue('vehicleType', initialTariff.vehicleType);
-        setValue('tariffUuid', { uuid: initialTariff.uuid });
-        setSelectedTariff(initialTariff);
+        if (getValues('serviceLevel') !== initialTariff.serviceLevel) {
+          setValue('serviceLevel', initialTariff.serviceLevel);
+        }
+        if (getValues('vehicleType') !== initialTariff.vehicleType) {
+          setValue('vehicleType', initialTariff.vehicleType);
+        }
         serviceLevelMapRef.current[initialTariff.vehicleType] = initialTariff.serviceLevel;
       }
     }
-  }, [tariffs, orderData, setValue]);
+  }, [tariffs, orderData, setValue, getValues]);
 
   const handleServiceLevelChange = useCallback(
     (level: ServiceLevels) => {
-      setValue('serviceLevel', level);
-      const currentVehicleType = getValues('vehicleType');
-      if (currentVehicleType) {
-        serviceLevelMapRef.current[currentVehicleType] = level;
+      if (getValues('serviceLevel') !== level) {
+        setValue('serviceLevel', level);
+        const currentVehicleType = getValues('vehicleType');
+        if (currentVehicleType) {
+          serviceLevelMapRef.current[currentVehicleType] = level;
+        }
       }
     },
     [setValue, getValues],
@@ -134,36 +133,68 @@ export const useCreateAdminOrderLogic = (
 
   const handleVehicleTypeChange = useCallback(
     (newType: VehicleType) => {
-      const currentVehicleType = getValues('vehicleType');
-      const currentServiceLevel = getValues('serviceLevel');
+      if (getValues('vehicleType') !== newType) {
+        const currentVehicleType = getValues('vehicleType');
+        const currentServiceLevel = getValues('serviceLevel');
 
-      if (currentVehicleType && currentServiceLevel) {
-        serviceLevelMapRef.current[currentVehicleType] = currentServiceLevel;
-      }
+        if (currentVehicleType && currentServiceLevel) {
+          serviceLevelMapRef.current[currentVehicleType] = currentServiceLevel;
+        }
 
-      setValue('vehicleType', newType);
+        setValue('vehicleType', newType);
 
-      const availableTariffs = getAvailableTariffsForVehicleType(newType);
-      if (availableTariffs.length > 0 && availableTariffs[0]) {
-        const firstAvailableTariff = availableTariffs[0];
-        const newServiceLevel = firstAvailableTariff.serviceLevel;
-        setValue('serviceLevel', newServiceLevel);
-        serviceLevelMapRef.current[newType] = newServiceLevel;
-        setValue('tariffUuid', { uuid: firstAvailableTariff.uuid });
-      } else {
-        const savedServiceLevel = serviceLevelMapRef.current[newType];
-        if (savedServiceLevel) {
-          setValue('serviceLevel', savedServiceLevel);
+        const availableTariffs = getAvailableTariffsForVehicleType(newType);
+        const hasCurrentServiceLevel = availableTariffs.some(
+          (tariff) => tariff.serviceLevel === currentServiceLevel
+        );
+        if (hasCurrentServiceLevel) {
+          if (getValues('serviceLevel') !== currentServiceLevel) {
+            setValue('serviceLevel', currentServiceLevel);
+          }
+          const matchingTariff = availableTariffs.find(
+            (tariff) => tariff.serviceLevel === currentServiceLevel
+          );
+          if (matchingTariff && getValues('tariffUuid')?.uuid !== matchingTariff.uuid) {
+            setValue('tariffUuid', { uuid: matchingTariff.uuid });
+          }
+        } else if (availableTariffs.length > 0) {
+          const firstAvailableTariff = availableTariffs[0];
+          if (firstAvailableTariff) {
+            const newServiceLevel = firstAvailableTariff.serviceLevel;
+            if (getValues('serviceLevel') !== newServiceLevel) {
+              setValue('serviceLevel', newServiceLevel);
+            }
+            serviceLevelMapRef.current[newType] = newServiceLevel;
+            if (getValues('tariffUuid')?.uuid !== firstAvailableTariff.uuid) {
+              setValue('tariffUuid', { uuid: firstAvailableTariff.uuid });
+            }
+          }
+        } else {
+          const savedServiceLevel = serviceLevelMapRef.current[newType];
+          if (savedServiceLevel && getValues('serviceLevel') !== savedServiceLevel) {
+            setValue('serviceLevel', savedServiceLevel);
+          }
         }
       }
     },
     [setValue, getValues, getAvailableTariffsForVehicleType],
   );
 
+  // Производное значение тарифа
+  const selectedTariff = tariffs.find(
+    (tariff) =>
+      tariff.serviceLevel === selectedServiceLevel &&
+      tariff.vehicleType === selectedVehicleType,
+  ) || null;
+
+  // Производное значение tariffUuid
+  const selectedTariffUuid = selectedTariff?.uuid || null;
+
   return {
     selectedServiceLevel,
     selectedVehicleType,
     selectedTariff,
+    selectedTariffUuid,
     handleServiceLevelChange,
     handleVehicleTypeChange,
     formMethods,

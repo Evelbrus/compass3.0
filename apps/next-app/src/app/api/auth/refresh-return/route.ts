@@ -45,9 +45,11 @@ export async function GET(request: NextRequest) {
       refreshToken,
       authConfig.refreshToken.secret,
     );
-    console.log('[REFRESH-RETURN] Токен верифицирован, UUID пользователя:', payload.uuid);
+    console.log('[REFRESH-RETURN] Токен верифицирован, UUID пользователя:', payload);
 
     console.log('[REFRESH-RETURN] Шаг 3: Поиск пользователя в базе данных...');
+    console.log('[REFRESH-RETURN] payload:', payload);
+    console.log('[REFRESH-RETURN] findMany:', await prisma.user.findMany());
     const user = await prisma.user.findFirst({
       where: {
         uuid: payload.uuid,
@@ -116,8 +118,8 @@ export async function GET(request: NextRequest) {
       maxAge: authConfig.refreshToken.maxAge,
     });
 
-    processingTokens.delete(refreshToken);
-    console.log('[REFRESH-RETURN] Успешное обновление токенов, перенаправление на:', returnUrl);
+    // processingTokens.delete(refreshToken);
+    // console.log('[REFRESH-RETURN] Успешное обновление токенов, перенаправление на:', returnUrl);
     return response;
   } catch (error) {
     console.error('[REFRESH-RETURN] ОШИБКА:', error);

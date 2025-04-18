@@ -63,8 +63,8 @@ export const authConfig: AuthConfig = {
   accessToken: {
     //Используем оператор нулевого слияния и приведение типа, чтобы гарантировать строку
     secret: ((process.env.ACCESS_TOKEN_SECRET ?? 'access_secret') as string).trim(),
-    expiresIn: '5m',
-    maxAge: parseDuration('5m'),
+    expiresIn: '1m',
+    maxAge: parseDuration('1m'),
   },
   refreshToken: {
     secret: ((process.env.REFRESH_TOKEN_SECRET ?? 'refresh_secret') as string).trim(),

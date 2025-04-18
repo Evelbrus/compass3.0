@@ -45,6 +45,8 @@ interface OrderProps {
 }
 
 const OrderCreateView: FC<OrderProps> = ({ role, mode, orderData, userSession, steps }) => {
+
+  
   // Хуки для данных
   const tariffAndServices = useTariffs();
   const { allPoints } = useAllPoints();

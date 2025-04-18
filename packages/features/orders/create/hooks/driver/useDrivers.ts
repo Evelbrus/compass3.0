@@ -8,6 +8,7 @@ interface UseDriversProps {
 }
 
 export const useDrivers = ({ vehicleType, serviceLevel }: UseDriversProps) => {
+  console.log('useDrivers called', { vehicleType, serviceLevel });
   const [drivers, setDrivers] = useState<Driver[] | null>(null);
   const [assignedDriver, setAssignedDriver] = useState<Driver | null>(null);
   const [page, setPage] = useState<string>('1');
@@ -22,6 +23,7 @@ export const useDrivers = ({ vehicleType, serviceLevel }: UseDriversProps) => {
       serviceLevelQuery: string | null | undefined,
       searchQuery: string = '',
     ) => {
+      console.log('fetchDriversData', { vehicleTypeQuery, serviceLevelQuery, searchQuery, page, perPage });
       setIsLoading(true);
       try {
         const driversData = await fetchDrivers(

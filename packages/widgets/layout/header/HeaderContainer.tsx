@@ -5,7 +5,6 @@ import dynamic from 'next/dynamic';
 import { useRouter, usePathname } from 'next/navigation';
 import { UserSession } from '@shared/prisma/interface/users/interface';
 import { breadcrumbsMap, privateRoutes } from '@shared/utils/routing';
-import Search from '@widgets/layout/header/search/Search';
 import Link from 'next/link';
 
 const Profile = dynamic(() => import('@widgets/layout/header/profile/Profile'), {
@@ -125,14 +124,12 @@ const HeaderContainer: React.FC<HeaderContainerProps> = ({ userSession }) => {
     }
   };
 
-  const handleSearch = (query: string) => {};
-
   const visibleBreadcrumbs = breadcrumbs.filter((item) => item.label !== '');
   const lastBreadcrumb =
     visibleBreadcrumbs.length > 0 ? visibleBreadcrumbs[visibleBreadcrumbs.length - 1] : null;
 
   return (
-    <div className="w-full flex flex-row justify-between items-center backdrop-blur-xl bg-white/10 p-4 rounded-2xl">
+    <div className="w-full flex flex-row justify-between items-center h-[100px] max-h-[100px] border-b bg-white z-20 px-4">
       <div className="flex flex-col gap-1">
         <nav aria-label="Breadcrumb" className="text-sm">
           <ol className="flex items-center flex-wrap">
@@ -168,10 +165,9 @@ const HeaderContainer: React.FC<HeaderContainerProps> = ({ userSession }) => {
         </nav>
       </div>
 
-      <div className="flex flex-row items-center gap-4 bg-white p-2 rounded-full shadow-lg">
+      <div className="flex flex-row items-center gap-4">
+                <Notification userSession={userSession} />
         <Profile userSession={userSession} onLogout={logout} onNavigate={handleNavigate} />
-        <Search onSearch={handleSearch} />
-        <Notification userSession={userSession} />
       </div>
     </div>
   );

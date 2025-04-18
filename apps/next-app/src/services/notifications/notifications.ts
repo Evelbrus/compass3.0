@@ -189,6 +189,8 @@ export async function processNotification({
       updatedAt: notification.updatedAt,
     };
 
+    
+
     if (ensureSocketConnection()) {
       if (createdById) {
         console.log(`Отправка уведомления пользователю ${createdById}:`, notificationData);

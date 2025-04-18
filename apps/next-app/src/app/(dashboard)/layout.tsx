@@ -1,46 +1,44 @@
-import React, { JSX, ReactNode } from 'react';
+import React, { ReactNode, Suspense } from 'react';
 import { getLayoutData } from '@shared/utils/cookie/layout-data/getLayoutData';
 import Sidebar from '@shared/components/layout/sidebar/ui/Sidebar';
-import Header from '@widgets/layout/header/Header';
 import { SocketProvider } from '@app/provider/SocketProvider';
 import GradientBackground from '@shared/components/background/GradientBackground';
 import ModalManagerComponent from '@widgets/modal/ModalManager';
+import { redirect } from 'next/navigation';
+import HeaderContainer from '@widgets/layout/header/HeaderContainer';
 
 type RootLayoutProps = {
   children: ReactNode;
 };
 
-const BaseLayout = async ({ children }: RootLayoutProps): Promise<JSX.Element> => {
+const BaseLayout = async ({ children }: RootLayoutProps) => {
   const { userSession, role } = await getLayoutData();
+
+  if (!role) {
+    redirect('/login');
+  }
 
   return (
     <>
-      <SocketProvider>
-        {/* Контейнер с фиксированной максимальной шириной */}
-        <div className="w-full flex flex-row flex-shrink-0 min-h-screen mx-auto">
-          {/* Сайдбар с фиксированной шириной в 300px */}
-          <div className="w-[200px]   flex bg-gradient-to-r to-indigo-700/5 from-blue-600/15">
+      <div className="w-full min-h-screen flex flex-col">
+        <div className="flex flex-row md:flex-row flex-1">
+          <div className="hidden lg:block lg:w-[220px] flex-shrink-0">
             <Sidebar role={role} />
           </div>
-
-          {/* Контент с автоматической шириной (оставшееся пространство до 1920px) */}
-          <div className="relative w-full flex flex-col">
-            {/* Хедер с sticky-поведением */}
-            <div className="sticky top-0 z-30 w-full">
-              <Header userSession={userSession} />
-            </div>
-
-            {/* Область основного контента */}
-            <div className="flex-1 md:rounded-bl-3xl lg:rounded-bl-3xl overflow-auto">
-              <GradientBackground />
+          <div className="flex-1 flex flex-col min-w-0">
+            <div className="bg-gradient-to-r from-indigo-700/5 via-blue-600/20 to-indigo-700/5 flex-1 overflow-auto relative">
+            {/* <GradientBackground /> */}
+              <SocketProvider>
+                <HeaderContainer userSession={userSession} />
+              </SocketProvider>
               <div className="relative w-full flex flex-col z-20">
-                <main className="flex-1">{children}</main>
+                <main className="flex-1 flex flex-col gap-4 transition">{children}</main>
               </div>
             </div>
           </div>
         </div>
-        {role && <ModalManagerComponent role={role} />}
-      </SocketProvider>
+      </div>
+      <ModalManagerComponent role={role} />
     </>
   );
 };

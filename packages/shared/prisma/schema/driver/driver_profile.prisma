@@ -29,7 +29,7 @@ model DriverProfile {
   uuid              String             @id @default(uuid()) @map("uuid")
   citizenship       Citizenship        @map("citizenship")
   identityDocument  IdentityDocument   @map("identity_document")
-  passportId        BigInt             @map("passport_id")
+  passportId        String             @map("passport_id")
   passportIssueDate DateTime?          @map("passport_issue_date")
   passportIssued    String             @map("passport_issued")
   birthDate         DateTime?          @map("birthdate")

@@ -39,6 +39,7 @@ export const useOrderCreateDrivers = ({
   const [currentTotal, setCurrentTotal] = useState(0);
   const lastVehicleTypeRef = useRef<VehicleType | undefined>(undefined);
   const lastServiceLevelRef = useRef<ServiceLevels | undefined>(undefined);
+  const autoChangedServiceLevelRef = useRef(false);
 
   const driverHistoryRef = useRef<DriverHistoryItem[]>([]);
 
@@ -170,32 +171,6 @@ export const useOrderCreateDrivers = ({
     setValue,
     findDriverInHistory,
     refetchDrivers,
-  ]);
-
-  useEffect(() => {
-    if (selectedVehicleType && drivers && drivers.length > 0) {
-      const availableServiceLevels = getAvailableServiceLevelsForVehicleType(
-        selectedVehicleType as VehicleType,
-      );
-      if (
-        availableServiceLevels.length > 0 &&
-        (!selectedServiceLevel ||
-          !availableServiceLevels.includes(selectedServiceLevel as ServiceLevels))
-      ) {
-        const firstServiceLevel = availableServiceLevels[0];
-        if (firstServiceLevel) {
-          setSelectedServiceLevel(firstServiceLevel);
-          setValue('serviceLevel', firstServiceLevel);
-        }
-      }
-    }
-  }, [
-    selectedVehicleType,
-    drivers,
-    selectedServiceLevel,
-    setValue,
-    setSelectedServiceLevel,
-    getAvailableServiceLevelsForVehicleType,
   ]);
 
   useEffect(() => {

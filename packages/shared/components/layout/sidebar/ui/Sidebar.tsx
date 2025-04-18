@@ -44,11 +44,11 @@ const Sidebar: React.FC<SidebarProps> = ({ role }) => {
   const filteredNavItems = navItems.filter((item: NavItem) => allowedHrefs.includes(item.href));
 
   return (
-    <aside className="hidden md:block lg:block h-full text-white z-50 bg-transparent">
+    <aside className="hidden md:block lg:block h-full text-white z-50 bg-transparent border-r">
       {/* При клике переходим на главную */}
       <div
         onClick={() => handleNavigation('HOME')}
-        className="flex items-center justify-start w-full h-[100px] p-4 cursor-pointer"
+        className="flex items-center justify-start w-full h-[100px] p-4 cursor-pointe border-b"
       >
         <LazyImage
           src="/compassLogo.svg"
@@ -58,7 +58,7 @@ const Sidebar: React.FC<SidebarProps> = ({ role }) => {
         />
       </div>
 
-      <nav className="px-5 py-8 border-y border-gray-300">
+      <nav className="px-5 py-8">
         <ul className="flex flex-col gap-8">
           {filteredNavItems.map((item: NavItem) => {
             // Получаем текущий путь

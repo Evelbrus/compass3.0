@@ -135,10 +135,7 @@ export async function updateUser(data: UpdateUserDTO): Promise<User> {
         }
 
         const driverUpdateInput: Prisma.DriverProfileUpdateInput = {
-          passportId:
-            typeof driverProfile.passportId === 'string'
-              ? Number(driverProfile.passportId)
-              : driverProfile.passportId,
+          passportId:String(driverProfile.passportId),
           passportIssueDate: driverProfile.passportIssueDate
             ? typeof driverProfile.passportIssueDate === 'string'
               ? new Date(driverProfile.passportIssueDate)

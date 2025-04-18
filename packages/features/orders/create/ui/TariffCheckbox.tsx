@@ -51,6 +51,16 @@ export const TariffCheckbox: React.FC<TariffCheckboxProps> = ({
   const vehicleTypeValue = watch('vehicleType');
   const serviceLevelValue = watch('serviceLevel');
 
+  // refs для актуальных значений
+  const vehicleTypeValueRef = React.useRef(vehicleTypeValue);
+  const serviceLevelValueRef = React.useRef(serviceLevelValue);
+  React.useEffect(() => {
+    vehicleTypeValueRef.current = vehicleTypeValue;
+  }, [vehicleTypeValue]);
+  React.useEffect(() => {
+    serviceLevelValueRef.current = serviceLevelValue;
+  }, [serviceLevelValue]);
+
   const translatedVehicleType = useMemo(() => {
     const selectedOption = vehicleTypeOptions.find((option) => option.value === vehicleTypeValue);
     return selectedOption ? selectedOption.label : 'Транспорт';
@@ -70,41 +80,42 @@ export const TariffCheckbox: React.FC<TariffCheckboxProps> = ({
     [tariffs],
   );
 
-  const debouncedVehicleTypeChange = useCallback(
-    debounce((type: VehicleType) => {
-      handleVehicleTypeChange(type);
+  // debounce через useMemo, зависимости только на функциях
+  const debouncedVehicleTypeChange = React.useMemo(
+    () =>
+      debounce((type: VehicleType) => {
+        if (vehicleTypeValueRef.current === type) return; // не менять если уже выбран
+        handleVehicleTypeChange(type);
 
-      const firstAvailableServiceLevel = serviceLevelOptions
-        .filter((option) => option.value !== 'None')
-        .find((levelOption) => isServiceLevelAvailable(levelOption.value, type));
+        const firstAvailableServiceLevel = serviceLevelOptions
+          .filter((option) => option.value !== 'None')
+          .find((levelOption) => isServiceLevelAvailable(levelOption.value, type));
 
-      if (firstAvailableServiceLevel) {
-        const newServiceLevel = firstAvailableServiceLevel.value;
-        handleServiceLevelChange(newServiceLevel);
-        if (refetchDrivers) {
-          refetchDrivers('', type, newServiceLevel);
+        if (firstAvailableServiceLevel) {
+          const newServiceLevel = firstAvailableServiceLevel.value;
+          if (serviceLevelValueRef.current !== newServiceLevel) {
+            handleServiceLevelChange(newServiceLevel);
+          }
+          if (refetchDrivers) {
+            refetchDrivers('', type, newServiceLevel);
+          }
+        } else if (refetchDrivers) {
+          refetchDrivers('', type, serviceLevelValueRef.current);
         }
-      } else if (refetchDrivers) {
-        refetchDrivers('', type, serviceLevelValue);
-      }
-    }, 300),
-    [
-      handleVehicleTypeChange,
-      serviceLevelValue,
-      refetchDrivers,
-      isServiceLevelAvailable,
-      handleServiceLevelChange,
-    ],
+      }, 300),
+    [handleVehicleTypeChange, handleServiceLevelChange, refetchDrivers, isServiceLevelAvailable]
   );
 
-  const debouncedServiceLevelChange = useCallback(
-    debounce((level: ServiceLevels) => {
-      handleServiceLevelChange(level);
-      if (refetchDrivers) {
-        refetchDrivers('', vehicleTypeValue, level);
-      }
-    }, 300),
-    [handleServiceLevelChange, vehicleTypeValue, refetchDrivers],
+  const debouncedServiceLevelChange = React.useMemo(
+    () =>
+      debounce((level: ServiceLevels) => {
+        if (serviceLevelValueRef.current === level) return; // не менять если уже выбран
+        handleServiceLevelChange(level);
+        if (refetchDrivers) {
+          refetchDrivers('', vehicleTypeValueRef.current, level);
+        }
+      }, 300),
+    [handleServiceLevelChange, refetchDrivers]
   );
 
   return (
@@ -135,7 +146,11 @@ export const TariffCheckbox: React.FC<TariffCheckboxProps> = ({
                       <CheckboxInput
                         label={typeOption.label}
                         checked={field.value === typeOption.value}
-                        onChange={() => debouncedVehicleTypeChange(typeOption.value)}
+                        onChange={() => {
+                          if (field.value !== typeOption.value) {
+                            debouncedVehicleTypeChange(typeOption.value);
+                          }
+                        }}
                       />
                     )}
                   />
@@ -173,7 +188,11 @@ export const TariffCheckbox: React.FC<TariffCheckboxProps> = ({
                         <CheckboxInput
                           label={levelOption.label}
                           checked={field.value === levelOption.value}
-                          onChange={() => debouncedServiceLevelChange(levelOption.value)}
+                          onChange={() => {
+                            if (field.value !== levelOption.value) {
+                              debouncedServiceLevelChange(levelOption.value);
+                            }
+                          }}
                           disabled={!isAvailable}
                           className={!isAvailable ? 'line-through' : ''}
                         />
